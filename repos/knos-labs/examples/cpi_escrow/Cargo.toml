@@ -1,0 +1,21 @@
+[package]
+name = "knos_cpi_escrow_example"
+version = "0.3.6"
+edition = "2021"
+rust-version = "1.84"
+license = "MIT"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+solana-program = "=2.2.1"
+
+[features]
+no-entrypoint = []
+
+[lints.rust]
+unexpected_cfgs = { level = "allow" }
+
+[workspace]

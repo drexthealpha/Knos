@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Knos network</title>
+<style>
+:root{--bg:#fbfaf7;--ink:#1d1d1b;--dim:#6b6a66;--line:#e2dfd8}
+@media (prefers-color-scheme:dark){:root{--bg:#141413;--ink:#ecebe6;--dim:#9b9a95;--line:#2c2b29}}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,sans-serif;margin:0;padding:24px 16px}
+main{max-width:880px;margin:auto} table{border-collapse:collapse;width:100%;margin:16px 0}
+td,th{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left} .dim{color:var(--dim)}
+.wrap{overflow-x:auto}
+</style></head><body><main>
+<h1>Knos network</h1>
+<p>Every Knos team is a public Solana Attestation Service credential. These numbers are read from the chain by
+<code>scripts/network_stats.py</code>; run it yourself to check them.</p>
+<p class="dim">Updated 2026-10-01 12:22 UTC. Anyone can create a credential named <code>knos-*</code>
+with the Knos schema, so counts are not proof of distinct teams. Devnet is a test network.</p>
+<div class="wrap"><table><tr><th>cluster</th><th>teams</th><th>members</th><th>live claims</th><th>live renewals</th>
+<th>records</th><th>recent closes</th></tr>
+<tr><td>devnet</td><td>2</td><td>4</td><td>2</td><td>0</td><td>0</td><td>2</td></tr><tr><td>mainnet</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr></table></div>
+<p class="dim">Recent closes are CloseAttestation instructions in each team's last 1,000 transactions: released
+claims, claims that lost a race, and sweeps of lapsed claims, together. Look-alike credentials whose claim schema is
+not Knos's, byte for byte, are left out
+(0 this run).</p>
+<h2>The project</h2>
+<p>GitHub: 1 stars, 1 forks, 1 contributors,
+10 open issues and pull requests.</p>
+</main></body></html>

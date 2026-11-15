@@ -1,0 +1,16 @@
+[profile.default]
+src = "."
+test = "test"
+out = "out"
+cache_path = "cache"
+solc_version = "0.8.26"
+fuzz = { runs = 1000 }
+
+# Nightly: FOUNDRY_PROFILE=nightly forge test --root contracts   (the conservation fuzz at 10,000 runs)
+[profile.nightly]
+src = "."
+test = "test"
+out = "out"
+cache_path = "cache"
+solc_version = "0.8.26"
+fuzz = { runs = 10000 }

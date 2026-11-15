@@ -1,0 +1,34 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# Knos's own data lives in ~/.knos, never in a repo. `knos export` writes .knos/decisions.md for a repo that wants
+# to carry its decisions; nothing else under .knos/ is shareable.
+.knos/*
+!.knos/decisions.md
+
+# Secrets and keys, in case one ever lands here
+.knos-keys/
+.knos-admin/
+*.keypair.json
+*.keystore
+keystore/
+.env
+.env.*
+*.pem
+*.key
+id_rsa*
+.npmrc
+.pypirc
+
+# Machine-specific agent config: `knos init` writes the right one for whoever cloned this
+.mcp.json
+node_modules/
+contracts/out/
+contracts/cache/
+programs/knos_escrow/target/

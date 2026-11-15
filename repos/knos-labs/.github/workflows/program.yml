@@ -1,0 +1,187 @@
+name: program
+
+# The Solana escrow, built and tested in Actions: `cargo build-sbf` with a pinned, cached agave, the LiteSVM attack
+# tests and 10,000 fuzz steps against the freshly built program. From main only, it then upgrades the devnet escrow
+# and prints the upgrade signature and the new program hash. The deployed binary is the solana-verify (docker) build;
+# once the upgrade authority is the Squads vault (scripts/squads_handover.mjs) CI only writes a buffer and proposes.
+on:
+  workflow_dispatch:
+  push:
+    paths: ["programs/**", ".github/workflows/program.yml"]
+
+concurrency:
+  group: program-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  SOLANA_VERSION: v2.3.13
+  PROGRAM_ID: GwmbMFvyHHwHug5em9dv26oXz2zTgXKGsNdrBxPayRPq
+  # agave 2.3 platform tools (rustc 1.84) for solana-verify; its default image is rustc 1.79, too old for the lockfile
+  VERIFY_IMAGE: solanafoundation/solana-verifiable-build:2.3.11
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/share/solana/install
+            ~/.cache/solana
+          key: agave-${{ env.SOLANA_VERSION }}-${{ runner.os }}
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            programs/knos_escrow/target
+          key: cargo-sbf-${{ hashFiles('programs/knos_escrow/Cargo.lock') }}
+          restore-keys: cargo-sbf-
+      - name: agave (pinned, cached)
+        run: |
+          [ -x "$HOME/.local/share/solana/install/active_release/bin/solana" ] || sh -c "$(curl -sSfL https://release.anza.xyz/$SOLANA_VERSION/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+      - name: cargo build-sbf
+        run: |
+          cd programs/knos_escrow && cargo build-sbf
+          cp target/deploy/knos_escrow.so "$GITHUB_WORKSPACE/src/knos/jobs/knos_escrow.so"
+          sha256sum target/deploy/knos_escrow.so
+      - uses: actions/upload-artifact@v4
+        with:
+          name: knos_escrow.so
+          path: programs/knos_escrow/target/deploy/knos_escrow.so
+      - name: a non-devnet build (no faucet), for the refusal test only
+        run: |
+          cd programs/knos_escrow && cargo build-sbf --no-default-features
+          cp target/deploy/knos_escrow.so "$RUNNER_TEMP/knos_escrow_nodevnet.so"
+          echo "KNOS_ESCROW_NODEVNET_SO=$RUNNER_TEMP/knos_escrow_nodevnet.so" >> "$GITHUB_ENV"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: pyproject.toml
+      - run: uv pip install --system -e ".[dev]"
+      - run: git config --global user.email ci@example.invalid && git config --global user.name ci
+      - name: attack tests, rules, market, verifier (against the built program)
+        run: pytest -q -n auto tests/test_escrow_sol.py tests/test_escrow_bounty.py tests/test_escrow_idl.py tests/test_gas.py tests/test_jobs_market.py tests/test_promises.py tests/test_jobs_actions.py tests/test_verify.py
+      - name: GitHub Actions OIDC proof verified on chain (prints the CU of VerifyStep1 / VerifyStep2), the IDL
+        run: pytest -q -s tests/test_github_proof.py tests/test_fund_issuer.py tests/test_escrow_idl.py
+      - name: fuzz, 10,000 steps
+        run: KNOS_FUZZ_SEED=$GITHUB_RUN_ID python -m pytest -q -m slow tests/test_escrow_fuzz.py -s
+        env:
+          KNOS_FUZZ_N: "10000"
+
+  cargo-audit:
+    # RustSec advisories against programs/knos_escrow/Cargo.lock. No ignores: any vulnerability fails the job.
+    # (An ignore must be added here as `--ignore RUSTSEC-...` with the reason it does not apply to an SBF program.)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+      - name: cargo audit
+        run: cd programs/knos_escrow && cargo audit
+
+  verified-build:
+    # The deployed binary is THIS one: `solana-verify build` (pinned docker image), so `solana-verify
+    # verify-from-repo` reproduces it byte for byte. cargo build-sbf on the runner differs (toolchain paths and
+    # versions are embedded), which is why build-test's .so is only tested, never deployed.
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/solana-verify
+          key: solana-verify-0.4
+      - name: solana-verify
+        run: |
+          [ -x "$HOME/.cargo/bin/solana-verify" ] || cargo install --locked solana-verify
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+      - name: solana-verify build (docker)
+        run: |
+          solana-verify build "$GITHUB_WORKSPACE/programs/knos_escrow" --library-name knos_escrow --base-image "$VERIFY_IMAGE"
+          echo "executable hash: $(solana-verify get-executable-hash programs/knos_escrow/target/deploy/knos_escrow.so)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: knos_escrow-verified.so
+          path: programs/knos_escrow/target/deploy/knos_escrow.so
+
+  deploy-devnet:
+    needs: [build-test, cargo-audit, verified-build]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.local/share/solana/install
+            ~/.cache/solana
+          key: agave-${{ env.SOLANA_VERSION }}-${{ runner.os }}
+      - name: agave
+        run: |
+          [ -x "$HOME/.local/share/solana/install/active_release/bin/solana" ] || sh -c "$(curl -sSfL https://release.anza.xyz/$SOLANA_VERSION/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+      - uses: actions/download-artifact@v4
+        with:
+          name: knos_escrow-verified.so
+      - uses: actions/checkout@v4
+        with:
+          path: repo
+          sparse-checkout: scripts
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: upgrade the devnet escrow (direct while the key is the authority; a Squads proposal once the vault is)
+        env:
+          DEVNET_UPGRADE_KEY: ${{ secrets.DEVNET_UPGRADE_KEY }}
+        run: |
+          trap 'rm -f "$RUNNER_TEMP/up.json"' EXIT
+          umask 077; printf '%s' "$DEVNET_UPGRADE_KEY" > "$RUNNER_TEMP/up.json"
+          solana config set --url devnet --keypair "$RUNNER_TEMP/up.json" >/dev/null
+          echo "deployed binary (solana-verify build) sha256: $(sha256sum knos_escrow.so | cut -d' ' -f1)"
+          vault=$(python3 -c 'import json;print(json.load(open("repo/scripts/squads_devnet.json"))["vaultPda"])' 2>/dev/null || true)
+          auth=$(solana -u devnet program show "$PROGRAM_ID" --output json | python3 -c 'import sys,json;print(json.load(sys.stdin)["authority"])')
+          echo "upgrade authority: $auth  (Squads vault: ${vault:-none})"
+          have=$(solana -u devnet program show "$PROGRAM_ID" --output json | python3 -c 'import sys,json;print(json.load(sys.stdin)["dataLen"])')
+          need=$(stat -c%s knos_escrow.so)
+          if [ "$need" -gt "$have" ]; then solana -u devnet program extend "$PROGRAM_ID" $(( need - have + 4096 )) --keypair "$RUNNER_TEMP/up.json"; fi
+          if [ -n "$vault" ] && [ "$auth" = "$vault" ]; then
+            solana -u devnet program write-buffer knos_escrow.so --keypair "$RUNNER_TEMP/up.json" --output json-compact | tee buffer.json
+            buffer=$(python3 -c 'import json;print(json.load(open("buffer.json"))["buffer"])')
+            solana -u devnet program set-buffer-authority "$buffer" --new-buffer-authority "$vault" --keypair "$RUNNER_TEMP/up.json"
+            mkdir -p "$RUNNER_TEMP/sq" && (cd "$RUNNER_TEMP/sq" && npm init -y >/dev/null && npm i --silent @sqds/multisig@2 @solana/web3.js@1)
+            KNOS_SQUADS_NODE_DIR="$RUNNER_TEMP/sq" node repo/scripts/squads_propose_upgrade.mjs "$buffer" "$RUNNER_TEMP/up.json" | tee proposal.json
+            echo "PROPOSED: 2 of 3 members approve; it executes after the time lock. Not deployed by CI."
+            exit 0
+          fi
+          solana -u devnet program deploy knos_escrow.so --program-id "$PROGRAM_ID" \
+            --upgrade-authority "$RUNNER_TEMP/up.json" --keypair "$RUNNER_TEMP/up.json" --output json-compact | tee deploy.json
+          echo "upgrade signature: $(python3 -c 'import json;print(json.load(open("deploy.json")).get("signature"))')"
+          solana -u devnet program dump "$PROGRAM_ID" onchain.so >/dev/null
+          echo "on-chain program sha256: $(head -c $(stat -c%s knos_escrow.so) onchain.so | sha256sum | cut -d' ' -f1)"
+          solana -u devnet program show "$PROGRAM_ID"
+      - uses: actions/cache/restore@v4
+        with:
+          path: ~/.cargo/bin/solana-verify
+          key: solana-verify-0.4
+      - name: solana-verify verify-from-repo against devnet (writes the verification PDA with the deploy key)
+        env:
+          DEVNET_UPGRADE_KEY: ${{ secrets.DEVNET_UPGRADE_KEY }}
+        run: |
+          [ -x "$HOME/.cargo/bin/solana-verify" ] || cargo install --locked solana-verify
+          trap 'rm -f "$RUNNER_TEMP/up.json"' EXIT
+          umask 077; printf '%s' "$DEVNET_UPGRADE_KEY" > "$RUNNER_TEMP/up.json"
+          echo "on-chain hash: $(~/.cargo/bin/solana-verify get-program-hash -u devnet "$PROGRAM_ID")"
+          ~/.cargo/bin/solana-verify verify-from-repo -u devnet --program-id "$PROGRAM_ID" \
+            "https://github.com/${{ github.repository }}" --commit-hash "$GITHUB_SHA" \
+            --mount-path programs/knos_escrow --library-name knos_escrow --base-image "$VERIFY_IMAGE" -k "$RUNNER_TEMP/up.json" --skip-prompt

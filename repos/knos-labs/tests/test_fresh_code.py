@@ -1,0 +1,233 @@
+"""Code structure is the second source whose receipt is a line somebody is editing.
+
+The rules had this fault and so did this: `knos ask` prints a file and a line
+for a symbol, and that line comes out of a tags file written when the repo was
+last read. Reproduced before it was fixed - a function at `pay.py:1`, five
+lines added above it, and knos still saying `pay.py:1`, which by then was a
+comment.
+
+Sessions and commits are deliberately not treated this way and have their own
+test below. A commit said what it said and its hash does not move; re-checking
+it would be theatre. The two sources that need checking are the two that cite
+a mutable line.
+"""
+
+from __future__ import annotations
+
+import subprocess
+from pathlib import Path
+
+import pytest
+
+from knos import answer, code
+from knos.memory import Memory
+
+BEFORE = "def settle_trade(x):\n    return x\n\n\ndef other(y):\n    return y\n"
+MOVED = "# one\n# two\n# three\n\n\n" + BEFORE
+
+
+@pytest.fixture
+def repo(tmp_path: Path) -> Path:
+    repo = tmp_path / "probe"
+    repo.mkdir()
+    (repo / "pay.py").write_text(BEFORE, encoding="utf-8")
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    subprocess.run(
+        ["git", "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "init"],
+        cwd=repo, check=True,
+    )
+    with Memory(repo) as mem:
+        answer.point(repo, mem)
+    return repo
+
+
+def test_reading_the_repo_writes_only_to_the_test_home(repo: Path) -> None:
+    """The fixture reads a repo; its code index must land in the per-test KNOS_HOME, and its Sibyl store in the
+    per-test home's ~/.sibyl-memory (where Sibyl's cap counts it), never the real home."""
+    import os
+
+    from knos import paths
+
+    home = Path(os.environ["KNOS_HOME"]).resolve()
+    assert paths.home().resolve() == home
+    store = paths.store_for(repo).resolve()
+    assert store.exists() and Path.home().resolve() in store.parents and store.parent.name == ".sibyl-memory"
+    assert home in paths.work_dir(repo).resolve().parents
+    from conftest import _REAL_HOME
+
+    assert (_REAL_HOME / ".sibyl-memory").resolve() not in store.parents
+
+
+def _ask(repo: Path, question: str = "where is settle_trade"):
+    with Memory(repo) as mem:
+        return [p for p in answer.ask(repo, mem, question) if p.source == "code"]
+
+
+@pytest.mark.critical
+def test_a_symbol_that_moved_is_cited_where_it_is_now(repo: Path) -> None:
+    """The reproduction, exactly.
+
+    Line 1 held the definition when the repo was read and holds a comment
+    now. Citing it is a false receipt on the one part of an answer a reader
+    is invited to go and check.
+    """
+    (repo / "pay.py").write_text(MOVED, encoding="utf-8")
+
+    found = _ask(repo)
+
+    assert found, "moving a function does not delete it"
+    assert found[0].where == "pay.py:6", f"cited {found[0].where}, which is a comment"
+
+
+@pytest.mark.critical
+def test_a_symbol_the_file_no_longer_has_is_not_offered(repo: Path) -> None:
+    (repo / "pay.py").write_text("# nothing here now\n", encoding="utf-8")
+
+    assert not _ask(repo)
+
+
+def test_a_symbol_that_has_not_moved_keeps_its_line(repo: Path) -> None:
+    """The check must not cost a correct citation its line number."""
+    found = _ask(repo)
+
+    assert found
+    assert found[0].where == "pay.py:1"
+
+
+def test_deleting_the_file_drops_the_symbol(repo: Path) -> None:
+    (repo / "pay.py").unlink()
+
+    assert not _ask(repo)
+
+
+def test_a_file_that_cannot_be_read_keeps_its_citation(repo: Path) -> None:
+    """Not being able to check is not evidence against.
+
+    The same policy the rules got. A permissions error is not a deletion, and
+    refusing on one would make knos quieter every time a repo was awkward
+    rather than every time it was wrong.
+    """
+    line = code.still_defines(repo, "settle_trade", "pay.py", 1)
+
+    assert line == 1
+
+
+def test_a_declaration_is_preferred_over_a_mention(tmp_path: Path) -> None:
+    """A name is usually used before it is defined, and a call is not a receipt."""
+    f = tmp_path / "m.py"
+    f.write_text(
+        "result = settle_trade(1)\n"
+        "print(settle_trade)\n"
+        "\n"
+        "def settle_trade(x):\n"
+        "    return x\n",
+        encoding="utf-8",
+    )
+
+    assert code.still_defines(tmp_path, "settle_trade", "m.py", 99) == 4
+
+
+def test_a_name_it_cannot_place_keeps_a_line_rather_than_vanishing(
+    tmp_path: Path,
+) -> None:
+    """Being one line out is a smaller failure than dropping a real symbol.
+
+    The declaration test above is a heuristic over the languages ctags reads,
+    and it will not recognise every one of them. When it cannot tell which
+    mention is the declaration, the symbol is still there and still worth
+    answering with.
+    """
+    f = tmp_path / "m.odd"
+    f.write_text("something settle_trade <- 1\nmore settle_trade\n", encoding="utf-8")
+
+    assert code.still_defines(tmp_path, "settle_trade", "m.odd", 99) == 1
+
+
+def test_a_commit_is_not_re_checked_against_anything(repo: Path) -> None:
+    """The invariant, and its deliberate limit.
+
+    Every citation knos prints is either verified at the moment it is printed
+    - rules and code, the two that name a line in a file somebody is editing -
+    or is a historical record whose identifier cannot move. A commit is the
+    second kind: it said what it said, and re-reading the file it touched
+    would not make the message any truer.
+    """
+    with Memory(repo) as mem:
+        found = answer.ask(repo, mem, "init")
+
+    commits = [p for p in found if p.source == "git"]
+
+    assert commits, "the commit should still be an answer"
+    assert "pay.py" not in commits[0].where, (
+        "a commit is cited by its hash, not by a line that could move"
+    )
+
+
+CONSTANTS_SOURCE = """
+SETTLEMENT_TOKEN_NAME = "the settlement key"
+MAX_RETRIES: int = 3
+local_thing = 1
+class Holder:
+    INDENTED = 2
+    def read(self):
+        return SETTLEMENT_TOKEN_NAME == 1
+"""
+
+@pytest.mark.critical
+def test_the_reader_knos_carries_finds_a_module_level_constant(tmp_path) -> None:
+    """The gap that only showed on a machine without ctags.
+
+    `knos demo`'s privacy beat asks for a settings name defined at the top of
+    a file. universal-ctags indexes that; the reader knos carries indexed only
+    `class` and `def`, so the same beat named a file and a line on a machine
+    that had ctags and printed nothing on a cold `pip install` - which is the
+    machine most people are on. CI has no ctags, which is how it was caught,
+    and this pins it without needing that difference.
+
+    Column zero and UPPER_SNAKE only. Indexing every assignment would put
+    half a file in the index and make the answers worse, not better.
+    """
+    from knos import builtin_reader
+
+    source = tmp_path / "keys.py"
+    source.write_text(
+        CONSTANTS_SOURCE, encoding="utf-8"
+    )
+    index = tmp_path / "index"
+    builtin_reader.write_index(tmp_path, [str(source)], index, None)
+    found = {
+        line.split(builtin_reader.FIELD)[0]: line.split(builtin_reader.FIELD)[3]
+        for line in index.read_text(encoding="utf-8").splitlines()
+    }
+
+    assert found.get("SETTLEMENT_TOKEN_NAME") == "constant"
+    assert found.get("MAX_RETRIES") == "constant", "an annotated constant too"
+    assert found.get("Holder") == "class"
+    assert found.get("read") == "function"
+    assert "local_thing" not in found, "lowercase is a variable, not a setting"
+    assert "INDENTED" not in found, "indented is not module level"
+
+
+def test_a_ctags_that_is_not_universal_ctags_is_not_used(tmp_path, monkeypatch) -> None:
+    """macOS ships BSD ctags at /usr/bin/ctags; it does not speak Universal Ctags' flags. knos reads the code itself."""
+    import os
+    import stat
+    import sys
+
+    from knos import code
+
+    fake = tmp_path / ("ctags.bat" if os.name == "nt" else "ctags")
+    if os.name == "nt":
+        fake.write_text("@echo Exuberant Ctags 5.8\n", encoding="utf-8")
+    else:
+        fake.write_text("#!/bin/sh\necho 'BSD ctags'\n", encoding="utf-8")
+        fake.chmod(fake.stat().st_mode | stat.S_IEXEC)
+    assert not code._is_universal(str(fake))
+    monkeypatch.setattr(code.shutil, "which", lambda name, *a, **k: str(fake) if name == "ctags" else None)
+    monkeypatch.setattr(code, "Path", code.Path)
+    code._find_binary.cache_clear()
+    got = code._find_binary()
+    assert got is None or code._is_universal(got), f"{got} is not Universal Ctags and must not be used"
+    code._find_binary.cache_clear()
+    assert sys.platform  # the built-in reader then does the work (tests above cover it)

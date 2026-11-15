@@ -1,0 +1,55 @@
+name: nightly
+
+# Nightly: 10,000 random escrow steps against the real program in LiteSVM, checking conservation, no double payout and
+# no stuck funds after every step (tests/test_escrow_fuzz.py). A new seed each night; the seed is in the log.
+on:
+  schedule:
+    - cron: "41 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  escrow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: KNOS_FUZZ_SEED=$GITHUB_RUN_ID python -m pytest -q -m slow tests/test_escrow_fuzz.py -s
+        env:
+          KNOS_FUZZ_N: "10000"
+
+  # The team claim protocol's property test at 200 rounds (about 12 minutes) against a local validator with the
+  # devnet-deployed SAS and Lighthouse. PRs run 10 rounds (tests.yml).
+  team-property:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SOLANA_VERSION: v2.3.13
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: pyproject.toml
+      - run: uv pip install --system -e ".[dev]"
+      - run: git config --global user.email ci@example.invalid && git config --global user.name ci
+      - uses: actions/cache@v4
+        with:
+          path: ~/.local/share/solana/install
+          key: solana-${{ env.SOLANA_VERSION }}-${{ runner.os }}
+      - run: |
+          [ -x "$HOME/.local/share/solana/install/active_release/bin/solana" ] || sh -c "$(curl -sSfL https://release.anza.xyz/$SOLANA_VERSION/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+      - run: bash scripts/devchain.sh start
+      - run: pytest -q -m "" tests/test_team_property.py
+        env:
+          KNOSTEST_PROPERTY_N: "200"

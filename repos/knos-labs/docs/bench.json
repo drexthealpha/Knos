@@ -1,0 +1,122 @@
+{
+ "_about": "The one source for every benchmark number in the docs. `python scripts/bench_docs.py` writes the marked blocks in README.md, docs/BENCH.md and docs/WHY.md from it; tests/test_bench_docs.py fails if they drift.",
+ "recall": {
+  "date": "2026-10-01",
+  "benchmark": "LongMemEval_s (cleaned), 470 questions with evidence; tuned on 100, held out 370",
+  "rows": [
+   {
+    "what": "overall, top 10",
+    "baseline": "81.5%",
+    "dev": "97.0%",
+    "heldout": "96.8%"
+   },
+   {
+    "what": "the assistant said",
+    "baseline": "51.8%",
+    "dev": "100%",
+    "heldout": "88.4%"
+   },
+   {
+    "what": "preferences",
+    "baseline": "50.0%",
+    "dev": "100%",
+    "heldout": "83.3%"
+   },
+   {
+    "what": "median tokens retrieved",
+    "baseline": "5,338",
+    "dev": "5,554",
+    "heldout": "5,656"
+   }
+  ]
+ },
+ "market": {
+  "date": "2026-10-01",
+  "sentence": "Of 303 pull requests by AI coding agents (GitHub Copilot, Devin, OpenAI Codex, Claude) whose description says tests or CI pass, and whose CI had finished at the PR's head commit, **55 (18.2%) had a failing check at that commit** (95% interval 14.2%–22.9%); counting only test and build checks, 34 (11.2%). 30 of the 55 were merged anyway. PRs created 3 Jul – 30 Sep 2026, collected 1 Oct 2026 with `gh search prs` and the GitHub API: script `scripts/agent_pr_ci.py`, every PR in `docs/agent_pr_ci.json`.\n\n| agent | claiming PRs with finished CI | CI failed |\n|---|---|---|\n| GitHub Copilot coding agent | 60 | 21 (35.0%) |\n| Devin | 68 | 15 (22.1%) |\n| OpenAI Codex | 55 | 9 (16.4%) |\n| Claude GitHub app | 96 | 8 (8.3%) |\n| Claude Code | 24 | 2 (8.3%) |\n| **all** | **303** | **55 (18.2%)** |\n\nSmall per-agent samples are directional only. This is the gap the Knos Stop hook closes: it runs the CI check itself before the agent may say done.",
+  "index": {
+   "date": "2026-10-02",
+   "window": [
+    "2026-06-04",
+    "2026-10-01"
+   ],
+   "n_prs": 2431,
+   "excluded_self_repo": 9207,
+   "overall": {
+    "claimed_green": 2431,
+    "actually_failed": 660,
+    "share": 0.2715,
+    "ci95": [
+     0.2542,
+     0.2895
+    ]
+   },
+   "agents": [
+    [
+     "GitHub Copilot coding agent",
+     {
+      "claimed_green": 787,
+      "actually_failed": 194,
+      "share": 0.2465,
+      "ci95": [
+       0.2177,
+       0.2778
+      ],
+      "proven": 0
+     }
+    ],
+    [
+     "Devin",
+     {
+      "claimed_green": 520,
+      "actually_failed": 270,
+      "share": 0.5192,
+      "ci95": [
+       0.4763,
+       0.5619
+      ],
+      "proven": 0
+     }
+    ],
+    [
+     "Claude GitHub app",
+     {
+      "claimed_green": 716,
+      "actually_failed": 68,
+      "share": 0.095,
+      "ci95": [
+       0.0756,
+       0.1187
+      ],
+      "proven": 0
+     }
+    ],
+    [
+     "Claude Code",
+     {
+      "claimed_green": 206,
+      "actually_failed": 17,
+      "share": 0.0825,
+      "ci95": [
+       0.0522,
+       0.1282
+      ],
+      "proven": 0
+     }
+    ],
+    [
+     "OpenAI Codex",
+     {
+      "claimed_green": 202,
+      "actually_failed": 111,
+      "share": 0.5495,
+      "ci95": [
+       0.4806,
+       0.6166
+      ],
+      "proven": 0
+     }
+    ]
+   ]
+  }
+ }
+}

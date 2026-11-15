@@ -1,0 +1,65 @@
+name: always-on worker
+
+# Knos's reference worker and verifier, in public, every 5 minutes (GitHub may start a scheduled run late: the web app
+# shows the measured pickup time). Each run takes the open devnet jobs it can do, delivers them, re-runs the checks
+# on every delivered job that names the Knos verifier, and releases or refunds by proof; then it settles jobs past
+# their deadline. Keys are repository secrets; the Sibyl stores (buyer preferences, the worker's past jobs) are
+# carried between runs in the Actions cache, so recall goes into every brief.
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: always-on-worker
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: write      # each run starts the next: GitHub's cron is a restart safety net, not the pickup clock
+  issues: write       # the relay log (ghrelay.py): one line per token relayed for a repo running examples/knos-workflow.yml
+
+jobs:
+  work:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      KNOS_RELAY: pointer
+      KNOS_WORKER_MODEL: gemini:gemini-3.5-flash-lite
+      KNOS_HOME: ${{ github.workspace }}/.knos-home
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: pyproject.toml
+      - run: uv pip install --system -e .
+      - uses: actions/cache@v4
+        with:
+          path: .knos-home
+          key: knos-worker-home-${{ github.run_id }}
+          restore-keys: knos-worker-home-
+      - name: worker + verifier + deadline crank, every 10 s for about 4.5 minutes
+        env:
+          WORKER_KEY: ${{ secrets.KNOS_WORKER_KEY }}
+          VERIFIER_KEY: ${{ secrets.KNOS_VERIFIER_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [ -n "$WORKER_KEY" ] && [ -n "$VERIFIER_KEY" ] || { echo "no worker/verifier key secrets: skipped"; exit 0; }
+          end=$(( $(date +%s) + 270 ))
+          while [ "$(date +%s)" -lt "$end" ]; do
+            KNOS_MEMBER_KEY="$WORKER_KEY" knos work --once --model "$KNOS_WORKER_MODEL" || true
+            KNOS_MEMBER_KEY="$VERIFIER_KEY" knos verify --all --once || true
+            KNOS_MEMBER_KEY="$VERIFIER_KEY" knos jobs settle --all || true
+            KNOS_MEMBER_KEY="$WORKER_KEY" python -m knos.proof.ghrelay || true   # zero-secret repos: fund + prove tokens, we pay gas
+            sleep 10
+          done
+      - name: start the next run (always on)
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run worker.yml --repo "$GITHUB_REPOSITORY" --ref main

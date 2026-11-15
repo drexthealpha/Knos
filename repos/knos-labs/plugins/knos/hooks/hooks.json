@@ -1,0 +1,25 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "knos hook guard --client claude; s=$?; [ \"$s\" = 2 ] && exit 2 || exit 0"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "knos hook start --client claude || exit 0"
+          }
+        ]
+      }
+    ]
+  }
+}

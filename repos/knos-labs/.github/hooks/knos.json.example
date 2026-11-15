@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [
+      {
+        "type": "command",
+        "matcher": "edit|create|bash",
+        "bash": "knos hook guard --client copilot; s=$?; [ \"$s\" = 2 ] && exit 2 || exit 0",
+        "timeoutSec": 30
+      }
+    ]
+  }
+}

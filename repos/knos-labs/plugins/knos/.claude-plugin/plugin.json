@@ -1,0 +1,12 @@
+{
+  "name": "knos",
+  "description": "AI agent work gets paid only when GitHub's own signature, checked by Solana, proves it passed. The free entry: a Stop hook, so your coding agent cannot say done until Knos proves it; a safety guard; shared Sibyl memory. Requires knos>=0.3.9 (pipx install knos).",
+  "version": "0.3.9",
+  "author": { "name": "drexthealpha" },
+  "mcpServers": {
+    "knos": {
+      "command": "knos",
+      "args": ["mcp"]
+    }
+  }
+}

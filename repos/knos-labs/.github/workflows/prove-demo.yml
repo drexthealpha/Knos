@@ -1,0 +1,22 @@
+name: prove (demo)
+
+# Knos proving its own work: the same reusable workflow any repo calls, pinned to a release tag, for a devnet job whose
+# repository is drexthealpha/Knos and whose ref is main. The escrow pays only if GitHub's token for this run verifies.
+on:
+  workflow_dispatch:
+    inputs:
+      job:
+        description: "the devnet job id (64 hex)"
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  prove:
+    uses: drexthealpha/Knos/.github/workflows/prove.yml@v0.3.7
+    with:
+      job: ${{ inputs.job }}
+    secrets:
+      KNOS_PROVER_KEY: ${{ secrets.KNOS_WORKER_KEY }}

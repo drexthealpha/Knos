@@ -1,0 +1,86 @@
+name: knos fund
+
+# A reusable workflow, called from a repo's own knos.yml (examples/knos-workflow.yml) on issue_comment:
+#
+#     /knos bounty <amount> [stake]
+#
+# by a user with write access (author_association OWNER, MEMBER or COLLABORATOR) on issue N funds a Knos bounty for
+# the acceptance tests in .knos/acceptance/N/ on the default branch. No secret, wallet or faucet in the calling repo:
+#   mint     checks out the DEFAULT branch (never a pull request), hashes .knos/acceptance/<N>/, and mints a GitHub
+#            Actions OIDC token with audience knos:fund:<N>:<amount in units>:<checks hash>:<stake 0|1>. The escrow
+#            accepts it only from this file at the commit Knos pinned (job_workflow_sha). Published as artifact
+#            `knos-fund`.
+#   relay    the CALLER then runs relay.yml (a sibling job in knos.yml, not nested here), which posts `knos-fund: <token>` on the issue; the always-on worker funds the escrow with it,
+#            paying the gas, and logs the result; relay.yml then comments the verdict with the caller's own token.
+on:
+  workflow_call:
+    inputs:
+      decimals:
+        description: the bounty token's decimals (devnet USDC 6)
+        required: false
+        type: number
+        default: 6
+    outputs:
+      issue:
+        description: the issue the bounty was funded on ('' when the comment was not a valid /knos bounty)
+        value: ${{ jobs.mint.outputs.issue }}
+
+permissions: {}
+
+jobs:
+  mint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: >-
+      github.event_name == 'issue_comment' && !github.event.issue.pull_request &&
+      startsWith(github.event.comment.body, '/knos bounty ') &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      issue: ${{ steps.parse.outputs.issue }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - id: parse
+        env:
+          BODY: ${{ github.event.comment.body }}
+          ISSUE: ${{ github.event.issue.number }}
+          DECIMALS: ${{ inputs.decimals }}
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import hashlib, os, re, sys
+          from decimal import Decimal
+          from pathlib import Path
+          m = re.match(r"/knos bounty\s+(\d+(?:\.\d+)?)(\s+stake)?\s*$", os.environ["BODY"].strip().splitlines()[0])
+          if not m:
+              sys.exit("usage: /knos bounty <amount> [stake]")
+          units = int(Decimal(m.group(1)) * 10 ** int(os.environ["DECIMALS"]))
+          issue = int(os.environ["ISSUE"])
+          root = Path(".knos/acceptance") / str(issue)
+          if not root.is_dir():
+              sys.exit(f"no {root}/ on the default branch: nothing to check a fix against")
+          # identical to knos.proof.ghrelay.checks_hash
+          h = hashlib.sha256()
+          for f in sorted((p for p in root.rglob("*") if p.is_file()), key=lambda p: p.relative_to(root).as_posix()):
+              h.update(f"{f.relative_to(root).as_posix()}\0{hashlib.sha256(f.read_bytes()).hexdigest()}\n".encode())
+          print(f"issue={issue}")
+          print(f"aud=knos:fund:{issue}:{units}:{h.hexdigest()}:{1 if m.group(2) else 0}")
+          PY
+      - name: mint the OIDC token
+        env:
+          AUD: ${{ steps.parse.outputs.aud }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/knos"
+          curl -sSf -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$AUD" | jq -r .value > "$RUNNER_TEMP/knos/token.txt"
+          echo "minted a token for $AUD"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: knos-fund
+          path: ${{ runner.temp }}/knos/token.txt
+          retention-days: 1
+

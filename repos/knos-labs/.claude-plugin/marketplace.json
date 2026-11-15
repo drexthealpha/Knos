@@ -1,0 +1,17 @@
+{
+  "$schema": "https://code.claude.com/schemas/marketplace.json",
+  "name": "knos",
+  "owner": {
+    "name": "drexthealpha",
+    "url": "https://github.com/drexthealpha/Knos"
+  },
+  "plugins": [
+    {
+      "name": "knos",
+      "source": "./plugins/knos",
+      "description": "AI agent work gets paid only when GitHub's own signature, checked by Solana, proves it passed. Paid-on-proof jobs, and a free Stop hook so your coding agent cannot say done until Knos proves it. Requires knos>=0.3.9: pipx install knos",
+      "version": "0.3.9",
+      "author": { "name": "drexthealpha" }
+    }
+  ]
+}

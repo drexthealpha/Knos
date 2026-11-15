@@ -1,0 +1,68 @@
+name: pages
+
+# GitHub Pages: the Knos web app at / (it reads the escrow on Solana devnet in the browser, so it works with no Knos
+# server), the coding-team network page at /network/, counted from the chain, and /index.json, the Agent PR Index
+# (scanned every 6 hours by index.yml and published as the index.json asset of the newest `index-*` GitHub Release; this
+# build only downloads it and attests its Merkle root on Solana devnet SAS). It never commits: all of it ships in the
+# Pages artifact.
+on:
+  push:
+    branches: [main]
+    paths: ["web/**", "scripts/network_stats.py", ".github/workflows/network.yml"]
+  release:
+    types: [published]
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - run: python scripts/network_stats.py
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: site = the web app, plus /network/
+        run: |
+          mkdir -p _site/network
+          cp -r web/. _site/
+          cp -r docs/network/. _site/network/
+      - name: Agent PR Index (/index.json) from the newest index-* release, root attested on devnet SAS
+        run: |
+          tag=$(gh release list -R "${{ github.repository }}" --limit 100 --json tagName,createdAt                 --jq '[.[] | select(.tagName | startswith("index-"))] | sort_by(.createdAt) | last | .tagName // empty')
+          if [ -n "$tag" ]; then
+            gh release download "$tag" -R "${{ github.repository }}" -p index.json -D _site --clobber
+            python scripts/agent_pr_index.py attest --out _site/index.json
+          else
+            echo "no index-* release yet; /index.json is absent and the web app says so"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KNOS_ATTEST_KEY: ${{ secrets.KNOS_VERIFIER_KEY }}
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site/
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,31 @@
+{
+  "cluster": "devnet",
+  "squadsProgramId": "SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf",
+  "multisigPda": "2zpWe4223nNp6gPnHSAjdwGcu2cGPQtT5jcxf25MSYvV",
+  "vaultIndex": 0,
+  "vaultPda": "4G3cznCnwCUPBCZwzKiLupjdgB5pSoCcGWNGuFv4TYFo",
+  "threshold": 2,
+  "timeLockSeconds": 300,
+  "members": [
+    {
+      "key": "3AwCofxMiRBChGA4BWdEqGKxgREErrrRYf3fqjhP7HzM",
+      "permissionsMask": 7
+    },
+    {
+      "key": "9TGQPftNmrt8T6ETUZJ5CeQf27z3pFR8En3FkKrA2PbT",
+      "permissionsMask": 7
+    },
+    {
+      "key": "EwSxyJFNQkNN9qtss4Qd7DTvrNYb62vgvhdwqgfErXDz",
+      "permissionsMask": 7
+    }
+  ],
+  "memberKeyFiles": [
+    "~/.knos-test-wallets/devnet-payer-cli.json",
+    "~/.knos-test-wallets/devnet-worker1.json",
+    "~/.knos-test-wallets/devnet-worker2.json"
+  ],
+  "createSignature": "2RYQ6nWqdAWVjuFzYzh7r9VjCyfNkQfL3d6UpfF53WbuFPyYjqEMrcRyepDKeBDB8oYX1MGDqARzm4zcwNdVxp2R",
+  "fundSignature": "2iztesA5mwQXk1S9cEAAs2FWzsZsimbfvL2yhDq5qviipiFV52g6yLTxgaguTgNGT41dTdkipD6sEoJjav8U28qs",
+  "createdAt": "2026-10-02T01:30:24.084Z"
+}

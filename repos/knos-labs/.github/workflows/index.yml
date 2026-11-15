@@ -1,0 +1,56 @@
+name: agent-pr-index
+
+# The Agent PR Index: scans 2,000+ agent PRs (too slow for the Pages build), counts proven payouts by distinct funder
+# from the devnet escrow, and publishes index.json as the asset of a GitHub Release tagged index-<date> (a release is
+# not a data commit). The Pages build (network.yml, triggered by the release) downloads the newest one and attests its
+# Merkle root on devnet SAS. With only the default token the search budget is tight; KNOS_INDEX_TOKEN (a read-only PAT)
+# lifts it. A scan that keeps too few PRs publishes nothing, so the last good release stays live.
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write  # create the index-<date> release; nothing is committed
+  actions: write   # start network.yml
+
+concurrency:
+  group: agent-pr-index
+  cancel-in-progress: false
+
+jobs:
+  index:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - name: API cache (search pages and CI verdicts; reruns resume)
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/knos-agent-pr-ci
+          key: agent-pr-ci-${{ github.run_id }}
+          restore-keys: agent-pr-ci-
+      - name: scan
+        # a PAT, when set, has the 5,000/h core budget the scan needs; the default token has 1,000/h per repo
+        run: python scripts/agent_pr_index.py scan --rows rows.json --max-seconds 15000
+        env:
+          GH_TOKEN: ${{ secrets.KNOS_INDEX_TOKEN || github.token }}
+      - name: build index.json
+        run: python scripts/agent_pr_index.py build --rows rows.json --out index.json
+      - name: release index-<date> (skipped when the scan kept under 2,000 PRs)
+        run: |
+          n=$(python -c "import json; print(json.load(open('index.json'))['n_prs'])")
+          if [ "$n" -lt 2000 ]; then echo "only $n PRs; the last release stays live"; exit 0; fi
+          tag="index-$(date -u +%Y-%m-%d-%H%M)"
+          root=$(python -c "import json; print(json.load(open('index.json'))['root'])")
+          gh release create "$tag" index.json --title "Agent PR Index $tag" --latest=false             --notes "Agent PR Index: $n PRs, Merkle root $root. Attested on devnet SAS by the Pages build."
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Pages build (a release made with GITHUB_TOKEN triggers no workflow, so start it explicitly)
+        run: gh workflow run network.yml --ref main -R "${{ github.repository }}"
+        env:
+          GH_TOKEN: ${{ github.token }}

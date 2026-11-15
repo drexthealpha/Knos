@@ -1,0 +1,118 @@
+name: knos relay
+
+# A reusable workflow, the last job of a repo's knos.yml (examples/knos-workflow.yml), after fund.yml or prove.yml in
+# the same run published the token as artifact `knos-fund` / `knos-proof`. It uses only the caller's own
+# GITHUB_TOKEN (issues/pull-requests: write on its own repo) and holds no Knos secret:
+#   1. posts `knos-<kind>: <token>` on the issue / pull request. Public on purpose: the token's audience binds it to
+#      one escrow action (the issue, amount and checks; or the job, head commit, checks and payout), it expires in
+#      about 5 minutes and the escrow consumes it once, so a reader can at most relay it for us and pay the gas.
+#   2. waits (up to `wait-minutes`) for the always-on worker's line about this token in the Knos relay log (the open
+#      `knos-relay` issue in drexthealpha/Knos, public), and comments the verdict: job, signatures, receipt link.
+# See src/knos/proof/ghrelay.py for the worker side.
+on:
+  workflow_call:
+    inputs:
+      kind:
+        description: fund, proof, or refused (prove.yml's judge said no; comments its reasons, no token exists)
+        required: true
+        type: string
+      number:
+        description: the issue (fund) or pull request (proof) number
+        required: true
+        type: number
+      wait-minutes:
+        description: how long to wait for the worker's verdict
+        required: false
+        type: number
+        default: 12
+
+permissions: {}
+
+jobs:
+  refused:
+    if: inputs.kind == 'refused'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: knos-evidence
+          path: ${{ runner.temp }}/knos
+      - name: comment why the pull request is not paid
+        env:
+          GH_TOKEN: ${{ github.token }}
+          N: ${{ inputs.number }}
+        run: |
+          ev="$RUNNER_TEMP/knos/evidence.json"
+          if [ -s "$ev" ]; then
+            reasons=$(jq -r '.reasons[]? | "- " + .' "$ev")
+          fi
+          [ -n "${reasons:-}" ] || reasons="- the check job failed before a verdict (see the run log)"
+          printf 'Knos: refused, no token was minted and nothing is paid.\n%s\n\nRun: %s/%s/actions/runs/%s\n' \
+            "$reasons" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" \
+            | gh api "repos/$GITHUB_REPOSITORY/issues/$N/comments" -F body=@- --jq .html_url
+
+  relay:
+    if: inputs.kind != 'refused'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: knos-${{ inputs.kind }}
+          path: ${{ runner.temp }}/knos
+      - name: post the token for the always-on worker
+        id: post
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KIND: ${{ inputs.kind }}
+          N: ${{ inputs.number }}
+        run: |
+          case "$KIND" in fund|proof) ;; *) echo "kind must be fund or proof"; exit 1;; esac
+          tok=$(tr -d '[:space:]' < "$RUNNER_TEMP/knos/token.txt")
+          echo "id=$(printf '%s' "$tok" | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
+          printf 'knos-%s: %s\n\n<sub>A single-use GitHub Actions token bound to this %s; the Knos worker relays it to the escrow.</sub>\n' \
+            "$KIND" "$tok" "$KIND" | gh api "repos/$GITHUB_REPOSITORY/issues/$N/comments" -F body=@- --jq .html_url
+      - name: wait for the worker and comment the verdict
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ID: ${{ steps.post.outputs.id }}
+          KIND: ${{ inputs.kind }}
+          N: ${{ inputs.number }}
+          WAIT: ${{ inputs.wait-minutes }}
+        run: |
+          end=$(( $(date +%s) + WAIT * 60 ))
+          line=""
+          while [ "$(date +%s)" -lt "$end" ]; do
+            log=$(gh api "repos/drexthealpha/Knos/issues?labels=knos-relay&state=open&per_page=1" --jq '.[0].number' 2>/dev/null || true)
+            if [ -n "$log" ]; then
+              line=$(gh api "repos/drexthealpha/Knos/issues/$log/comments?per_page=100&since=$(date -u -d '-30 min' +%FT%TZ)" \
+                       --jq '.[] | select(.user.login == "github-actions[bot]") | .body' 2>/dev/null \
+                     | grep -F " $ID " | grep "^knos-relay $KIND $GITHUB_REPOSITORY#$N " | tail -1 || true)
+              [ -n "$line" ] && break
+            fi
+            sleep 15
+          done
+          if [ -z "$line" ]; then
+            body="Knos: no verdict from the always-on worker within $WAIT minutes for token $ID."
+          elif printf '%s' "$line" | grep -q " ok job="; then
+            job=$(printf '%s' "$line" | grep -oE 'job=[0-9a-f]+' | cut -d= -f2)
+            sigs=$(printf '%s' "$line" | grep -oE 'sig=[^ ]+' | cut -d= -f2 | tr ',' ' ')
+            rcpt=$(printf '%s' "$line" | grep -oE 'receipt=[^ ]+' | cut -d= -f2-)
+            if [ "$KIND" = fund ]; then body="Knos: bounty funded. knos-job: $job"; else body="Knos: paid. Job $job."; fi
+            for s in $sigs; do body="$body
+          - [$s](https://explorer.solana.com/tx/$s?cluster=devnet)"; done
+            [ -n "$rcpt" ] && body="$body
+          Receipt: $rcpt"
+          else
+            body="Knos: the escrow refused token $ID: ${line#* fail }"
+          fi
+          printf '%s\n' "$body" | gh api "repos/$GITHUB_REPOSITORY/issues/$N/comments" -F body=@- --jq .html_url
+          printf "%s" "$line" | grep -q " ok job="

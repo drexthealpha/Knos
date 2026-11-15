@@ -1,0 +1,289 @@
+"""What one machine's memory can safely put in the repository.
+
+Everything else in knos is deliberately local: the store never leaves your
+disk. That is right for transcripts and commits, which the next clone can
+read for itself — but it is wrong for the two things that exist nowhere else
+and that a *teammate* has no way to re-derive: what somebody decided, and
+what somebody is working on right now.
+
+So this writes one file, `.knos/decisions.md`, that you commit like any other
+file. It is plain markdown, it diffs, and a second clone reads it without
+running anything special — `.knos/decisions.md` is already one of the paths
+knos treats as a decision record, so a fresh checkout picks it up on its
+first question.
+
+Nothing is exported that an agent could not already ask for. Notes about
+private paths never enter, because they never entered the store in a form
+this can reach.
+"""
+
+from __future__ import annotations
+
+import re
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+from . import private
+
+# The file a repo commits. Also listed in rules.DECISIONS, which is what
+# makes a second clone read it with no extra step.
+SHARED = Path(".knos") / "decisions.md"
+# Long enough for any decision anyone writes by hand, short enough that a
+# machine payload cannot take over the file.
+_LINE = 400
+
+HEADER = """# Decisions and current work
+
+<!-- Written by `knos export`. Commit this file. -->
+
+A second clone reads this on its first question — it is one of the decision
+records knos looks for. Nothing here is private: secrets and private paths
+never reach it.
+"""
+
+
+def _safe(repo: Path, text: str, about: str) -> bool:
+    """Whether this note can go in a file the whole team will read.
+
+    A note is only as safe as the path it names. `private.is_private` is the
+    same check an agent's query goes through, so a note about `.env` is no
+    more shareable than the file itself.
+    """
+    # A note that quotes a key goes nowhere near a file the team commits: once in git history it is out for good.
+    if private._quotes_a_secret({"text": f"{about} {text}"}):
+        return False
+    for token in (about, text):
+        for word in str(token).split():
+            # Strip quotes and trailing punctuation only. Stripping "." from
+            # both ends turns ".env" into "env", which is not a private path
+            # and never was - the same slip that once let a secret through
+            # `lstrip("./")` here.
+            cleaned = word.strip("`'\"()[]").rstrip(",.:;!?")
+            if not cleaned:
+                continue
+            if "/" in cleaned or "." in cleaned:
+                if private.is_private(repo, cleaned):
+                    return False
+    return True
+
+
+def _one_line(note: str) -> str:
+    """The readable part of a note, for a file other people commit.
+
+    A decision is a sentence, but a note can be long. Putting all of it in the
+    shared file turns a repo's decision record into a data dump, so this takes
+    the first paragraph and caps it. The store still has
+    the whole thing; `knos ask` still answers from it.
+    """
+    first = note.strip().split("\n\n", 1)[0].strip()
+    if len(first) <= _LINE:
+        return first
+    return first[:_LINE].rstrip() + "..."
+
+
+def export(repo: Path, mem: Any) -> tuple[str, int, int]:
+    """Render the shareable half of this repo's memory.
+
+    Returns the markdown, how many decisions it holds, and how many claims.
+    """
+    repo = Path(repo).resolve()
+    notes = [
+        n
+        for n in mem.notes()
+        if str(n.get("note", "")).strip() and _safe(repo, n.get("note", ""), n.get("about", ""))
+    ]
+    from .claims import Claims, claims_db
+
+    claims: list[dict[str, Any]] = []
+    if claims_db(repo).exists():
+        with Claims(repo) as held:
+            claims = [{"topic": c.description or ", ".join(c.globs), "who": c.label, "when": c.taken_at,
+                       "globs": list(c.globs)} for c in held.live()]
+
+    out = [HEADER]
+    out.append("\n## Decisions\n")
+    if notes:
+        for n in notes:
+            when = str(n.get("when", ""))[:10]
+            about = str(n.get("about", "")).strip() or "general"
+            out.append(f"- **{about}** — {_one_line(str(n.get('note', '')))}")
+            if when:
+                out[-1] += f"  _(recorded {when})_"
+    else:
+        out.append("_Nothing recorded yet. `knos remember` adds to this._")
+
+    out.append("\n## Being worked on right now\n")
+    if claims:
+        out.append(
+            "An agent reading this should ask the agent named before changing"
+            " these files.\n"
+        )
+        for c in claims:
+            who = str(c.get("who", "")) or "someone"
+            when = str(c.get("when", ""))[:16].replace("T", " ")
+            files = ", ".join(c.get("globs") or []) or "advisory"
+            out.append(f"- `{str(c.get('topic', '')).strip()}` — held by **{who}** since {when} UTC ({files})")
+    else:
+        out.append("_Nothing claimed._")
+
+    stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    out.append(f"\n---\n<sub>knos export, {stamp}. Each claim lapses on its own.</sub>\n")
+    return "\n".join(out) + "\n", len(notes), len(claims)
+
+
+def write(repo: Path, mem: Any, to: str | None = None) -> tuple[Path, int, int]:
+    """Write the shared record into the repo. Returns the path and counts.
+
+    `.knos/decisions.md` is the default because a fixed name is what lets a
+    fresh clone answer from the file without being told where it is. It is
+    not a good enough reason to insist on it: a maintainer who already keeps
+    `docs/decisions.md` was being asked to carry a second convention, named
+    after this tool, at the root of their repository. `--to` writes where
+    they already write instead.
+
+    Anything `rules.DECISIONS` already matches is read back on the next
+    question with no configuration, so `docs/decisions/0001-x.md` costs
+    nothing. A path outside that set is still written, and `knos export`
+    says plainly that it will not be read back.
+    """
+    text, decisions, claims = export(repo, mem)
+    root = Path(repo).resolve()
+    target = root / (to or SHARED)
+
+    # A path that climbs out of the repo is almost certainly a typo, and
+    # writing it would put the record somewhere git will never carry.
+    try:
+        target.resolve().relative_to(root)
+    except ValueError:
+        raise ValueError(f"{to} is outside the repository") from None
+
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(text, encoding="utf-8")
+    return target, decisions, claims
+
+
+def read_back(repo: Path, target: Path) -> bool:
+    """Whether a clean clone would find this file on its first question."""
+    from fnmatch import fnmatch
+    from . import rules
+
+    rel = target.resolve().relative_to(Path(repo).resolve()).as_posix()
+    return any(fnmatch(rel, pattern) for pattern in rules.DECISIONS)
+
+
+# `.knos/decisions.md` is committed, so a stranger writes it. These are the
+# limits restore reads it under.
+MOST_RESTORED = 200  # a real repo's decisions, generously; not a payload
+LONGEST_NOTE = 2_000  # characters; longer is truncated, not dropped
+# What restore stamps on everything it writes, so the provenance travels with
+# the answer instead of living only in this function.
+FROM_REPO = "committed to the repo, not verified"
+
+# C0 controls except tab and newline, plus the bidirectional overrides that
+# let text render as something other than what it says.
+_CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f\u202a-\u202e\u2066-\u2069]")
+
+
+def _clean(text: str) -> str:
+    """Strip what has no business in a decision somebody will read."""
+    out = _CONTROL.sub("", text).strip()
+    if len(out) > LONGEST_NOTE:
+        out = out[:LONGEST_NOTE] + " [cut here - the committed note was longer]"
+    return out
+
+
+def read_decisions(text: str) -> list[tuple[str, str, str]]:
+    """Parse the decisions back out of an exported file, as (about, note, when).
+
+    The mirror of `export`. Tolerant: a line that does not parse is skipped
+    rather than throwing, because a restore
+    that recovers nine of ten decisions is worth far more than one that
+    refuses because of a stray character in the tenth.
+    """
+    found: list[tuple[str, str, str]] = []
+    inside = False
+    for line in text.splitlines():
+        if line.startswith("## Decisions"):
+            inside = True
+            continue
+        if inside and line.startswith("## "):
+            break
+        if not inside or not line.startswith("- **"):
+            continue
+        try:
+            about = line.split("**")[1].strip()
+            rest = line.split("** — ", 1)[1]
+        except (IndexError, ValueError):
+            continue
+        when = ""
+        if "  _(recorded " in rest:
+            rest, tail = rest.split("  _(recorded ", 1)
+            when = tail.split(")")[0].strip()
+        if about and rest.strip():
+            found.append((about, rest.strip(), when))
+    return found
+
+
+def restore(repo: Path, mem: Any, source: Path | None = None) -> tuple[int, int]:
+    """Rebuild what a fresh machine can know, from the committed record.
+
+    The store is one file on one disk and it is not backed up anywhere: that
+    is the whole point, and it is also the obvious question a person asks
+    second. The answer is that the shareable half is already in the repo.
+    `knos export` writes `.knos/decisions.md` and you commit it, so a fresh
+    clone on a machine that has never run knos carries the decisions with it.
+
+    This reads that file back into the store. Returns (decisions, skipped).
+
+    Claims are deliberately **not** restored. A claim is about who is moving
+    right now, it lapses on its own, and a claim rebuilt on a different
+    machine hours later would be a lie about a live hold - the one thing this
+    product must never say. Decisions are what survive a move; holds are not.
+
+    What comes back is a file a human can read in a pull request diff, not a
+    blob. That is deliberate too: memory that restores an agent but cannot be
+    reviewed is memory nobody audits.
+    """
+    from .memory import TOPIC, Fact
+
+    repo = Path(repo).resolve()
+    target = Path(source) if source else repo / ".knos" / "decisions.md"
+    if not target.exists():
+        return 0, 0
+
+    text = target.read_text(encoding="utf-8")
+    kept = skipped = 0
+    for about, note, when in read_decisions(text):
+        stamp = when or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        if mem.thing(TOPIC, about) is not None:
+            # Never overwrite what this machine worked out for itself with
+            # what a file claims. The local record wins every time.
+            skipped += 1
+            continue
+        if kept >= MOST_RESTORED:
+            # A single commit must not be able to fill the free tier and
+            # stop everything else being recordable.
+            skipped += 1
+            continue
+        about, note = _clean(about), _clean(note)
+        if not about or not note:
+            skipped += 1
+            continue
+        if mem.full():
+            skipped += 1
+            continue
+        mem.record(
+            Fact(
+                text=note,
+                source="note",
+                where=f"{target.name} ({FROM_REPO}), recorded {stamp}",
+                when=f"{stamp}T00:00:00+00:00",
+                about=about,
+            )
+        )
+        mem.note_thing(TOPIC, about, {"note": note, "when": stamp,
+                                      "from": FROM_REPO})
+        kept += 1
+    return kept, skipped
+

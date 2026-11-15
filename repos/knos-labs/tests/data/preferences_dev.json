@@ -1,0 +1,164 @@
+{
+ "note": "Dev set: the 0.3.1 acceptance benchmark buyers (24 jobs, 4 buyers, 3 standing preferences each, said once among 27 unrelated requests).",
+ "buyers": {
+  "ada": {
+   "who": "Python developer",
+   "prefs": [
+    "When you write Python for me, always add type hints to every parameter and the return value.",
+    "Please always give every function a docstring, I review code by reading docstrings.",
+    "Never import third-party packages in my code, standard library only."
+   ]
+  },
+  "bea": {
+   "who": "data analyst",
+   "prefs": [
+    "For my CSV files always use a semicolon ; as the delimiter, our Excel locale needs it.",
+    "Dates must always be ISO 8601, like 2026-03-07, never day/month/year.",
+    "Money amounts always with exactly two decimals, like 12.50."
+   ]
+  },
+  "cal": {
+   "who": "UK marketing lead",
+   "prefs": [
+    "We're a British brand, always use British spelling (colour, organise, favourite).",
+    "No exclamation marks in our copy, ever. It reads as cheap.",
+    "Sign off every piece of copy with: — The Lumen team"
+   ]
+  },
+  "dex": {
+   "who": "backend engineer",
+   "prefs": [
+    "Reply with JSON only when I ask you to extract data, no prose around it.",
+    "Use camelCase keys in any JSON you give me.",
+    "Always include \"version\": 2 at the top level of JSON you produce for us."
+   ]
+  }
+ },
+ "noise": [
+  "Can you recommend a good book on negotiation?",
+  "What's the capital of Australia again?",
+  "Thanks, that recipe worked well.",
+  "How do I reset my router?",
+  "Explain compound interest simply.",
+  "Draft a polite reminder to a colleague about the meeting.",
+  "What time zone is Lagos in?",
+  "Summarise the plot of Hamlet in two lines.",
+  "Is it better to rent or buy a car for a week?",
+  "Give me three icebreakers for a workshop.",
+  "How many grams in a pound?",
+  "Suggest a name for a cat.",
+  "What's a good stretch for lower back pain?",
+  "Translate 'good morning' into Spanish.",
+  "Why is the sky blue?",
+  "Help me plan a 20-minute workout.",
+  "What's the difference between RAM and storage?",
+  "Recommend a podcast about history.",
+  "How do I make cold brew coffee?",
+  "Write a haiku about rain.",
+  "What's a polite way to decline an invitation?",
+  "How long should I boil an egg?",
+  "Explain what an API is.",
+  "Give me a packing list for a weekend trip.",
+  "What does GDP measure?",
+  "Tips for a job interview?",
+  "How do vaccines work, briefly?"
+ ],
+ "jobs": [
+  [
+   "ada-1",
+   "ada"
+  ],
+  [
+   "ada-2",
+   "ada"
+  ],
+  [
+   "ada-3",
+   "ada"
+  ],
+  [
+   "ada-4",
+   "ada"
+  ],
+  [
+   "ada-5",
+   "ada"
+  ],
+  [
+   "ada-6",
+   "ada"
+  ],
+  [
+   "bea-1",
+   "bea"
+  ],
+  [
+   "bea-2",
+   "bea"
+  ],
+  [
+   "bea-3",
+   "bea"
+  ],
+  [
+   "bea-4",
+   "bea"
+  ],
+  [
+   "bea-5",
+   "bea"
+  ],
+  [
+   "bea-6",
+   "bea"
+  ],
+  [
+   "cal-1",
+   "cal"
+  ],
+  [
+   "cal-2",
+   "cal"
+  ],
+  [
+   "cal-3",
+   "cal"
+  ],
+  [
+   "cal-4",
+   "cal"
+  ],
+  [
+   "cal-5",
+   "cal"
+  ],
+  [
+   "cal-6",
+   "cal"
+  ],
+  [
+   "dex-1",
+   "dex"
+  ],
+  [
+   "dex-2",
+   "dex"
+  ],
+  [
+   "dex-3",
+   "dex"
+  ],
+  [
+   "dex-4",
+   "dex"
+  ],
+  [
+   "dex-5",
+   "dex"
+  ],
+  [
+   "dex-6",
+   "dex"
+  ]
+ ]
+}

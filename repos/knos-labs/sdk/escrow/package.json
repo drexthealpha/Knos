@@ -1,0 +1,17 @@
+{
+  "name": "@knos/escrow",
+  "version": "0.3.9",
+  "private": true,
+  "description": "Instruction builders and the job decoder for the Knos escrow program on Solana (paid on proof).",
+  "type": "module",
+  "main": "index.js",
+  "exports": {".": "./index.js"},
+  "files": ["index.js", "README.md"],
+  "license": "MIT",
+  "author": "drexthealpha",
+  "repository": {"type": "git", "url": "https://github.com/drexthealpha/Knos", "directory": "sdk/escrow"},
+  "engines": {"node": ">=18"},
+  "peerDependencies": {"@solana/web3.js": "^1.95.0"},
+  "peerDependenciesMeta": {"@solana/web3.js": {"optional": true}},
+  "scripts": {"test": "node --test test.mjs"}
+}

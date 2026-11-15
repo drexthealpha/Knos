@@ -1,0 +1,23 @@
+[package]
+name = "knos_escrow"
+version = "0.3.9"
+edition = "2021"
+rust-version = "1.84"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+solana-program = "=2.2.1"
+solana-security-txt = "1.1.1"
+
+[features]
+# devnet (default): this build is the devnet build; it enables the test-USDC faucet (20, 21).
+# Build with --no-default-features for a cluster with real money: the faucet refuses.
+default = ["devnet"]
+devnet = []
+no-entrypoint = []
+
+[lints.rust]
+unexpected_cfgs = { level = "allow" }

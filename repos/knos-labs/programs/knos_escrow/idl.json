@@ -1,0 +1,2241 @@
+{
+ "address": "GwmbMFvyHHwHug5em9dv26oXz2zTgXKGsNdrBxPayRPq",
+ "metadata": {
+  "name": "knos_escrow",
+  "version": "0.3.9",
+  "spec": "0.1.0",
+  "description": "Knos escrow: pay-on-acceptance or pay-on-proof escrow for AI agent jobs (SPL tokens)",
+  "repository": "https://github.com/drexthealpha/Knos"
+ },
+ "docs": [
+  "A native program, not Anchor: each instruction's discriminator is its one-byte tag, accounts carry no discriminator and are told apart by size (Job 225 bytes, 257 for a job in a registered mint (the job + mint), 217 for 0.3.4 jobs, 153 before; Config2 124). Layouts are packed little-endian. Every settlement closes the job and returns its rent to the buyer."
+ ],
+ "instructions": [
+  {
+   "name": "post",
+   "docs": [
+    "Post a job and escrow its price. verifier is optional (absent or zero = no verifier)."
+   ],
+   "discriminator": [
+    1
+   ],
+   "accounts": [
+    {
+     "name": "buyer",
+     "writable": true,
+     "signer": true
+    },
+    {
+     "name": "job",
+     "writable": true,
+     "pda": {
+      "seeds": [
+       {
+        "kind": "const",
+        "value": [
+         106,
+         111,
+         98
+        ]
+       },
+       {
+        "kind": "arg",
+        "path": "id"
+       }
+      ]
+     }
+    },
+    {
+     "name": "buyer_token",
+     "writable": true
+    },
+    {
+     "name": "vault_token",
+     "writable": true
+    },
+    {
+     "name": "config",
+     "pda": {
+      "seeds": [
+       {
+        "kind": "const",
+        "value": [
+         99,
+         111,
+         110,
+         102,
+         105,
+         103,
+         50
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "token_program",
+     "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+    },
+    {
+     "name": "system_program",
+     "address": "11111111111111111111111111111111"
+    }
+   ],
+   "args": [
+    {
+     "name": "id",
+     "type": {
+      "array": [
+       "u8",
+       32
+      ]
+     }
+    },
+    {
+     "name": "amount",
+     "type": "u64"
+    },
+    {
+     "name": "work",
+     "type": "i64"
+    },
+    {
+     "name": "review",
+     "type": "i64"
+    },
+    {
+     "name": "brief",
+     "type": {
+      "array": [
+       "u8",
+       32
+      ]
+     }
+    },
+    {
+     "name": "verifier",
+     "type": "pubkey"
+    }
+   ]
+  },
+  {
+   "name": "claim",
+   "docs": [
+    "Claim an open job; the worker stakes max(10% of the price, 0.1 USDC). Never the buyer."
+   ],
+   "discriminator": [
+    2
+   ],
+   "accounts": [
+    {
+     "name": "worker",
+     "signer": true
+    },
+    {
+     "name": "job",
+     "writable": true,
+     "docs": [
+      "PDA [\"job\", id]"
+     ]
+    },
+    {
+     "name": "worker_token",
+     "writable": true
+    },
+    {
+     "name": "vault_token",
+     "writable": true
+    },
+    {
+     "name": "config",
+     "pda": {
+      "seeds": [
+       {
+        "kind": "const",
+        "value": [
+         99,
+         111,
+         110,
+         102,
+         105,
+         103,
+         50
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "token_program",
+     "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+    }
+   ],
+   "args": []
+  },
+  {
+   "name": "deliver",
+   "docs": [
+    "Commit the result hash before the claim times out; the stake goes back to the worker."
+   ],
+   "discriminator": [
+    3
+   ],
+   "accounts": [
+    {
+     "name": "worker",
+     "signer": true
+    },
+    {
+     "name": "job",
+     "writable": true,
+     "docs": [
+      "PDA [\"job\", id]"
+     ]
+    },
+    {
+     "name": "worker_token",
+     "writable": true
+    },
+    {
+     "name": "vault_token",
+     "writable": true
+    },
+    {
+     "name": "vault_authority",
+     "pda": {
+      "seeds": [
+       {
+        "kind": "const",
+        "value": [
+         118,
+         97,
+         117,
+         108,
+         116
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "token_program",
+     "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+    }
+   ],
+   "args": [
+    {
+     "name": "result",
+     "type": {
+      "array": [
+       "u8",
+       32
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "accept",
+   "docs": [
+    "The buyer accepts delivered work: worker paid, fee taken, job closed."
+   ],
+   "discriminator": [
+    4
+   ],
+   "accounts": [
+    {
+     "name": "buyer_signer",
+     "writable": true,
+     "signer": true,
+     "docs": [
+      "the job's buyer (also passed again as buyer)"
+     ]
+    },
+    {
+     "name": "job",
+     "writable": true,
+     "docs": [
+      "PDA [\"job\", id]"
+     ]
+    },
+    {
+     "name": "vault_token",
+     "writable": true
+    },
+    {
+     "name": "vault_authority",
+     "pda": {
+      "seeds": [
+       {
+        "kind": "const",
+        "value": [
+         118,
+         97,
+         117,
+         108,
+         116
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "worker_token",
+     "writable": true
+    },
+    {
+     "name": "fee_token",
+     "writable": true
+    },
+    {
+     "name": "config",
+     "pda": {
+      "seeds": [
+       {
+        "kind": "const",
+        "value": [
+         99,
+         111,
+         110,
+         102,
+         105,
+         103,
+         50
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "token_program",
+     "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+    },
+    {
+     "name": "buyer",
+     "writable": true,
+     "docs": [
+      "the job's buyer: receives the closed job's rent"
+     ]
+    }
+   ],
+   "args": []
+  },
+  {
+   "name": "release",
+   "docs": [
+    "Anyone releases delivered work after the review window."
+   ],
+   "discriminator": [
+    5
+   ],
+   "accounts": [
+    {
+     "name": "anyone",
+     "signer": true
+    },
+    {
+     "name": "job",
+     "writable": true,
+     "docs": [
+      "PDA [\"job\", id]"
+     ]
+    },
+    {
+     "name": "vault_token",
+     "writable": true
+    },
+    {
+     "name": "vault_authority",
+     "pda": {
+      "seeds": [
+       {
+        "kind": "const",
+        "value": [
+         118,
+         97,
+         117,
+         108,
+         116
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "worker_token",
+     "writable": true
+    },
+    {
+     "name": "fee_token",
+     "writable": true
+    },
+    {
+     "name": "config",
+     "pda": {
+      "seeds": [
+       {
+        "kind": "const",
+        "value": [
+         99,
+         111,
+         110,
+         102,
+         105,
+         103,
+         50
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "token_program",
+     "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+    },
+    {
+     "name": "buyer",
+     "writable": true,
+     "docs": [
+      "the job's buyer: receives the closed job's rent"
+     ]
+    }
+   ],
+   "args": []
+  },
+  {
+   "name": "reject",
+   "docs": [
+    "The buyer rejects delivered work inside the review window (not on a job that names a verifier)."
+   ],
+   "discriminator": [
+    6
+   ],
+   "accounts": [
+    {
+     "name": "buyer",
+     "writable": true,
+     "signer": true
+    },
+    {
+     "name": "job",
+     "writable": true,
+     "docs": [
+      "PDA [\"job\", id]"
+     ]
+    },
+    {
+     "name": "vault_token",
+     "writable": true
+    },
+    {
+     "name": "vault_authority",
+     "pda": {
+      "seeds": [
+       {
+        "kind": "const",
+        "value": [
+         118,
+         97,
+         117,
+         108,
+         116
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "buyer_token",
+     "writable": true
+    },
+    {
+     "name": "token_program",
+     "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+    }
+   ],
+   "args": []
+  },
+  {
+   "name": "refund",
+   "docs": [
+    "The buyer is refunded an open or claimed job past the work deadline (with a timed-out claim's stake)."
+   ],
+   "discriminator": [
+    7
+   ],
+   "accounts": [
+    {
+     "name": "buyer",
+     "writable": true,
+     "signer": true
+    },
+    {
+     "name": "job",
+     "writable": true,
+     "docs": [
+      "PDA [\"job\", id]"
+     ]
+    },
+    {
+     "name": "vault_token",
+     "writable": true
+    },
+    {
+     "name": "vault_authority",
+     "pda": {
+      "seeds": [
+       {
+        "kind": "const",
+        "value": [
+         118,
+         97,
+         117,
+         108,
+         116
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "buyer_token",
+     "writable": true
+    },
+    {
+     "name": "token_program",
+     "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+    }
+   ],
+   "args": []
+  },
+  {
+   "name": "init2",
+   "docs": [
+    "Create the config2 PDA. If the legacy config exists, only its admin may run this."
+   ],
+   "discriminator": [
+    8
+   ],
+   "accounts": [
+    {
+     "name": "admin",
+     "writable": true,
+     "signer": true
+    },
+    {
+     "name": "config",
+     "writable": true,
+     "pda": {
+      "seeds": [
+       {
+        "kind": "const",
+        "value": [
+         99,
+         111,
+         110,
+         102,
+         105,
+         103,
+         50
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "fee_token"
+    },
+    {
+     "name": "system_program",
+     "address": "11111111111111111111111111111111"
+    },
+    {
+     "name": "legacy_config",
+     "pda": {
+      "seeds": [
+       {
+        "kind": "const",
+        "value": [
+         99,
+         111,
+         110,
+         102,
+         105,
+         103
+        ]
+       }
+      ]
+     }
+    }
+   ],
+   "args": [
+    {
+     "name": "fee_bps",
+     "type": "u16"
+    },
+    {
+     "name": "min_fee",
+     "type": "u64"
+    },
+    {
+     "name": "min_amount",
+     "type": "u64"
+    },
+    {
+     "name": "max_amount",
+     "type": "u64"
+    },
+    {
+     "name": "paused",
+     "type": "u8"
+    }
+   ]
+  },
+  {
+   "name": "set_pause",
+   "docs": [
+    "Admin: stop or resume new posts."
+   ],
+   "discriminator": [
+    9
+   ],
+   "accounts": [
+    {
+     "name": "admin",
+     "signer": true
+    },
+    {
+     "name": "config",
+     "writable": true,
+     "pda": {
+      "seeds": [
+       {
+        "kind": "const",
+        "value": [
+         99,
+         111,
+         110,
+         102,
+         105,
+         103,
+         50
+        ]
+       }
+      ]
+     }
+    }
+   ],
+   "args": [
+    {
+     "name": "paused",
+     "type": "u8"
+    }
+   ]
+  },
+  {
+   "name": "lower_cap",
+   "docs": [
+    "Admin: lower the per-job cap (never raise it)."
+   ],
+   "discriminator": [
+    10
+   ],
+   "accounts": [
+    {
+     "name": "admin",
+     "signer": true
+    },
+    {
+     "name": "config",
+     "writable": true,
+     "pda": {
+      "seeds": [
+       {
+        "kind": "const",
+        "value": [
+         99,
+         111,
+         110,
+         102,
+         105,
+         103,
+         50
+        ]
+       }
+      ]
+     }
+    }
+   ],
+   "args": [
+    {
+     "name": "max_amount",
+     "type": "u64"
+    }
+   ]
+  },
+  {
+   "name": "verify_release",
+   "docs": [
+    "The job's verifier releases delivered work whose committed result is result_hash, recording proof_root."
+   ],
+   "discriminator": [
+    11
+   ],
+   "accounts": [
+    {
+     "name": "verifier",
+     "signer": true
+    },
+    {
+     "name": "job",
+     "writable": true,
+     "docs": [
+      "PDA [\"job\", id]"
+     ]
+    },
+    {
+     "name": "vault_token",
+     "writable": true
+    },
+    {
+     "name": "vault_authority",
+     "pda": {
+      "seeds": [
+       {
+        "kind": "const",
+        "value": [
+         118,
+         97,
+         117,
+         108,
+         116
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "worker_token",
+     "writable": true
+    },
+    {
+     "name": "fee_token",
+     "writable": true
+    },
+    {
+     "name": "config",
+     "pda": {
+      "seeds": [
+       {
+        "kind": "const",
+        "value": [
+         99,
+         111,
+         110,
+         102,
+         105,
+         103,
+         50
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "token_program",
+     "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+    },
+    {
+     "name": "buyer",
+     "writable": true,
+     "docs": [
+      "the job's buyer: receives the closed job's rent"
+     ]
+    }
+   ],
+   "args": [
+    {
+     "name": "result_hash",
+     "type": {
+      "array": [
+       "u8",
+       32
+      ]
+     }
+    },
+    {
+     "name": "proof_root",
+     "type": {
+      "array": [
+       "u8",
+       32
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "verify_reject",
+   "docs": [
+    "The job's verifier fails delivered work inside the review window: buyer refunded, job closed."
+   ],
+   "discriminator": [
+    12
+   ],
+   "accounts": [
+    {
+     "name": "verifier",
+     "signer": true
+    },
+    {
+     "name": "job",
+     "writable": true,
+     "docs": [
+      "PDA [\"job\", id]"
+     ]
+    },
+    {
+     "name": "vault_token",
+     "writable": true
+    },
+    {
+     "name": "vault_authority",
+     "pda": {
+      "seeds": [
+       {
+        "kind": "const",
+        "value": [
+         118,
+         97,
+         117,
+         108,
+         116
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "buyer_token",
+     "writable": true
+    },
+    {
+     "name": "token_program",
+     "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+    },
+    {
+     "name": "buyer",
+     "writable": true,
+     "docs": [
+      "the job's buyer: receives the closed job's rent"
+     ]
+    }
+   ],
+   "args": [
+    {
+     "name": "proof_root",
+     "type": {
+      "array": [
+       "u8",
+       32
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "settle",
+   "docs": [
+    "The deadline crank, anyone: delivered past review -> worker paid; open or claimed past the work deadline -> buyer refunded."
+   ],
+   "discriminator": [
+    13
+   ],
+   "accounts": [
+    {
+     "name": "anyone",
+     "signer": true
+    },
+    {
+     "name": "job",
+     "writable": true,
+     "docs": [
+      "PDA [\"job\", id]"
+     ]
+    },
+    {
+     "name": "vault_token",
+     "writable": true
+    },
+    {
+     "name": "vault_authority",
+     "pda": {
+      "seeds": [
+       {
+        "kind": "const",
+        "value": [
+         118,
+         97,
+         117,
+         108,
+         116
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "worker_token",
+     "writable": true,
+     "docs": [
+      "unused for an unclaimed job: pass any token account"
+     ]
+    },
+    {
+     "name": "fee_token",
+     "writable": true
+    },
+    {
+     "name": "buyer_token",
+     "writable": true
+    },
+    {
+     "name": "buyer",
+     "writable": true,
+     "docs": [
+      "the job's buyer: receives the closed job's rent"
+     ]
+    },
+    {
+     "name": "config",
+     "pda": {
+      "seeds": [
+       {
+        "kind": "const",
+        "value": [
+         99,
+         111,
+         110,
+         102,
+         105,
+         103,
+         50
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "token_program",
+     "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+    }
+   ],
+   "args": []
+  },
+  {
+   "name": "lower_fee",
+   "docs": [
+    "Admin: lower the fee in basis points (never raise it)."
+   ],
+   "discriminator": [
+    14
+   ],
+   "accounts": [
+    {
+     "name": "admin",
+     "signer": true
+    },
+    {
+     "name": "config",
+     "writable": true,
+     "pda": {
+      "seeds": [
+       {
+        "kind": "const",
+        "value": [
+         99,
+         111,
+         110,
+         102,
+         105,
+         103,
+         50
+        ]
+       }
+      ]
+     }
+    }
+   ],
+   "args": [
+    {
+     "name": "fee_bps",
+     "type": "u16"
+    }
+   ]
+  },
+  {
+   "name": "set_admin",
+   "docs": [
+    "Admin: hand the config to a new admin (non-zero; e.g. a Squads v4 vault PDA). The old admin is refused afterwards."
+   ],
+   "discriminator": [
+    27
+   ],
+   "accounts": [
+    {
+     "name": "admin",
+     "signer": true
+    },
+    {
+     "name": "config",
+     "writable": true,
+     "pda": {
+      "seeds": [
+       {
+        "kind": "const",
+        "value": [
+         99,
+         111,
+         110,
+         102,
+         105,
+         103,
+         50
+        ]
+       }
+      ]
+     }
+    }
+   ],
+   "args": [
+    {
+     "name": "new_admin",
+     "type": "pubkey"
+    }
+   ]
+  },
+  {
+   "name": "set_fee_account",
+   "docs": [
+    "Admin: point the fee at another token account of the config mint."
+   ],
+   "discriminator": [
+    28
+   ],
+   "accounts": [
+    {
+     "name": "admin",
+     "signer": true
+    },
+    {
+     "name": "config",
+     "writable": true,
+     "pda": {
+      "seeds": [
+       {
+        "kind": "const",
+        "value": [
+         99,
+         111,
+         110,
+         102,
+         105,
+         103,
+         50
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "fee_token"
+    }
+   ],
+   "args": []
+  },
+  {
+   "name": "register_key",
+   "docs": [
+    "Admin only: an RSA-2048 key GitHub signs Actions OIDC tokens with, at PDA [\"ghkey\", sha256(kid)]. r2 = R^2 mod n and n0inv = -n^-1 mod 2^32 are checked once here.",
+    "0.3.9: an optional trailing issuer id u8 (with the issuer account [\"issuer\", id] as a 5th account) scopes the key to that registered issuer, at [\"ghkey\", sha256(kid), [id]]."
+   ],
+   "discriminator": [
+    15
+   ],
+   "accounts": [
+    {
+     "name": "admin",
+     "signer": true,
+     "writable": true
+    },
+    {
+     "name": "config",
+     "pda": {
+      "seeds": [
+       {
+        "kind": "const",
+        "value": [
+         99,
+         111,
+         110,
+         102,
+         105,
+         103,
+         50
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "key",
+     "writable": true,
+     "docs": [
+      "PDA [\"ghkey\", sha256(kid)]"
+     ]
+    },
+    {
+     "name": "system_program",
+     "address": "11111111111111111111111111111111"
+    }
+   ],
+   "args": [
+    {
+     "name": "kid",
+     "type": "bytes",
+     "docs": [
+      "u8 length, then the kid (1..64 bytes)"
+     ]
+    },
+    {
+     "name": "n",
+     "type": {
+      "array": [
+       "u8",
+       256
+      ]
+     }
+    },
+    {
+     "name": "r2",
+     "type": {
+      "array": [
+       "u8",
+       256
+      ]
+     }
+    },
+    {
+     "name": "n0inv",
+     "type": "u32"
+    }
+   ]
+  },
+  {
+   "name": "buffer_write",
+   "docs": [
+    "A chunk of the JWT into the proof buffer PDA [\"ghproof\", job_id, prover] (created on first use)."
+   ],
+   "discriminator": [
+    16
+   ],
+   "accounts": [
+    {
+     "name": "prover",
+     "signer": true,
+     "writable": true
+    },
+    {
+     "name": "buffer",
+     "writable": true,
+     "docs": [
+      "PDA [\"ghproof\", job_id, prover]"
+     ]
+    },
+    {
+     "name": "system_program",
+     "address": "11111111111111111111111111111111"
+    }
+   ],
+   "args": [
+    {
+     "name": "job_id",
+     "type": {
+      "array": [
+       "u8",
+       32
+      ]
+     }
+    },
+    {
+     "name": "total_len",
+     "type": "u16"
+    },
+    {
+     "name": "offset",
+     "type": "u16"
+    },
+    {
+     "name": "chunk",
+     "type": "bytes",
+     "docs": [
+      "raw, to the end of the data"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "verify_step1",
+   "docs": [
+    "s*R mod n, then 8 squarings, into the buffer (~1.05M CU)."
+   ],
+   "discriminator": [
+    17
+   ],
+   "accounts": [
+    {
+     "name": "prover",
+     "signer": true
+    },
+    {
+     "name": "buffer",
+     "writable": true
+    },
+    {
+     "name": "key"
+    }
+   ],
+   "args": [
+    {
+     "name": "job_id",
+     "type": {
+      "array": [
+       "u8",
+       32
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "verify_step2",
+   "docs": [
+    "8 squarings, * s, PKCS#1 v1.5 SHA-256 check and the token's claims; on success the worker is paid (price - fee + stake) and the job and the buffer close."
+   ],
+   "discriminator": [
+    18
+   ],
+   "accounts": [
+    {
+     "name": "prover",
+     "signer": true,
+     "writable": true
+    },
+    {
+     "name": "buffer",
+     "writable": true
+    },
+    {
+     "name": "key"
+    },
+    {
+     "name": "job",
+     "writable": true
+    },
+    {
+     "name": "vault_token",
+     "writable": true
+    },
+    {
+     "name": "vault_authority",
+     "pda": {
+      "seeds": [
+       {
+        "kind": "const",
+        "value": [
+         118,
+         97,
+         117,
+         108,
+         116
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "worker_token",
+     "writable": true
+    },
+    {
+     "name": "fee_token",
+     "writable": true
+    },
+    {
+     "name": "buyer",
+     "writable": true
+    },
+    {
+     "name": "config",
+     "pda": {
+      "seeds": [
+       {
+        "kind": "const",
+        "value": [
+         99,
+         111,
+         110,
+         102,
+         105,
+         103,
+         50
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "token_program",
+     "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+    },
+    {
+     "name": "workflow",
+     "docs": [
+      "The registry entry [\"workflow\", 0, sha[0..20], sha[20..40]] for the token's job_workflow_sha (SetWorkflow)."
+     ]
+    }
+   ],
+   "args": [
+    {
+     "name": "job_id",
+     "type": {
+      "array": [
+       "u8",
+       32
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "set_workflow",
+   "docs": [
+    "Admin: add or remove an allowed workflow commit sha (kind 0 prove.yml, 1 fund.yml) at PDA [\"workflow\", kind, sha[0..20], sha[20..40]]. A proof's job_workflow_sha must be registered."
+   ],
+   "discriminator": [
+    24
+   ],
+   "accounts": [
+    {
+     "name": "admin",
+     "signer": true,
+     "writable": true
+    },
+    {
+     "name": "config",
+     "pda": {
+      "seeds": [
+       {
+        "kind": "const",
+        "value": [
+         99,
+         111,
+         110,
+         102,
+         105,
+         103,
+         50
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "workflow",
+     "writable": true
+    },
+    {
+     "name": "system_program",
+     "address": "11111111111111111111111111111111"
+    }
+   ],
+   "args": [
+    {
+     "name": "kind",
+     "type": "u8"
+    },
+    {
+     "name": "add",
+     "type": "u8"
+    },
+    {
+     "name": "sha",
+     "type": {
+      "array": [
+       "u8",
+       40
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "post_github",
+   "docs": [
+    "Post a job paid on a GitHub Actions proof for a repository and ref (their sha256 stored). amount 0 = a bounty with no money."
+   ],
+   "discriminator": [
+    19
+   ],
+   "accounts": [
+    {
+     "name": "buyer",
+     "signer": true,
+     "writable": true
+    },
+    {
+     "name": "job",
+     "writable": true,
+     "docs": [
+      "PDA [\"job\", id] (289 bytes)"
+     ]
+    },
+    {
+     "name": "buyer_token",
+     "writable": true
+    },
+    {
+     "name": "vault_token",
+     "writable": true
+    },
+    {
+     "name": "config",
+     "pda": {
+      "seeds": [
+       {
+        "kind": "const",
+        "value": [
+         99,
+         111,
+         110,
+         102,
+         105,
+         103,
+         50
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "token_program",
+     "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+    },
+    {
+     "name": "system_program",
+     "address": "11111111111111111111111111111111"
+    }
+   ],
+   "args": [
+    {
+     "name": "id",
+     "type": {
+      "array": [
+       "u8",
+       32
+      ]
+     }
+    },
+    {
+     "name": "amount",
+     "type": "u64"
+    },
+    {
+     "name": "work",
+     "type": "i64"
+    },
+    {
+     "name": "review",
+     "type": "i64"
+    },
+    {
+     "name": "brief",
+     "type": {
+      "array": [
+       "u8",
+       32
+      ]
+     }
+    },
+    {
+     "name": "repo_hash",
+     "type": {
+      "array": [
+       "u8",
+       32
+      ]
+     }
+    },
+    {
+     "name": "ref_hash",
+     "type": {
+      "array": [
+       "u8",
+       32
+      ]
+     }
+    },
+    {
+     "name": "checks_hash",
+     "type": {
+      "array": [
+       "u8",
+       32
+      ]
+     }
+    },
+    {
+     "name": "stake_required",
+     "type": "u8"
+    }
+   ]
+  },
+  {
+   "name": "faucet",
+   "docs": [
+    "Devnet builds only: mint test USDC from the faucet PDA to the signer's own token account; at most the faucet cap per call, one drip per wallet per hour."
+   ],
+   "discriminator": [
+    20
+   ],
+   "accounts": [
+    {
+     "name": "wallet",
+     "writable": true,
+     "signer": true
+    },
+    {
+     "name": "faucet",
+     "pda": {
+      "seeds": [
+       {
+        "kind": "const",
+        "value": [
+         102,
+         97,
+         117,
+         99,
+         101,
+         116
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "mint",
+     "writable": true
+    },
+    {
+     "name": "wallet_token",
+     "writable": true
+    },
+    {
+     "name": "drip",
+     "writable": true,
+     "pda": {
+      "seeds": [
+       {
+        "kind": "const",
+        "value": [
+         100,
+         114,
+         105,
+         112
+        ]
+       },
+       {
+        "kind": "account",
+        "path": "wallet"
+       }
+      ]
+     }
+    },
+    {
+     "name": "token_program",
+     "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+    },
+    {
+     "name": "system_program",
+     "address": "11111111111111111111111111111111"
+    }
+   ],
+   "args": [
+    {
+     "name": "amount",
+     "type": "u64"
+    }
+   ]
+  },
+  {
+   "name": "init_faucet_mint",
+   "docs": [
+    "Admin, devnet builds only: record the faucet's mint (its mint authority must be the faucet PDA) and the per-call cap."
+   ],
+   "discriminator": [
+    21
+   ],
+   "accounts": [
+    {
+     "name": "admin",
+     "writable": true,
+     "signer": true
+    },
+    {
+     "name": "config",
+     "pda": {
+      "seeds": [
+       {
+        "kind": "const",
+        "value": [
+         99,
+         111,
+         110,
+         102,
+         105,
+         103,
+         50
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "faucet",
+     "writable": true,
+     "pda": {
+      "seeds": [
+       {
+        "kind": "const",
+        "value": [
+         102,
+         97,
+         117,
+         99,
+         101,
+         116
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "mint"
+    },
+    {
+     "name": "system_program",
+     "address": "11111111111111111111111111111111"
+    }
+   ],
+   "args": [
+    {
+     "name": "cap",
+     "type": "u64"
+    }
+   ]
+  },
+  {
+   "name": "add_mint",
+   "docs": [
+    "Admin: register a mint. Its vault is a token account of that mint owned by the PDA [vault, mint]. Jobs posted with the registry store the mint (257 bytes)."
+   ],
+   "discriminator": [
+    22
+   ],
+   "accounts": [
+    {
+     "name": "admin",
+     "writable": true,
+     "signer": true
+    },
+    {
+     "name": "config",
+     "pda": {
+      "seeds": [
+       {
+        "kind": "const",
+        "value": [
+         99,
+         111,
+         110,
+         102,
+         105,
+         103,
+         50
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "registry",
+     "writable": true,
+     "pda": {
+      "seeds": [
+       {
+        "kind": "const",
+        "value": [
+         109,
+         105,
+         110,
+         116
+        ]
+       },
+       {
+        "kind": "account",
+        "path": "mint"
+       }
+      ]
+     }
+    },
+    {
+     "name": "mint"
+    },
+    {
+     "name": "vault_token"
+    },
+    {
+     "name": "system_program",
+     "address": "11111111111111111111111111111111"
+    }
+   ],
+   "args": []
+  },
+  {
+   "name": "post_bounty",
+   "docs": [
+    "A bounty (brief {kind: github-bounty, repo, issue}): Post's accounts and args, but the price may be 0. A ninth account, the mint registry, posts in a registered mint (as Post does)."
+   ],
+   "discriminator": [
+    23
+   ],
+   "accounts": [
+    {
+     "name": "buyer",
+     "writable": true,
+     "signer": true
+    },
+    {
+     "name": "job",
+     "writable": true,
+     "pda": {
+      "seeds": [
+       {
+        "kind": "const",
+        "value": [
+         106,
+         111,
+         98
+        ]
+       },
+       {
+        "kind": "arg",
+        "path": "id"
+       }
+      ]
+     }
+    },
+    {
+     "name": "buyer_token",
+     "writable": true
+    },
+    {
+     "name": "vault_token",
+     "writable": true
+    },
+    {
+     "name": "config",
+     "pda": {
+      "seeds": [
+       {
+        "kind": "const",
+        "value": [
+         99,
+         111,
+         110,
+         102,
+         105,
+         103,
+         50
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "token_program",
+     "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+    },
+    {
+     "name": "system_program",
+     "address": "11111111111111111111111111111111"
+    }
+   ],
+   "args": [
+    {
+     "name": "id",
+     "type": {
+      "array": [
+       "u8",
+       32
+      ]
+     }
+    },
+    {
+     "name": "amount",
+     "type": "u64"
+    },
+    {
+     "name": "work",
+     "type": "i64"
+    },
+    {
+     "name": "review",
+     "type": "i64"
+    },
+    {
+     "name": "brief",
+     "type": {
+      "array": [
+       "u8",
+       32
+      ]
+     }
+    },
+    {
+     "name": "verifier",
+     "type": "pubkey"
+    }
+   ]
+  },
+  {
+   "name": "register_issuer",
+   "docs": [
+    "Admin: register an OIDC issuer at PDA [\"issuer\", id]: claims kind (0 GitHub Actions: repository, job_workflow_sha; 1 GitLab CI: project_path, ci_config_sha) and its url (https://, at most 128 bytes)."
+   ],
+   "discriminator": [
+    25
+   ],
+   "accounts": [
+    {
+     "name": "admin",
+     "signer": true,
+     "writable": true
+    },
+    {
+     "name": "config",
+     "pda": {
+      "seeds": [
+       {
+        "kind": "const",
+        "value": [
+         99,
+         111,
+         110,
+         102,
+         105,
+         103,
+         50
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "issuer",
+     "writable": true
+    },
+    {
+     "name": "system_program",
+     "address": "11111111111111111111111111111111"
+    }
+   ],
+   "args": [
+    {
+     "name": "id",
+     "type": "u8"
+    },
+    {
+     "name": "claims_kind",
+     "type": "u8"
+    },
+    {
+     "name": "url",
+     "type": "bytes"
+    }
+   ]
+  },
+  {
+   "name": "fund_with_token",
+   "docs": [
+    "Devnet: after BufferWrite + VerifyStep1 of a fund.yml OIDC token (aud \"knos:fund:<issue>:<amount>:<checks hash hex>:<stake 0|1>\", job_workflow_sha registered with kind 1), create the github job sha256(\"knos-fund\" | repository | \"#\" | issue) in the faucet mint and mint the amount into that mint's vault. One funding per repository per hour (PDA [\"fundrate\", sha256(repository)])."
+   ],
+   "discriminator": [
+    26
+   ],
+   "accounts": [
+    {
+     "name": "payer",
+     "signer": true,
+     "writable": true
+    },
+    {
+     "name": "buffer",
+     "writable": true
+    },
+    {
+     "name": "key"
+    },
+    {
+     "name": "job",
+     "writable": true
+    },
+    {
+     "name": "vault_token",
+     "writable": true
+    },
+    {
+     "name": "faucet"
+    },
+    {
+     "name": "mint",
+     "writable": true
+    },
+    {
+     "name": "registry"
+    },
+    {
+     "name": "config",
+     "pda": {
+      "seeds": [
+       {
+        "kind": "const",
+        "value": [
+         99,
+         111,
+         110,
+         102,
+         105,
+         103,
+         50
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "token_program",
+     "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+    },
+    {
+     "name": "system_program",
+     "address": "11111111111111111111111111111111"
+    },
+    {
+     "name": "workflow"
+    },
+    {
+     "name": "fundrate",
+     "writable": true
+    }
+   ],
+   "args": [
+    {
+     "name": "job_id",
+     "type": {
+      "array": [
+       "u8",
+       32
+      ]
+     }
+    }
+   ]
+  }
+ ],
+ "accounts": [
+  {
+   "name": "Config2",
+   "discriminator": []
+  },
+  {
+   "name": "Job",
+   "discriminator": []
+  }
+ ],
+ "errors": [
+  {
+   "code": 13,
+   "name": "NotAJob",
+   "msg": "not a job account"
+  },
+  {
+   "code": 17,
+   "name": "Paused",
+   "msg": "paused: no new jobs"
+  },
+  {
+   "code": 18,
+   "name": "BelowMinimum",
+   "msg": "below the minimum job"
+  },
+  {
+   "code": 19,
+   "name": "OverCap",
+   "msg": "over the per-job cap"
+  },
+  {
+   "code": 20,
+   "name": "NotOpen",
+   "msg": "not open"
+  },
+  {
+   "code": 21,
+   "name": "NotWorker",
+   "msg": "not worker"
+  },
+  {
+   "code": 22,
+   "name": "BuyerCannotClaim",
+   "msg": "a buyer cannot claim its own job"
+  },
+  {
+   "code": 23,
+   "name": "ClaimTimedOut",
+   "msg": "the claim timed out"
+  },
+  {
+   "code": 30,
+   "name": "NotDelivered",
+   "msg": "not delivered"
+  },
+  {
+   "code": 31,
+   "name": "NotBuyer",
+   "msg": "not buyer"
+  },
+  {
+   "code": 32,
+   "name": "NotPastDeadline",
+   "msg": "in review / not past the deadline"
+  },
+  {
+   "code": 34,
+   "name": "NotVerifier",
+   "msg": "not the job's verifier"
+  },
+  {
+   "code": 35,
+   "name": "UnprovenWork",
+   "msg": "verifier releases unproven work"
+  },
+  {
+   "code": 36,
+   "name": "SelfVerify",
+   "msg": "a worker cannot verify its own work"
+  },
+  {
+   "code": 41,
+   "name": "NotRefundable",
+   "msg": "not refundable"
+  },
+  {
+   "code": 43,
+   "name": "VerifiedJob",
+   "msg": "a verified job: only its verifier can reject"
+  },
+  {
+   "code": 44,
+   "name": "RentToBuyer",
+   "msg": "rent back to the buyer only"
+  }
+ ],
+ "types": [
+  {
+   "name": "Config2",
+   "docs": [
+    "PDA [\"config2\"]; size 124 bytes"
+   ],
+   "type": {
+    "kind": "struct",
+    "fields": [
+     {
+      "name": "admin",
+      "docs": [
+       "offset 0, 32 bytes"
+      ],
+      "type": "pubkey"
+     },
+     {
+      "name": "mint",
+      "docs": [
+       "offset 32, 32 bytes"
+      ],
+      "type": "pubkey"
+     },
+     {
+      "name": "fee_token",
+      "docs": [
+       "offset 64, 32 bytes"
+      ],
+      "type": "pubkey"
+     },
+     {
+      "name": "fee_bps",
+      "docs": [
+       "offset 96, 2 bytes"
+      ],
+      "type": "u16"
+     },
+     {
+      "name": "min_fee",
+      "docs": [
+       "offset 98, 8 bytes"
+      ],
+      "type": "u64"
+     },
+     {
+      "name": "min_amount",
+      "docs": [
+       "offset 106, 8 bytes"
+      ],
+      "type": "u64"
+     },
+     {
+      "name": "max_amount",
+      "docs": [
+       "offset 114, 8 bytes; 0 = no cap"
+      ],
+      "type": "u64"
+     },
+     {
+      "name": "paused",
+      "docs": [
+       "offset 122, 1 bytes"
+      ],
+      "type": "u8"
+     },
+     {
+      "name": "bump",
+      "docs": [
+       "offset 123, 1 bytes"
+      ],
+      "type": "u8"
+     }
+    ]
+   }
+  },
+  {
+   "name": "Job",
+   "docs": [
+    "PDA [\"job\", id]; size 225 bytes"
+   ],
+   "type": {
+    "kind": "struct",
+    "fields": [
+     {
+      "name": "state",
+      "docs": [
+       "offset 0, 1 bytes; 0 none, 1 open, 2 claimed, 3 delivered, 4 released, 5 refunded"
+      ],
+      "type": "u8"
+     },
+     {
+      "name": "buyer",
+      "docs": [
+       "offset 1, 32 bytes"
+      ],
+      "type": "pubkey"
+     },
+     {
+      "name": "worker",
+      "docs": [
+       "offset 33, 32 bytes; zero until claimed"
+      ],
+      "type": "pubkey"
+     },
+     {
+      "name": "amount",
+      "docs": [
+       "offset 65, 8 bytes"
+      ],
+      "type": "u64"
+     },
+     {
+      "name": "deadline",
+      "docs": [
+       "offset 73, 8 bytes; the work deadline; the review deadline once delivered"
+      ],
+      "type": "i64"
+     },
+     {
+      "name": "review",
+      "docs": [
+       "offset 81, 8 bytes; the review window, seconds"
+      ],
+      "type": "i64"
+     },
+     {
+      "name": "brief",
+      "docs": [
+       "offset 89, 32 bytes"
+      ],
+      "type": {
+       "array": [
+        "u8",
+        32
+       ]
+      }
+     },
+     {
+      "name": "result",
+      "docs": [
+       "offset 121, 32 bytes; zero until delivered"
+      ],
+      "type": {
+       "array": [
+        "u8",
+        32
+       ]
+      }
+     },
+     {
+      "name": "verifier",
+      "docs": [
+       "offset 153, 32 bytes; zero = none; absent on 153-byte pre-0.3.4 jobs"
+      ],
+      "type": "pubkey"
+     },
+     {
+      "name": "proof",
+      "docs": [
+       "offset 185, 32 bytes; absent on 153-byte jobs"
+      ],
+      "type": {
+       "array": [
+        "u8",
+        32
+       ]
+      }
+     },
+     {
+      "name": "stake",
+      "docs": [
+       "offset 217, 8 bytes; absent on 217-byte 0.3.4 jobs"
+      ],
+      "type": "u64"
+     }
+    ]
+   }
+  }
+ ]
+}

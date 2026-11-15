@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Knos proof receipt</title>
+<meta name="description" content="AI agent work gets paid only when GitHub's own signature, checked by Solana, proves it passed. This page reads a Knos proof receipt from Solana devnet.">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="app.css">
+<style>
+  dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; }
+  dt { color: var(--muted); }
+  dd { margin: 0; font-family: ui-monospace, Consolas, monospace; font-size: 14px; overflow-wrap: anywhere; }
+  .ok { color: var(--ok); font-weight: 700; } .bad { color: var(--bad); font-weight: 700; }
+</style>
+</head>
+<body>
+<header class="bar"><a class="brand" href="./"><img src="icon.svg" width="24" height="24" alt="">Knos</a></header>
+<main>
+  <h1>Proof receipt</h1>
+  <p class="lede">AI agent work gets paid only when GitHub's own signature, checked by Solana, proves it passed. Knos ran the checks itself, hashed the evidence into a
+  Merkle root and attested it on Solana devnet. This page reads the attestation straight from the chain.</p>
+  <div class="card" id="out">Reading the attestation from devnet…</div>
+  <p class="lede">To check the root yourself, run <code>knos proof receipt</code> on the same commit: it prints the
+  evidence and its root.</p>
+</main>
+<script type="module">
+import { rpc } from "./chain.js";
+const B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+const b58 = (u8) => { let n = 0n; for (const b of u8) n = n * 256n + BigInt(b); let s = "";
+  while (n > 0n) { s = B58[Number(n % 58n)] + s; n /= 58n; } for (const b of u8) { if (b) break; s = "1" + s; } return s; };
+const hex = (u8) => [...u8].map((b) => b.toString(16).padStart(2, "0")).join("");
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const out = document.getElementById("out");
+const att = new URLSearchParams(location.search).get("a") || "";
+async function show() {
+  if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(att)) { out.textContent = "No receipt address in the link (?a=…)."; return; }
+  const got = await rpc("getAccountInfo", [att, { encoding: "base64" }]);
+  if (!got.value) { out.innerHTML = `<span class="bad">No such attestation on devnet.</span>`; return; }
+  const raw = Uint8Array.from(atob(got.value.data[0]), (c) => c.charCodeAt(0));
+  const dv = new DataView(raw.buffer);
+  // SAS attestation: discriminator, nonce, credential, schema, data (u32 length + bytes), signer, expiry, token account.
+  const nonce = raw.slice(1, 33), len = dv.getUint32(97, true), data = raw.slice(101, 101 + len);
+  const signer = raw.slice(101 + len, 133 + len);
+  const dd = new DataView(data.buffer, data.byteOffset);
+  let o = 0; const vec = () => { const n = dd.getUint32(o, true); const v = data.slice(o + 4, o + 4 + n); o += 4 + n; return v; };
+  const root = vec(), commit = vec(), claim = vec(), at = Number(dd.getBigInt64(o, true));
+  const bound = hex(root) === hex(nonce);
+  out.innerHTML = `<p class="${bound ? "ok" : "bad"}">${bound ? "Proven: the evidence root is bound to this attestation."
+    : "Root and attestation nonce differ: not a valid Knos receipt."}</p><dl>
+    <dt>Evidence root</dt><dd>${hex(root)}</dd>
+    <dt>Commit</dt><dd>${esc(hex(commit) || "none")}</dd>
+    <dt>Claim hash</dt><dd>${hex(claim)}</dd>
+    <dt>Proven at</dt><dd>${new Date(at * 1000).toISOString()}</dd>
+    <dt>Attested by</dt><dd>${b58(signer)}</dd>
+    <dt>Attestation</dt><dd><a href="https://explorer.solana.com/address/${att}?cluster=devnet">${att}</a></dd></dl>`;
+}
+show().catch((e) => { out.innerHTML = `<span class="bad">Could not read devnet: ${esc(e.message)}</span>`; });
+</script>
+</body>
+</html>
