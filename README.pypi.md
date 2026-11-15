@@ -121,7 +121,7 @@ a rule decides, and above $50 a person approves.
 
 - **The online demo is offline during voting.** It ran in a GitHub codespace, whose free hours ran out on 14 Nov at
   about 21:20 UTC. Watch the video, or run Knos with one command on your machine (below).
-- Video: 43 s, a live run on 13 Nov 2026 from the online demo, downloadable with no login: [knos-iris.mp4](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/iris/media/knos-iris.mp4).
+- Video: 43 s, a narrated live run on 13 Nov 2026 from the online demo, downloadable with no login: [knos-iris.mp4](https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/iris/media/knos-iris.mp4).
 - Community idea: it implements [DPI-I-689](https://ideas.intersystems.com/ideas/DPI-I-689), each decision step an
   interoperability message.
 - [Judge it in 2 minutes](https://github.com/drexthealpha/Knos/blob/v0.4.1/README.md#judge-it-in-2-minutes-on-iris): with the video, no login and no key.

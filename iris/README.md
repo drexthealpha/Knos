@@ -4,7 +4,7 @@ An IRIS Interoperability production where an AI Hub agent decides if a lab's loc
 
 - **The online demo is offline during voting.** It ran in a GitHub codespace, whose free hours ran out on 14 Nov at
   about 21:20 UTC, so it stays down. Watch the video, or run Knos with one command on your machine.
-- Video, 43 s, a live run on 13 Nov 2026, downloadable with no login: [knos-iris.mp4](https://raw.githubusercontent.com/drexthealpha/Knos/main/iris/media/knos-iris.mp4)
+- Video, 43 s, a narrated live run on 13 Nov 2026, downloadable with no login: [knos-iris.mp4](https://raw.githubusercontent.com/drexthealpha/Knos/main/iris/media/knos-iris.mp4)
 - [Judge it in 2 minutes](#judge-it-in-2-minutes): with the video, or with one command on your machine.
 
 Built and tested on build 154 (`irishealth-community-2026.3.0AI.154.0`). Build 109, which the portal lists now, is
