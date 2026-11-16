@@ -355,6 +355,8 @@ RS = re.compile(r"^(?:Failed at row (\d+): (.+?) is not (above|below) (.+?)\. It
 def sentence(lang: str, text: str, as_html: bool = True) -> str:
     """The program's result sentence in this language: English as the program wrote it; any other language from the
     fixed template, every count in the language's digits, every value from the file as written there."""
+    if text == UNKNOWN:
+        return _e(t(lang, "rs.unknown")) if as_html else t(lang, "rs.unknown")
     m = RS.match(text or "")
     if lang == "en" or not m:
         return _e(text) if as_html else str(text or "")
@@ -366,6 +368,52 @@ def sentence(lang: str, text: str, as_html: bool = True) -> str:
     if m[9]:
         parts.append(f(lang, "rs.skipped", n=int(m[9])))
     return raw(lang, "rs.sep").join(parts)
+
+
+# The verdict (U6 Rules 5 to 7, 10, 15 and 20): one of three states, each with its own icon and word; the result
+# sentence first; then the evidence (the rows checked and the test the program passed), or, when no row held a number,
+# the reason; then one next step. A result with no numeric row is "cannot tell" (tool_run.verdict_of), never a pass.
+UNKNOWN = "I cannot tell: no row held a number."
+STATES = ("pass", "fail", "unknown")
+_SHAPES = {"pass": '<circle cx="12" cy="12" r="10"/><path d="M7 12.5l3.5 3.5L17 9"/>',
+           "fail": '<rect x="2.5" y="2.5" width="19" height="19" rx="3"/><path d="M8.5 8.5l7 7M15.5 8.5l-7 7"/>',
+           "unknown": '<path d="M12 2.5l10 18H2z"/><path d="M12 9.5v5M12 17.5v.5"/>'}
+
+
+def verdict_of(r: dict) -> str:
+    """pass, fail or unknown: the stored verdict, else the first failing row, else whether any row held a number."""
+    v = r.get("verdict")
+    if v in STATES:
+        return v
+    ffr = r.get("first_failing_row")
+    if isinstance(ffr, int) and not isinstance(ffr, bool):
+        return "fail"
+    return "pass" if int(r.get("rows") or 0) > 0 else "unknown"
+
+
+def icon(lang: str, state: str) -> str:
+    """The verdict's icon: a tick in a circle, a cross in a square, a mark in a triangle; named in the page's language."""
+    return (f'<svg role="img" aria-label="{_e(t(lang, "v." + state))}" viewBox="0 0 24 24" width="28" height="28" fill="none" '
+            f'stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">{_SHAPES[state]}</svg>')
+
+
+def answer_html(lang: str, r: dict, test_url: str = TEST_URL) -> str:
+    """The answer block: icon, sentence (p.big#about), evidence or reason, next step."""
+    state = verdict_of(r)
+    m = RS.match(r.get("result") or "")
+    col = Bdi(r.get("column") or "")
+    lim = Bdi(m[4] if m and m[1] else m[8] if m else shown_limit(r.get("limit") or 0))
+    out = f'{icon(lang, state)}<p class="big" id="about">{sentence(lang, r.get("result") or "")}</p>'
+    if state == "unknown":
+        out += (f'<p data-reason data-uncertain="true">{h(lang, "why.unknown", column=col)}</p>'
+                f'<p data-next-step>{h(lang, "next.unknown")}</p>')
+    else:
+        ffr = r.get("first_failing_row") or 0
+        ev = (h(lang, "ev.fail", r=int(ffr), column=col, value=Bdi(m[2]), limit=lim) if state == "fail" and m and m[1]
+              else h(lang, "ev.pass", n=int(r.get("rows") or 0), column=col, limit=lim))
+        out += (f'<p data-evidence><span data-compare>{ev}</span> <a href="{_e(test_url)}" data-verified>{_e(t(lang, "res.shown_by"))}</a></p>'
+                f'<p data-next-step>{h(lang, "next." + state, r=int(ffr))}</p>')
+    return f'<div class="answer" data-answer data-verdict data-state="{state}">{out}</div>'
 
 
 def strings_for(lang: str, keys) -> dict:
@@ -394,14 +442,14 @@ def switcher(lang: str) -> str:
 
 
 SWITCH_CSS = (".klang{position:relative}.klang details{margin:0;padding:0;border:0}"
-              ".klang summary{display:inline-flex;align-items:center;gap:6px;min-height:44px;min-width:44px;padding:0 10px;cursor:pointer;"
-              "list-style:none;border:1px solid var(--line);border-radius:10px;font-size:16px;font-weight:400}"
+              ".klang summary{display:inline-flex;align-items:center;gap:6px;min-height:48px;min-width:48px;padding:0 10px;cursor:pointer;"
+              "list-style:none;border:2px solid var(--line);border-radius:10px;font-size:1rem;font-weight:400}"
               ".klang details summary::before{content:none}.klang summary::-webkit-details-marker{display:none}"
-              ".klang-list{position:absolute;inset-inline-end:0;top:50px;z-index:40;display:flex;flex-direction:column;min-width:11em;"
+              ".klang-list{position:absolute;inset-inline-end:0;top:50px;z-index:40;display:flex;flex-direction:column;min-width:min(11em,calc(100vw - 32px));max-width:calc(100vw - 32px);"
               "padding:6px 10px;background:var(--paper-2,var(--card));border:1px solid var(--line);border-radius:10px}"
-              ".klang-list a{display:flex;align-items:center;min-height:44px;color:inherit;text-decoration:none}"
-              ".klang-list a[aria-current]{font-weight:700}"
-              ":lang(ar){line-height:1.6}:lang(hi){line-height:1.8}"
+              ".klang-list a{display:flex;align-items:center;min-height:48px;color:inherit;text-decoration:none}"
+              ".klang-list a[aria-current]{font-weight:700}details:not([open])>:not(summary){display:none}"
+              ":lang(ar){line-height:1.65}:lang(hi){line-height:1.85}"
               ".five dt{font-weight:700;margin:10px 0 0}.five dd{margin:0}.tgt{display:none}.tgt:target{display:block}")
 
 
@@ -422,7 +470,7 @@ def facts() -> dict:
             "rows": len(rows), "limit": shown_limit(CONF["sample_limit"]), "url": CONF["limit_rule_url"],
             "longest": tool_run.longest_test_file(), "test_url": tool_run.TEST_URL, "job": tool_run.job_link(),
             "ready": tool_run.ready(), "free": int(CONF["free_runs_a_day"]), "runs": int(CONF["pack_runs"]),
-            "price": float(str(CONF["pack_price"]).lstrip("$"))}
+            "price": float(str(CONF["pack_price"]).lstrip("US$ "))}
 
 
 def fold_items(lang: str, f: dict, spans: dict | None = None) -> list[str]:
@@ -462,15 +510,16 @@ I18N_JS = r"""window.KI = window.KI || (() => {
   let L = "en", S = {};
   const plural = (n) => { try { return new Intl.PluralRules(L).select(n); } catch (e) { return "other"; } };
   const nf = (n) => { try { return new Intl.NumberFormat(L).format(n); } catch (e) { return String(n); } };
-  const money = (x) => { try { return new Intl.NumberFormat(L, { style: "currency", currency: "USD", currencyDisplay: "narrowSymbol", minimumFractionDigits: x % 1 ? 2 : 0, maximumFractionDigits: x % 1 ? 2 : 0 }).format(x); } catch (e) { return "$" + x; } };
+  const money = (x) => { try { return new Intl.NumberFormat(L, { style: "currency", currency: "USD", currencyDisplay: "narrowSymbol", minimumFractionDigits: x % 1 ? 2 : 0, maximumFractionDigits: x % 1 ? 2 : 0 }).format(x); } catch (e) { return String(x) + " USD"; } };
   const raw = (k, v) => { let s = S[k]; if (s == null) return k; if (typeof s === "object") s = s[plural(v && v.n != null ? +v.n : 0)] || s.other; return s; };
   const val = (name, x) => /^(price|low|high)$/.test(name) ? money(+x) : /^(n|free|r)$/.test(name) && typeof x === "number" ? nf(x) : String(x);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-  const bdi = new Set(["value", "limit", "first", "last"]);
+  const bdi = new Set(["value", "limit", "first", "last", "column", "names"]);
   const t = (k, v) => raw(k, v).replace(/\{(\w+)\}/g, (m, n) => v && v[n] != null ? val(n, v[n]) : m);
   const html = (k, v) => raw(k, v).replace(/\{(\w+)\}/g, (m, n) => v && v[n] != null ? (bdi.has(n) ? "<bdi>" + esc(val(n, v[n])) + "</bdi>" : esc(val(n, v[n]))) : m);
   const RS = /^(?:Failed at row (\d+): (.+?) is not (above|below) (.+?)\. It passed for the (\d+) rows before that\.|Passed: all (\d+) rows stay (above|below) (.+?)\.)(?: (\d+) rows were skipped because they are not numbers\.)?$/;
   function sentence(text, plain) {
+    if (text === "I cannot tell: no row held a number." && S["rs.unknown"] != null) return plain ? t("rs.unknown") : esc(t("rs.unknown"));
     const m = RS.exec(text || ""), f = plain ? t : html;
     if (L === "en" || !m) return plain ? String(text || "") : esc(text || "");
     const parts = m[1] ? [f("rs.fail_" + m[3], { r: +m[1], value: m[2], limit: m[4] }), f("rs.before", { n: +m[5] })] : [f("rs.pass_" + m[7], { n: +m[6], limit: m[8] })];
@@ -543,27 +592,30 @@ def static_runtime(base: str, used: list[str] | None = None) -> str:
     return I18N_JS + "\n" + js
 
 
-CSS = """:root{--bg:#f4f4f0;--card:#fff;--fg:#15171c;--muted:#4a505c;--line:#8a8f99;--accent:#2b3bb5;--accent-fg:#fff;--bad:#b3261e;color-scheme:light dark}
-@media (prefers-color-scheme:dark){:root{--bg:#07080c;--card:#0f1118;--fg:#e9ebef;--muted:#b4bac8;--line:#6b7080;--accent:#93a5ff;--accent-fg:#07080c;--bad:#ff8a80}}
+CSS = """:root{--bg:#f4f4f0;--card:#fff;--fg:#15171c;--muted:#4a505c;--line:#767b85;--accent:#2b3bb5;--accent-fg:#fff;--bad:#b3261e;--ok:#1b6e2e;color-scheme:light dark}
+@media (prefers-color-scheme:dark){:root{--bg:#07080c;--card:#0f1118;--fg:#e9ebef;--muted:#b4bac8;--line:#6b7080;--accent:#93a5ff;--accent-fg:#07080c;--bad:#ff8a80;--ok:#7fd18f}}
 *{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--bg);color:var(--fg);font:18px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow-wrap:anywhere}
+body{margin:0;background:var(--bg);color:var(--fg);font:1.125rem/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow-wrap:anywhere}
 main{max-width:640px;margin:0 auto;padding:4px 16px 48px}
 a{color:var(--accent)}
 .top{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.brand{display:inline-flex;align-items:center;min-height:44px;font-weight:700;font-size:20px;color:var(--fg);text-decoration:none}
-h1{font-size:26px;line-height:1.2;margin:2px 0 4px}h2{font-size:22px;line-height:1.25;margin:12px 0 6px}
+.brand{display:inline-flex;align-items:center;min-height:48px;min-width:48px;font-weight:700;font-size:1.25rem;color:var(--fg);text-decoration:none}
+h1{font-size:1.625rem;line-height:1.2;margin:2px 0 4px}h2{font-size:1.375rem;line-height:1.25;margin:12px 0 6px}
 .who{margin:0 0 10px;color:var(--muted)}
 label{display:block;font-weight:600;margin-bottom:4px}
-textarea{display:block;width:100%;height:6.4em;font:16px/1.4 ui-monospace,Consolas,monospace;padding:8px 10px;border:2px solid var(--line);border-radius:8px;background:var(--card);color:var(--fg);resize:vertical;white-space:pre;overflow:auto}
-select,input{font:inherit;min-height:44px;padding:4px 8px;border:2px solid var(--line);border-radius:8px;background:var(--card);color:var(--fg)}
+textarea{display:block;width:100%;height:6.4em;font:1.125rem/1.4 ui-monospace,Consolas,monospace;padding:8px 10px;border:2px solid var(--line);border-radius:8px;background:var(--card);color:var(--fg);resize:vertical;white-space:pre;overflow:auto}
+select,input{font:inherit;min-height:48px;max-width:100%;padding:4px 8px;border:2px solid var(--line);border-radius:8px;background:var(--card);color:var(--fg)}
 input[type=file]{width:100%;padding:8px}
 .rule{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:10px 0 0}.rule input{width:7em}
 .field{margin:10px 0 0}
-button{font:inherit;min-height:44px;min-width:44px;padding:8px 16px;border-radius:8px;border:2px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;margin-block:8px 0;margin-inline:0 8px}
-button.primary{min-height:48px;width:100%;margin-block:10px 0;margin-inline:0;background:var(--accent);color:var(--accent-fg);font-weight:700}
-button:disabled{opacity:.75;cursor:default}
+button{font:inherit;min-height:48px;min-width:48px;padding:8px 16px;border-radius:8px;border:2px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;margin-block:8px 0;margin-inline:0 8px}
+button.primary{width:100%;margin-block:10px 0;margin-inline:0;background:var(--accent);color:var(--accent-fg);font-weight:700}
+button:disabled,button[aria-disabled=true]{opacity:.75;cursor:default}
 button:focus-visible,textarea:focus-visible,summary:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
-.big{font-size:22px;font-weight:700;margin:14px 0 0}.big+p{margin:2px 0 0}
+.big{font-size:1.375rem;font-weight:700;margin:14px 0 0}.big+p{margin:2px 0 0}
+.answer{display:grid;grid-template-columns:auto 1fr;column-gap:8px;align-items:start;margin:14px 0 0}
+.answer>*{grid-column:1/-1}.answer>svg{grid-column:1;width:1.75rem;height:1.75rem;margin-block-start:2px}.answer>svg+*{grid-column:2;margin:0}
+.answer p{margin-block:6px 0;margin-inline:0}.answer[data-state=pass]>svg{color:var(--ok)}.answer[data-state=fail]>svg{color:var(--bad)}.answer[data-state=unknown]>svg{color:var(--muted)}
 .chart{display:block;width:100%;height:auto;max-height:220px;margin:10px 0 0;color:var(--fg)}
 .muted{color:var(--muted)}.bad{color:var(--bad);font-weight:600}
 .bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin:12px 0 4px}
@@ -571,10 +623,10 @@ button:focus-visible,textarea:focus-visible,summary:focus-visible,a:focus-visibl
 @keyframes k-move{from{transform:translateX(0)}to{transform:translateX(233%)}}
 @media (prefers-reduced-motion:reduce){.bar i{animation:none;width:100%}}
 main>details{margin-top:24px;border-top:1px solid var(--line);padding-top:4px}
-summary{min-height:44px;display:flex;align-items:center;cursor:pointer;font-weight:600}
+summary{min-height:48px;display:flex;align-items:center;cursor:pointer;font-weight:600}
 main>details>summary::before{content:"+";display:inline-block;width:1.2em;color:var(--accent)}main>details[open]>summary::before{content:"\\2212"}
-details li{margin:6px 0}.fold-links a{display:inline-flex;align-items:center;min-height:44px;margin-inline-end:16px}
-.tgt input{width:100%;font:15px ui-monospace,Consolas,monospace}
+details li{margin:6px 0}.fold-links a{display:inline-flex;align-items:center;min-height:48px;margin-inline-end:16px}
+.tgt input{width:100%;font:1rem ui-monospace,Consolas,monospace}
 [hidden]{display:none!important}""" + "\n" + SWITCH_CSS
 
 # The table reader and the chart, the same code on the front door (web/door.html): the column names by the program's rule
@@ -601,18 +653,18 @@ function columnsOf(text) {
   return Array.from({ length: Math.max(...rows.map((r) => r.length)) }, (_, i) => "column " + (i + 1));
 }
 function chartSvg(c, row) {
-  const NS = "http://www.w3.org/2000/svg", W = 320, H = 150, P = 10;
+  const NS = "http://www.w3.org/2000/svg", W = 320, H = 150, P = 10, r1 = (v) => Math.round(v * 10) / 10;
   const el = (tag, at) => { const e = document.createElementNS(NS, tag); for (const k in at) e.setAttribute(k, at[k]); return e; };
   const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, class: "chart", role: "img", dir: "ltr", "data-no-mirror": "", "aria-label": KI.t(c && c.fail ? "chart.label_fail" : "chart.label") });
   if (!c || !c.points || !c.points.length) return svg;
   const vs = c.points.map((p) => p[1]).concat([c.limit]), lo = Math.min(...vs), hi = Math.max(...vs), pad = (hi - lo) * 0.1 || 1;
   const n = Math.max(2, c.n), X = (x) => P + (x - 1) / (n - 1) * (W - 2 * P), Y = (v) => H - P - (v - lo + pad) / (hi - lo + 2 * pad) * (H - 2 * P);
-  svg.append(el("polyline", { points: c.points.map((p) => X(p[0]).toFixed(1) + "," + Y(p[1]).toFixed(1)).join(" "), fill: "none", stroke: "currentColor", "stroke-width": 2 }));
-  svg.append(el("line", { x1: P, x2: W - P, y1: Y(c.limit).toFixed(1), y2: Y(c.limit).toFixed(1), stroke: "#b3261e", "stroke-width": 2, "stroke-dasharray": "6 4" }));
+  svg.append(el("polyline", { points: c.points.map((p) => r1(X(p[0])) + "," + r1(Y(p[1]))).join(" "), fill: "none", stroke: "currentColor", "stroke-width": 2 }));
+  svg.append(el("line", { x1: P, x2: W - P, y1: r1(Y(c.limit)), y2: r1(Y(c.limit)), stroke: "#b3261e", "stroke-width": 2, "stroke-dasharray": "6 4" }));
   if (c.fail) {
-    const fx = X(c.fail[0]), fy = Y(c.fail[1]);
-    svg.append(el("circle", { cx: fx.toFixed(1), cy: fy.toFixed(1), r: 6, fill: "none", stroke: "#b3261e", "stroke-width": 3 }));
-    const t = el("text", { x: Math.min(W - 60, Math.max(P, fx - 24)).toFixed(1), y: Math.max(14, fy - 10).toFixed(1), fill: "currentColor", "font-size": 13 });
+    const fx = r1(X(c.fail[0])), fy = r1(Y(c.fail[1]));
+    svg.append(el("circle", { cx: fx, cy: fy, r: 6, fill: "none", stroke: "#b3261e", "stroke-width": 3 }));
+    const t = el("text", { x: r1(Math.min(W - 60, Math.max(P, fx - 24))), y: r1(Math.max(14, fy - 10)), fill: "currentColor", "font-size": 13 });
     t.textContent = KI.t("chart.row", { r: row }); svg.append(t);
   }
   return svg;
@@ -644,7 +696,7 @@ function fillColumns(keep) {
   sel.replaceChildren(...names.map((c) => { const o = make("option", c); o.value = c; return o; }));
   if (names.includes(was)) sel.value = was; else if (names.length) sel.value = names[names.length - 1];
 }
-function idle() { clearInterval(tick); tick = null; xhr = null; go.disabled = false; go.textContent = T("tool.try"); out.removeAttribute("aria-busy"); out.dataset.state = "done"; }
+function idle() { clearInterval(tick); tick = null; xhr = null; go.removeAttribute("aria-disabled"); go.textContent = T("tool.try"); out.removeAttribute("aria-busy"); out.dataset.state = "done"; }
 function left(r) {
   if (r.mode !== "own" || r.runs_left == null) return null;
   if (r.paid_left > 0) return make("p", T("res.runs_left", { n: r.runs_left }));
@@ -670,16 +722,38 @@ function ask() {
   p.append(btn(T("yes"), () => answer(true)), btn(T("no"), () => answer(false)));
   return p;
 }
+// the verdict block, as the server writes it (tool_page.answer_html): icon, sentence, evidence or reason, next step
+const icon = (st) => { const x = document.createElement("template"); x.innerHTML = D.icons[st]; return x.content.firstChild; };
+const RSX = /^(?:Failed at row (\d+): (.+?) is not (?:above|below) (.+?)\. It passed|Passed: all \d+ rows stay (?:above|below) (.+?)\.)/;
+const verdictOf = (r) => /^(pass|fail|unknown)$/.test(r.verdict || "") ? r.verdict : r.first_failing_row ? "fail" : r.rows > 0 ? "pass" : "unknown";
+function part(tag, key, v, attrs) { const e = make(tag); e.innerHTML = KI.html(key, v); for (const a in attrs || {}) e.setAttribute(a, attrs[a]); return e; }
+function answer(r) {
+  const st = verdictOf(r), m = RSX.exec(r.result || ""), col = r.column || D.column;
+  const lim = m ? (m[1] ? m[3] : m[4]) : String(r.limit);
+  const a = make("div", null, "answer"); a.dataset.answer = ""; a.dataset.verdict = ""; a.dataset.state = st;
+  const big = make("p", null, "big"); big.id = "about"; big.innerHTML = KI.sentence(r.result);
+  a.append(icon(st), big);
+  if (st === "unknown") a.append(part("p", "why.unknown", { column: col }, { "data-reason": "", "data-uncertain": "true" }), part("p", "next.unknown", {}, { "data-next-step": "" }));
+  else {
+    const ev = make("p"); ev.dataset.evidence = "";
+    const c = st === "fail" && m && m[1] ? part("span", "ev.fail", { r: +m[1], column: col, value: m[2], limit: lim }) : part("span", "ev.pass", { n: r.rows || 0, column: col, limit: lim });
+    c.dataset.compare = "";
+    const src = make("a", T("res.shown_by")); src.href = D.test_url; src.dataset.verified = "";
+    ev.append(c, " ", src);
+    a.append(ev, part("p", "next." + st, { r: r.first_failing_row || 0 }, { "data-next-step": "" }));
+  }
+  return a;
+}
 function result(r) {
   link = r.link; said = r.result;
-  const big = make("p", null, "big"); big.id = "about"; big.innerHTML = KI.sentence(r.result);
-  const nodes = [big];
-  if (r.chart) nodes.push(chartSvg(r.chart, r.first_failing_row));
+  const nodes = [answer(r)];
+  if (r.chart && r.chart.points && r.chart.points.length) nodes.push(chartSvg(r.chart, r.first_failing_row));
   const l = left(r); if (l) nodes.push(l);
   if (r.mode === "own") nodes.push(make("p", T("res.private")));
-  nodes.push(make("p", T("res.shown_by"), "muted"));
   const row = make("div");
-  row.append(btn(T("res.mine"), mine), btn(T("res.copy"), (e) => copy(e.currentTarget)));
+  const more = [btn(T("res.mine"), mine), btn(T("res.copy"), (e) => copy(e.currentTarget))];
+  more.forEach((b) => { b.dataset.followup = ""; });
+  row.append(...more);
   nodes.push(row);
   const q = ask(); if (q) nodes.push(q);
   show(...nodes);
@@ -691,27 +765,38 @@ function ownMode() {
   $("lims").textContent = T("tool.lim_rows", { n: D.limits.max_rows }) + " " + T("tool.lim_secs", { n: D.limits.max_seconds }); $("lims").hidden = false;
 }
 function mine() { box.value = ""; $("limit").value = ""; ownMode(); fillColumns(); show(); $("file").focus(); }
-function trouble(text, label, then) {
-  const p = make("p", text, "bad"); p.setAttribute("role", "alert"); p.dataset.answer = "";
-  show(p, btn(label, then));
+// an error is a "cannot tell" answer (U6 Rules 15 and 17): the reason in the first person, the person's file kept in
+// the box, and a next step that leaves the error; Try again beside it where the server may answer next time
+function trouble(text, label, then, retry) {
+  const a = make("div", null, "answer"); a.dataset.verdict = ""; a.dataset.state = "unknown";
+  const p = make("p", text, "bad"); p.setAttribute("role", "alert"); p.dataset.answer = ""; p.dataset.reason = "";
+  const next = btn(label, then); next.dataset.nextStep = "";
+  a.append(icon("unknown"), p, next);
+  if (retry) a.append(btn(T("btn.retry"), run));
+  show(a);
 }
-function edit() { box.focus(); }
-function working() {
-  const t0 = Date.now();
-  let step = T("work.sending"), built = false, status, secs;
+function edit() { show(); box.focus(); }
+function chooseColumn() { show(); ownMode(); fillColumns(); $("col").focus(); }
+function working(rows) {
+  const t0 = Date.now(), max = D.limits.max_seconds;
+  let step = T("work.sending"), built = false, status, bar;
   out.dataset.state = "working"; out.setAttribute("aria-busy", "true");
-  go.disabled = true; go.textContent = T("tool.checking");
-  show(make("p", T("tool.checking")));
+  go.setAttribute("aria-disabled", "true"); go.textContent = T("tool.checking");
+  const got = make("p", T("work.rows", { n: rows })); got.dataset.partial = "";
+  show(make("p", T("tool.checking")), got);
   tick = setInterval(() => {
     const s = Math.floor((Date.now() - t0) / 1000);
     if (s < 1) return;
     if (!built) {
       built = true;
-      const bar = make("div", null, "bar"); bar.setAttribute("role", "progressbar"); bar.setAttribute("aria-label", T("tool.checking")); bar.append(make("i"));
+      // the bar's value is the run's time against its time limit, both in seconds (U1 R11): a number, never a guess
+      bar = make("div", null, "bar"); bar.setAttribute("role", "progressbar"); bar.setAttribute("aria-label", T("tool.checking"));
+      bar.setAttribute("aria-valuemin", "0"); bar.setAttribute("aria-valuemax", String(max)); bar.append(make("i"));
       status = make("p"); status.dataset.status = ""; status.setAttribute("aria-live", "polite");
-      show(bar, status, btn(T("stop"), stop));
+      show(bar, status, got, btn(T("stop"), stop));
     }
     const line = T("work.secs", { what: step, n: s });
+    bar.setAttribute("aria-valuenow", String(Math.min(s, max))); bar.setAttribute("aria-valuetext", line);
     if (status.textContent !== line) status.textContent = line;
   }, 200);
   return { step: (x) => { step = x; } };
@@ -725,8 +810,10 @@ function run() {
   if (xhr) return;
   const table = box.value, column = mineOn ? $("col").value : D.column, rule = $("rule").value, limit = KI.num($("limit").value);
   if (!table.trim()) return trouble(T("err.empty"), T("btn.back"), edit);
-  if (!num(limit)) return trouble(T("err.limit"), T("btn.type_limit"), () => $("limit").focus());
-  const w = working();
+  if (!num(limit)) return trouble(T("err.limit"), T("btn.type_limit"), () => { show(); $("limit").focus(); });
+  const names = columnsOf(table);
+  if (!names.includes(column)) return trouble(T("err.column", { column, names: names.slice(0, 12).join(", ") }), T("btn.column"), chooseColumn);
+  const w = working(Math.max(0, rowsOf(table).length - (rowsOf(table)[0].some((c) => !num(c)) ? 1 : 0)));
   xhr = new XMLHttpRequest();
   xhr.open("POST", D.api + "/api/run");
   xhr.setRequestHeader("Content-Type", "application/json");
@@ -741,14 +828,14 @@ function run() {
     if (x.status === 402 && body.pay) return payScreen(body.pay);
     if (x.status === 413) return trouble(T("err.too_big", { n: D.limits.max_rows }), T("btn.smaller"), edit);
     if (x.status === 408) return trouble(T("err.too_long", { n: D.limits.max_seconds }), T("btn.smaller"), edit);
-    if (x.status === 503) return trouble(T("err.not_ready"), T("btn.retry"), run);
+    if (x.status === 503) return trouble(T("err.not_ready"), T("btn.back"), edit, true);
     if (x.status === 400) return trouble(T("err.bad"), T("btn.back"), edit);
-    trouble(T("err.none"), T("btn.retry"), run);
+    trouble(T("err.none"), T("btn.back"), edit, true);
   };
-  x.onerror = x.ontimeout = () => { idle(); trouble(T("err.reach"), T("btn.retry"), run); };
+  x.onerror = x.ontimeout = () => { idle(); trouble(T("err.reach"), T("btn.back"), edit, true); };
   x.send(JSON.stringify({ id: D.id, table, column, rule, limit: Number(limit), mode: table === D.sample ? "sample" : "own", browser: browser(), test }));
 }
-function back(line) { pay.hidden = true; pay.replaceChildren(); form.hidden = false; show(...(line ? [make("p", line)] : [])); go.focus(); }
+function back(nodes) { pay.hidden = true; pay.replaceChildren(); form.hidden = false; show(...(nodes || [])); go.focus(); }
 const price = (p) => Number(String(p.price || "").replace(/[^0-9.]/g, "")) || 0;
 function payScreen(p) {
   const press = Array.from(crypto.getRandomValues(new Uint8Array(12)), (x) => x.toString(16).padStart(2, "0")).join("");
@@ -757,27 +844,55 @@ function payScreen(p) {
   pay.replaceChildren(h, make("p", T("pay.line")), btn(T("pay.go"), () => confirm(p, press), true), btn(T("pay.not_now"), () => back()));
   pay.hidden = false; h.focus();
 }
+// the confirm step (U6 Rule 23): a dialog that says what will be recorded, with two named buttons; focus starts on Yes
+// and stays inside it; Escape is Not now. Nothing is sent before Yes.
 function confirm(p, press) {
-  const h = make("h2", T("pay.headline", { n: p.runs, price: price(p) }));
-  const sure = make("p", T("pay.confirm", { n: p.runs, price: price(p) }));
-  const yes = btn(T("pay.yes"), () => record(yes, press), true);
-  pay.replaceChildren(h, sure, yes, btn(T("pay.not_now"), () => back()));
+  const d = make("div"); d.setAttribute("role", "dialog"); d.setAttribute("aria-modal", "true");
+  d.setAttribute("aria-labelledby", "k-pay-h"); d.setAttribute("aria-describedby", "k-pay-d");
+  const h = make("h2", T("pay.headline", { n: p.runs, price: price(p) })); h.id = "k-pay-h";
+  const sure = make("p", T("pay.confirm", { n: p.runs, price: price(p) })); sure.id = "k-pay-d";
+  const yes = btn(T("pay.yes"), () => record(yes, press), true), no = btn(T("pay.not_now"), () => back());
+  d.append(h, sure, yes, no);
+  d.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") { e.preventDefault(); back(); return; }
+    if (e.key !== "Tab") return;
+    const f = [yes, no].filter((b) => !b.disabled), i = f.indexOf(document.activeElement);
+    if (e.shiftKey ? i <= 0 : i === f.length - 1) { e.preventDefault(); f[e.shiftKey ? f.length - 1 : 0].focus(); }
+  });
+  pay.replaceChildren(d);
   yes.focus();
 }
+const post = (path, body, done, fail) => {
+  const x = new XMLHttpRequest();
+  x.open("POST", D.api + path); x.setRequestHeader("Content-Type", "application/json");
+  x.onload = () => { let b = {}; try { b = JSON.parse(x.responseText); } catch (e) { b = {}; } if (x.status === 200) done(b); else fail(x.status, b); };
+  x.onerror = () => fail(0, {});
+  x.send(JSON.stringify(body));
+};
 function record(b, press) {
   if (b.disabled) return;
   b.disabled = true; b.textContent = T("pay.recording");
-  const x = new XMLHttpRequest();
-  x.open("POST", D.api + "/api/pay"); x.setRequestHeader("Content-Type", "application/json");
-  x.onload = () => {
-    let body = {}; try { body = JSON.parse(x.responseText); } catch (e) { body = {}; }
-    if (x.status === 200) return back(T("res.runs_left", { n: body.runs_left }));
+  post("/api/pay", { browser: browser(), press, test }, (body) => back([recorded(body, press)]), (code) => {
     b.disabled = false; b.textContent = T("btn.retry");
+    if (!code) return;
     const m = make("p", T("pay.error"), "bad"); m.setAttribute("role", "alert");
-    pay.append(m);
-  };
-  x.onerror = () => { b.disabled = false; b.textContent = T("btn.retry"); };
-  x.send(JSON.stringify({ browser: browser(), press, test }));
+    pay.querySelector("[role=dialog]").append(m);
+  });
+}
+// what the test payment did, why, and its undo (U6 Rule 22): Undo takes the 20 runs back while none of them is used
+function recorded(body, press) {
+  const r = make("div"); r.dataset.actionResult = "";
+  const why = make("p", T("act.why"), "muted"); why.dataset.why = "";
+  const u = btn(T("act.undo"), () => {
+    if (u.disabled) return;
+    u.disabled = true;
+    post("/api/pay", { browser: browser(), press, test, undo: true }, (b) => {
+      r.replaceChildren(make("p", T("act.undone")), make("p", T("res.runs_left", { n: b.runs_left }))); go.focus();
+    }, () => { u.disabled = false; const m = make("p", T("act.undo_error"), "bad"); m.setAttribute("role", "alert"); r.append(m); });
+  });
+  u.dataset.undo = "";
+  r.append(make("p", T("res.runs_left", { n: body.runs_left })), why, u);
+  return r;
 }
 // Listen (H3 b): the result sentence read aloud in the page's language by the browser's own speech; shown only where
 // the browser has it, and never fetched from anywhere
@@ -797,7 +912,7 @@ $("file").addEventListener("change", () => {
   const r = new FileReader(); r.onload = () => { box.value = String(r.result); fillColumns(); draftSave(); }; r.readAsText(f);
 });
 box.addEventListener("input", () => { if (mineOn) fillColumns(); });
-go.addEventListener("click", run);
+form.addEventListener("submit", (e) => { e.preventDefault(); run(); });
 if (D.result && D.result.mode === "own") { ownMode(); fillColumns(D.result.column); }
 if (D.result) result(D.result);
 // section 12 of the plain-language spec: going back or forward (or a reload) keeps the request typed in this tab, sent
@@ -822,11 +937,28 @@ draftLoad();
 for (const [el, ev] of [[box, "input"], [$("col"), "change"], [$("rule"), "change"], [$("limit"), "input"]]) el.addEventListener(ev, draftSave);
 go.addEventListener("click", draftSave);
 window.addEventListener("pagehide", draftSave);
+// real visitors' speed (U1 R13): the largest paint, the slowest press and the layout shift, observed in this browser;
+// sent once, when the page is left, only from a browser whose person said yes to being counted
+(() => {
+  const sup = (window.PerformanceObserver && PerformanceObserver.supportedEntryTypes) || [], v = { lcp: null, inp: 0, cls: 0 };
+  const watch = (type, f, o) => { if (!sup.includes(type)) return; try { new PerformanceObserver((l) => l.getEntries().forEach(f)).observe(Object.assign({ type, buffered: true }, o || {})); } catch (e) { /* not here */ } };
+  watch("largest-contentful-paint", (e) => { v.lcp = Math.round(e.startTime); });
+  watch("event", (e) => { if (e.interactionId) v.inp = Math.max(v.inp, Math.round(e.duration)); }, { durationThreshold: 16 });
+  watch("layout-shift", (e) => { if (!e.hadRecentInput) v.cls += e.value; });
+  for (const type of ["soft-navigation", "interaction-contentful-paint"]) watch(type, () => {});
+  let sent = false;
+  addEventListener("visibilitychange", () => {
+    if (sent || document.visibilityState !== "hidden" || get("knos-count") !== "yes" || !navigator.sendBeacon) return;
+    sent = true;
+    navigator.sendBeacon(D.api + "/api/vitals", new Blob([JSON.stringify({ screen: D.result ? "result" : "tool", lcp: v.lcp, inp: v.inp, cls: Math.round(v.cls * 1000) / 1000, browser: browser(), test })], { type: "application/json" }));
+  });
+})();
 })();""".replace("/*TABLE*/", TABLE_JS)
 
 
 SCRIPT_KEYS = sorted(set(keys_in(SCRIPT)) | {"rs.sep", "rs.fail_above", "rs.fail_below", "rs.before", "rs.pass_above", "rs.pass_below",
-                                                "rs.skipped", "chart.label", "chart.label_fail", "chart.row", "fold.listen", "stop"}) if (ROOT / "web" / "i18n" / "en.json").is_file() else []
+                                                "rs.skipped", "chart.label", "chart.label_fail", "chart.row", "fold.listen", "stop", "rs.unknown",
+                                                "next.pass", "next.fail", "next.unknown", "ev.pass", "ev.fail", "why.unknown"}) if (ROOT / "web" / "i18n" / "en.json").is_file() else []
 
 
 def _e(s) -> str:
@@ -839,10 +971,12 @@ def shown_limit(v) -> str:
     return str(int(f)) if f.is_integer() else repr(f)
 
 
-def page(tool: dict, base: str, result: dict | None = None, front: str = "https://drexthealpha.github.io/Knos/", lang: str = "en") -> str:
+def page(tool: dict, base: str, result: dict | None = None, front: str = "https://drexthealpha.github.io/Knos/", lang: str = "en",
+         test: bool = False, sent: dict | None = None) -> str:
     """One tool page (/t/<id>/) or one result page (/r/<id>/) in one language: the og tags first, then the tool, then
     its fold, which opens with the five answers (H3 f). The result sentence is in the first response, so it shows with
-    scripts blocked (H3 e)."""
+    scripts blocked (H3 e). The tool is a form too: with no script, Try it posts it to /t/<id>/run (tool_run.form_run),
+    which answers with the result page, or with this page again holding what was sent (`sent`) and why it was not run."""
     lang = lang if lang in LANGS else "en"
     L = lang
     rid = (result or {}).get("id")
@@ -850,22 +984,23 @@ def page(tool: dict, base: str, result: dict | None = None, front: str = "https:
     image = f"{base}/og/r/{rid}.png" if rid else f"{base}/og/t/{tool['id']}.png"
     title = t(L, "tool.title")
     desc = first_sentence(sentence(L, result["result"], as_html=False)) if result else t(L, "tool.line")
-    text = result["input"] if result else tool["sample"]
+    sent = sent or {}
+    text = sent["table"] if "table" in sent else result["input"] if result else tool["sample"]
     own = bool(result and result.get("mode") == "own")
-    column = result["column"] if result else tool["column"]
-    rule = result["rule"] if result else tool["rule"]
-    limit = shown_limit(result["limit"] if result else tool["limit"])
+    column = sent.get("column") or (result["column"] if result else tool["column"])
+    rule = sent.get("rule") or (result["rule"] if result else tool["rule"])
+    limit = sent["limit"] if "limit" in sent else shown_limit(result["limit"] if result else tool["limit"])
     f = facts()
     label = t(L, "tool.sample_made_up" if f["made_up"] else "tool.sample_nasa")
     data = {"id": tool["id"], "sample": tool["sample"], "api": base, "limits": tool["limits"], "column": tool["column"],
             "lang": L, "langs": list(LANGS), "t": strings_for(L, SCRIPT_KEYS),
-            "result": result and {k: result.get(k) for k in ("result", "first_failing_row", "rows", "skipped", "shown_by", "link",
-                                                             "mode", "chart", "column")}}
-    ssr = ""
+            "icons": {st: icon(L, st) for st in STATES}, "test_url": TEST_URL,
+            "result": result and {**{k: result.get(k) for k in ("result", "first_failing_row", "rows", "skipped", "shown_by", "link",
+                                                                 "mode", "chart", "column", "rule", "limit")}, "verdict": verdict_of(result)}}
+    ssr = sent.get("error_html", "")
     if result:
-        ssr = (f'<p class="big" id="about">{sentence(L, result["result"])}</p>'
+        ssr = (answer_html(L, result)
                + (f'<p>{_e(t(L, "res.private"))}</p>' if own else "")
-               + f'<p class="muted">{_e(t(L, "res.shown_by"))}</p>'
                + (f'<p class="muted">{_e(t(L, "res.cut", shown=nf(L, result["shown_lines"]), n=result["lines"]))}</p>' if result.get("cut") else ""))
     blob = json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
     items = "".join(f"<li>{x}</li>" for x in fold_items(L, f))
@@ -876,8 +1011,8 @@ def page(tool: dict, base: str, result: dict | None = None, front: str = "https:
         extra = (f'<p class="fold-links"><button type="button" id="listen" hidden>{_e(t(L, "fold.listen"))}</button>'
                  f'<a href="#k-embed">{_e(t(L, "fold.embed"))}</a><a href="{_e(base)}/r/{_e(rid)}/print">{_e(t(L, "fold.print"))}</a></p>'
                  f'<p id="k-embed" class="tgt"><label for="k-embed-line">{_e(t(L, "fold.embed_label"))}</label>'
-                 f'<input id="k-embed-line" readonly dir="ltr" value="{_e(line)}"></p>'
-                 + (f'<p class="muted" lang="en" dir="ltr">{_e(t(L, "fold.original", text=result["result"]))}</p>' if L != "en" else ""))
+                 f'<input id="k-embed-line" readonly dir="auto" value="{_e(line)}"></p>'
+                 + (f'<p class="muted" lang="en" dir="ltr">{_e(t(L, "fold.original", text=result.get("program_result") or result["result"]))}</p>' if L != "en" else ""))
     if L != "en":
         extra += f'<p class="muted">{_e(t(L, "fold.mt"))}</p>'
     opts = "".join(f'<option value="{r}"{" selected" if r == rule else ""}>{_e(t(L, "rule." + r))}</option>' for r in ("above", "below"))
@@ -904,18 +1039,19 @@ def page(tool: dict, base: str, result: dict | None = None, front: str = "https:
 </head>
 <body>
 <main>
-<div class="top"><a class="brand" href="{_e(front)}">Knos</a>{switcher(L)}</div>
+<div class="top"><a class="brand" href="{_e(front)}" data-no-mirror>Knos</a>{switcher(L)}</div>
 <h1>{_e(title)}</h1>
 <p class="who">{_e(t(L, "tool.line"))}</p>
-<div id="tool">
-<div id="own" class="field" hidden><label for="file">{_e(t(L, "tool.choose_file"))}</label><input id="file" type="file" accept=".csv,text/csv,text/plain"></div>
+<form id="tool" method="post" action="{_e(base)}/t/{_e(tool['id'])}/run">
+<input type="hidden" dir="auto" name="lang" value="{L}"><input type="hidden" dir="auto" name="column" value="{_e(column)}">{'<input type="hidden" dir="auto" name="test" value="1">' if test else ""}
+<div id="own" class="field" hidden><label for="file">{_e(t(L, "tool.choose_file"))}</label><input id="file" type="file" dir="auto" accept=".csv,text/csv,text/plain"></div>
 <label id="lab" for="list">{_e(t(L, "tool.paste")) if own else _e(label)}</label>
-<textarea id="list" dir="auto" spellcheck="false" autocomplete="off" wrap="off">{_e(text)}</textarea>
+<textarea id="list" dir="auto" name="table" spellcheck="false" autocomplete="off" wrap="off">{_e(text)}</textarea>
 <div id="which" class="field" hidden><label for="col">{_e(t(L, "tool.which"))}</label><select id="col" dir="auto"></select></div>
-<p class="rule"><span id="colname">{_e(column)}</span> <select id="rule" aria-label="{_e(t(L, "tool.rule_label"))}">{opts}</select> <input id="limit" dir="auto" inputmode="decimal" autocomplete="off" aria-label="{_e(t(L, "tool.limit_label"))}" value="{_e(limit)}"></p>
+<p class="rule"><span id="colname"><bdi>{_e(column)}</bdi></span> <select id="rule" name="rule" aria-label="{_e(t(L, "tool.rule_label"))}">{opts}</select> <input id="limit" dir="auto" name="limit" inputmode="decimal" autocomplete="off" aria-label="{_e(t(L, "tool.limit_label"))}" value="{_e(limit)}"></p>
 <p id="lims" class="muted" hidden></p>
-<button id="go" class="primary" type="button">{_e(t(L, "tool.try"))}</button>
-</div>
+<button id="go" class="primary" type="submit" data-primary>{_e(t(L, "tool.try"))}</button>
+</form>
 <section id="pay" hidden></section>
 <div id="out" aria-live="polite" data-state="{'done' if result else 'ready'}">{ssr}</div>
 <details>
@@ -942,7 +1078,7 @@ def missing(front: str = "https://drexthealpha.github.io/Knos/", lang: str = "en
     return f"""<!doctype html>
 <html lang="{L}" dir="{meta(L)['dir']}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{_e(t(L, "nf.title"))} | Knos</title><meta name="robots" content="noindex"><style>{CSS}</style></head>
-<body><main><div class="top"><a class="brand" href="{_e(front)}">Knos</a>{switcher(L)}</div>
+<body><main><div class="top"><a class="brand" href="{_e(front)}" data-no-mirror>Knos</a>{switcher(L)}</div>
 <h1>{_e(t(L, "nf.h"))}</h1>
 <p data-answer>{_e(t(L, "nf.p"))}</p>
 <p><a href="{_e(front)}">{_e(t(L, "nf.link"))}</a></p>

@@ -190,7 +190,7 @@ def test_the_result_page_has_listen_the_line_for_another_site_and_print(app):
     fold = page[page.index("<summary>How it works</summary>"):page.index("</details>", page.index("<summary>How it works</summary>"))]
     assert '<button type="button" id="listen" hidden>Listen</button>' in fold          # shown by the script where speech exists
     assert '<a href="#k-embed">Show this on your site</a>' in fold
-    line = re.search(r'id="k-embed-line" readonly dir="ltr" value="([^"]+)"', fold).group(1)
+    line = re.search(r'id="k-embed-line" readonly dir="auto" value="([^"]+)"', fold).group(1)
     assert re.fullmatch(rf'&lt;iframe src=&quot;http://127\.0\.0\.1:\d+/r/{rid}/mark&quot;[^&]*.*&gt;&lt;/iframe&gt;', line), line
     assert re.search(rf'<a href="http://127\.0\.0\.1:\d+/r/{rid}/print">Print</a>', fold)
     assert "speechSynthesis" in page and "SpeechSynthesisUtterance" in page and "u.lang = KI.speech()" in page

@@ -56,7 +56,8 @@ PREVIEW_UA = re.compile(r"bot|crawl|spider|facebookexternalhit|whatsapp|telegram
 ID = re.compile(r"[A-Za-z0-9_-]{8,64}")
 RID = re.compile(r"[A-Za-z0-9_-]{12}")
 RESULTS, BROWSERS, PRESSES, USAGE = "tool-results", "tool-browsers", "tool-presses", "tool-usage"
-FIELDS = ("tools_opened", "sample_runs", "own_runs", "results_opened_elsewhere", "test_payments", "link_previews", "connector_runs")
+FIELDS = ("tools_opened", "sample_runs", "own_runs", "results_opened_elsewhere", "test_payments", "link_previews", "connector_runs",
+          "test_payments_undone")
 RULES = ("above", "below")
 
 READER = '''"""The reader in front of the released program: the run's four inputs in as JSON, its answer out."""
@@ -390,6 +391,9 @@ def save_result(table: str, column: str, rule: str, limit: float, got: dict, sam
            "first_failing_row": int(ffr) if isinstance(ffr, int) and not isinstance(ffr, bool) else None,
            "rows": int(got.get("rows") or 0), "skipped": int(got.get("skipped") or 0),
            "chart": chart(got.get("values") or [], rule, limit)}
+    rec["verdict"] = tool_page.verdict_of(rec)
+    if rec["verdict"] == "unknown":                    # no row held a number: nothing was checked, so it is not a pass
+        rec.update(result=tool_page.UNKNOWN, program_result=str(got["result"]))
     if not sample_run:                                 # a sample result keeps no input: the sample is the tool's
         lines = table.replace("\r\n", "\n").split("\n")
         kept, size = [], 0
@@ -415,7 +419,8 @@ def load_result(rid: str) -> dict | None:
 def shape(rec: dict, base: str = PUBLIC) -> dict:
     """A stored result as the pages and the run answer show it."""
     return {"id": rec["id"], "mode": rec["mode"], "result": rec["result"], "first_failing_row": rec.get("first_failing_row"),
-            "rows": rec.get("rows"), "skipped": rec.get("skipped"), "shown_by": SHOWN_BY, "link": f"{base}/r/{rec['id']}/",
+            "rows": rec.get("rows"), "skipped": rec.get("skipped"), "verdict": tool_page.verdict_of(rec),
+            "program_result": rec.get("program_result") or rec["result"], "shown_by": SHOWN_BY, "link": f"{base}/r/{rec['id']}/",
             "column": rec["column"], "rule": rec["rule"], "limit": rec["limit"], "chart": rec.get("chart"),
             "input": sample() if rec["mode"] == "sample" else rec.get("input", ""),
             "lines": rec.get("lines"), "cut": rec.get("cut", False), "shown_lines": rec.get("shown_lines")}
@@ -461,7 +466,7 @@ def run(body: dict, address: str, base: str = PUBLIC, test: bool = False, connec
                 _keep(key, rec)
         raise
     saved = save_result(table, column, rule, limit, got, sample_run)
-    out = {k: v for k, v in shape(saved, base).items() if k in ANSWER + ("id", "mode", "chart", "column", "rule", "limit")}
+    out = {k: v for k, v in shape(saved, base).items() if k in ANSWER + ("id", "mode", "chart", "column", "rule", "limit", "verdict")}
     out["limits"] = limits()
     if sample_run:
         out.update(runs_left=None, free_left=None, paid_left=None)
@@ -493,8 +498,10 @@ def pay(body: dict, address: str, test: bool = False) -> dict:
         raise Refusal(400, {"error": "I could not record this test payment because the press had no id. Nothing was charged. Please press Pay with test money again."})
     key = _key(body.get("browser"), address)
     pid = hashlib.sha256(f"press|{press}".encode()).hexdigest()[:32]
-    payload = hashlib.sha256(json.dumps({"who": key, "body": {k: v for k, v in body.items() if k != "press"}},
+    payload = hashlib.sha256(json.dumps({"who": key, "body": {k: v for k, v in body.items() if k not in ("press", "undo")}},
                                         sort_keys=True, default=str).encode()).hexdigest()
+    if body.get("undo") is True:
+        return undo(pid, key, payload, test)
     with _lock:
         seen = valley._safe_load(PRESSES, pid)
         if seen:
@@ -504,6 +511,7 @@ def pay(body: dict, address: str, test: bool = False) -> dict:
             return seen["answer"]
         rec = _fresh(_rec(key))
         rec["paid_left"] = int(rec.get("paid_left") or 0) + int(CONF["pack_runs"])
+        rec["payments"] = int(rec.get("payments") or (1 if rec.get("paid") else 0)) + 1
         rec["paid"] = True
         _keep(key, rec)
         free, paid = _left(rec)
@@ -512,6 +520,69 @@ def pay(body: dict, address: str, test: bool = False) -> dict:
         _prune(PRESSES, 5_000)
     bump("test_payments", test)
     return answer
+
+
+def undo(pid: str, key: str, payload: str, test: bool = False) -> dict:
+    """Undo of one test payment (U6 Rule 22): its runs are taken back while none of them is used; the same browser and
+    body as the payment are required (the payload hash), and a second undo gets the first answer."""
+    with _lock:
+        seen = valley._safe_load(PRESSES, pid)
+        if not seen or seen.get("payload") != payload:
+            raise Refusal(404, {"error": "I have no test payment from this browser under this press, so there is nothing to undo. Nothing was charged."})
+        if seen.get("undone"):
+            return seen["undone"]
+        rec = _fresh(_rec(key))
+        runs = int(CONF["pack_runs"])
+        if int(rec.get("paid_left") or 0) < runs:
+            raise Refusal(409, {"error": "I could not undo the test payment, because some of its runs are already used. Nothing was charged."})
+        rec["paid_left"] = int(rec["paid_left"]) - runs
+        rec["payments"] = max(0, int(rec.get("payments") or 1) - 1)
+        rec["paid"] = rec["payments"] > 0
+        _keep(key, rec)
+        free, paid = _left(rec)
+        answer = {"runs_left": free + paid, "undone": True}
+        seen["undone"] = answer
+        valley._save(PRESSES, pid, seen, chain=False)
+    bump("test_payments_undone", test)
+    return answer
+
+
+VITALS = ("lcp", "inp", "cls")
+
+
+def vitals(body: dict, test: bool = False) -> dict:
+    """One page's speed as a visitor's browser measured it (U1 R13), sent only from a browser that said yes to being
+    counted (its random id is required and not kept): per UTC day and screen, the count and up to 500 values of each."""
+    if not (isinstance(body.get("browser"), str) and ID.fullmatch(body["browser"])):
+        raise Refusal(400, {"error": "I keep speed measures only from browsers whose person said yes to being counted, so I kept nothing."})
+    screen = body.get("screen")
+    if screen not in ("tool", "result"):
+        raise Refusal(400, {"error": "I keep speed measures only for the tool page and the result page, so I kept nothing."})
+    got = {}
+    for k, top in (("lcp", 120_000), ("inp", 60_000), ("cls", 100)):
+        x = body.get(k)
+        if isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x) and 0 <= x <= top:
+            got[k] = round(float(x), 3)
+    try:
+        with _lock:
+            doc = valley._safe_load("pages", USAGE) or {"since": _today(), "days": {}, "test_days": {}}
+            days = doc.setdefault("test_vitals" if test else "vitals", {})
+            row = days.setdefault(_today(), {}).setdefault(screen, {"n": 0, **{k: [] for k in VITALS}})
+            row["n"] += 1
+            for k, x in got.items():
+                if len(row[k]) < 500:
+                    row[k].append(x)
+            cut = (dt.datetime.now(dt.timezone.utc).date() - dt.timedelta(days=120)).isoformat()
+            for d in [d for d in days if d < cut]:
+                del days[d]
+            valley._save("pages", USAGE, doc, chain=False)
+    except Exception as why:  # noqa: BLE001
+        print(f"knos tool vitals: not kept: {type(why).__name__}: {str(why)[:120]}", flush=True)
+    return {"kept": True}
+
+
+def _p75(xs: list) -> float | None:
+    return sorted(xs)[max(0, math.ceil(0.75 * len(xs)) - 1)] if xs else None
 
 
 # ---- the counts (D2) and the measures (D1) -------------------------------------------------------------------------------
@@ -543,14 +614,19 @@ def measures(today: dt.date | None = None) -> dict:
 
 def usage() -> dict:
     doc = valley._safe_load("pages", USAGE) or {"since": None, "days": {}, "test_days": {}}
-    return {"days": doc.get("days") or {}, "test_days": doc.get("test_days") or {}, "measures": measures(),
+    speed = {d: {s: {"n": r.get("n", 0), **{f"{k}_p75": _p75(r.get(k) or []) for k in VITALS}} for s, r in row.items()}
+             for d, row in (doc.get("vitals") or {}).items()}
+    return {"days": doc.get("days") or {}, "test_days": doc.get("test_days") or {}, "measures": measures(), "vitals": speed,
             "tool_counts_since": doc.get("since"),
             "tool_counted": "per UTC day. tools_opened: GET /t/<id>/ and GET /api/tools; sample_runs and own_runs: runs not through /mcp that "
                             "returned a result; results_opened_elsewhere: GET /r/<id>/ with no referrer or one from another "
                             "site; link_previews: the same from a link-preview robot or a command-line client; test_payments: "
                             "test payments recorded; connector_runs: runs through /mcp, sample or own file (never in sample_runs or own_runs). "
                             "test_days: the same counts for requests marked as Knos's own tests or WALK runs. measures: "
-                            "own-data runs of browsers that said yes to being counted, test browsers left out",
+                            "own-data runs of browsers that said yes to being counted, test browsers left out. "
+                            "test_payments_undone: test payments taken back with Undo. vitals: per UTC day and screen, how "
+                            "many pages browsers that said yes to being counted measured, and the 75th percentile of their "
+                            "largest paint (lcp, ms), slowest press (inp, ms) and layout shift (cls)",
             "tool_store": "the server's disk, which Render empties on every deploy: counts restart from that day"}
 
 
@@ -597,7 +673,7 @@ def handle_get(h, state, u, qs) -> bool:
         if not m.group(2):
             return h._send(301, b"", "text/plain", {"Location": f"/t/{t['id']}/" + (f"?{u.query}" if u.query else "")}) or True
         bump("tools_opened", _marked(h, qs))
-        return _html(h, 200, tool_page.page(t, _base(h), front=FRONT, lang=_lang(h, qs)), lang=_lang(h, qs)) or True
+        return _html(h, 200, tool_page.page(t, _base(h), front=FRONT, lang=_lang(h, qs), test=_marked(h, qs)), lang=_lang(h, qs)) or True
     m = re.fullmatch(r"/r/([A-Za-z0-9_-]{12})/(mark|qr\.png|print)", p)
     if m:                                                # H3 c and d: knos_wanted.result_extras
         from . import result_extras as rx
@@ -624,7 +700,7 @@ def handle_get(h, state, u, qs) -> bool:
         if why:
             bump(why, _marked(h, qs))
         return _html(h, 200, tool_page.page(tool(rec["tool"]) or tool(TOOL_ID), _base(h), shape(rec, _base(h)), front=FRONT,
-                                            lang=_lang(h, qs)), lang=_lang(h, qs)) or True
+                                            lang=_lang(h, qs), test=_marked(h, qs)), lang=_lang(h, qs)) or True
     m = re.fullmatch(r"/og/(t|r)/([A-Za-z0-9_-]{1,40})\.png", p)
     if m:
         if m.group(1) == "t":
@@ -652,8 +728,65 @@ def _body(h) -> dict:
     return got
 
 
+def _form_limit(s) -> str:
+    """The limit as typed into the form, read as the page's script reads it: spaces dropped, one comma a decimal mark."""
+    x = str(s or "").strip().replace(" ", "")
+    return x.replace(",", ".") if "." not in x and x.count(",") == 1 else x
+
+
+def _refused_html(lang: str, code: int, body: dict, sent: dict) -> str:
+    """Why a form run was not run, in the page's language (the same lines the page's script shows), as a cannot-tell
+    answer; the person's table, column, rule and limit stay in the form."""
+    T = tool_page.t
+    names = columns(sent.get("table") or "")[0]
+    if code == 400:
+        msg = (T(lang, "err.empty") if not str(sent.get("table") or "").strip()
+               else T(lang, "err.column", column=sent.get("column") or "", names=", ".join(names[:12])) if sent.get("column") not in names
+               else T(lang, "err.limit") if _num(_form_limit(sent.get("limit"))) is None else T(lang, "err.bad"))
+    elif code == 402:
+        f = tool_page.facts()
+        msg = T(lang, "pay.headline", n=f["runs"], price=f["price"]) + " " + T(lang, "pay.line")
+    else:
+        msg = {413: T(lang, "err.too_big", n=int(CONF["max_rows"])), 408: T(lang, "err.too_long", n=max_seconds()),
+               503: T(lang, "err.not_ready")}.get(code) or T(lang, "err.none")
+    return (f'<div class="answer" data-verdict data-state="unknown">{tool_page.icon(lang, "unknown")}'
+            f'<p class="bad" role="alert" data-answer data-reason>{tool_page._e(msg)}</p></div>')
+
+
+def form_run(h, state, tid: str) -> bool:
+    """POST /t/<id>/run: the tool's form sent by a browser with no script. A result: 303 to its page. Not run: the tool
+    page again with what was sent and why. Runs on your own file count against the same free runs as the site's."""
+    from urllib.parse import parse_qs, urlencode
+    t = tool(tid)
+    if t is None:
+        return _html(h, 404, tool_page.missing(FRONT, _lang(h, {})), lang=_lang(h, {})) or True
+    n = int(h.headers.get("Content-Length") or 0)
+    raw = h.rfile.read(min(n, int(CONF["max_body_bytes"]) + 1)) if n > 0 else b""
+    f = {k: v[0] for k, v in parse_qs(raw.decode("utf-8", "replace"), keep_blank_values=True).items()}
+    lang = tool_page.pick(f.get("lang"), h.headers.get("Accept-Language"))
+    test = f.get("test") == "1" or h.headers.get("X-Knos-Test") == "1"
+    lim = _form_limit(f.get("limit"))
+    sent = {"table": str(f.get("table") or "").replace("\r\n", "\n"), "column": str(f.get("column") or ""),
+            "rule": f.get("rule") if f.get("rule") in RULES else "", "limit": str(f.get("limit") or "")}
+    try:
+        if n > int(CONF["max_body_bytes"]):
+            raise Refusal(413, too_big())
+        if not state.allow(h._client(), "tool"):
+            raise Refusal(429, {})
+        got = run({"id": tid, "table": sent["table"], "column": sent["column"], "rule": sent["rule"], "limit": lim, "browser": ""},
+                  h._client(), _base(h), test)
+    except Refusal as r:
+        sent["error_html"] = _refused_html(lang, r.code, r.body, sent)
+        return _html(h, r.code, tool_page.page(t, _base(h), front=FRONT, lang=lang, test=test, sent=sent), lang=lang) or True
+    q = urlencode([(k, v) for k, v in (("lang", f.get("lang") or ""), ("test", "1" if test else "")) if v])
+    return h._send(303, b"", "text/plain", {"Location": f"/r/{got['id']}/" + (f"?{q}" if q else "")}) or True
+
+
 def handle_post(h, state, path: str) -> bool:
-    if path not in ("/api/run", "/api/pay"):
+    m = re.fullmatch(r"/t/([a-z0-9-]{1,40})/run", path)
+    if m:
+        return form_run(h, state, m.group(1))
+    if path not in ("/api/run", "/api/pay", "/api/vitals"):
         return False
     if not state.allow(h._client(), "tool" if path == "/api/run" else "tool_pay"):
         return h._send(429, {"error": "I have had a great many requests from your network in the last few minutes. Please wait a minute and try again."}) or True
@@ -662,6 +795,8 @@ def handle_post(h, state, path: str) -> bool:
         test = _marked(h, None, body)
         if path == "/api/run":
             return h._send(200, run(body, h._client(), _base(h), test)) or True
+        if path == "/api/vitals":
+            return h._send(200, vitals(body, test)) or True
         return h._send(200, pay(body, h._client(), test)) or True
     except Refusal as r:
         return h._send(r.code, r.body) or True

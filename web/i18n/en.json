@@ -127,6 +127,26 @@
   "pay.recording": "Recording the test payment",
   "pay.error": "I could not record the test payment just now. Nothing was charged. Press Yes, record it again in a moment.",
   "how": "How it works",
+  "price.sample": "The sample",
+  "price.free": "Free",
+  "theme.dark": "Dark theme",
+  "theme.light": "Light theme",
+  "res.change_limit": "Change the limit",
+  "work.bar": "Seconds waited",
+  "status.title": "Knos status",
+  "status.tools_opened": "Tool opened",
+  "status.sample_runs": "Sample runs",
+  "status.own_runs": "Own-file runs",
+  "status.results_opened_elsewhere": "Results opened elsewhere",
+  "status.test_payments": "Test payments",
+  "status.connector_runs": "Connector runs",
+  "status.day7_return": "Came back on day 7, percent of browsers",
+  "status.active_days": "Days with a run in the first 7, average",
+  "status.paying_share": "Paid after the free runs ran out, percent of browsers",
+  "status.too_few": "not enough browsers yet",
+  "status.when": "Counted to {at}, without Knos's own tests.",
+  "status.none": "No count has been read from Knos's server yet.",
+  "status.file": "The data file",
   "q.get": "What you get",
   "q.next": "What to do next",
   "q.pay": "What you pay",
@@ -224,7 +244,7 @@
   "price.title": "Knos pricing",
   "price.h": "Pricing",
   "price.sample_free": "Runs on the sample are free.",
-  "price.own": "Runs on your own file",
+  "price.own": "Your own file",
   "price.free_day": {
    "one": "{n} free a day, in each browser",
    "other": "{n} free a day, in each browser"
@@ -240,6 +260,29 @@
   "res.cut": {
    "one": "Showing the first {shown} of {n} line.",
    "other": "Showing the first {shown} of {n} lines."
-  }
+  },
+  "v.pass": "Passed",
+  "v.fail": "Failed",
+  "v.unknown": "Cannot tell",
+  "rs.unknown": "I cannot tell: no row held a number.",
+  "ev.pass": {
+   "one": "{n} row of {column}, compared with {limit}.",
+   "other": "{n} rows of {column}, each compared with {limit}."
+  },
+  "ev.fail": "Row {r} of {column} holds {value}, compared with {limit}.",
+  "why.unknown": "I could not compare any row with the limit, because no value in {column} is a number.",
+  "next.pass": "Every row passed: check your own file with Use my data.",
+  "next.fail": "Open your file at row {r}, the first row that failed.",
+  "next.unknown": "Pick a column where each row holds a number, then press Try it.",
+  "work.rows": {
+   "one": "{n} row to check",
+   "other": "{n} rows to check"
+  },
+  "err.column": "I could not find a column called {column} in your file. The columns I found are {names}. Pick one, then press Try it.",
+  "btn.column": "Choose the column",
+  "act.why": "Recorded because you pressed Yes, record it. Nothing was charged.",
+  "act.undo": "Undo",
+  "act.undone": "The test payment is undone. Nothing was charged.",
+  "act.undo_error": "I could not undo the test payment, because some of its runs are already used. Nothing was charged."
  }
 }

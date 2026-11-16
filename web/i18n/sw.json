@@ -131,6 +131,26 @@
   "pay.recording": "Inarekodi malipo ya majaribio",
   "pay.error": "Sikuweza kurekodi malipo ya majaribio sasa hivi. Hakuna kilichotozwa. Bonyeza Ndiyo, rekodi tena baada ya muda mfupi.",
   "how": "Jinsi inavyofanya kazi",
+  "price.sample": "Sampuli",
+  "price.free": "Bure",
+  "theme.dark": "Mandhari meusi",
+  "theme.light": "Mandhari angavu",
+  "res.change_limit": "Badilisha kikomo",
+  "work.bar": "Sekunde za kusubiri",
+  "status.title": "Hali ya Knos",
+  "status.tools_opened": "Zana ilifunguliwa",
+  "status.sample_runs": "Ukaguzi wa sampuli",
+  "status.own_runs": "Ukaguzi wa faili binafsi",
+  "status.results_opened_elsewhere": "Matokeo yaliyofunguliwa kwingine",
+  "status.test_payments": "Malipo ya majaribio",
+  "status.connector_runs": "Ukaguzi kupitia kiunganishi",
+  "status.day7_return": "Walirudi siku ya 7, asilimia ya vivinjari",
+  "status.active_days": "Siku zenye ukaguzi katika 7 za kwanza, wastani",
+  "status.paying_share": "Walilipa baada ya ukaguzi wa bure kwisha, asilimia ya vivinjari",
+  "status.too_few": "bado hakuna vivinjari vya kutosha",
+  "status.when": "Imehesabiwa hadi {at}, bila majaribio ya Knos yenyewe.",
+  "status.none": "Bado hakuna hesabu iliyosomwa kutoka seva ya Knos.",
+  "status.file": "Faili ya data",
   "q.get": "Unachopata",
   "q.next": "Cha kufanya baadaye",
   "q.pay": "Unacholipa",
@@ -228,7 +248,7 @@
   "price.title": "Bei za Knos",
   "price.h": "Bei",
   "price.sample_free": "Ukaguzi wa mfano ni bure.",
-  "price.own": "Ukaguzi wa faili yako mwenyewe",
+  "price.own": "Faili yako mwenyewe",
   "price.free_day": {
    "one": "{n} bure kwa siku, katika kila kivinjari",
    "other": "{n} bure kwa siku, katika kila kivinjari"
@@ -244,6 +264,29 @@
   "res.cut": {
    "one": "Inaonyesha mistari {shown} ya kwanza kati ya {n}.",
    "other": "Inaonyesha mistari {shown} ya kwanza kati ya {n}."
-  }
+  },
+  "v.pass": "Imepita",
+  "v.fail": "Imeshindwa",
+  "v.unknown": "Siwezi kusema",
+  "rs.unknown": "Siwezi kusema: hakuna safu iliyokuwa na namba.",
+  "ev.pass": {
+   "one": "Safu {n} ya {column}, imelinganishwa na {limit}.",
+   "other": "Safu {n} za {column}, kila moja imelinganishwa na {limit}."
+  },
+  "ev.fail": "Safu {r} ya {column} ina {value}, imelinganishwa na {limit}.",
+  "why.unknown": "Sikuweza kulinganisha safu yoyote na kikomo, kwa sababu hakuna thamani katika {column} iliyo namba.",
+  "next.pass": "Kila safu imepita: kagua faili yako mwenyewe kwa Tumia data yangu.",
+  "next.fail": "Fungua faili yako kwenye safu {r}, safu ya kwanza iliyoshindwa.",
+  "next.unknown": "Chagua safu wima ambayo kila safu ina namba, kisha bonyeza Jaribu.",
+  "work.rows": {
+   "one": "Safu {n} ya kukagua",
+   "other": "Safu {n} za kukagua"
+  },
+  "err.column": "Sikupata safu wima inayoitwa {column} kwenye faili yako. Safu wima nilizopata ni {names}. Chagua moja, kisha bonyeza Jaribu.",
+  "btn.column": "Chagua safu wima",
+  "act.why": "Imerekodiwa kwa sababu ulibonyeza Ndiyo, rekodi. Hakuna kilichotozwa.",
+  "act.undo": "Tendua",
+  "act.undone": "Malipo ya majaribio yametenduliwa. Hakuna kilichotozwa.",
+  "act.undo_error": "Sikuweza kutendua malipo ya majaribio, kwa sababu baadhi ya matumizi yake yameshatumika. Hakuna kilichotozwa."
  }
 }

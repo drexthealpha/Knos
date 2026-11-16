@@ -54,7 +54,7 @@ h1 { font: 600 clamp(28px, 6vw, 40px)/1.15 var(--head); letter-spacing: -.02em; 
 h2 { font: 600 22px/1.25 var(--head); margin: 0 0 4px; }
 .who { margin: 0 0 12px; color: var(--ink-2); }
 label { display: block; font-weight: 600; margin: 0 0 6px; }
-textarea { display: block; width: 100%; box-sizing: border-box; height: 7.4em; padding: 8px 12px; font: 400 16px/1.4 ui-monospace, Consolas, monospace; color: var(--ink); background: var(--paper-2);
+textarea { display: block; width: 100%; box-sizing: border-box; height: 7.4em; padding: 8px 12px; font: 400 18px/1.4 ui-monospace, Consolas, monospace; color: var(--ink); background: var(--paper-2);
   border: 2px solid var(--ink-2); border-radius: 10px; resize: vertical; white-space: pre; overflow: auto; }
 select { min-height: 52px; box-sizing: border-box; padding: 0 10px; font: 400 18px var(--text); color: var(--ink); background: var(--paper-2); border: 2px solid var(--ink-2); border-radius: 10px; }
 input[type=file] { width: 100%; padding: 10px; }
@@ -65,15 +65,22 @@ input[type=file] { width: 100%; padding: 10px; }
 input, textarea, button { font-family: var(--text); }
 input { min-height: 52px; box-sizing: border-box; padding: 0 14px; font-size: 18px; color: var(--ink); background: var(--paper-2); border: 2px solid var(--ink-2); border-radius: 10px; }
 input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
-button { min-height: 44px; min-width: 44px; padding: 0 18px; font: 600 18px var(--text); border-radius: 10px; cursor: pointer; color: var(--ink); background: transparent; border: 2px solid var(--line); }
+button { min-height: 48px; min-width: 48px; padding: 0 18px; font: 600 18px var(--text); border-radius: 10px; cursor: pointer; color: var(--ink); background: transparent; border: 2px solid var(--ink-2); }
 .go { min-height: 52px; background: var(--accent); color: var(--accent-fg); border: 2px solid var(--accent); }
-#try { display: block; width: 100%; margin-top: 10px; }
-.go[disabled] { opacity: .8; cursor: progress; }
+/* the main action is the first control after the language control in reading order (U3 Rule 10), and shows under the box */
+#form { display: flex; flex-direction: column; }
+#own { order: 1; } #list-label { order: 2; } #list { order: 3; } #which { order: 4; } #form .rule { order: 5; } #limits { order: 6; }
+#try { order: 7; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 10px; }
+#try svg { flex: none; }
+.go[disabled], .go[aria-disabled="true"] { opacity: .8; cursor: progress; }
 .state { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 10px 0 0; min-height: 44px; }
 .spin { width: 18px; height: 18px; border: 3px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+/* the seconds waited against the run's own time limit (U1 R3 and R13: a progress element with a number for long waits) */
+.bar { display: block; flex: 1 1 100%; height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+.bar > span { display: block; height: 100%; inline-size: calc(var(--done, 0) * 100%); background: var(--accent); }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .spin { animation: none; border-top-color: var(--line); } }
-.result { margin-top: 12px; }
+.result { margin-top: 12px; scroll-margin-top: 8px; }
 .result p { margin: 0 0 6px; }
 .about { font: 600 24px/1.25 var(--head); }
 .exact { font-weight: 600; }
@@ -94,7 +101,6 @@ button { min-height: 44px; min-width: 44px; padding: 0 18px; font: 600 18px var(
 .below h2 { margin-bottom: 12px; }
 .below form { display: flex; flex-wrap: wrap; gap: 8px; }
 .below input { flex: 1 1 260px; }
-.below .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 .sample { margin-top: 10px; width: 100%; text-align: start; font-weight: 500; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .chips button { font: 500 16px var(--text); }
@@ -106,7 +112,9 @@ button { min-height: 44px; min-width: 44px; padding: 0 18px; font: 600 18px var(
 .out .nw-done input { min-height: 44px; font-size: 16px; padding: 0 10px; max-width: 70%; }
 .out p { margin: 0 0 8px; }
 .out .next { display: inline-flex; align-items: center; min-height: 48px; padding: 0 18px; border-radius: 10px; background: var(--accent); color: var(--accent-fg); text-decoration: none; font-weight: 600; }
-footer { max-width: 760px; margin: 0 auto; padding: 16px; color: var(--ink-2); font-size: 16px; }
+footer { max-width: 760px; margin: 0 auto; padding: 16px; color: var(--ink-2); font-size: 18px; }
+:root:lang(hi) p, :root:lang(hi) li { line-height: 1.85; }
+:root:lang(ar) p, :root:lang(ar) li { line-height: 1.6; }
 footer a { color: var(--ink-2); display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; margin-inline-end: 12px; }
 [hidden] { display: none !important; }
 @media (max-width: 460px) { main p a, main li a { padding: 12px 0; margin: -12px 0; } }
@@ -118,7 +126,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
      an @name where the build picks the key (the sample's label, its source, who built the tool). The scripts read their
      strings through KI.t (apps/wanted/knos_wanted/tool_page.py I18N_JS). Round 13, H3. -->
 <header class="kh" id="kh">
-  <a class="logo" href="./"><span class="mark" aria-hidden="true" style="--m: url(brand/mark.svg)"></span>Knos</a>
+  <a class="logo" href="./"><span class="mark" aria-hidden="true" data-no-mirror style="--m: url(brand/mark.svg)"></span>Knos</a>
   <details class="kmenu"><summary>{{menu}}</summary><div class="kmenu-panel"><p class="kgoal">{{goal}}</p><nav aria-label="Pages"><a href="prove/">{{nav.papers}}</a><a href="labs/">{{nav.labs}}</a></nav></div></details>
 </header>
 <main>
@@ -126,25 +134,26 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
     <h1>{{door.headline}}</h1>
     <h2 id="t-title">{{tool.title}}</h2>
     <p class="who" id="who">{{tool.line}}</p>
-    <div id="form">
-      <div class="field" id="own" hidden><label for="file">{{tool.choose_file}}</label><input id="file" type="file" accept=".csv,text/csv,text/plain"></div>
+    <!-- with no script the box is a plain form the server runs (POST /t/limit-check/run answers with the result page) -->
+    <form id="form" method="post" action="https://knos.onrender.com/t/limit-check/run"><input type="hidden" name="column" value="capacity_ah" dir="auto">
+      <div class="field" id="own" hidden><label for="file">{{tool.choose_file}}</label><input id="file" type="file" dir="auto" accept=".csv,text/csv,text/plain"></div>
+      <button class="go" id="try" type="submit" data-primary><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>{{tool.try}}</button>
       <label for="list" id="list-label">{{@tool.sample_label}}</label>
       <textarea id="list" name="table" rows="4" dir="auto" wrap="off" spellcheck="false" autocomplete="off" data-sample></textarea>
       <div class="field" id="which" hidden><label for="col">{{tool.which}}</label><select id="col" dir="auto"></select></div>
-      <p class="rule"><span id="colname">capacity_ah</span> <select id="rule" aria-label="{{tool.rule_label}}"><option value="above" selected>{{rule.above}}</option><option value="below">{{rule.below}}</option></select> <input id="limit" dir="auto" inputmode="decimal" autocomplete="off" aria-label="{{tool.limit_label}}" value="1.4"></p>
+      <p class="rule"><span id="colname">capacity_ah</span> <span id="rule-shown"><span>{{rule.above}}</span> <bdi data-no-mirror>1.4</bdi></span><span class="rule" id="rule-edit" hidden><select id="rule" name="rule" aria-label="{{tool.rule_label}}"><option value="above" selected>{{rule.above}}</option><option value="below">{{rule.below}}</option></select> <input id="limit" name="limit" dir="auto" inputmode="decimal" autocomplete="off" aria-label="{{tool.limit_label}}" value="1.4"></span></p>
       <p class="who" id="limits" hidden></p>
-      <button class="go" id="try" type="button" data-primary>{{tool.try}}</button>
-    </div>
-    <p class="state" id="state" role="status" aria-live="polite" data-state="idle" hidden><span class="spin" id="spin" aria-hidden="true" hidden></span><span id="step" data-status></span><button id="stop" type="button" hidden>{{stop}}</button></p>
+    </form>
+    <p class="state" id="state" role="status" aria-live="polite" data-state="idle" data-status hidden><span class="spin" id="spin" aria-hidden="true" hidden></span><span id="step"></span> <span id="rows" hidden></span><span class="bar" id="bar" role="progressbar" aria-label="{{work.bar}}" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0" hidden><span id="bar-fill"></span></span><button id="stop" type="button" hidden>{{stop}}</button></p>
     <div class="err" id="err" role="alert" hidden><p id="err-text"></p><button id="err-next" type="button"></button></div>
     <div class="result" id="result" aria-live="polite" hidden>
-      <p class="about" id="about"></p>
+      <p class="about" id="about" data-verdict data-answer></p>
       <div id="chart"></div>
       <p id="left" hidden></p>
       <p id="private" hidden>{{res.private}}</p>
       <p id="shown">{{res.shown_by files=7}}</p>
-      <div class="acts"><button id="mine" type="button">{{res.mine}}</button><button id="copy" type="button">{{res.copy}}</button></div>
-      <p id="copied-by-hand" hidden>{{res.by_hand}} <input id="link-text" readonly dir="ltr" aria-label="{{res.link_label}}"></p>
+      <div class="acts"><button id="mine" type="button" data-followup>{{res.mine}}</button><button id="change" type="button" data-followup data-next-step>{{res.change_limit}}</button><button id="copy" type="button">{{res.copy}}</button></div>
+      <p id="copied-by-hand" hidden>{{res.by_hand}} <input id="link-text" readonly dir="auto" aria-label="{{res.link_label}}"></p>
       <p id="optin" hidden>{{res.count_q}} <button id="optin-yes" type="button">{{yes}}</button> <button id="optin-no" type="button">{{no}}</button></p>
       <details class="how" id="how"><summary>{{how}}</summary>{{@five}}<ol>
         <li>{{@fold.sample first=1.86 last=1.29 cycles=168 limit=1.4}}</li>
@@ -155,7 +164,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
         <li>{{@fold.built}}</li>
       </ol>
       <p class="links"><button type="button" id="listen" hidden>{{fold.listen}}</button><a id="embed-go" href="#k-embed">{{fold.embed}}</a><a id="print" href="#how">{{fold.print}}</a></p>
-      <p id="k-embed" class="tgt"><label for="embed-line">{{fold.embed_label}}</label><input id="embed-line" readonly dir="ltr"></p>
+      <p id="k-embed" class="tgt"><label for="embed-line">{{fold.embed_label}}</label><input id="embed-line" readonly dir="auto"></p>
       <p id="original" lang="en" dir="ltr" hidden></p>
       <p data-mt hidden></p></details>
     </div>
@@ -173,21 +182,22 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
   <section class="below" id="ask-box" aria-labelledby="ask-h">
     <h2 id="ask-h">{{ask.h}}</h2>
     <form id="ask">
-      <label class="sr" for="paper">{{ask.label}}</label>
-      <input id="paper" name="paper" dir="auto" placeholder="{{ask.ph}}" autocomplete="off" spellcheck="false">
+      <input id="paper" name="paper" dir="auto" placeholder="{{ask.ph}}" aria-label="{{ask.label}}" autocomplete="off" spellcheck="false">
       <button id="speak" type="button" hidden>{{ask.speak}}</button>
-      <button class="go" id="go" type="submit">{{ask.go}}</button>
+      <button class="ask-btn" id="go" type="submit">{{ask.go}}</button>
     </form>
     <button class="sample" id="sample" type="button">{{ask.sample}}</button>
     <div class="chips" id="mine-q" hidden></div>
-    <div class="out" id="out" aria-live="polite"></div>
+    <div class="out" id="ask-out" aria-live="polite"></div>
     <p class="cost">{{ask.cost low=$330 high=$763}}</p>
   </section>
 </main>
 <footer>
-  <span>{{foot.door}}</span><br>
-  <a href="https://github.com/drexthealpha/Knos">{{nav.source}}</a><a href="pricing/">{{nav.pricing}}</a><a href="status/">{{nav.status}}</a>
+  <p class="fline">{{foot.door}}</p>
+  <div class="flinks"><a href="https://github.com/drexthealpha/Knos">{{nav.source}}</a><a href="pricing/">{{nav.pricing}}</a><a href="status/">{{nav.status}}</a></div>
+  <!--FOOT-->
 </footer>
+<script src="i18n/format.js"></script>
 <script>/*I18N*/</script>
 <script>
 // THE TOOL (Round 13, A2 to A6, B4, C3, C4): "Check a test file against a limit". POST /api/run sends the file as text,
@@ -197,7 +207,8 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
 (() => {
   const HOSTED = "https://knos.onrender.com", TOOL = "limit-check", T = KI.t;
   const $ = (id) => document.getElementById(id);
-  const box = $("list"), tryBtn = $("try"), state = $("state"), step = $("step"), stopBtn = $("stop"), res = $("result"), err = $("err"), pay = $("pay");
+  const box = $("list"), tryBtn = $("try"), state = $("state"), step = $("step"), stopBtn = $("stop"), res = $("result"), err = $("err"), pay = $("pay"), bar = $("bar");
+  const r1 = (x) => String(Math.round(x * 10) / 10);   // a chart coordinate, one decimal
   const SAMPLE = box.defaultValue, SAMPLE_COLUMN = $("colname").textContent;
   // Knos's own tests and the WALK runs carry a marker and are counted apart (D2): a driven browser, or ?knos_test
   const TEST = navigator.webdriver === true || new URLSearchParams(location.search).has("knos_test");
@@ -239,12 +250,12 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
     if (!c || !c.points || !c.points.length) return svg;
     const vs = c.points.map((p) => p[1]).concat([c.limit]), lo = Math.min(...vs), hi = Math.max(...vs), pad = (hi - lo) * 0.1 || 1;
     const n = Math.max(2, c.n), X = (x) => P + (x - 1) / (n - 1) * (W - 2 * P), Y = (v) => H - P - (v - lo + pad) / (hi - lo + 2 * pad) * (H - 2 * P);
-    svg.append(el("polyline", { points: c.points.map((p) => X(p[0]).toFixed(1) + "," + Y(p[1]).toFixed(1)).join(" "), fill: "none", stroke: "currentColor", "stroke-width": 2 }));
-    svg.append(el("line", { x1: P, x2: W - P, y1: Y(c.limit).toFixed(1), y2: Y(c.limit).toFixed(1), stroke: "#b3261e", "stroke-width": 2, "stroke-dasharray": "6 4" }));
+    svg.append(el("polyline", { points: c.points.map((p) => r1(X(p[0])) + "," + r1(Y(p[1]))).join(" "), fill: "none", stroke: "currentColor", "stroke-width": 2 }));
+    svg.append(el("line", { x1: P, x2: W - P, y1: r1(Y(c.limit)), y2: r1(Y(c.limit)), stroke: "#b3261e", "stroke-width": 2, "stroke-dasharray": "6 4" }));
     if (c.fail) {
       const fx = X(c.fail[0]), fy = Y(c.fail[1]);
-      svg.append(el("circle", { cx: fx.toFixed(1), cy: fy.toFixed(1), r: 6, fill: "none", stroke: "#b3261e", "stroke-width": 3 }));
-      const t = el("text", { x: Math.min(W - 60, Math.max(P, fx - 24)).toFixed(1), y: Math.max(14, fy - 10).toFixed(1), fill: "currentColor", "font-size": 13 });
+      svg.append(el("circle", { cx: r1(fx), cy: r1(fy), r: 6, fill: "none", stroke: "#b3261e", "stroke-width": 3 }));
+      const t = el("text", { x: r1(Math.min(W - 60, Math.max(P, fx - 24))), y: r1(Math.max(14, fy - 10)), fill: "currentColor", "font-size": 13 });
       t.textContent = T("chart.row", { r: row }); svg.append(t);
     }
     return svg;
@@ -260,28 +271,42 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
   fetch(HOSTED + "/api/tools" + (TEST ? "?test=1" : ""), { credentials: "omit" }).catch(() => {});   // one "tools opened" count (D2)
   function stopWorking() {
     clearInterval(stopWorking.tick); clearTimeout(stopWorking.later);
-    show(state, false); show($("spin"), false); show(stopBtn, false); state.dataset.state = "idle";
-    tryBtn.disabled = false; tryBtn.removeAttribute("aria-busy"); ctl = null;
+    show(state, false); show($("spin"), false); show(stopBtn, false); show(bar, false); show($("rows"), false); $("rows").removeAttribute("data-partial");
+    state.dataset.state = "idle"; tryBtn.removeAttribute("aria-disabled"); tryBtn.removeAttribute("aria-busy"); ctl = null;
   }
-  function working(t0) {
-    // a first change at once; from 1 s a moving sign, the step Knos is on, the seconds, and Stop (U6 Rule 6)
+  // the rows of the table the program will check (its header row by the program's rule): the first part of the answer
+  // that exists before the server's, shown at once (U1 R12: partial results as soon as they exist)
+  function dataRows(text) {
+    const rows = rowsOf(text);
+    return rows.length && rows[0].some((c) => !num(c)) ? rows.length - 1 : rows.length;
+  }
+  function working(t0, table) {
+    // a first change at once: the rows to check; from 1 s a moving sign, the step Knos is on with its seconds, a bar of
+    // the seconds against the run's own time limit, and Stop (U6 Rule 6, U1 R3 and R13). The button keeps its focus.
     step.textContent = T("work.sending");
     show(err, false); show(res, false); show(state, true); state.dataset.state = "working";
-    tryBtn.disabled = true; tryBtn.setAttribute("aria-busy", "true");
-    stopWorking.later = setTimeout(() => { show($("spin"), true); show(stopBtn, true); }, 1000);
+    // the table is read once the first change is on the screen
+    requestAnimationFrame(() => setTimeout(() => { if (state.dataset.state !== "working") return;
+      const rows = $("rows"); rows.textContent = T("work.rows", { n: dataRows(table) }); rows.dataset.partial = ""; show(rows, true); }, 0));
+    tryBtn.setAttribute("aria-disabled", "true"); tryBtn.setAttribute("aria-busy", "true");
+    const max = Number(limits && limits.max_seconds) || Number(bar.getAttribute("aria-valuemax")) || 20;
+    bar.setAttribute("aria-valuemax", String(max)); bar.setAttribute("aria-valuenow", "0"); bar.style.setProperty("--done", "0");
+    stopWorking.later = setTimeout(() => { show($("spin"), true); show(stopBtn, true); show(bar, true); }, 1000);
     stopWorking.tick = setInterval(() => {
-      const s = Math.floor((performance.now() - t0) / 1000);
+      const ms = performance.now() - t0, s = Math.floor(ms / 1000);
+      bar.style.setProperty("--done", String(Math.min(1, ms / 1000 / max)));
       if (s < 1) return;
       const what = T(s < 5 ? "work.sending" : s < 15 ? "work.waking" : "work.still");
       step.textContent = T("work.secs", { what, n: s });
-    }, 250);
+      bar.setAttribute("aria-valuenow", String(Math.min(s, max))); bar.setAttribute("aria-valuetext", step.textContent);
+    }, 100);
   }
   function fail(text, next) {
     // first person, the file stays in the box, and one control for the next step (U6, R2)
     $("err-text").textContent = text;
     const b = $("err-next");
     b.textContent = T(next === "retry" ? "btn.retry" : next === "shorter" ? "btn.smaller" : next === "limit" ? "btn.type_limit" : "btn.back");
-    b.onclick = () => { show(err, false); if (next === "retry") run(); else if (next === "limit") $("limit").focus(); else box.focus(); };
+    b.onclick = () => { show(err, false); if (next === "retry") run(); else if (next === "limit") { editOn(); $("limit").focus(); } else box.focus(); };
     show(err, true);
   }
   // the server's limits, from its answer, else from the numbers in its message (a first own run may be the one refused)
@@ -293,7 +318,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
     if (!num(limit)) { fail(T("err.limit"), "limit"); return; }
     const mode = table === SAMPLE ? "sample" : "own";
     const t0 = performance.now(), mine = new AbortController(); ctl = mine;
-    working(t0);
+    working(t0, table);
     const body = { id: TOOL, table, column, rule, limit: Number(limit), mode, browser: counted() ? browserId(true) : "", test: TEST };
     let r = null, j = null;
     try {
@@ -316,6 +341,8 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
   function result(j) {
     last = j; limits = j.limits || limits;
     $("about").innerHTML = KI.sentence(j.result);
+    // the verdict's state: a failing row is a fail, a pass over no row at all is a verdict Knos cannot give (U6 Rule 15)
+    $("about").dataset.state = j.first_failing_row != null ? "fail" : /^Passed: all [1-9]/.test(j.result) ? "pass" : "unknown";
     $("chart").replaceChildren(chartSvg(j.chart, j.first_failing_row));
     const own = j.mode === "own" && j.runs_left != null;
     show($("left"), own); if (own) $("left").textContent = leftText(j);
@@ -368,11 +395,14 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
     $("left").hidden = true; show(res, false);
     show(state, true); step.textContent = said; state.dataset.state = "idle"; show($("spin"), false); show(stopBtn, false);
   });
-  tryBtn.addEventListener("click", run);
+  $("form").addEventListener("submit", (e) => { e.preventDefault(); run(); });
   stopBtn.addEventListener("click", () => { if (ctl) ctl.abort(); });
   // Use my data (A3): three inputs in this order: a file (or a pasted table), which column, and the limit
+  // the rule and the limit: shown as words on the first screen (the sample's own, at most three controls there: U3 Rule 1a),
+  // as controls once the person asks to change the limit or uses their own data
+  function editOn() { show($("rule-shown"), false); show($("rule-edit"), true); }
   function ownOn() {
-    mineOn = true;
+    mineOn = true; editOn();
     show($("own"), true); show($("which"), true); show($("colname"), false);
     $("list-label").textContent = T("tool.paste");
     if (limits && limits.max_rows != null && limits.max_seconds != null) {
@@ -387,6 +417,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
     $("file").focus();
     draftSave();
   });
+  $("change").addEventListener("click", () => { editOn(); $("limit").focus(); $("limit").select(); });
   $("file").addEventListener("change", () => {
     const f = $("file").files[0]; if (!f) return;
     const r = new FileReader(); r.onload = () => { box.value = String(r.result); fillColumns(); draftSave(); }; r.readAsText(f);
@@ -405,6 +436,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
     try { d = JSON.parse(sessionStorage.getItem(DRAFT) || "null"); } catch { d = null; }
     if (!d || typeof d.table !== "string") return;
     if (d.mine && !mineOn) ownOn();
+    if (d.rule !== "above" || String(d.limit) !== $("limit").defaultValue) editOn();
     box.value = d.table;
     if (mineOn) { fillColumns(); if ([...$("col").options].some((o) => o.value === d.col)) $("col").value = d.col; }
     if ([...$("rule").options].some((o) => o.value === d.rule)) $("rule").value = d.rule;
@@ -453,10 +485,11 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
 (() => {
   const HOSTED = "https://knos.onrender.com", T = KI.t;
   const CLAIMS = /*CLAIMS*/[]/*END*/;   // the claims registry, written at build time by scripts/site_pages.py
-  const $ = (id) => document.getElementById(id), out = $("out");
+  const $ = (id) => document.getElementById(id), out = $("ask-out");
   const el = (tag, props, kids) => { const n = Object.assign(document.createElement(tag), props || {}); (kids || []).forEach((k) => k != null && n.append(k)); return n; };
   const link = (href, text, cls) => el("a", { href, textContent: text, className: cls || "", target: href.startsWith("http") ? "_blank" : "", rel: "noopener" });
   const json = (u, opt) => fetch(u, opt).then((r) => r.ok ? r.json() : null).catch(() => null);
+  const secs = (ms) => KF.number(ms / 1000, KI.lang(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });   // web/i18n/format.js
   // the state of every claim: the site's own file at once, then the live server
   let board = null;
   const boardFile = json("data/board.json").then((b) => { if (b && b.claims && !board) board = b; });
@@ -488,7 +521,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
   function answer(c, live, near) {
     const m = (board && board.claims && board.claims[c.name]) || {}, last = live || m.last_proof && { holds: true, job: m.last_proof };
     const holds = last ? last.holds !== false : null, out7 = m.demand && m.demand.behind_usd != null ? +m.demand.behind_usd : null,
-      behind = out7 != null ? T("ask.behind", { amount: out7.toFixed(2) }) : "";
+      behind = out7 != null ? T("ask.behind", { amount: KF.number(out7, KI.lang(), { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }) : "";
     out.replaceChildren(
       ...(near ? [el("p", { className: "near", textContent: T("ask.closest") })] : []),
       el("p", { className: "verdict", textContent: holds === true ? T(near ? "ask.holds_near" : "ask.holds") : holds === false ? T("ask.fails") : T("ask.not_yet") }),
@@ -531,11 +564,11 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
     if (m && m.none) { remember(text, ""); none(text); return; }
     go.disabled = true; $("sample").disabled = true;
     const p = el("p", { textContent: T("ask.reading_paper", { s: "0.0" }) }); out.replaceChildren(p);
-    const tick = setInterval(() => { p.textContent = T("ask.reading_paper", { s: ((performance.now() - t0) / 1000).toFixed(1) }); }, 100);
+    const tick = setInterval(() => { p.textContent = T("ask.reading_paper", { s: secs(performance.now() - t0) }); }, 100);
     const r = await json(HOSTED + "/api/near/claim/look", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: text }) });
     clearInterval(tick); go.disabled = false; $("sample").disabled = false;
     if (mine !== asked) return;
-    if (!r || !r.ok) { out.replaceChildren(el("p", { className: "verdict", textContent: T("ask.not_read") }), el("p", {}, [T("ask.no_answer") + " ", el("button", { type: "button", className: "go", textContent: T("btn.retry"), onclick: () => ask(text) })])); return; }
+    if (!r || !r.ok) { out.replaceChildren(el("p", { className: "verdict", textContent: T("ask.not_read") }), el("p", {}, [T("ask.no_answer") + " ", el("button", { type: "button", className: "ask-btn", textContent: T("btn.retry"), onclick: () => ask(text) })])); return; }
     if (r.known) { const c = CLAIMS.find((x) => x.name === r.name); if (c) { remember(text, c.name); answer(c, r.last); return; } }
     const q = r.quote || {};
     remember(text, "");
@@ -551,16 +584,21 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition, speak = $("speak");
   if (SR) {
     speak.hidden = false;
-    let rec = null;
+    let rec = null, busy = false;
     speak.addEventListener("click", () => {
       if (rec) { rec.stop(); return; }
-      speak.textContent = T("ask.listening");
-      try {
-        rec = new SR(); rec.lang = KI.speech(); rec.interimResults = false; rec.maxAlternatives = 1;
-        rec.onresult = (e) => { const said = e.results && e.results[0] && e.results[0][0] ? e.results[0][0].transcript : ""; if (said) { $("paper").value = said; $("paper").focus(); } };
-        rec.onend = rec.onerror = () => { rec = null; speak.textContent = T("ask.speak"); };
-        rec.start();
-      } catch (e) { rec = null; speak.textContent = T("ask.speak"); }
+      if (busy) return;
+      busy = true; speak.textContent = T("ask.listening");
+      // the label changes at once; the browser's recognizer is made and started once that change is on the screen (U1 R3)
+      requestAnimationFrame(() => setTimeout(() => {
+        busy = false;
+        try {
+          rec = new SR(); rec.lang = KI.speech(); rec.interimResults = false; rec.maxAlternatives = 1;
+          rec.onresult = (e) => { const said = e.results && e.results[0] && e.results[0][0] ? e.results[0][0].transcript : ""; if (said) { $("paper").value = said; $("paper").focus(); } };
+          rec.onend = rec.onerror = () => { rec = null; speak.textContent = T("ask.speak"); };
+          rec.start();
+        } catch (e) { rec = null; speak.textContent = T("ask.speak"); }
+      }, 0));
     });
   }
   // a second visit starts where the first ended: the visitor's last questions, from this browser

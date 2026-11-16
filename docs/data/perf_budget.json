@@ -1,0 +1,8 @@
+{
+ "_source": "Measured, not set: the per-screen largest contentful paint (lcp, ms) and total blocking time (tbt, ms) of the last committed release of the five screens, commit d379d518, built locally and measured by tests/web/law_checks.mjs's own U1.md:96 measure (Chromium headless, 390 x 844, Lighthouse's slow 4G: 1.6 Mbps down, 750 kbps up, 150 ms, CPU slowed 4 times, blocking time from long tasks after the first paint) on 16 Nov 2026 at 17:38 UTC, one run on a laptop other builders were loading. U1 Rule 7 (LAWS/UX/U1.md): a push may not make a screen's LCP or blocking time worse than this by more than 100 ms.",
+ "door": {"lcp": 984, "tbt": 0},
+ "tool": {"lcp": 524, "tbt": 0},
+ "result": {"lcp": 776, "tbt": 0},
+ "price": {"lcp": 664, "tbt": 0},
+ "status": {"lcp": 844, "tbt": 66}
+}

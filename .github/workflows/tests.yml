@@ -162,13 +162,16 @@ jobs:
   # Two jobs side by side, each with its own Chromium and its own build of the site: one alone took 4m49s and then
   # 5m07s (run 37570042831), over the 5 minutes. Part 1: the client's and the site's numbers, the built site, the launch
   # pages and the page's speed, the live round and the board. Part 2: the pages driven on that build, and every other
-  # file of tests/web/.
+  # file of tests/web/. Parts 3 to 8: the law checks (Round 13 H2, every "Automatic check:" line of LAWS\UX,
+  # tests/web/law_checks.mjs, dealt out in six by --part; one run took 27 minutes on a laptop); part 9: the implementation tests of section 12 of the
+  # plain-language spec (H3 g, tests/web/section12.mjs). Both drive the five screens with the site built and the app
+  # (apps/wanted, tests/web/law_app.py) run in the job; they press every control many times, more than 10 minutes in one.
   sdk:
-    name: web (node tests/web/*.mjs in headless Chromium, ${{ matrix.part }} of 2)
+    name: web (node tests/web/*.mjs in headless Chromium, ${{ matrix.part }} of 9)
     strategy:
       fail-fast: false
       matrix:
-        part: [1, 2]
+        part: [1, 2, 3, 4, 5, 6, 7, 8, 9]
     runs-on: ubuntu-24.04        # Playwright 1.56 installs no Chromium on 26.04
     timeout-minutes: 10
     defaults:
@@ -189,7 +192,14 @@ jobs:
       # system packages it needs, which that cache does not hold (https://playwright.dev/docs/browsers#install-system-dependencies).
       # The folder is named, not the default under the home: the Python tests give every test a home of its own.
       - run: echo "PLAYWRIGHT_BROWSERS_PATH=$RUNNER_TEMP/pw-browsers" >> "$GITHUB_ENV"
-      - run: npm install --no-save --no-audit --no-fund playwright@1.56.0
+      - run: npm install --no-save --no-audit --no-fund playwright@1.56.0 axe-core@4.10.2
+      # parts 3 to 9: the app runs on the Python standard library; the law check of U2 R8 reads text with textstat 0.7.13
+      - if: matrix.part >= 3
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+      - if: matrix.part >= 3
+        run: python -m pip install textstat==0.7.13
       - id: browsers
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
@@ -216,6 +226,18 @@ jobs:
         run: npx playwright install-deps chromium
       - name: Chromium starts (with no browser the job stops here; it does not go on and skip)
         run: node -e "import('playwright').then(async (pw) => { const b = await pw.chromium.launch(); console.log('chromium', b.version()); await b.close(); })"
+      # Firefox and WebKit, free from Playwright's own download host, for the one law check that runs R4 and R5 in them
+      # (UX/U1.md:261). Only the part whose sixth holds that check installs them (`--list` prints a part's ids and starts
+      # no browser), so the other parts keep their time under the 10 minutes.
+      - if: matrix.part >= 3 && matrix.part <= 8
+        name: Firefox and WebKit, in the part that runs UX/U1.md:261
+        env:
+          SIXTH: ${{ matrix.part }}
+        run: |
+          if node tests/web/law_checks.mjs --list --part "$((SIXTH - 2))/6" | grep -qx "UX/U1.md:261"; then
+            npx playwright install --with-deps firefox webkit
+            node -e "import('playwright').then(async (pw) => { for (const b of ['firefox', 'webkit']) { const x = await pw[b].launch(); console.log(b, x.version()); await x.close(); } })"
+          fi
       - if: matrix.part == 1
         name: what the site computes with no browser (the status view's numbers; a Balance's limits, word for word as `knos budget check` answers; the price book's arithmetic)
         run: |
@@ -262,6 +284,20 @@ jobs:
           {
           node tests/web/live.mjs
           node tests/web/index_board.mjs
+          } 2>&1 | tee -a "$WEB_LOG"
+      - if: matrix.part >= 3 && matrix.part <= 8
+        name: a sixth of the law checks (every "Automatic check:" line of LAWS\UX, each labelled with its file and line), on the five screens, the app run here
+        env:
+          SIXTH: ${{ matrix.part }}
+        run: |
+          {
+          node tests/web/law_checks.mjs "$RUNNER_TEMP/site" --part "$((SIXTH - 2))/6"
+          } 2>&1 | tee -a "$WEB_LOG"
+      - if: matrix.part == 9
+        name: section 12's implementation tests (the plain-language spec) on the tool, result and price screens, the app run here
+        run: |
+          {
+          node tests/web/section12.mjs "$RUNNER_TEMP/site"
           } 2>&1 | tee -a "$WEB_LOG"
       # A file added to tests/web/ runs here with no line of its own: `node tests/web/<name>.mjs <the built site>`, the
       # arguments the others take. One that needs other arguments gets a line above. buyer.mjs needs a fixture that

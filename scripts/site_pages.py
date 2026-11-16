@@ -44,24 +44,46 @@ CSS = ("#ask label a { display: inline !important; min-height: 0 !important; pad
        ".kh nav a:hover, .kh nav a[aria-current] { text-decoration: underline; }\n")
 
 
-def header(up: str, here: str = "", lang: bool = False) -> str:
-    """The one header: the Knos name and one control, "Menu" (Round 13, A2: a first screen holds the Knos name and the
-    page's own words). The goal is the menu's first line, one press away on every page (A7). Its words are keys of
-    web/i18n/en.json; on a page shown in every language (lang=True: the front door, the pricing page) the language
-    control sits beside the menu, on the first screen (U7 R18)."""
+def menu(up: str, here: str = "") -> str:
+    """The menu: the goal as its first line, one press away (A7), then the product's pages."""
     cur = ' aria-current="page"'
     en = site_product.en
     links = "".join(f'<a href="{up}{p}"{cur if p == here else ""}>{en(key)}</a>' for p, key in PAGES)
-    return (f'<header class="kh" id="kh">\n  <a class="logo" href="{up or "./"}"><span class="mark" aria-hidden="true" style="--m: url({up}brand/mark.svg)"></span>Knos</a>\n'
+    return (f'<details class="kmenu"><summary>{en("menu")}</summary><div class="kmenu-panel"><p class="kgoal">{en("goal")}</p>'
+            f'<nav aria-label="Pages">{links}</nav><a href="{up}pricing/">{en("nav.pricing")}</a><a href="{up}status/">{en("nav.status")}</a></div></details>')
+
+
+def header(up: str, here: str = "", lang: bool = False, screen: bool = False) -> str:
+    """The one header: the Knos name and one control, "Menu" (Round 13, A2: a first screen holds the Knos name and the
+    page's own words). The goal is the menu's first line, one press away on every page (A7). Its words are keys of
+    web/i18n/en.json; on a page shown in every language (lang=True: the front door, the pricing page) the language
+    control sits beside the menu, on the first screen (U7 R18).
+    screen=True (the front door, pricing/ and status/, Round 13 FIX-SITE): the first screen holds at most three controls,
+    the main input, its button and the language control (U3 Rule 1a, U7 R18), and the main action is among the first two
+    (U3 Rule 10). So the Knos name there is not a link (the page's own main action is the way on) and the menu moves to the
+    foot of the page (foot()), still one press away."""
+    mark = f'<span class="mark" aria-hidden="true" data-no-mirror style="--m: url({up}brand/mark.svg)"></span>Knos'
+    logo = f'<span class="logo" data-root="{up or "./"}">{mark}</span>' if screen else f'<a class="logo" href="{up or "./"}">{mark}</a>'
+    # every language's own name, laid out unseen, so the scripts' fonts are ready before the language control opens
+    # (U1 R3: its list shows within 0.1 s; drawing ten scripts for the first time took over 200 ms)
+    warm = "".join(f'<span lang="{c}">{site_product.e(site_product.TP.meta(c)["name"])}</span>' for c in site_product.TP.LANGS)
+    return (f'<header class="kh" id="kh">\n  {logo}\n'
             + (f"  {site_product.TP.switcher('en')}\n" if lang else "")
-            + f'  <details class="kmenu"><summary>{en("menu")}</summary><div class="kmenu-panel"><p class="kgoal">{en("goal")}</p>'
-            f'<nav aria-label="Pages">{links}</nav><a href="{up}pricing/">{en("nav.pricing")}</a><a href="{up}status/">{en("nav.status")}</a></div></details>\n</header>')
+            + (f'  <span class="klang-list kwarm" aria-hidden="true">{warm}</span>\n' if lang and screen else "")
+            + ("" if screen else f"  {menu(up, here)}\n") + "</header>")
 
 
-def with_header(html: str, up: str, here: str, lang: bool = False) -> str:
+def foot(up: str) -> str:
+    """The foot of a screen page: the menu (moved from the header, see header()) and the light or dark switch (U5 R11:
+    the device's own setting first, and a visible switch). The switch is shown by THEME_JS; with no script it stays hidden."""
+    return (f'<div class="kfoot">{menu(up)}<button type="button" id="theme" data-theme-toggle hidden>'
+            f'{site_product.en("theme.dark")}</button></div>')
+
+
+def with_header(html: str, up: str, here: str, lang: bool = False, screen: bool = False) -> str:
     """The page's own bar (or the front door's header) replaced by the one header; the bar's script and its prerender
     rules go with it."""
-    html, n = re.subn(r'<header class="(?:bar k-bar|kh)" id="(?:k-bar|kh)">.*?</header>', lambda m: header(up, here, lang), html, count=1, flags=re.S)
+    html, n = re.subn(r'<header class="(?:bar k-bar|kh)" id="(?:k-bar|kh)">.*?</header>', lambda m: header(up, here, lang, screen), html, count=1, flags=re.S)
     assert n == 1, "the page has no header to replace"
     html = re.sub(r'<script type="speculationrules">.*?</script>\n?', "", html, flags=re.S)
     html = re.sub(r'<script>addEventListener\("load", \(\) => \{ const s = document\.createElement\("script"\); s\.src = "[./]*brand/bar\.js";.*?</script>\n?', "", html, flags=re.S)
@@ -79,6 +101,105 @@ def with_goal(html: str, up: str) -> str:
             f'<span>{site_product.GOAL}</span><br><a href="{up}pricing/" style="display:inline-flex;align-items:center;min-height:44px">Pricing</a></footer>\n')
     i = html.rfind("</body>")
     return html[:i] + foot + html[i:] if i >= 0 else html
+
+
+# ---- the three screens of Round 13 (the front door, pricing/, status/): FIX-SITE ---------------------------------------
+# U7 R1 and U2 R4: no physical left or right in their styles (logical properties mirror in Arabic); U7 R11: font sizes in
+# rem, so the reader's own text size is kept. The design system (web/brand/tokens.css, the one source, copied to the app
+# by scripts/sync_brand.py) is written into each screen with both rewrites, which also spares a render-blocking request.
+PHYSICAL = ((r"\bmargin-left\s*:", "margin-inline-start:"), (r"\bmargin-right\s*:", "margin-inline-end:"),
+            (r"\bpadding-left\s*:", "padding-inline-start:"), (r"\bpadding-right\s*:", "padding-inline-end:"),
+            (r"(?<![\w-])left\s*:", "inset-inline-start:"), (r"(?<![\w-])right\s*:", "inset-inline-end:"),
+            (r"text-align\s*:\s*left\b", "text-align: start"), (r"text-align\s*:\s*right\b", "text-align: end"),
+            (r"float\s*:\s*left\b", "float: inline-start"), (r"float\s*:\s*right\b", "float: inline-end"))
+
+
+def logical_rem(css: str) -> str:
+    """The same rules with logical properties for left and right, and every font size in rem (16 px = 1 rem)."""
+    for a, b in PHYSICAL:
+        css = re.sub(a, b, css)
+    return re.sub(r"(?<![\w-])font(?:-size)?\s*:[^;}]*", lambda m: re.sub(r"(\d*\.?\d+)px", lambda n: f"{float(n[1]) / 16:g}rem", m[0]), css)
+
+
+def tokens_css(up: str) -> str:
+    css = (ROOT / "web" / "brand" / "tokens.css").read_text(encoding="utf-8")
+    css = css.replace('url("../fonts/', f'url("{up}fonts/').replace('url("mark.svg")', f'url("{up}brand/mark.svg")').replace('url("wordmark.svg")', f'url("{up}brand/wordmark.svg")')
+    return logical_rem(re.sub(r"\s+", " ", re.sub(r"/\*.*?\*/", "", css, flags=re.S)).strip())
+
+
+# set before the first paint: the light or dark choice kept in this browser (the key web/front.js and brand/bar.js use);
+# and, for a page that will be shown in another language, its direction at once and the page held unseen until the
+# strings are in (at most 1.5 s, at once if the file fails), so nothing jumps when they arrive (U1.md line 294: layout shift in Arabic), the strings file
+# asked for at once, and in Chinese no Latin web font at all (U7 R12: no font download for CJK). The language is chosen as
+# tool_page.STATIC_JS chooses it: ?lang=, the stored choice, then the browser's list, never a place.
+HEAD_JS = r"""(() => { const de = document.documentElement, L = /*LANGS*/[], BASE = /*BASE*/"";
+  try { const t = localStorage.getItem("knos-theme"); if (t === "light" || t === "dark") de.dataset.theme = t; } catch (e) { /* no storage */ }
+  const match = (tag) => { const t = String(tag || "").toLowerCase(); if (!t) return null; for (const l of L) if (l.code.toLowerCase() === t) return l.code;
+    const b = t.split(/[-_]/)[0]; if (b === "zh") return "zh-Hans"; return L.some((l) => l.code === b) ? b : null; };
+  let kept = null; try { kept = localStorage.getItem("knos.lang"); } catch (e) { /* no storage */ }
+  const want = match(new URLSearchParams(location.search).get("lang")) || match(kept) || (navigator.languages || [navigator.language]).map(match).find(Boolean) || "en";
+  if (want === "en") return;
+  de.dataset.want = want; de.dir = L.find((l) => l.code === want).dir; de.classList.add("k-wait");
+  const pre = document.createElement("link"); pre.rel = "preload"; pre.as = "fetch"; pre.crossOrigin = "anonymous"; pre.href = BASE + want + ".json"; document.head.append(pre);
+  const mo = new MutationObserver(() => { if (de.lang === want) done(); });
+  const done = () => { mo.disconnect(); clearTimeout(late); de.classList.remove("k-wait"); if (de.lang !== want) { de.dir = "ltr"; delete de.dataset.want; } };
+  const late = setTimeout(done, 1500);
+  pre.onerror = done;   // no strings file: English at once
+  mo.observe(de, { attributes: true, attributeFilter: ["lang"] });
+})();"""
+HEAD_CSS = ('html.k-wait body{visibility:hidden}'
+            ':root[data-want="zh-Hans"]{--text:system-ui,-apple-system,"Segoe UI",sans-serif;--head:system-ui,-apple-system,"Segoe UI",sans-serif;--code:ui-monospace,Consolas,monospace}')
+
+# the light or dark switch at the foot (foot()): it shows the theme it switches to, in the page's language
+THEME_JS = r"""(() => { const b = document.getElementById("theme"), de = document.documentElement; if (!b) return;
+  const now = () => de.dataset.theme || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+  const label = () => { b.textContent = KI.t(now() === "light" ? "theme.dark" : "theme.light"); };
+  b.hidden = false; label(); KI.changed(label);
+  b.addEventListener("click", () => { const t = now() === "light" ? "dark" : "light"; de.dataset.theme = t; try { localStorage.setItem("knos-theme", t); } catch (e) { /* no storage */ } label(); });
+})();
+// a link to another page of the site shows it was pressed at once, while the next page loads (U1 R3: a change within 0.1 s)
+// (the next page is asked for once that look is on the screen, one frame later)
+addEventListener("click", (e) => { const a = e.target.closest && e.target.closest("a[href]");
+  if (!a || a.target || a.hasAttribute("download") || e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  const u = new URL(a.href, location); if (u.origin !== location.origin || u.pathname === location.pathname) return;
+  e.preventDefault(); a.classList.add("k-going"); requestAnimationFrame(() => setTimeout(() => location.assign(u.href), 0)); }, true);
+addEventListener("pageshow", () => document.querySelectorAll(".k-going").forEach((a) => a.classList.remove("k-going")));"""
+
+# the header, the foot and their controls on the three screens: every control at least 48 px with 8 px between them (U3 Rule 4)
+SCREEN_CSS = (".kh .logo { cursor: default; }\n"
+              ".kh .klang summary, .kmenu > summary { min-height: 48px; min-width: 48px; font-size: 16px; border-color: var(--ink-2); }\n"
+              ".klang-list a, .kmenu-panel a, .kh nav a { min-height: 48px; }\n"
+              "details:not([open]) > .klang-list, details:not([open]) > .kmenu-panel { display: none; }\n"
+              ".how summary { min-height: 48px; }\n"
+              "footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 18px; }\n"
+              "footer > .fline { flex: 0 0 100%; margin: 0; font: 400 18px/1.5 var(--text); color: var(--ink-2); }\n"
+              "footer a { min-height: 48px; min-width: 48px; margin: 0; }\n"
+              ".flinks { display: flex; flex-wrap: wrap; gap: 8px; }\n"
+              ".kfoot { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; flex: 0 0 100%; }\n"
+              ".kfoot .kmenu-panel { position: static; margin: 8px 0 0; max-width: none; }\n"
+              "#theme { min-height: 48px; min-width: 48px; padding: 0 16px; font: 500 18px/1.5 var(--text); color: var(--ink); background: transparent; "
+              "border: 2px solid var(--ink-2); border-radius: 10px; cursor: pointer; }\n"
+              "#theme:focus-visible, .kmenu > summary:focus-visible, .klang summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }\n"
+              "a.k-going { opacity: .6; cursor: progress; }\n"
+              ".klang-list.kwarm { display: block; position: absolute; visibility: hidden; inline-size: 1px; block-size: 1px; overflow: hidden; padding: 0; border: 0; }\n"
+              ".klang-list.kwarm > span { position: absolute; inset-inline-start: 0; inset-block-start: 0; }\n"
+              ":root:lang(hi) p, :root:lang(hi) li, :root:lang(hi) dd { line-height: 1.85; }\n"
+              ":root:lang(ar) p, :root:lang(ar) li, :root:lang(ar) dd { line-height: 1.6; }\n")
+
+
+def screen(html: str, up: str) -> str:
+    """One of the three screens made whole: the design system written in (tokens_css), every style block rewritten by
+    logical_rem, the head script and its styles first in the head, and the theme switch's script after the language runtime."""
+    langs = [{"code": c, "dir": site_product.TP.meta(c)["dir"]} for c in site_product.TP.LANGS]
+    head = HEAD_JS.replace("/*LANGS*/[]", json.dumps(langs)).replace('/*BASE*/""', json.dumps(up + "i18n/"))
+    html = html.replace(f'<link rel="stylesheet" href="{up}brand/tokens.css">', f'<style id="k-tokens">{tokens_css(up)}</style>', 1)
+    html = html.replace("</head>", f"<style id=\"k-screen\">\n{SCREEN_CSS}</style>\n</head>", 1)
+    html = re.sub(r"(<style[^>]*>)(.*?)(</style>)", lambda m: m[1] + logical_rem(m[2]) + m[3], html, flags=re.S)
+    html = html.replace('<meta charset="utf-8">', f'<meta charset="utf-8">\n<script>{head}</script>\n<style id="k-head">{HEAD_CSS}</style>', 1)
+    i = html.find("window.KI = window.KI")
+    end = html.find("</script>", i)
+    assert i >= 0 and end > i, "the screen has no language runtime"
+    return html[:end] + "\n" + THEME_JS + "\n" + html[end:]
 
 
 def retitle(html: str, title: str, desc: str) -> str:
@@ -130,6 +251,17 @@ BEACON = """<script>
   setInterval(() => { if (!pressed) return; const t = document.body.textContent;
     for (const [k, re] of kinds)
       if (!seenText.has(k) && re.test(t)) { seenText.add(k); send(k); } }, 1500);   // a light check, off the press path
+  // real visitors' timings (U1 R22): the largest paint, each press's event time and layout shifts, and in-page screen
+  // changes where the browser reports them; kept in this page only (window.knosVitals): nothing is sent until the privacy
+  // page names it and the server's speed record (POST /api/vitals) takes these screens
+  const vit = { lcp: 0, inp: 0, cls: 0, soft: 0, icp: 0 };
+  const watch = (type, f, o) => { try { if ((PerformanceObserver.supportedEntryTypes || []).includes(type)) new PerformanceObserver((l) => l.getEntries().forEach(f)).observe({ type, buffered: true, ...(o || {}) }); } catch { /* not measured here */ } };
+  watch("largest-contentful-paint", (e) => { vit.lcp = Math.round(e.startTime); });
+  watch("event", (e) => { if (e.interactionId) vit.inp = Math.max(vit.inp, Math.round(e.duration)); }, { durationThreshold: 40 });
+  watch("layout-shift", (e) => { if (!e.hadRecentInput) vit.cls = Math.round((vit.cls + e.value) * 1000) / 1000; });
+  watch("soft-navigation", () => { vit.soft++; });
+  watch("interaction-contentful-paint", (e) => { vit.icp = Math.max(vit.icp, Math.round(e.startTime)); });
+  window.knosVitals = vit;
   addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") send("leave", { s: Math.round((Date.now() - t0) / 1000) }); });
 })();
 </script>
@@ -255,6 +387,17 @@ def fill(html: str) -> str:
     return COMPANY_LINE.sub(company_line(), html)
 
 
+def run_seconds() -> int:
+    """The most seconds one run of the first tool may take, as the server reads it (tool_run, runner_conf.py): the
+    timeout_s of the claim whose locked test is test_limit.py, else the checker's default. The front door's waiting bar
+    counts against it until the server's own answer gives it (limits.max_seconds)."""
+    for c in json.loads((ROOT / "near" / "claims" / "claims.json").read_text(encoding="utf-8"))["claims"]:
+        if c.get("test") == "test_limit.py" and c.get("timeout_s"):
+            return int(c["timeout_s"])
+    conf = (ROOT / "apps" / "wanted" / "knos_wanted" / "runner_conf.py").read_text(encoding="utf-8")
+    return int(re.search(r"'checker_default_seconds': (\d+)", conf)[1])
+
+
 def released() -> bool:
     """The first tool's program has been released (released_solution.py is beside its sample)."""
     return (LIMIT / "released_solution.py").is_file()
@@ -321,7 +464,9 @@ def main(site: str) -> int:
     out = Path(site)
     door = fill(strings((ROOT / "web" / "door.html").read_text(encoding="utf-8")))
     door = door.replace("/*CLAIMS*/[]/*END*/", json.dumps(door_claims(), ensure_ascii=False).replace("</", "<\\/"))
-    (out / "index.html").write_text(with_header(door, "", "", lang=True), encoding="utf-8")
+    door = door.replace('aria-valuemax="0"', f'aria-valuemax="{run_seconds()}"', 1)
+    door = with_header(door, "", "", lang=True, screen=True).replace("<!--FOOT-->", foot(""), 1)
+    (out / "index.html").write_text(screen(door, ""), encoding="utf-8")
     (out / "door.html").unlink(missing_ok=True)
     near = fill((ROOT / "near" / "web" / "index.html").read_text(encoding="utf-8"))
     near = near.replace('fetch("latest.json"', 'fetch("../near/latest.json"')
@@ -373,7 +518,10 @@ def main(site: str) -> int:
     (out / "near" / "index.html").write_text(redirect("../prove/", head), encoding="utf-8")
     (out / "iris" / "index.html").write_text(redirect("../labs/", head), encoding="utf-8")
     site_product.HEADER_CSS = CSS
+    site_product.FOOT = foot
     made = site_product.write(out, header)
+    for rel in ("pricing/index.html", "status/index.html"):   # the two screens besides the front door (screen())
+        (out / rel).write_text(screen((out / rel).read_text(encoding="utf-8"), "../"), encoding="utf-8")
     # the data files behind the pricing and status pages, published beside them (F4 new rule 12, F7 finding 1)
     (out / "data").mkdir(exist_ok=True)
     for name in ("pricing.json", "usage.json", "scorecard_summary.json"):

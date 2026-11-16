@@ -104,7 +104,13 @@ def theme_colors() -> str:
     return f'<meta name="theme-color" content="{dark}">\n<meta name="theme-color" content="{light}" media="(prefers-color-scheme: light)">\n'
 
 
-def page(header: str, up: str, title: str, desc: str, body: str, script: str = "", canonical: str = "") -> str:
+def page(header: str, up: str, title: str, desc: str, body: str, script: str = "", canonical: str = "", foot: str = "") -> str:
+    """A product page. With `foot` (the front door's screens, scripts/site_pages.py foot()): the foot carries the menu and
+    the light or dark switch, the honesty line is the foot's heading, and the goal is the menu's first line."""
+    links = (f'<a href="{REPO}">{e(en("nav.source"))}</a><a href="{up}pricing/">{e(en("nav.pricing"))}</a><a href="{up}status/">{e(en("nav.status"))}</a>'
+             f'<a href="{up}privacy.html">{e(en("nav.privacy"))}</a>')
+    bottom = (f'<footer><h2 class="fline">{e(en("foot.pages"))}</h2><div class="flinks">{links}</div>{foot}</footer>\n' if foot
+              else f'<footer><span>{e(en("foot.pages"))}</span><br><span>{GOAL}</span><br>{links}</footer>\n')
     return (f'<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n'
             f"<title>{e(title)}</title>\n<meta name=\"description\" content=\"{e(desc)}\">\n<meta name=\"color-scheme\" content=\"light dark\">\n"
             f'<link rel="canonical" href="https://drexthealpha.github.io/Knos/{canonical}">\n'
@@ -113,18 +119,15 @@ def page(header: str, up: str, title: str, desc: str, body: str, script: str = "
             f'{theme_colors()}<link rel="icon" href="{up}icon.svg" type="image/svg+xml">\n<link rel="icon" href="{up}favicon.ico" sizes="16x16 32x32 48x48">\n'
             f'<link rel="apple-touch-icon" href="{up}brand/apple-touch-icon.png">\n<link rel="stylesheet" href="{up}brand/tokens.css">\n'
             f"<style>\n{CSS}{HEADER_CSS}</style>\n</head>\n<body>\n{header}\n<main>\n{body}\n</main>\n"
-            f'<footer><span>{e(en("foot.pages"))}</span><br><span>{GOAL}</span><br>'
-            f'<a href="{REPO}">{e(en("nav.source"))}</a><a href="{up}pricing/">{e(en("nav.pricing"))}</a><a href="{up}status/">{e(en("nav.status"))}</a>'
-            f'<a href="{up}privacy.html">{e(en("nav.privacy"))}</a></footer>\n'
-            + (f"<script>\n{script}\n</script>\n" if script else "") + "</body>\n</html>\n")
+            + bottom + (f"<script>\n{script}\n</script>\n" if script else "") + "</body>\n</html>\n")
 
 
 LIVE_JS = """const HOSTED = "__HOSTED__";
 const $ = (id) => document.getElementById(id);
-const usd = (n) => (+n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " test USDC";   // test money: never a dollar sign
+const usd = (n) => (n === null || n === undefined || n === "" || !isFinite(+n)) ? "unknown" : (+n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " test USDC";   // test money: never a dollar sign; a missing amount is unknown, not 0
 // the board and the counters are also files of this site, written by every Pages build (data/): a live answer within
 // 1.2 s is used, else the file is shown at once, with its own read time, so a press never waits on a sleeping server
-const SITE_ROOT = (document.querySelector("#kh .logo") || location).href, CACHED = { "/api/near/claims": "board.json", "/api/near/claim/counters": "counters.json" };
+const LOGO = document.querySelector("#kh .logo"), SITE_ROOT = LOGO && LOGO.href ? LOGO.href : new URL(LOGO && LOGO.dataset.root || "./", location).href, CACHED = { "/api/near/claims": "board.json", "/api/near/claim/counters": "counters.json" };
 async function getJSON(path) {
   const live = (async () => { try { const r = await fetch(HOSTED + path); return r.ok ? await r.json() : null; } catch (e) { return null; } })();
   if (!CACHED[path]) return live;
@@ -435,18 +438,45 @@ def pricing_page(header: str) -> str:
     keys = [("a.price.get", {"free": n["free_runs_per_day"], **pack}), ("a.price.next", {}), ("a.price.pay", {"free": n["free_runs_per_day"], **pack}),
             ("a.price.why", {"url": TP.PRICING_FILE, "test": TP.TEST_URL}), ("a.price.who", {"issues": TP.ISSUES})]
     answers = [f"<!--k:{k} {json.dumps(v)}-->{a}<!--/k-->" for (k, v), a in zip(keys, TP.price_answers("en", n))]
-    body = (f"<h1>{e(en('price.h'))}</h1>\n<p>{e(en('price.sample_free'))}</p>\n"
-            f'<table id="prices"><tbody><tr><th>{e(en("price.own"))}</th><td>{comp("price.free_day", {"n": n["free_runs_per_day"]}, {"n": "free_runs_per_day"})}</td></tr>'
+    body = (f"<h1>{e(en('price.h'))}</h1>\n"
+            f'<table id="prices"><tbody><tr><th>{e(en("price.sample"))}</th><td>{e(en("price.free"))}</td></tr>'
+            f'<tr><th>{e(en("price.own"))}</th><td>{comp("price.free_day", {"n": n["free_runs_per_day"]}, {"n": "free_runs_per_day"})}</td></tr>'
             f'<tr><th>{e(en("price.after"))}</th><td>{comp("pay.headline", pack, spans)}</td></tr></tbody></table>\n'
-            f"<p>{e(en('pay.line'))}</p>\n"
+            f"<p>{e(en('pay.line'))}</p>\n{try_link('../')}\n"
             f'<details class="how"><summary>{e(en("how"))}</summary>'
             + TP.five("en", answers)
             + f'<p>{comp("price.f1", {"url": "../data/pricing.json"})}</p>'
             f"<p>{e(en('price.f2'))}</p>"
             f'<p>{comp("price.f3", {"url": REPO + "/blob/main/docs/PRICING.md"})}</p><p data-mt hidden></p></details>')
     out = page(header, "../", en("price.title"), "Sample runs are free; runs on your own file have a free daily allowance, then a pack in test money.", body,
-               TP.static_runtime("../i18n/"), "pricing/")
-    return out.replace("</style>", HOW_CSS + TP.SWITCH_CSS + "\n</style>", 1)
+               TP.static_runtime("../i18n/"), "pricing/", FOOT("../") if FOOT else "")
+    return out.replace("</style>", HOW_CSS + TP.SWITCH_CSS + "\n" + SCREEN_PAGE_CSS + "</style>", 1)
+
+
+FOOT = None   # the foot of the three screens (scripts/site_pages.py foot), set by it before it writes these pages
+PLAY = ('<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" data-no-mirror>'
+        '<path d="M8 5v14l11-7z"/></svg>')
+
+
+def try_link(up: str) -> str:
+    """The main action of the pricing and status pages: the tool on the front door, with its words and an icon (U2 Rule 16,
+    U7 R26), the one primary control (U3 Rule 5), among the first two controls (U3 Rule 10)."""
+    return f'<a class="btn go" id="try" href="{up}#tool" data-primary data-main-action>{PLAY}{e(en("tool.try"))}</a>'
+
+
+# the pricing and status pages as screens (Round 13 FIX-SITE): text 18 px (U2 Rule 11), the main action wide and in the middle
+# of the first screen (U3 Rule 8, U5 R9), the foot below the first screen (U3 R3: that screen holds the page's own words only),
+# tables without ruled cells (a ruled cell is a box of its own: U3 R3's six blocks)
+SCREEN_PAGE_CSS = """body { font-size: 18px; }
+main { min-height: calc(100vh - 64px); min-height: calc(100svh - 64px); box-sizing: border-box; }
+main code { font-family: ui-monospace, Consolas, monospace; }
+main th, main td { border-bottom: 0; padding-block: 8px; padding-inline: 0 8px; }
+main .fine, main p, main dd, main dt, main summary { font-size: 18px; }
+.btn.go { display: flex; justify-content: center; gap: 8px; width: 100%; box-sizing: border-box; min-height: 52px; margin: 8px 0 16px; }
+.btn.go svg { flex: none; }
+main .btn:focus-visible, main summary:focus-visible, main a:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 460px) { main p, main .fine, main summary, main dd, main dt { font-size: 18px; } }
+"""
 
 
 def status_page(header: str) -> str:
@@ -455,15 +485,20 @@ def status_page(header: str) -> str:
     they name the test network and the server's parts (the PLAIN-WORDS rule)."""
     import site_usage
     u = usage()
+    # Round 13 FIX-SITE: a screen of its own words (U3 R3: at most 40 words on the first screen): the counts, the main
+    # action, when they were read; the three measures (still "not enough browsers yet") and the live lines in the fold.
+    # Every label is a key of web/i18n/en.json, shown in the browser's language; the live lines stay English, marked so.
     rows = "".join(f'<tr><th>{e(label)}</th><td class="n" data-count="{k}">{int(u["totals"].get(k) or 0):,}</td></tr>' for k, label in site_usage.COUNTS)
-    rows += "".join(f'<tr><th>{e(label)}</th><td class="n" data-measure="{k}">'
-                    + ("not enough browsers yet" if u["measures"].get(k) is None else f'{u["measures"][k]:,}') + "</td></tr>" for k, label in site_usage.MEASURES)
-    when = (f'Counted up to {e(u["read_at"].replace("T", " ").replace("Z", " UTC"))}, from the first day of use.' if u.get("read_at")
-            else "No count has been read from Knos's server yet.")
-    body = ("<h1>Status</h1>\n<p>How the tool is used, all days together.</p>\n"
-            f'<table id="use"><tbody>{rows}</tbody></table>\n<p class="fine" id="use-when">{when} Knos\'s own test runs are not in these counts. '
-            '<a href="../data/usage.json">The data file</a>.</p>\n'
-            '<details class="how"><summary>How it works</summary>\n'
+    meas = "".join(f'<tr><th>{e(label)}</th><td class="n" data-measure="{k}">'
+                   + (e(en("status.too_few")) if u["measures"].get(k) is None else f'{u["measures"][k]:,}') + "</td></tr>" for k, label in site_usage.MEASURES)
+    # the time keeps its own left-to-right order inside a right-to-left sentence (U7 R2): a left-to-right isolate around it
+    at = "\u2066" + u["read_at"].replace("T", " ")[:16] + " UTC\u2069" if u.get("read_at") else ""
+    when = f'<!--k:status.when {json.dumps({"at": at})}-->{TP.h("en", "status.when", at=at)}<!--/k-->' if at else e(en("status.none"))
+    body = (f"<h1>{e(en('nav.status'))}</h1>\n"
+            f'<table id="use"><tbody>{rows}</tbody></table>\n{try_link("../")}\n<p class="fine" id="use-when">{when}</p>\n'
+            f'<details class="how"><summary>{e(en("how"))}</summary>\n'
+            f'<table id="meas"><tbody>{meas}</tbody></table>\n<p><a href="../data/usage.json">{e(en("status.file"))}</a></p><p data-mt hidden></p>\n'
+            '<div lang="en" dir="ltr">\n'
             "<p>Is Knos up right now? Each line is read live.</p>\n<table id=\"st\"><tbody>"
             "<tr><th>The proof service</th><td id=\"svc\">reading</td></tr>"
             "<tr><th>Live proofs today</th><td id=\"today\">reading</td></tr>"
@@ -475,7 +510,7 @@ def status_page(header: str) -> str:
             "</tbody></table>\n<h2>Accounts that keep the demo up</h2>\n<table id=\"bal\"><tbody><tr><td>reading</td></tr></tbody></table>\n"
             "<p class=\"fine\">Each line is read now, from the hosted server, NEAR testnet and GitHub.</p>\n"
             "<p class=\"fine\">The jobs count adds up each agent's passes in the jobs "
-            "contract's <code>get_agent_record</code>; the money paid out is its <code>get_totals</code>.</p></details>")
+            "contract's <code>get_agent_record</code>; the money paid out is its <code>get_totals</code>.</p></div></details>")
     script = LIVE_JS + """(async () => {
   const [l, c, t] = await Promise.all([getJSON("/api/near/live"), getJSON("/api/near/claim/counters"), getJSON("/api/near/tests")]);
   $("svc").textContent = l ? (l.live ? "up, on NEAR testnet" : "up, live runs switched off") : "not answering";
@@ -500,7 +535,9 @@ def status_page(header: str) -> str:
     if (!x.ok) { td.style.color = "#c62828"; td.style.fontWeight = "600"; tr.style.borderBottom = "2px solid #c62828"; }
     tr.append(th, td); return tr; }));
 })();"""
-    return page(header, "../", "Knos status", "How the tool is used, each count from the data file, zeros shown as 0.", body, script, "status/").replace("</style>", HOW_CSS + "</style>", 1)
+    return page(header, "../", en("status.title"), "How the tool is used, each count from the data file, zeros shown as 0.", body,
+                TP.static_runtime("../i18n/") + "\n" + script, "status/", FOOT("../") if FOOT else "").replace(
+        "</style>", HOW_CSS + TP.SWITCH_CSS + "\n" + SCREEN_PAGE_CSS + "</style>", 1)
 
 
 def privacy_page(header: str) -> str:
@@ -555,8 +592,8 @@ def write(out: Path, header) -> list[str]:
     for c in cs:
         put(f"claim/{c['name']}/index.html", claim_page(header("../../", ""), c))
     put("agents/index.html", agents_page(header("../", "agents/")))
-    put("pricing/index.html", pricing_page(header("../", "", True)))
-    put("status/index.html", status_page(header("../", "")))
+    put("pricing/index.html", pricing_page(header("../", "", True, True)))
+    put("status/index.html", status_page(header("../", "", True, True)))
     put("privacy.html", privacy_page(header("", "")))
     (out / "sitemap.xml").write_text(sitemap_xml(cs), encoding="utf-8")
     (out / "llms.txt").write_text(llms_txt(cs), encoding="utf-8")
@@ -639,4 +676,5 @@ if __name__ == "__main__":
         (ROOT / "web" / "llms.txt").write_text(llms_txt(claims()), encoding="utf-8", newline="")
         (ROOT / "web" / "sitemap.xml").write_text(sitemap_xml(claims()), encoding="utf-8", newline="")
         (ROOT / "web" / "privacy.html").write_text(privacy_page(site_pages.header("", "")), encoding="utf-8", newline="")
-        (ROOT / "web" / "status" / "index.html").write_text(status_page(site_pages.header("../", "")), encoding="utf-8", newline="")
+        FOOT = site_pages.foot
+        (ROOT / "web" / "status" / "index.html").write_text(site_pages.screen(status_page(site_pages.header("../", "", True, True)), "../"), encoding="utf-8", newline="")

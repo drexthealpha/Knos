@@ -145,6 +145,26 @@
   "pay.recording": "Registrando o pagamento de teste",
   "pay.error": "Não consegui registrar o pagamento de teste agora. Nada foi cobrado. Toque em Sim, registrar de novo daqui a pouco.",
   "how": "Como funciona",
+  "price.sample": "A amostra",
+  "price.free": "Grátis",
+  "theme.dark": "Tema escuro",
+  "theme.light": "Tema claro",
+  "res.change_limit": "Mudar o limite",
+  "work.bar": "Segundos de espera",
+  "status.title": "Situação do Knos",
+  "status.tools_opened": "Ferramenta aberta",
+  "status.sample_runs": "Execuções da amostra",
+  "status.own_runs": "Execuções com arquivo próprio",
+  "status.results_opened_elsewhere": "Resultados abertos em outro lugar",
+  "status.test_payments": "Pagamentos de teste",
+  "status.connector_runs": "Execuções pelo conector",
+  "status.day7_return": "Voltaram no dia 7, porcentagem de navegadores",
+  "status.active_days": "Dias com uma execução nos 7 primeiros, média",
+  "status.paying_share": "Pagaram depois das execuções grátis, porcentagem de navegadores",
+  "status.too_few": "ainda não há navegadores suficientes",
+  "status.when": "Contado até {at}, sem os testes do próprio Knos.",
+  "status.none": "Nenhuma contagem foi lida do servidor do Knos ainda.",
+  "status.file": "O arquivo de dados",
   "q.get": "O que você recebe",
   "q.next": "O que fazer agora",
   "q.pay": "O que você paga",
@@ -251,7 +271,7 @@
   "price.title": "Preços do Knos",
   "price.h": "Preços",
   "price.sample_free": "As verificações do exemplo são grátis.",
-  "price.own": "Verificações do seu próprio arquivo",
+  "price.own": "Seu próprio arquivo",
   "price.free_day": {
    "one": "{n} grátis por dia, em cada navegador",
    "many": "{n} de grátis por dia, em cada navegador",
@@ -269,6 +289,31 @@
    "one": "Mostrando as primeiras {shown} de {n} linha.",
    "many": "Mostrando as primeiras {shown} de {n} de linhas.",
    "other": "Mostrando as primeiras {shown} de {n} linhas."
-  }
+  },
+  "v.pass": "Aprovado",
+  "v.fail": "Reprovado",
+  "v.unknown": "Não sei dizer",
+  "rs.unknown": "Não sei dizer: nenhuma linha tinha um número.",
+  "ev.pass": {
+   "one": "{n} linha de {column}, comparada com {limit}.",
+   "many": "{n} linhas de {column}, cada uma comparada com {limit}.",
+   "other": "{n} linhas de {column}, cada uma comparada com {limit}."
+  },
+  "ev.fail": "A linha {r} de {column} tem {value}, comparada com {limit}.",
+  "why.unknown": "Não consegui comparar nenhuma linha com o limite, porque nenhum valor de {column} é um número.",
+  "next.pass": "Todas as linhas passaram: confira seu próprio arquivo com Usar meus dados.",
+  "next.fail": "Abra seu arquivo na linha {r}, a primeira linha que falhou.",
+  "next.unknown": "Escolha uma coluna em que cada linha tenha um número e toque em Experimente.",
+  "work.rows": {
+   "one": "{n} linha para verificar",
+   "many": "{n} de linhas para verificar",
+   "other": "{n} linhas para verificar"
+  },
+  "err.column": "Não encontrei uma coluna chamada {column} no seu arquivo. As colunas que encontrei são {names}. Escolha uma e toque em Experimente.",
+  "btn.column": "Escolher a coluna",
+  "act.why": "Registrado porque você tocou em Sim, registrar. Nada foi cobrado.",
+  "act.undo": "Desfazer",
+  "act.undone": "O pagamento de teste foi desfeito. Nada foi cobrado.",
+  "act.undo_error": "Não consegui desfazer o pagamento de teste, porque algumas das suas execuções já foram usadas. Nada foi cobrado."
  }
 }

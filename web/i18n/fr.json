@@ -145,6 +145,26 @@
   "pay.recording": "Enregistrement du paiement de test",
   "pay.error": "Je n'ai pas pu enregistrer le paiement de test pour l'instant. Rien n'a été facturé. Appuyez à nouveau sur Oui, enregistrer dans un instant.",
   "how": "Comment ça marche",
+  "price.sample": "L'exemple",
+  "price.free": "Gratuit",
+  "theme.dark": "Thème sombre",
+  "theme.light": "Thème clair",
+  "res.change_limit": "Changer la limite",
+  "work.bar": "Secondes d'attente",
+  "status.title": "État de Knos",
+  "status.tools_opened": "Outil ouvert",
+  "status.sample_runs": "Essais sur l'exemple",
+  "status.own_runs": "Vérifications de fichiers propres",
+  "status.results_opened_elsewhere": "Résultats ouverts ailleurs",
+  "status.test_payments": "Paiements de test",
+  "status.connector_runs": "Vérifications par le connecteur",
+  "status.day7_return": "Revenus le jour 7, pourcentage de navigateurs",
+  "status.active_days": "Jours avec une vérification parmi les 7 premiers, moyenne",
+  "status.paying_share": "Ont payé après les vérifications gratuites, pourcentage de navigateurs",
+  "status.too_few": "pas encore assez de navigateurs",
+  "status.when": "Compté jusqu'au {at}, sans les tests de Knos.",
+  "status.none": "Aucun compte n'a encore été lu sur le serveur de Knos.",
+  "status.file": "Le fichier de données",
   "q.get": "Ce que vous obtenez",
   "q.next": "Que faire ensuite",
   "q.pay": "Ce que vous payez",
@@ -251,7 +271,7 @@
   "price.title": "Tarifs de Knos",
   "price.h": "Tarifs",
   "price.sample_free": "Les vérifications de l'exemple sont gratuites.",
-  "price.own": "Vérifications de votre propre fichier",
+  "price.own": "Votre propre fichier",
   "price.free_day": {
    "one": "{n} gratuite par jour, dans chaque navigateur",
    "many": "{n} de gratuites par jour, dans chaque navigateur",
@@ -269,6 +289,31 @@
    "one": "Affichage des {shown} premières sur {n} ligne.",
    "many": "Affichage des {shown} premières sur {n} de lignes.",
    "other": "Affichage des {shown} premières sur {n} lignes."
-  }
+  },
+  "v.pass": "Réussi",
+  "v.fail": "Échoué",
+  "v.unknown": "Je ne peux pas dire",
+  "rs.unknown": "Je ne peux pas dire : aucune ligne ne contenait de nombre.",
+  "ev.pass": {
+   "one": "{n} ligne de {column}, comparée à {limit}.",
+   "many": "{n} lignes de {column}, chacune comparée à {limit}.",
+   "other": "{n} lignes de {column}, chacune comparée à {limit}."
+  },
+  "ev.fail": "La ligne {r} de {column} contient {value}, comparée à {limit}.",
+  "why.unknown": "Je n'ai pu comparer aucune ligne à la limite, car aucune valeur de {column} n'est un nombre.",
+  "next.pass": "Toutes les lignes ont réussi : vérifiez votre propre fichier avec Utiliser mes données.",
+  "next.fail": "Ouvrez votre fichier à la ligne {r}, la première ligne qui a échoué.",
+  "next.unknown": "Choisissez une colonne où chaque ligne contient un nombre, puis appuyez sur Essayer.",
+  "work.rows": {
+   "one": "{n} ligne à vérifier",
+   "many": "{n} de lignes à vérifier",
+   "other": "{n} lignes à vérifier"
+  },
+  "err.column": "Je n'ai pas trouvé de colonne nommée {column} dans votre fichier. Les colonnes trouvées sont {names}. Choisissez-en une, puis appuyez sur Essayer.",
+  "btn.column": "Choisir la colonne",
+  "act.why": "Enregistré parce que vous avez appuyé sur Oui, enregistrer. Rien n'a été facturé.",
+  "act.undo": "Annuler",
+  "act.undone": "Le paiement de test est annulé. Rien n'a été facturé.",
+  "act.undo_error": "Je n'ai pas pu annuler le paiement de test, car certaines de ses exécutions sont déjà utilisées. Rien n'a été facturé."
  }
 }

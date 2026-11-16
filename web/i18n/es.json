@@ -145,6 +145,26 @@
   "pay.recording": "Registrando el pago de prueba",
   "pay.error": "No pude registrar el pago de prueba ahora mismo. No se cobró nada. Pulsa Sí, regístralo de nuevo en un momento.",
   "how": "Cómo funciona",
+  "price.sample": "La muestra",
+  "price.free": "Gratis",
+  "theme.dark": "Tema oscuro",
+  "theme.light": "Tema claro",
+  "res.change_limit": "Cambiar el límite",
+  "work.bar": "Segundos de espera",
+  "status.title": "Estado de Knos",
+  "status.tools_opened": "Herramienta abierta",
+  "status.sample_runs": "Ejecuciones de la muestra",
+  "status.own_runs": "Ejecuciones con archivo propio",
+  "status.results_opened_elsewhere": "Resultados abiertos en otro sitio",
+  "status.test_payments": "Pagos de prueba",
+  "status.connector_runs": "Ejecuciones por el conector",
+  "status.day7_return": "Volvieron el día 7, porcentaje de navegadores",
+  "status.active_days": "Días con una ejecución en los 7 primeros, promedio",
+  "status.paying_share": "Pagaron al acabarse las ejecuciones gratis, porcentaje de navegadores",
+  "status.too_few": "aún no hay suficientes navegadores",
+  "status.when": "Contado hasta {at}, sin las pruebas propias de Knos.",
+  "status.none": "Aún no se ha leído ningún recuento del servidor de Knos.",
+  "status.file": "El archivo de datos",
   "q.get": "Qué obtienes",
   "q.next": "Qué hacer ahora",
   "q.pay": "Qué pagas",
@@ -251,7 +271,7 @@
   "price.title": "Precios de Knos",
   "price.h": "Precios",
   "price.sample_free": "Las ejecuciones del ejemplo son gratis.",
-  "price.own": "Ejecuciones con tu propio archivo",
+  "price.own": "Tu propio archivo",
   "price.free_day": {
    "one": "{n} gratis al día, en cada navegador",
    "many": "{n} de gratis al día, en cada navegador",
@@ -269,6 +289,31 @@
    "one": "Se muestran las primeras {shown} de {n} línea.",
    "many": "Se muestran las primeras {shown} de {n} de líneas.",
    "other": "Se muestran las primeras {shown} de {n} líneas."
-  }
+  },
+  "v.pass": "Aprobado",
+  "v.fail": "Fallido",
+  "v.unknown": "No puedo saberlo",
+  "rs.unknown": "No puedo saberlo: ninguna fila tenía un número.",
+  "ev.pass": {
+   "one": "{n} fila de {column}, comparada con {limit}.",
+   "many": "{n} filas de {column}, cada una comparada con {limit}.",
+   "other": "{n} filas de {column}, cada una comparada con {limit}."
+  },
+  "ev.fail": "La fila {r} de {column} tiene {value}, comparada con {limit}.",
+  "why.unknown": "No pude comparar ninguna fila con el límite, porque ningún valor de {column} es un número.",
+  "next.pass": "Todas las filas pasaron: comprueba tu propio archivo con Usar mis datos.",
+  "next.fail": "Abre tu archivo en la fila {r}, la primera fila que falló.",
+  "next.unknown": "Elige una columna donde cada fila tenga un número y pulsa Pruébalo.",
+  "work.rows": {
+   "one": "{n} fila por comprobar",
+   "many": "{n} de filas por comprobar",
+   "other": "{n} filas por comprobar"
+  },
+  "err.column": "No encontré una columna llamada {column} en tu archivo. Las columnas que encontré son {names}. Elige una y pulsa Pruébalo.",
+  "btn.column": "Elegir la columna",
+  "act.why": "Registrado porque pulsaste Sí, regístralo. No se cobró nada.",
+  "act.undo": "Deshacer",
+  "act.undone": "El pago de prueba se deshizo. No se cobró nada.",
+  "act.undo_error": "No pude deshacer el pago de prueba, porque ya se usaron algunas de sus ejecuciones. No se cobró nada."
  }
 }

@@ -161,12 +161,12 @@ for (const scheme of ["light", "dark"]) {
   await page.locator("#sample").scrollIntoViewIfNeeded();
   const t3 = await press(page, "#sample");
   check(`${at} the question box's sample: a visible change within ${PRESS_FAIL} ms (${t3} ms)`, t3 != null && t3 <= PRESS_FAIL, t3);
-  await page.waitForFunction(() => /holds/.test(document.querySelector("#out .verdict")?.textContent || ""), null, { timeout: 10000 });
+  await page.waitForFunction(() => /holds/.test(document.querySelector("#ask-out .verdict")?.textContent || ""), null, { timeout: 10000 });
   check(`${at} the question box's sample says the claim holds`, true);
   await page.fill("#paper", "https://doi.org/10.1000/another");
   const t2 = await press(page, "#go");
   check(`${at} "Check it": a visible change within ${PRESS_FAIL} ms (${t2} ms; ${t2 != null && t2 <= PRESS_GOOD ? "within" : "over"} ${PRESS_GOOD} ms)`, t2 != null && t2 <= PRESS_FAIL, t2);
-  await page.waitForFunction(() => /cannot prove/.test(document.querySelector("#out .verdict")?.textContent || ""), null, { timeout: 10000 });
+  await page.waitForFunction(() => /cannot prove/.test(document.querySelector("#ask-out .verdict")?.textContent || ""), null, { timeout: 10000 });
   check(`${at} another paper says Knos cannot prove it yet`, true);
   await ctx.close();
 }

@@ -185,6 +185,10 @@ def test_every_file_of_tests_web_runs_where_a_browser_is_installed_and_a_skip_th
         assert version and cache["with"]["key"] == f"playwright-${{{{ runner.os }}}}-${{{{ runner.arch }}}}-{version[1]}-chromium"
         assert cache["with"]["path"] == "${{ env.PLAYWRIGHT_BROWSERS_PATH }}" and 'PLAYWRIGHT_BROWSERS_PATH=$RUNNER_TEMP/pw-browsers' in ran
         installs = {step["if"]: step["run"] for step in steps if "npx playwright install" in str(step.get("run", ""))}
+        # the sdk job's law parts add Firefox and WebKit, only in the part whose ids (law_checks.mjs --list) hold
+        # UX/U1.md:261, the check that runs R4 and R5 in them
+        extra = installs.pop("matrix.part >= 3 && matrix.part <= 8", None)
+        assert extra is None or (job is sdk and 'grep -qx "UX/U1.md:261"' in extra and "npx playwright install --with-deps firefox webkit" in extra)
         assert installs == {"steps.browsers.outputs.cache-hit != 'true'": "npx playwright install --with-deps chromium",
                             "steps.browsers.outputs.cache-hit == 'true'": "npx playwright install-deps chromium"}
         starts = next(i for i, step in enumerate(steps) if "chromium.launch()" in str(step.get("run", "")))

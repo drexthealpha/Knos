@@ -1,0 +1,11 @@
+{
+ "UX/U3.md:129": {"reason": "rule=above chosen at load on door, tool and result; reviewed allow-list ux/defaults.json missing; needs a person's review", "needs": "person"},
+ "UX/U3.md:213": {"reason": "one h1 of 6 to 7 words per screen; reviewed purpose list ux/purpose.json missing; a person must write it", "needs": "person"},
+ "UX/U4.md:25": {"reason": "no approved 390 px screenshot for any of the 5 screens; a person must approve each one", "needs": "person"},
+ "UX/U4.md:36": {"reason": "FCP 372 to 1024 ms recorded; no approved 390 px screenshot for any of the 5 screens", "needs": "person"},
+ "UX/U4.md:47": {"reason": "contrast 0 violations, buttons within 16 ms; no approved 390 px screenshot for any of the 5 screens", "needs": "person"},
+ "UX/U4.md:109": {"reason": "38 to 70 elements, 3 text colours per screen; no approved busyness baseline; a person must approve one", "needs": "person"},
+ "UX/U7.md:37": {"reason": "no stored correct bidi screenshot tests/web/approved/bidi-ar.png; a reader of Arabic must approve one", "needs": "person"},
+ "UX/U7.md:345": {"reason": "reviewed_by empty in 9 of 9 locale files; needs a native-speaker reviewer named in each", "needs": "person"},
+ "UX/U7.md:355": {"reason": "ar, id and sw are tier B with no named human reviewer; needs native-speaker reviewers", "needs": "person"}
+}
