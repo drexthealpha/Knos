@@ -149,7 +149,7 @@ lemon</textarea>
       <details class="how" id="how"><summary>How it works</summary><ol>
         <li>It counts how many different lines your list holds. It does not say which items repeat or how often.</li>
         <li>Your list goes to Knos's server, which counts it and keeps it with its result page, so the link works. A sample result can be opened by anyone. Your own list can be opened only by people who have its link, and it is never listed. The server keeps results only until it is next rebuilt, so a link can stop working.</li>
-        <li>The test that showed it works had to <span data-claim="locked">count 30,000 visitors within 10%, in at most 1.5 kilobytes</span>. It did not check <span data-claim="not_checked">counts beyond 30,000 visitors, or the paper's 2% figure at a billion items</span>.</li>
+        <li>The test that showed it works had to <span data-claim="locked">count 30,000 visitors within 10%, in at most 1.5 kilobytes</span>. It did not check <span data-claim="not_checked">counts beyond 30,000 visitors, or the paper's 2% figure for very large lists</span>.</li>
         <li>Runs on the sample are free. Runs on your own list: <span data-n="free_runs_per_day">5</span> free a day, then <span data-n="pack_runs">20</span> more runs for $<span data-n="pack_price">1</span> in test money. Today nothing is charged.</li>
         <li>It comes from a 2007 paper: <a href="https://doi.org/10.46298/dmtcs.3545" data-claim-link>HyperLogLog, by Flajolet, Fusy, Gandouet and Meunier</a>.</li>
         <li>It depends on Knos's one server. When nobody has used it for a while it sleeps, and the first run is slow while it wakes.</li>

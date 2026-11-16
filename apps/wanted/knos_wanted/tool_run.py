@@ -128,7 +128,7 @@ def fold() -> list[str]:
         "have its link and is never listed anywhere. Knos keeps no name, email or network address.",
         f"The test that showed it works: the same program counted two streams of 30,000 different visitors, each seen "
         f"twice, to within 10%, using at most 1.5 kilobytes. That test did not cover lists of more than 30,000 different "
-        f"items, or the paper's figure of 2% at a billion items. <a href=\"{PUBLIC}/api/near/claim/code\">The program</a> "
+        f"items, or the paper's figure of 2% for very large lists. <a href=\"{PUBLIC}/api/near/claim/code\">The program</a> "
         f"and <a href=\"https://github.com/drexthealpha/Knos/blob/main/near/agents/job/test_hll.py\">its test</a> are public.",
         f"The price: runs on the sample are free. {CONF['free_runs_a_day']} runs on your own lists are free each day. "
         f"After that, {CONF['pack_runs']} more runs cost {CONF['pack_price']} in test money. Today nothing is charged.",

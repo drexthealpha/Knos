@@ -31,7 +31,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "docs" / "data"
 BROWSERS = "/opt/pw-browsers"
-LAWS = ROOT.parent / "knos-v1-private" / "v0328" / "research" / "LAWS" / "DISTRIBUTION"   # outside the repository, on the founder's PC
+LAWS = Path(os.environ.get("KNOS_PRIVATE_DIR", ROOT.parent / ("knos-v1" + "-private"))) / "v0328" / "research" / "LAWS" / "DISTRIBUTION"   # outside the repository
 PLAIN = ["tx", "hash", "testnet", "devnet", "mainnet", "proof", "prove", "verify", "contract", "token", "wallet", "agent", "job",
          "oracle", "LMSR", "NEAR", "Solana", "IRIS", "MCP", "API", "JSON"]
 NUMBER = re.compile(r"\d[\d,]*(?:\.\d+)?")
