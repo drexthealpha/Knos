@@ -26,7 +26,7 @@ SEEDS = [
     {"slug": "ai-recipe-planner", "ref": None, "idea": "An AI recipe planner for families",
      "product": None, "place": None, "template": "internal_tool", "paper": None, "tech": "ai"},
     {"slug": "glow-hydration-bottle", "ref": None, "idea": "A smart water bottle that glows to remind you to drink",
-     "product": None, "place": "Lagos", "template": "hardware_prototype", "paper": None, "tech": None},
+     "product": None, "place": "Berlin", "template": "hardware_prototype", "paper": None, "tech": None},
 ]
 # the seven technologies of the fields page (fields_data.py), as a product names them: shown on its card
 TECH = {"ai": "AI", "web3": "Web3", "quantum": "Quantum", "energy": "Energy", "biotech": "Biotech", "materials": "Materials", "pqc": "PQC"}
