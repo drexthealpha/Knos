@@ -162,8 +162,8 @@
    "one": "{price} za pesa za majaribio kwa ukaguzi {n}, unalipa wewe mara moja baada ya kuthibitisha. Leo hakuna kinachotozwa; hakuna kadi wala akaunti inayohitajika.",
    "other": "{price} za pesa za majaribio kwa ukaguzi {n}, unalipa wewe mara moja baada ya kuthibitisha. Leo hakuna kinachotozwa; hakuna kadi wala akaunti inayohitajika."
   },
-  "a.price.why": "Hakuna utafiti ulioweka bei hizi. Ni thamani za kuanzia za kujaribiwa, kila moja imewekwa alama hiyo kwenye <a href=\"{url}\">faili ya bei</a> ya umma.",
-  "a.price.who": "Knos inaweka bei hizi na kurekodi kila malipo ya majaribio kwenye seva yake. Kupinga moja, <a href=\"{issues}\">fungua issue kwenye GitHub</a>.",
+  "a.price.why": "Bei: thamani za kuanzia zisizojaribiwa, zimewekwa alama hiyo kwenye <a href=\"{url}\">faili ya bei</a>. Zana ilifaulu <a href=\"{test}\">jaribio lake la umma</a> kabla ya kutolewa; kikaguzi cha Knos kiliendesha.",
+  "a.price.who": "Knos inatoa uendeshaji; kikaguzi chake kiliendesha jaribio la zana. Hakuna tarehe ya sasisho lijalo. Kupinga, <a href=\"{issues}\">fungua issue kwenye GitHub</a>.",
   "fold.sample_made_up": {
    "one": "Mfano huu ni wa kubuni: mstari ulionyooka kutoka {first} hadi {last} kwa mzunguko {n}, kwa sababu ukurasa wa NASA hautoi upakuaji kutoka anwani ya nasa.gov. Kikomo chake, {limit}, ni kanuni ya mwisho wa uhai kwenye <a href=\"{url}\">ukurasa wa data ya betri wa NASA</a>.",
    "other": "Mfano huu ni wa kubuni: mstari ulionyooka kutoka {first} hadi {last} kwa mizunguko {n}, kwa sababu ukurasa wa NASA hautoi upakuaji kutoka anwani ya nasa.gov. Kikomo chake, {limit}, ni kanuni ya mwisho wa uhai kwenye <a href=\"{url}\">ukurasa wa data ya betri wa NASA</a>."

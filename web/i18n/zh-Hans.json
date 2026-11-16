@@ -143,8 +143,8 @@
   "a.price.pay": {
    "other": "{price} 测试用钱换 {n} 次运行，由你在确认后支付一次。今天不收取任何费用；不需要银行卡或账户。"
   },
-  "a.price.why": "这些价格不是由任何研究定出的。它们是有待检验的初始值，每一个都在公开的<a href=\"{url}\">价格文件</a>中如此标注。",
-  "a.price.who": "Knos 制定这些价格，并在自己的服务器上记录每笔测试付款。若要提出异议，请<a href=\"{issues}\">在 GitHub 上提交 issue</a>。",
+  "a.price.why": "价格：未经检验的初始值，已在<a href=\"{url}\">价格文件</a>中如此标注。该工具在发布前通过了其<a href=\"{test}\">公开测试</a>；由 Knos 的检查程序运行。",
+  "a.price.who": "由 Knos 提供运行；其检查程序运行了该工具的测试。下次更新没有既定日期。若要提出异议，请<a href=\"{issues}\">在 GitHub 上提交 issue</a>。",
   "fold.sample_made_up": {
    "other": "示例是虚构的：在 {n} 个周期内从 {first} 到 {last} 的一条直线，因为 NASA 的页面没有提供来自 nasa.gov 地址的下载。它的限值 {limit} 是 <a href=\"{url}\">NASA 电池数据页面</a>上的寿命终止规则。"
   },

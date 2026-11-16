@@ -146,8 +146,8 @@
   "a.price.pay": {
    "other": "{price} uang uji coba untuk {n} pemeriksaan, Anda bayar sekali setelah mengonfirmasi. Hari ini tidak ada yang ditagih; tidak perlu kartu atau akun."
   },
-  "a.price.why": "Tidak ada studi yang menetapkan harga ini. Ini nilai awal untuk diuji, masing-masing ditandai begitu di <a href=\"{url}\">berkas harga</a> publik.",
-  "a.price.who": "Knos menetapkan harga ini dan mencatat setiap pembayaran uji coba di servernya sendiri. Untuk menggugatnya, <a href=\"{issues}\">buka issue di GitHub</a>.",
+  "a.price.why": "Harga: nilai awal yang belum diuji, ditandai begitu di <a href=\"{url}\">berkas harga</a>. Alat ini lulus <a href=\"{test}\">uji publiknya</a> sebelum rilis; pemeriksa Knos menjalankannya.",
+  "a.price.who": "Knos menyediakan run-nya; pemeriksanya menjalankan uji alat ini. Belum ada tanggal pembaruan berikutnya. Untuk menggugat, <a href=\"{issues}\">buka issue di GitHub</a>.",
   "fold.sample_made_up": {
    "other": "Contoh ini karangan: garis lurus dari {first} ke {last} selama {n} siklus, karena halaman NASA tidak menyediakan unduhan dari alamat nasa.gov. Batasnya, {limit}, adalah aturan akhir umur di <a href=\"{url}\">halaman data baterai NASA</a>."
   },

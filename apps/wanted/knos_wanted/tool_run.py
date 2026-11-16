@@ -47,7 +47,7 @@ TOOL_ID = CONF["tool"]
 TITLE = "Check a test file against a limit"
 LINE = "For anyone who tests batteries, motors, parts or machines."
 SHOWN_BY = "Checked by a test of 7 files with known answers."
-TEST_URL = "https://github.com/drexthealpha/Knos/blob/main/near/agents/job/test_limit.py"
+TEST_URL = tool_page.TEST_URL
 PUBLIC = "https://knos.onrender.com"
 FRONT = "https://drexthealpha.github.io/Knos/"
 OWN_HOSTS = ("knos.onrender.com", "drexthealpha.github.io")
@@ -480,22 +480,27 @@ def run(body: dict, address: str, base: str = PUBLIC, test: bool = False, connec
                     rec["exhausted"] = True
             _keep(key, rec)
         out.update(runs_left=free + paid, free_left=free, paid_left=paid)
-    bump("sample_runs" if sample_run else "own_runs", test)
-    if connector:
-        bump("connector_runs", test)
+    bump("connector_runs" if connector else "sample_runs" if sample_run else "own_runs", test)   # R2: the connector apart
     return out
 
 
 def pay(body: dict, address: str, test: bool = False) -> dict:
-    """A test payment for one browser: 20 more runs, recorded once per press id; a repeat of the press gets the same answer."""
+    """A test payment for one browser: 20 more runs, one record per press id (R3: one record per key and payload). A repeat
+    of the press with the same payload gets the same answer and records nothing; a different payload on the same press id
+    is refused with 409 and records nothing."""
     press = body.get("press")
     if not isinstance(press, str) or not ID.fullmatch(press):
         raise Refusal(400, {"error": "I could not record this test payment because the press had no id. Nothing was charged. Please press Pay with test money again."})
     key = _key(body.get("browser"), address)
-    pid = hashlib.sha256(f"{key}|{press}".encode()).hexdigest()[:32]
+    pid = hashlib.sha256(f"press|{press}".encode()).hexdigest()[:32]
+    payload = hashlib.sha256(json.dumps({"who": key, "body": {k: v for k, v in body.items() if k != "press"}},
+                                        sort_keys=True, default=str).encode()).hexdigest()
     with _lock:
         seen = valley._safe_load(PRESSES, pid)
         if seen:
+            if seen.get("payload", payload) != payload:
+                raise Refusal(409, {"error": "I already recorded a different test payment under this press, so I did not record "
+                                             "this one. Nothing was charged. Please press Pay with test money again to start a new one."})
             return seen["answer"]
         rec = _fresh(_rec(key))
         rec["paid_left"] = int(rec.get("paid_left") or 0) + int(CONF["pack_runs"])
@@ -503,7 +508,7 @@ def pay(body: dict, address: str, test: bool = False) -> dict:
         _keep(key, rec)
         free, paid = _left(rec)
         answer = {"runs_left": free + paid, "recorded": "test"}
-        valley._save(PRESSES, pid, {"answer": answer, "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}, chain=False)
+        valley._save(PRESSES, pid, {"answer": answer, "payload": payload, "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}, chain=False)
         _prune(PRESSES, 5_000)
     bump("test_payments", test)
     return answer
@@ -540,10 +545,10 @@ def usage() -> dict:
     doc = valley._safe_load("pages", USAGE) or {"since": None, "days": {}, "test_days": {}}
     return {"days": doc.get("days") or {}, "test_days": doc.get("test_days") or {}, "measures": measures(),
             "tool_counts_since": doc.get("since"),
-            "tool_counted": "per UTC day. tools_opened: GET /t/<id>/ and GET /api/tools; sample_runs and own_runs: runs that "
+            "tool_counted": "per UTC day. tools_opened: GET /t/<id>/ and GET /api/tools; sample_runs and own_runs: runs not through /mcp that "
                             "returned a result; results_opened_elsewhere: GET /r/<id>/ with no referrer or one from another "
                             "site; link_previews: the same from a link-preview robot or a command-line client; test_payments: "
-                            "test payments recorded; connector_runs: runs through /mcp (also in sample_runs or own_runs). "
+                            "test payments recorded; connector_runs: runs through /mcp, sample or own file (never in sample_runs or own_runs). "
                             "test_days: the same counts for requests marked as Knos's own tests or WALK runs. measures: "
                             "own-data runs of browsers that said yes to being counted, test browsers left out",
             "tool_store": "the server's disk, which Render empties on every deploy: counts restart from that day"}

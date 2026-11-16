@@ -82,6 +82,12 @@ def test_every_button_the_documents_say_to_press_is_on_the_site():
     shown = set(re.findall(r">\s*([^<>{}$]+?)\s*<", web)) | set(re.findall(r'"([^"<>]+)"', web))
     # the IRIS page (iris/web/dashboard.html, at /knos/ on the reader's own IRIS): its sample buttons name a $ amount
     shown |= set(re.findall(r"<button[^>]*>\s*([^<>]+?)\s*</button>", (ROOT / "iris" / "web" / "dashboard.html").read_text(encoding="utf-8")))
+    # the screens' words live in one strings file per language (Round 13, H3 a): the English file is what a reader sees
+    import json
+    def _strings(v):
+        return [s for x in v.values() for s in _strings(x)] if isinstance(v, dict) else [s for x in v for s in _strings(x)] if isinstance(v, list) else [v] if isinstance(v, str) else []
+    en = _strings(json.loads((ROOT / "web" / "i18n" / "en.json").read_text(encoding="utf-8")))
+    shown |= {s.strip() for s in en} | {m.strip() for s in en for m in re.findall(r">\s*([^<>{}$]+?)\s*<", s)}
     pages = ["README.md", "README.pypi.md", "docs/START.md", "docs/reference/COMPANIES.md"]
     asked = [(rel, label) for rel in pages
              for label in re.findall(r"(?i)\bpress \*\*([^*]+)\*\*", (ROOT / rel).read_text(encoding="utf-8"))]

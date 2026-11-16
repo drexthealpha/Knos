@@ -233,6 +233,24 @@ def test_own_runs_use_the_free_allowance_then_ask_for_test_money(app):
     assert st == 200 and r["runs_left"] == 19 and r["paid_left"] == 19 and r["free_left"] == 0
 
 
+
+def test_one_payment_record_per_press_id_and_a_different_payload_is_refused(app):
+    """R3: one record per idempotency key and identical payload; a different payload on the same key is refused."""
+    body = {"browser": "b-press-00001", "press": "press-idem-1", "test": True}
+    st, first, _ = call(app, "/api/pay", body)
+    assert st == 200 and first == {"runs_left": 25, "recorded": "test"}, first
+    for _ in range(3):
+        assert call(app, "/api/pay", body)[1:2] == (first,)            # the same press and payload: the same answer
+    for other in ({**body, "browser": "b-press-00002"}, {**body, "test": False}, {**body, "pack": 40}):
+        st, r, _ = call(app, "/api/pay", other)
+        assert st == 409, (other, st, r)
+        words = r["error"].split()
+        assert len(words) >= 12 and words[0] == "I" and "press Pay with test money again" in r["error"], r
+    st, r, _ = own(app, browser="b-press-00001")
+    assert st == 200 and r["paid_left"] == 20 and r["free_left"] == 4, r   # one pack recorded, for the first payload only
+    st, r, _ = own(app, browser="b-press-00002")
+    assert st == 200 and r["paid_left"] == 0, r                           # the refused payload recorded nothing
+
 def test_sample_runs_are_free_and_not_counted_against_the_allowance(app):
     for _ in range(7):
         assert call(app, "/api/run", sample_body(browser="b-sample-0001"))[0] == 200
@@ -400,6 +418,18 @@ def test_usage_counts_per_day_with_tests_apart(app):
     assert set(u["measures"]) == {"day7_return", "active_days", "paying_share"}
     assert u["measures"]["paying_share"] == {"used_up": 0, "paid": 0, "share": None}
 
+
+
+def test_connector_runs_are_counted_apart_from_runs_on_the_site(app):
+    """R2 (D08): a run through /mcp is on its own counter, never in sample_runs or own_runs."""
+    st, r, _ = call(app, "/mcp", {"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": "run", "arguments": sample_body()}})
+    assert st == 200 and not r["result"].get("isError"), r
+    st, r, _ = call(app, "/mcp", {"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": "run", "arguments":
+                    {"id": "limit-check", "table": SMALL, "column": "reading", "rule": "above", "limit": 4}}})
+    assert st == 200 and not r["result"].get("isError"), r
+    call(app, "/api/run", sample_body())
+    row = call(app, "/api/usage")[1]["days"][dt.datetime.now(dt.timezone.utc).date().isoformat()]
+    assert (row["connector_runs"], row["sample_runs"], row["own_runs"]) == (2, 1, 0), row
 
 def test_the_three_measures(tmp_path):
     day = dt.date(2026, 11, 20)

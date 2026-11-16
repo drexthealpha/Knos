@@ -181,8 +181,8 @@
    "many": "{price} en argent de test pour {n} de vérifications, payé par vous, une fois, après confirmation. Rien n'est facturé aujourd'hui ; ni carte ni compte demandés.",
    "other": "{price} en argent de test pour {n} vérifications, payé par vous, une fois, après confirmation. Rien n'est facturé aujourd'hui ; ni carte ni compte demandés."
   },
-  "a.price.why": "Aucune étude n'a fixé ces prix. Ce sont des valeurs de départ à tester, chacune marquée ainsi dans le <a href=\"{url}\">fichier des tarifs</a> public.",
-  "a.price.who": "Knos fixe ces prix et enregistre chaque paiement de test sur son propre serveur. Pour en contester un, <a href=\"{issues}\">ouvrez un ticket sur GitHub</a>.",
+  "a.price.why": "Prix : valeurs de départ non testées (<a href=\"{url}\">fichier des tarifs</a>). L'outil a réussi son <a href=\"{test}\">test public</a> avant publication, lancé par le vérificateur de Knos.",
+  "a.price.who": "Knos fournit les exécutions, et son vérificateur a lancé le test. Prochaine mise à jour : sans date. Pour contester, <a href=\"{issues}\">ouvrez un ticket GitHub</a>.",
   "fold.sample_made_up": {
    "one": "L'exemple est inventé : une droite de {first} à {last} sur {n} cycle, car la page de la NASA n'offre aucun téléchargement depuis une adresse nasa.gov. Sa limite, {limit}, est la règle de fin de vie de <a href=\"{url}\">la page de données de batteries de la NASA</a>.",
    "many": "L'exemple est inventé : une droite de {first} à {last} sur {n} de cycles, car la page de la NASA n'offre aucun téléchargement depuis une adresse nasa.gov. Sa limite, {limit}, est la règle de fin de vie de <a href=\"{url}\">la page de données de batteries de la NASA</a>.",

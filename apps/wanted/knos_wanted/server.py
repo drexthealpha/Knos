@@ -101,7 +101,7 @@ POST_ROUTES = {"/api/near/claim/quote": "NEAR testnet: a dry quote for the test 
                "/api/near/guard": "NEAR testnet: the two guardrails, live (over the cap, then no passing work)",
                "/api/near/live": "NEAR testnet: one live job for a visitor, within its caps",
                "/api/run": "Run a tool on a list ({id, input, mode, browser, test}): the result line, the exact count, the result's link, runs left; 402 past the free runs, 413 over the line limit, 408 over the time limit",
-               "/api/pay": "Record a test payment for a browser ({browser, press}): 20 more runs; a repeated press records nothing more",
+               "/api/pay": "Record a test payment for a browser ({browser, press}): 20 more runs; a repeated press records nothing more, and a different payload on the same press is refused (409)",
                "/api/visit": "One first-party event of an anonymous visit (no cookie, no IP stored)",
                "/api/referee/commit": "A referee host's FROST round: its commitment (signed by its transport key)",
                "/api/referee/share": "A referee host's FROST round: its signature share (signed by its transport key)",

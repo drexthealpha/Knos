@@ -24,7 +24,8 @@ FILE = ROOT / "docs" / "data" / "usage.json"
 URL = "https://knos.onrender.com/api/usage"
 # each count per UTC day, with the label the status page shows (D2)
 COUNTS = [("tools_opened", "Tool opened"), ("sample_runs", "Sample runs"), ("own_runs", "Runs on people's own lists"),
-          ("results_opened_elsewhere", "Result links opened from another site or app"), ("test_payments", "Test payments")]
+          ("results_opened_elsewhere", "Result links opened from another site or app"), ("test_payments", "Test payments"),
+          ("connector_runs", "Runs through the connector")]
 # the three measures of docs/NUMBERS.md (D1): a share in percent, or a number of days, or null with too few browsers
 MEASURES = [("day7_return", "Came back on day 7, percent of browsers"), ("active_days", "Days with a run in the first 7, average"),
             ("paying_share", "Paid after the free runs ran out, percent of browsers")]

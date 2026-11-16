@@ -182,6 +182,7 @@ ROOT = Path(os.environ.get("KNOS_NEAR_ROOT") or Path(__file__).resolve().parents
 LANGS = ("en", "ar", "hi", "es", "fr", "pt", "zh-Hans", "id", "sw", "ru")
 ISSUES = "https://github.com/drexthealpha/Knos/issues"
 PRICING_FILE = "https://drexthealpha.github.io/Knos/data/pricing.json"
+TEST_URL = "https://github.com/drexthealpha/Knos/blob/main/near/agents/job/test_limit.py"   # the locked test (tool_run.TEST_URL)
 _tables: dict = {}
 
 
@@ -448,7 +449,7 @@ def price_answers(lang: str, n: dict, spans: dict | None = None) -> list[str]:
     v = {"free": n["free_runs_per_day"], "n": n["pack_runs"], "price": n["pack_price"]}
     sp = spans or {}
     return [h(lang, "a.price.get", sp, **v), h(lang, "a.price.next"), h(lang, "a.price.pay", sp, **v),
-            h(lang, "a.price.why", url=PRICING_FILE), h(lang, "a.price.who", issues=ISSUES)]
+            h(lang, "a.price.why", url=PRICING_FILE, test=TEST_URL), h(lang, "a.price.who", issues=ISSUES)]
 
 
 def speech_lang(lang: str) -> str:
@@ -793,12 +794,34 @@ if (listen && "speechSynthesis" in window && window.SpeechSynthesisUtterance) {
 }
 $("file").addEventListener("change", () => {
   const f = $("file").files[0]; if (!f) return;
-  const r = new FileReader(); r.onload = () => { box.value = String(r.result); fillColumns(); }; r.readAsText(f);
+  const r = new FileReader(); r.onload = () => { box.value = String(r.result); fillColumns(); draftSave(); }; r.readAsText(f);
 });
 box.addEventListener("input", () => { if (mineOn) fillColumns(); });
 go.addEventListener("click", run);
 if (D.result && D.result.mode === "own") { ownMode(); fillColumns(D.result.column); }
 if (D.result) result(D.result);
+// section 12 of the plain-language spec: going back or forward (or a reload) keeps the request typed in this tab, sent
+// or not, and from the pay screen too; kept for this tab only (sessionStorage), and a page without storage still works
+const DRAFT = "knos.draft.tool." + D.id;
+function draftSave() {
+  try { sessionStorage.setItem(DRAFT, JSON.stringify({ mine: mineOn, table: box.value, col: mineOn ? $("col").value : "", rule: $("rule").value, limit: $("limit").value })); } catch (e) { /* no storage */ }
+}
+function draftLoad() {
+  let nav = "", d = null;
+  try { nav = (performance.getEntriesByType("navigation")[0] || {}).type || ""; } catch (e) { nav = ""; }
+  if (nav !== "back_forward" && nav !== "reload") return;
+  try { d = JSON.parse(sessionStorage.getItem(DRAFT) || "null"); } catch (e) { d = null; }
+  if (!d || typeof d.table !== "string") return;
+  if (d.mine && !mineOn) ownMode();
+  box.value = d.table;
+  if (mineOn) fillColumns(String(d.col || ""));
+  if ([...$("rule").options].some((o) => o.value === d.rule)) $("rule").value = d.rule;
+  $("limit").value = String(d.limit == null ? "" : d.limit);
+}
+draftLoad();
+for (const [el, ev] of [[box, "input"], [$("col"), "change"], [$("rule"), "change"], [$("limit"), "input"]]) el.addEventListener(ev, draftSave);
+go.addEventListener("click", draftSave);
+window.addEventListener("pagehide", draftSave);
 })();""".replace("/*TABLE*/", TABLE_JS)
 
 

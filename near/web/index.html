@@ -311,15 +311,15 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
   </section>
 
   <section class="panel" id="sec-ms" aria-labelledby="t-ms">
-    <h2 id="t-ms">An earlier Knos flow, local only: one milestone</h2>
+    <h2 id="t-ms">An earlier Knos flow, local only: one piece of work</h2>
     <form class="fund" id="fund">
       <label for="amount">Amount (millionths of a test dollar)<input id="amount" name="amount" type="number" min="1" max="10000000" value="1000" required></label>
       <label for="minutes">Deadline (minutes)<input id="minutes" name="minutes" type="number" min="1" max="1440" value="2" required></label>
       <button type="submit">Fund</button>
     </form>
     <table class="t">
-      <thead><tr><th scope="col">Milestone</th><th scope="col" class="n">Amount</th><th scope="col">State</th><th scope="col">Do</th><th scope="col">Transactions</th></tr></thead>
-      <tbody id="rows"><tr><td colspan="5" class="empty">No milestone yet.</td></tr></tbody>
+      <thead><tr><th scope="col">Piece of work</th><th scope="col" class="n">Amount</th><th scope="col">State</th><th scope="col">Do</th><th scope="col">Transactions</th></tr></thead>
+      <tbody id="rows"><tr><td colspan="5" class="empty">No piece of work yet.</td></tr></tbody>
     </table>
     <p class="fine" id="contract"></p>
   </section>
@@ -430,12 +430,12 @@ async function load() {
     $("post").disabled = !hosted; $("guard").disabled = !hosted;
     return;
   }
-  $("contract").textContent = s.contract ? `Milestones: ${s.contract}. Jobs: ${s.jobs?.contract || ""}.` : "";
+  $("contract").textContent = s.contract ? `Pieces of work: ${s.contract}. Jobs: ${s.jobs?.contract || ""}.` : "";
   const j = (s.jobs?.jobs || [])[0];
   if (j) showJob(j);
   const body = $("rows"), rows = s.milestones || [];
   body.replaceChildren();
-  if (!rows.length) { body.append(el("tr", {}, el("td", { colSpan: 5, className: "empty", textContent: "No milestone yet." }))); return; }
+  if (!rows.length) { body.append(el("tr", {}, el("td", { colSpan: 5, className: "empty", textContent: "No piece of work yet." }))); return; }
   const now = Date.now() / 1000;
   for (const m of rows.slice(0, 5)) {
     const acts = el("div");

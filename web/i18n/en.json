@@ -158,8 +158,8 @@
    "one": "{price} in test money for {n} run, paid by you, once, after you confirm. Nothing is charged today; no card or account is asked.",
    "other": "{price} in test money for {n} runs, paid by you, once, after you confirm. Nothing is charged today; no card or account is asked."
   },
-  "a.price.why": "No study set these prices. They are starting values to be tested, each marked so in the public <a href=\"{url}\">pricing file</a>.",
-  "a.price.who": "Knos sets these prices and records each test payment on its own server. To challenge one, <a href=\"{issues}\">open an issue on GitHub</a>.",
+  "a.price.why": "Prices: untested starting values, marked so in the <a href=\"{url}\">pricing file</a>. The tool passed its <a href=\"{test}\">public test</a> before release; Knos's checker ran it.",
+  "a.price.who": "Knos delivers the runs; its checker ran the tool's test. No date is set for the next update. To challenge, <a href=\"{issues}\">open an issue on GitHub</a>.",
   "fold.sample_made_up": {
    "one": "The sample is made up: a straight line from {first} to {last} over {n} cycle, because NASA's page offers no download from a nasa.gov address. Its limit, {limit}, is the end-of-life rule on <a href=\"{url}\">NASA's battery data page</a>.",
    "other": "The sample is made up: a straight line from {first} to {last} over {n} cycles, because NASA's page offers no download from a nasa.gov address. Its limit, {limit}, is the end-of-life rule on <a href=\"{url}\">NASA's battery data page</a>."

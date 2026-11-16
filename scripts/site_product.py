@@ -433,7 +433,7 @@ def pricing_page(header: str) -> str:
         return f"<!--k:{key} {json.dumps(v)}-->{TP.h('en', key, sp, **v)}<!--/k-->"
     pack = {"n": n["pack_runs"], "price": n["pack_price"]}
     keys = [("a.price.get", {"free": n["free_runs_per_day"], **pack}), ("a.price.next", {}), ("a.price.pay", {"free": n["free_runs_per_day"], **pack}),
-            ("a.price.why", {"url": TP.PRICING_FILE}), ("a.price.who", {"issues": TP.ISSUES})]
+            ("a.price.why", {"url": TP.PRICING_FILE, "test": TP.TEST_URL}), ("a.price.who", {"issues": TP.ISSUES})]
     answers = [f"<!--k:{k} {json.dumps(v)}-->{a}<!--/k-->" for (k, v), a in zip(keys, TP.price_answers("en", n))]
     body = (f"<h1>{e(en('price.h'))}</h1>\n<p>{e(en('price.sample_free'))}</p>\n"
             f'<table id="prices"><tbody><tr><th>{e(en("price.own"))}</th><td>{comp("price.free_day", {"n": n["free_runs_per_day"]}, {"n": "free_runs_per_day"})}</td></tr>'

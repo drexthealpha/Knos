@@ -116,7 +116,7 @@ Qloo, Ready brief, milestone and more, each in one plain line: [docs/WORDS.md](.
 
 ### What is Knos?
 
-Knos takes research from a paper to a product people want.
+The goal: taking research from a paper to a product people want.
 
 ### How does an AI agent get paid?
 

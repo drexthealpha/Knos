@@ -371,23 +371,48 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
   tryBtn.addEventListener("click", run);
   stopBtn.addEventListener("click", () => { if (ctl) ctl.abort(); });
   // Use my data (A3): three inputs in this order: a file (or a pasted table), which column, and the limit
-  $("mine").addEventListener("click", () => {
-    mineOn = true; box.value = ""; $("limit").value = "";
+  function ownOn() {
+    mineOn = true;
     show($("own"), true); show($("which"), true); show($("colname"), false);
     $("list-label").textContent = T("tool.paste");
     if (limits && limits.max_rows != null && limits.max_seconds != null) {
       $("limits").textContent = T("tool.lim_rows", { n: limits.max_rows }) + " " + T("tool.lim_secs", { n: limits.max_seconds });
       show($("limits"), true);
     }
+  }
+  $("mine").addEventListener("click", () => {
+    ownOn(); box.value = ""; $("limit").value = "";
     fillColumns();
     show(res, false); show(err, false); show(state, false);
     $("file").focus();
+    draftSave();
   });
   $("file").addEventListener("change", () => {
     const f = $("file").files[0]; if (!f) return;
-    const r = new FileReader(); r.onload = () => { box.value = String(r.result); fillColumns(); }; r.readAsText(f);
+    const r = new FileReader(); r.onload = () => { box.value = String(r.result); fillColumns(); draftSave(); }; r.readAsText(f);
   });
   box.addEventListener("input", () => { if (mineOn) fillColumns(); });
+  // section 12 of the plain-language spec: going back or forward (or a reload) keeps the request typed in this tab, sent
+  // or not, and from the pay screen too; kept for this tab only (sessionStorage), and a page without storage still works
+  const DRAFT = "knos.draft.door." + TOOL;
+  function draftSave() {
+    try { sessionStorage.setItem(DRAFT, JSON.stringify({ mine: mineOn, table: box.value, col: mineOn ? $("col").value : "", rule: $("rule").value, limit: $("limit").value })); } catch { /* no storage */ }
+  }
+  (() => {
+    let nav = "", d = null;
+    try { nav = (performance.getEntriesByType("navigation")[0] || {}).type || ""; } catch { nav = ""; }
+    if (nav !== "back_forward" && nav !== "reload") return;
+    try { d = JSON.parse(sessionStorage.getItem(DRAFT) || "null"); } catch { d = null; }
+    if (!d || typeof d.table !== "string") return;
+    if (d.mine && !mineOn) ownOn();
+    box.value = d.table;
+    if (mineOn) { fillColumns(); if ([...$("col").options].some((o) => o.value === d.col)) $("col").value = d.col; }
+    if ([...$("rule").options].some((o) => o.value === d.rule)) $("rule").value = d.rule;
+    $("limit").value = String(d.limit == null ? "" : d.limit);
+  })();
+  for (const [el, ev] of [[box, "input"], [$("col"), "change"], [$("rule"), "change"], [$("limit"), "input"]]) el.addEventListener(ev, draftSave);
+  tryBtn.addEventListener("click", draftSave);
+  window.addEventListener("pagehide", draftSave);
   $("copy").addEventListener("click", async () => {
     if (!last || !last.link) return;
     const url = last.link, b = $("copy");

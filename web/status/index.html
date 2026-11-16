@@ -47,12 +47,12 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
 }
 #ask label a { display: inline !important; min-height: 0 !important; padding: 0 !important; }
 .kh { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; max-width: 760px; margin: 0 auto; padding: 8px 16px; }
-.kh .logo { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-right: auto; color: var(--ink); text-decoration: none; font: 600 20px/1 var(--head); }
+.kh .logo { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-inline-end: auto; color: var(--ink); text-decoration: none; font: 600 20px/1 var(--head); }
 .kh .mark { display: block; width: 28px; height: 27px; background: currentColor; -webkit-mask: var(--m) center / contain no-repeat; mask: var(--m) center / contain no-repeat; }
 .kh { position: relative; }
 .kmenu > summary { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; padding: 0 12px; cursor: pointer; list-style: none; color: var(--ink); border: 1px solid var(--line); border-radius: 10px; font-size: 16px; }
 .kmenu > summary::-webkit-details-marker { display: none; }
-.kmenu-panel { position: absolute; right: 16px; left: 16px; top: 56px; z-index: 30; max-width: 420px; margin-left: auto; padding: 8px 12px; background: var(--paper-2); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--depth-2); }
+.kmenu-panel { position: absolute; inset-inline: 16px; top: 56px; z-index: 30; max-width: 420px; margin-inline-start: auto; padding: 8px 12px; background: var(--paper-2); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--depth-2); }
 .kmenu-panel p { margin: 4px 0 8px; font-size: 16px; color: var(--ink-2); }
 .kh nav { display: flex; flex-direction: column; }
 .kh nav a, .kmenu-panel > a { display: flex; align-items: center; min-height: 44px; padding: 0 4px; color: var(--ink); text-decoration: none; font-size: 16px; }
@@ -68,7 +68,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
 <main>
 <h1>Status</h1>
 <p>How the tool is used, all days together.</p>
-<table id="use"><tbody><tr><th>Tool opened</th><td class="n" data-count="tools_opened">0</td></tr><tr><th>Sample runs</th><td class="n" data-count="sample_runs">0</td></tr><tr><th>Runs on people&#x27;s own lists</th><td class="n" data-count="own_runs">0</td></tr><tr><th>Result links opened from another site or app</th><td class="n" data-count="results_opened_elsewhere">0</td></tr><tr><th>Test payments</th><td class="n" data-count="test_payments">0</td></tr><tr><th>Came back on day 7, percent of browsers</th><td class="n" data-measure="day7_return">not enough browsers yet</td></tr><tr><th>Days with a run in the first 7, average</th><td class="n" data-measure="active_days">not enough browsers yet</td></tr><tr><th>Paid after the free runs ran out, percent of browsers</th><td class="n" data-measure="paying_share">not enough browsers yet</td></tr></tbody></table>
+<table id="use"><tbody><tr><th>Tool opened</th><td class="n" data-count="tools_opened">0</td></tr><tr><th>Sample runs</th><td class="n" data-count="sample_runs">0</td></tr><tr><th>Runs on people&#x27;s own lists</th><td class="n" data-count="own_runs">0</td></tr><tr><th>Result links opened from another site or app</th><td class="n" data-count="results_opened_elsewhere">0</td></tr><tr><th>Test payments</th><td class="n" data-count="test_payments">0</td></tr><tr><th>Runs through the connector</th><td class="n" data-count="connector_runs">0</td></tr><tr><th>Came back on day 7, percent of browsers</th><td class="n" data-measure="day7_return">not enough browsers yet</td></tr><tr><th>Days with a run in the first 7, average</th><td class="n" data-measure="active_days">not enough browsers yet</td></tr><tr><th>Paid after the free runs ran out, percent of browsers</th><td class="n" data-measure="paying_share">not enough browsers yet</td></tr></tbody></table>
 <p class="fine" id="use-when">Counted up to 2026-11-16 10:45:42 UTC, from the first day of use. Knos's own test runs are not in these counts. <a href="../data/usage.json">The data file</a>.</p>
 <details class="how"><summary>How it works</summary>
 <p>Is Knos up right now? Each line is read live.</p>
@@ -82,7 +82,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
 <script>
 const HOSTED = "https://knos.onrender.com";
 const $ = (id) => document.getElementById(id);
-const usd = (n) => (+n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " test USDC";   // test money: never a dollar sign
+const usd = (n) => (n === null || n === undefined || n === "" || !isFinite(+n)) ? "unknown" : (+n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " test USDC";   // test money: never a dollar sign
 // the board and the counters are also files of this site, written by every Pages build (data/): a live answer within
 // 1.2 s is used, else the file is shown at once, with its own read time, so a press never waits on a sleeping server
 const SITE_ROOT = (document.querySelector("#kh .logo") || location).href, CACHED = { "/api/near/claims": "board.json", "/api/near/claim/counters": "counters.json" };

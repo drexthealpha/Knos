@@ -175,7 +175,7 @@ def test_the_answers_agree_with_the_tree():
     assert "0.30%, at least 0.05 test dollars" in answers["What does Knos cost?"]
     assert pay.FEE_BPS == 30 and pay.order_fee(100_000_000) == 300_000 and pay.order_fee(5_000_000) == 50_000 == pay.fee_of(5_000_000)
     assert "demand check" in (ROOT / "docs" / "PRICING.md").read_text(encoding="utf-8")
-    assert answers["What is Knos?"] == "Knos takes research from a paper to a product people want."
+    assert answers["What is Knos?"] == "The goal: taking research from a paper to a product people want."
     assert "across the valley of death" in sentence()                                           # the one sentence
     readme = (ROOT / "docs" / "reference" / "COLOSSEUM.md").read_text(encoding="utf-8")
     assert "The money waited in a program on [Solana](../WORDS.md#solana), not with Knos." in readme   # the Colosseum entry, told in the past
