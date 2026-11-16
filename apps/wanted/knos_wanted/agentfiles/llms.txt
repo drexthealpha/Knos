@@ -1,6 +1,6 @@
 # Knos
 
-> Knos carries research across the valley of death.
+> The goal: Knos carries research across the valley of death.
 
 This server runs the demand check of Knos: Qloo taste data names who would buy a product and where. A Ready brief fixes the terms, and a program on Solana devnet holds test money until the milestone check passes. The same Knos proves research claims with agents on NEAR testnet: https://drexthealpha.github.io/Knos/prove/. Test money, no customers yet.
 

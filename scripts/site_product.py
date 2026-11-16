@@ -6,6 +6,7 @@ The claims are near/claims/claims.json; each one's locked test is a file of near
 criteria hash every job for that claim is opened with on NEAR testnet."""
 import hashlib
 import html
+import importlib.util
 import json
 import re
 from pathlib import Path
@@ -18,6 +19,23 @@ MARKET = "market.knos-swarm-1105.testnet"
 EXPLORER = "https://testnet.nearblocks.io/address/"
 GOAL = "The goal: Knos turns any research into a product billions of people use, in days, not years."
 HEADER_CSS = ""   # the one header's styles, set by scripts/site_pages.py before it writes these pages
+
+
+def _tool_page():
+    """The server's page module (apps/wanted/knos_wanted/tool_page.py), loaded by its path: the one place the strings of
+    web/i18n/ are read, the language control is drawn and the five answers of a fold are written (Round 13, H3)."""
+    spec = importlib.util.spec_from_file_location("knos_tool_page", ROOT / "apps" / "wanted" / "knos_wanted" / "tool_page.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+TP = _tool_page()
+
+
+def en(key: str, **v) -> str:
+    """One English string of web/i18n/en.json as plain text (a page of the build is written in English first)."""
+    return TP.t("en", key, **v)
 
 CSS = """body { margin: 0; background: var(--paper); color: var(--ink); font: 400 17px/1.55 var(--text); }
 a { color: var(--accent); }
@@ -95,8 +113,9 @@ def page(header: str, up: str, title: str, desc: str, body: str, script: str = "
             f'{theme_colors()}<link rel="icon" href="{up}icon.svg" type="image/svg+xml">\n<link rel="icon" href="{up}favicon.ico" sizes="16x16 32x32 48x48">\n'
             f'<link rel="apple-touch-icon" href="{up}brand/apple-touch-icon.png">\n<link rel="stylesheet" href="{up}brand/tokens.css">\n'
             f"<style>\n{CSS}{HEADER_CSS}</style>\n</head>\n<body>\n{header}\n<main>\n{body}\n</main>\n"
-            f'<footer><span>Test money only, no customers yet.</span><br><span>{GOAL}</span><br>'
-            f'<a href="{REPO}">Source</a><a href="{up}pricing/">Pricing</a><a href="{up}status/">Status</a><a href="{up}privacy.html">Privacy</a></footer>\n'
+            f'<footer><span>{e(en("foot.pages"))}</span><br><span>{GOAL}</span><br>'
+            f'<a href="{REPO}">{e(en("nav.source"))}</a><a href="{up}pricing/">{e(en("nav.pricing"))}</a><a href="{up}status/">{e(en("nav.status"))}</a>'
+            f'<a href="{up}privacy.html">{e(en("nav.privacy"))}</a></footer>\n'
             + (f"<script>\n{script}\n</script>\n" if script else "") + "</body>\n</html>\n")
 
 
@@ -403,20 +422,31 @@ HOW_CSS = ".how summary { display: inline-flex; align-items: center; min-height:
 
 def pricing_page(header: str) -> str:
     """Round 13, C6: every number on this page is read from docs/data/pricing.json, each in a span named for it. Plain
-    words outside the closed How it works fold (the PLAIN-WORDS rule); prices in dollars, never tokens or credits."""
+    words outside the closed How it works fold (the PLAIN-WORDS rule); prices in dollars, never tokens or credits.
+    Round 13, H3: every string is a key of web/i18n/en.json; the page is written in English, and the script of
+    tool_page.STATIC_JS shows it in the browser's language (?lang=, the stored choice, navigator.languages); the fold
+    opens with the five answers of the Plain Language Spec, section 2."""
     n = {k: v["value"] for k, v in pricing()["numbers"].items()}
-    num = lambda k: f'<span data-n="{k}">{n[k]:,}</span>'   # noqa: E731
-    body = ("<h1>Pricing</h1>\n<p>Runs on the sample are free.</p>\n"
-            f'<table id="prices"><tbody><tr><th>Runs on your own file</th><td>{num("free_runs_per_day")} free a day, in each browser</td></tr>'
-            f'<tr><th>After those</th><td>{num("pack_runs")} more runs for ${num("pack_price")} in test money</td></tr></tbody></table>\n'
-            "<p>Today this is test money. Nothing is charged.</p>\n"
-            '<details class="how"><summary>How it works</summary>'
-            '<p>No study gave these prices. They are starting values to be tested, and each one is in '
-            '<a href="../data/pricing.json">the pricing file</a> with that mark.</p>'
-            "<p>When your free runs are used up, the tool shows one screen with the price. Pressing Pay with test money "
-            "records a test payment on Knos's own server. No card and no account are needed.</p>"
-            f'<p>The fees for checking a paper\'s claim are on <a href="{REPO}/blob/main/docs/PRICING.md">a page of their own</a>.</p></details>')
-    return page(header, "../", "Knos pricing", "Sample runs are free; runs on your own file have a free daily allowance, then a pack in test money.", body, "", "pricing/").replace("</style>", HOW_CSS + "</style>", 1)
+    spans = {"free": "free_runs_per_day", "n": "pack_runs", "price": "pack_price"}
+
+    def comp(key: str, v: dict, sp: dict | None = None) -> str:   # a composite string the script can swap: its values ride along
+        return f"<!--k:{key} {json.dumps(v)}-->{TP.h('en', key, sp, **v)}<!--/k-->"
+    pack = {"n": n["pack_runs"], "price": n["pack_price"]}
+    keys = [("a.price.get", {"free": n["free_runs_per_day"], **pack}), ("a.price.next", {}), ("a.price.pay", {"free": n["free_runs_per_day"], **pack}),
+            ("a.price.why", {"url": TP.PRICING_FILE}), ("a.price.who", {"issues": TP.ISSUES})]
+    answers = [f"<!--k:{k} {json.dumps(v)}-->{a}<!--/k-->" for (k, v), a in zip(keys, TP.price_answers("en", n))]
+    body = (f"<h1>{e(en('price.h'))}</h1>\n<p>{e(en('price.sample_free'))}</p>\n"
+            f'<table id="prices"><tbody><tr><th>{e(en("price.own"))}</th><td>{comp("price.free_day", {"n": n["free_runs_per_day"]}, {"n": "free_runs_per_day"})}</td></tr>'
+            f'<tr><th>{e(en("price.after"))}</th><td>{comp("pay.headline", pack, spans)}</td></tr></tbody></table>\n'
+            f"<p>{e(en('pay.line'))}</p>\n"
+            f'<details class="how"><summary>{e(en("how"))}</summary>'
+            + TP.five("en", answers)
+            + f'<p>{comp("price.f1", {"url": "../data/pricing.json"})}</p>'
+            f"<p>{e(en('price.f2'))}</p>"
+            f'<p>{comp("price.f3", {"url": REPO + "/blob/main/docs/PRICING.md"})}</p><p data-mt hidden></p></details>')
+    out = page(header, "../", en("price.title"), "Sample runs are free; runs on your own file have a free daily allowance, then a pack in test money.", body,
+               TP.static_runtime("../i18n/"), "pricing/")
+    return out.replace("</style>", HOW_CSS + TP.SWITCH_CSS + "\n</style>", 1)
 
 
 def status_page(header: str) -> str:
@@ -525,7 +555,7 @@ def write(out: Path, header) -> list[str]:
     for c in cs:
         put(f"claim/{c['name']}/index.html", claim_page(header("../../", ""), c))
     put("agents/index.html", agents_page(header("../", "agents/")))
-    put("pricing/index.html", pricing_page(header("../", "")))
+    put("pricing/index.html", pricing_page(header("../", "", True)))
     put("status/index.html", status_page(header("../", "")))
     put("privacy.html", privacy_page(header("", "")))
     (out / "sitemap.xml").write_text(sitemap_xml(cs), encoding="utf-8")

@@ -180,7 +180,7 @@ def test_every_file_of_tests_web_runs_where_a_browser_is_installed_and_a_skip_th
     for job in (sdk, site):
         steps = job["steps"]
         ran = _runs(job)
-        version = re.search(r"npm install --no-save --no-audit --no-fund playwright@(\d+\.\d+\.\d+)$", ran, re.M)
+        version = re.search(r"npm install --no-save --no-audit --no-fund playwright@(\d+\.\d+\.\d+)( axe-core@\d+\.\d+\.\d+)?$", ran, re.M)
         cache = next(step for step in steps if str(step.get("uses", "")).startswith("actions/cache@"))
         assert version and cache["with"]["key"] == f"playwright-${{{{ runner.os }}}}-${{{{ runner.arch }}}}-{version[1]}-chromium"
         assert cache["with"]["path"] == "${{ env.PLAYWRIGHT_BROWSERS_PATH }}" and 'PLAYWRIGHT_BROWSERS_PATH=$RUNNER_TEMP/pw-browsers' in ran
@@ -192,14 +192,16 @@ def test_every_file_of_tests_web_runs_where_a_browser_is_installed_and_a_skip_th
                                                  for step in steps[:starts])
 
 
-def test_the_node_tests_of_the_site_run_in_two_parts_each_test_in_one_and_both_on_the_same_build():
-    """One job of every node test took 5m07s (tests.yml run 37570042831): they run as two parts side by side. Each
-    step that runs a test belongs to exactly one part, the site is built in both before anything drives it, and the
-    steps every part needs (the browser, the check that nothing skipped) have no condition."""
+def test_the_node_tests_of_the_site_run_in_parts_each_test_in_one_and_all_on_the_same_build():
+    """One job of every node test took 5m07s (tests.yml run 37570042831): they run as parts side by side. Parts 1 and 2
+    hold the site's own tests; parts 3 to 8 deal the law checks out in six (tests/web/law_checks.mjs --part k/6, Round
+    13 H2) and part 9 runs section 12's tests (tests/web/section12.mjs, H3 g). Each step that runs a test belongs to
+    exactly one part, the site is built in every part before anything drives it, and the steps every part needs (the
+    browser, the check that nothing skipped) have no condition."""
     sdk = _jobs()["sdk"]
-    assert sdk["strategy"]["matrix"] == {"part": [1, 2]} and sdk["strategy"]["fail-fast"] is False
-    assert "${{ matrix.part }} of 2" in sdk["name"]
-    parts: dict[int, list[str]] = {1: [], 2: []}
+    assert sdk["strategy"]["matrix"] == {"part": [1, 2, 3, 4, 5, 6, 7, 8, 9]} and sdk["strategy"]["fail-fast"] is False
+    assert "${{ matrix.part }} of 9" in sdk["name"]
+    parts: dict[str, list[str]] = {}
     built = None
     for i, step in enumerate(sdk["steps"]):
         run = str(step.get("run", ""))
@@ -207,15 +209,17 @@ def test_the_node_tests_of_the_site_run_in_two_parts_each_test_in_one_and_both_o
             assert "if" not in step and "node " not in run
             built = i
         if re.search(r"^\s*node (sdk/|tests/web/|\"\$f\")", run, re.M):
-            part = {"matrix.part == 1": 1, "matrix.part == 2": 2}[step["if"]]
-            parts[part].append(run)
+            assert step["if"] in ("matrix.part == 1", "matrix.part == 2", "matrix.part >= 3 && matrix.part <= 8", "matrix.part == 9"), step["if"]
+            parts.setdefault(step["if"], []).append(run)
             if "$RUNNER_TEMP/site" in run:
                 assert built is not None and i > built, step.get("name")
-    assert parts[1] and parts[2]
+    assert len(parts) == 4 and all(parts.values())
     ran = {p: "\n".join(runs) for p, runs in parts.items()}
-    assert "for f in tests/web/*.mjs; do" in ran[2]
-    for name in re.findall(r"^\s*node tests/web/(\w+)\.mjs\b", ran[1] + "\n" + ran[2], re.M):
-        assert (f"node tests/web/{name}.mjs" in ran[1]) != (f"node tests/web/{name}.mjs" in ran[2]), name
+    assert "for f in tests/web/*.mjs; do" in ran["matrix.part == 2"]
+    assert ran["matrix.part >= 3 && matrix.part <= 8"].strip().splitlines() == ["{", 'node tests/web/law_checks.mjs "$RUNNER_TEMP/site" --part "$((SIXTH - 2))/6"', '} 2>&1 | tee -a "$WEB_LOG"']
+    assert 'node tests/web/section12.mjs "$RUNNER_TEMP/site"' in ran["matrix.part == 9"]
+    for name in re.findall(r"^\s*node tests/web/(\w+)\.mjs\b", "\n".join(ran.values()), re.M):
+        assert sum(f"node tests/web/{name}.mjs" in r for r in ran.values()) == 1, name
     assert "if" not in sdk["steps"][-1]
 
 

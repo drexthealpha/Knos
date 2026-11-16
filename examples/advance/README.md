@@ -4,7 +4,7 @@ Part of Knos: the Solana side (the Colosseum entry); Knos also runs claim proofs
 
 The goal: Knos turns any research into a product billions of people use, in days, not years.
 
-Knos carries research across the valley of death, toward Kardashev II and III.
+The goal: Knos carries research across the valley of death, toward Kardashev II and III.
 
 A work order with a holdback pays most of its amount when the work is accepted and keeps the rest (the holdback)
 for a warranty period, in case the work has to be undone. A seller who wants all of it at acceptance can assign the order's payment to a financier. The financier

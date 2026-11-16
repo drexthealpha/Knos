@@ -4,7 +4,7 @@ Part of Knos: the Solana side (the Colosseum entry); Knos also runs claim proofs
 
 The goal: Knos turns any research into a product billions of people use, in days, not years.
 
-Knos carries research across the valley of death, toward Kardashev II and III.
+The goal: Knos carries research across the valley of death, toward Kardashev II and III.
 
 Knos's proposed payment scheme for x402 (paying over HTTP with status 402). It is not part of x402.
 [docs/reference/X402.md](../../docs/reference/X402.md) is the specification and shows every message.

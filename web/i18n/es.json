@@ -1,0 +1,274 @@
+{
+ "_meta": {
+  "lang": "es",
+  "name": "español",
+  "dir": "ltr",
+  "status": "machine translated, not reviewed by a native speaker",
+  "translated_by": "a language model (machine translation)",
+  "reviewed_by": "",
+  "tier": "A (U7 R31: a native reader must check every string before this language counts as done)",
+  "same": [
+   "work.secs",
+   "no",
+   "rs.sep"
+  ],
+  "same_why": "strings written the same as in English because they are the right words in this language (or a separator)"
+ },
+ "strings": {
+  "lang.label": "Idioma",
+  "menu": "Menú",
+  "goal": "El objetivo: que Knos convierta cualquier investigación en un producto que usen miles de millones de personas, en días, no en años.",
+  "nav.claims": "Afirmaciones",
+  "nav.papers": "Artículos",
+  "nav.builders": "Constructores",
+  "nav.labs": "Laboratorios",
+  "nav.prs": "Solicitudes de cambio",
+  "nav.pricing": "Precios",
+  "nav.status": "Estado",
+  "nav.source": "Código fuente",
+  "nav.privacy": "Privacidad",
+  "foot.door": "Dinero de prueba, aún sin clientes.",
+  "foot.pages": "Solo dinero de prueba, aún sin clientes.",
+  "door.title": "Knos: comprueba un archivo de pruebas contra un límite",
+  "door.headline": "¿Qué puedes hacer con Knos?",
+  "tool.title": "Comprueba un archivo de pruebas contra un límite",
+  "tool.line": "Para quien prueba baterías, motores, piezas o máquinas.",
+  "tool.sample_made_up": "Ejemplo: prueba de batería inventada",
+  "tool.sample_nasa": "Ejemplo: prueba de batería de la NASA",
+  "tool.choose_file": "Elige un archivo",
+  "tool.paste": "O pega una tabla",
+  "tool.which": "¿Qué columna?",
+  "tool.rule_label": "La regla",
+  "tool.limit_label": "El límite",
+  "rule.above": "debe quedar por encima de",
+  "rule.below": "debe quedar por debajo de",
+  "tool.try": "Pruébalo",
+  "tool.checking": "Comprobando",
+  "tool.lim_rows": {
+   "one": "Hasta {n} fila.",
+   "many": "Hasta {n} de filas.",
+   "other": "Hasta {n} filas."
+  },
+  "tool.lim_secs": {
+   "one": "Una ejecución se detiene tras {n} segundo.",
+   "many": "Una ejecución se detiene tras {n} de segundos.",
+   "other": "Una ejecución se detiene tras {n} segundos."
+  },
+  "work.sending": "Enviando tu archivo a Knos",
+  "work.sending_pct": "Enviando tu archivo a Knos: {p} %",
+  "work.checking": "Comprobando tu archivo en el servidor de Knos",
+  "work.waking": "Esperando al servidor de Knos, que quizá se está despertando",
+  "work.still": "Seguimos esperando el resultado del servidor de Knos",
+  "work.secs": "{what}, {n} s",
+  "stop": "Detener",
+  "err.empty": "Tu archivo está vacío, así que aún no tengo nada que comprobar. Elige un archivo o pega una tabla y pulsa Pruébalo.",
+  "err.limit": "Necesito el límite como número, por ejemplo 1.4, antes de comprobar tu archivo. Escríbelo y pulsa Pruébalo.",
+  "err.stopped": "Detuve la comprobación. Tu archivo sigue en el cuadro, así que puedes cambiarlo o volver a intentarlo.",
+  "err.reach": "No pude conectar con el servidor de Knos. Quizá se está despertando. Tu archivo sigue en el cuadro; pulsa Inténtalo de nuevo en un momento.",
+  "err.none": "No pude obtener un resultado del servidor de Knos ahora mismo. Tu archivo sigue en el cuadro; pulsa Inténtalo de nuevo en un momento.",
+  "err.too_big": {
+   "one": "Tu archivo es demasiado grande. El límite es de {n} fila. Guardé tu archivo en el cuadro; prueba con uno más corto.",
+   "many": "Tu archivo es demasiado grande. El límite es de {n} de filas. Guardé tu archivo en el cuadro; prueba con uno más corto.",
+   "other": "Tu archivo es demasiado grande. El límite es de {n} filas. Guardé tu archivo en el cuadro; prueba con uno más corto."
+  },
+  "err.too_long": {
+   "one": "Esto tardó demasiado y se detuvo. Prueba con un archivo más pequeño. Lo detuve tras {n} segundo y guardé tu archivo en el cuadro.",
+   "many": "Esto tardó demasiado y se detuvo. Prueba con un archivo más pequeño. Lo detuve tras {n} de segundos y guardé tu archivo en el cuadro.",
+   "other": "Esto tardó demasiado y se detuvo. Prueba con un archivo más pequeño. Lo detuve tras {n} segundos y guardé tu archivo en el cuadro."
+  },
+  "err.not_ready": "Todavía no puedo comprobar archivos, porque el programa de esta herramienta aún no ha superado la prueba que decide si funciona. Inténtalo más tarde, por favor.",
+  "err.bad": "No pude leer tu archivo con estos ajustes. Revisa la columna y el límite; tu archivo sigue en el cuadro.",
+  "btn.retry": "Inténtalo de nuevo",
+  "btn.smaller": "Prueba un archivo más pequeño",
+  "btn.type_limit": "Escribe el límite",
+  "btn.back": "Volver a mi archivo",
+  "res.private": "Solo quien tenga este enlace puede verlo.",
+  "res.shown_by": "Comprobado con una prueba de 7 archivos de respuesta conocida.",
+  "res.mine": "Usar mis datos",
+  "res.copy": "Copiar enlace",
+  "res.copied": "Copiado",
+  "res.by_hand": "No pude copiar el enlace. Aquí está, para copiarlo a mano:",
+  "res.link_label": "El enlace del resultado",
+  "res.count_q": "¿Contamos tus visitas para mejorar Knos?",
+  "yes": "Sí",
+  "no": "No",
+  "res.runs_left": {
+   "one": "Te queda {n} ejecución",
+   "many": "Te quedan {n} de ejecuciones",
+   "other": "Te quedan {n} ejecuciones"
+  },
+  "res.free_left": {
+   "one": "Hoy te queda {n} ejecución gratis",
+   "many": "Hoy te quedan {n} de ejecuciones gratis",
+   "other": "Hoy te quedan {n} ejecuciones gratis"
+  },
+  "chart.label": "Gráfico de los valores con el límite",
+  "chart.label_fail": "Gráfico de los valores con el límite, con la primera fila que falla marcada",
+  "chart.row": "Fila {r}",
+  "rs.sep": " ",
+  "rs.fail_above": "Falló en la fila {r}: {value} no está por encima de {limit}.",
+  "rs.fail_below": "Falló en la fila {r}: {value} no está por debajo de {limit}.",
+  "rs.before": {
+   "one": "Pasó en la {n} fila anterior.",
+   "many": "Pasó en las {n} de filas anteriores.",
+   "other": "Pasó en las {n} filas anteriores."
+  },
+  "rs.pass_above": {
+   "one": "Aprobado: la {n} fila queda por encima de {limit}.",
+   "many": "Aprobado: las {n} de filas quedan por encima de {limit}.",
+   "other": "Aprobado: las {n} filas quedan por encima de {limit}."
+  },
+  "rs.pass_below": {
+   "one": "Aprobado: la {n} fila queda por debajo de {limit}.",
+   "many": "Aprobado: las {n} de filas quedan por debajo de {limit}.",
+   "other": "Aprobado: las {n} filas quedan por debajo de {limit}."
+  },
+  "rs.skipped": {
+   "one": "Se omitió {n} fila porque no es un número.",
+   "many": "Se omitieron {n} de filas porque no son números.",
+   "other": "Se omitieron {n} filas porque no son números."
+  },
+  "pay.headline": {
+   "one": "{n} ejecución más por {price} en dinero de prueba",
+   "many": "{n} de ejecuciones más por {price} en dinero de prueba",
+   "other": "{n} ejecuciones más por {price} en dinero de prueba"
+  },
+  "pay.line": "Hoy esto es dinero de prueba. No se cobra nada.",
+  "pay.go": "Pagar con dinero de prueba",
+  "pay.not_now": "Ahora no",
+  "pay.confirm": {
+   "one": "Esto registra un pago de prueba de {price} por {n} ejecución más. No se cobra nada.",
+   "many": "Esto registra un pago de prueba de {price} por {n} de ejecuciones más. No se cobra nada.",
+   "other": "Esto registra un pago de prueba de {price} por {n} ejecuciones más. No se cobra nada."
+  },
+  "pay.yes": "Sí, regístralo",
+  "pay.recording": "Registrando el pago de prueba",
+  "pay.error": "No pude registrar el pago de prueba ahora mismo. No se cobró nada. Pulsa Sí, regístralo de nuevo en un momento.",
+  "how": "Cómo funciona",
+  "q.get": "Qué obtienes",
+  "q.next": "Qué hacer ahora",
+  "q.pay": "Qué pagas",
+  "q.why": "Por qué creerlo",
+  "q.who": "Quién responde",
+  "a.tool.get": "Una frase que nombra la primera fila que rompe tu límite, o dice que todas pasaron, con un gráfico y un enlace a ella.",
+  "a.tool.next": "Pulsa Pruébalo para comprobar el ejemplo. Para tu propio archivo, pulsa Usar mis datos y rellena sus tres casillas.",
+  "a.res.get": "Este resultado: la frase y el gráfico de arriba, guardados en el enlace de esta página. Un resultado de ejemplo es público; uno de tu archivo no se lista.",
+  "a.res.next": "Pulsa Copiar enlace para compartir este resultado, o Usar mis datos para comprobar tu archivo.",
+  "a.pay": {
+   "one": "El ejemplo es gratis. Tus archivos: {free} ejecuciones gratis al día, luego {price} en dinero de prueba por {n} más, que pagas tú al confirmar.",
+   "many": "El ejemplo es gratis. Tus archivos: {free} ejecuciones gratis al día, luego {price} en dinero de prueba por {n} de más, que pagas tú al confirmar.",
+   "other": "El ejemplo es gratis. Tus archivos: {free} ejecuciones gratis al día, luego {price} en dinero de prueba por {n} más, que pagas tú al confirmar."
+  },
+  "a.why_released": {
+   "one": "Una prueba pública de 7 archivos de respuesta conocida pasó antes del lanzamiento; la ejecutó el verificador de Knos. Sin probar: archivos de más de {n} fila.",
+   "many": "Una prueba pública de 7 archivos de respuesta conocida pasó antes del lanzamiento; la ejecutó el verificador de Knos. Sin probar: archivos de más de {n} de filas.",
+   "other": "Una prueba pública de 7 archivos de respuesta conocida pasó antes del lanzamiento; la ejecutó el verificador de Knos. Sin probar: archivos de más de {n} filas."
+  },
+  "a.why_unreleased": {
+   "one": "Una prueba pública de 7 archivos de respuesta conocida debe pasar antes del lanzamiento; la ejecuta el verificador de Knos. Sin probar: archivos de más de {n} fila.",
+   "many": "Una prueba pública de 7 archivos de respuesta conocida debe pasar antes del lanzamiento; la ejecuta el verificador de Knos. Sin probar: archivos de más de {n} de filas.",
+   "other": "Una prueba pública de 7 archivos de respuesta conocida debe pasar antes del lanzamiento; la ejecuta el verificador de Knos. Sin probar: archivos de más de {n} filas."
+  },
+  "a.tool.who": "Knos opera esta herramienta y su prueba. No hay fecha fijada para la próxima actualización. Para impugnar un resultado, <a href=\"{issues}\">abre una incidencia en GitHub</a>.",
+  "a.price.get": {
+   "one": "{n} ejecución más de la herramienta con tus archivos, cuando hayas usado tus {free} ejecuciones gratis del día.",
+   "many": "{n} de ejecuciones más de la herramienta con tus archivos, cuando hayas usado tus {free} ejecuciones gratis del día.",
+   "other": "{n} ejecuciones más de la herramienta con tus archivos, cuando hayas usado tus {free} ejecuciones gratis del día."
+  },
+  "a.price.next": "Usa la herramienta. Cuando se acaben tus ejecuciones gratis, mostrará Pagar con dinero de prueba; púlsalo y luego confirma.",
+  "a.price.pay": {
+   "one": "{price} en dinero de prueba por {n} ejecución, que pagas tú una vez, al confirmar. Hoy no se cobra nada; no se pide tarjeta ni cuenta.",
+   "many": "{price} en dinero de prueba por {n} de ejecuciones, que pagas tú una vez, al confirmar. Hoy no se cobra nada; no se pide tarjeta ni cuenta.",
+   "other": "{price} en dinero de prueba por {n} ejecuciones, que pagas tú una vez, al confirmar. Hoy no se cobra nada; no se pide tarjeta ni cuenta."
+  },
+  "a.price.why": "Ningún estudio fijó estos precios. Son valores iniciales para probar, cada uno marcado así en el <a href=\"{url}\">archivo de precios</a> público.",
+  "a.price.who": "Knos fija estos precios y registra cada pago de prueba en su propio servidor. Para impugnar uno, <a href=\"{issues}\">abre una incidencia en GitHub</a>.",
+  "fold.sample_made_up": {
+   "one": "El ejemplo es inventado: una línea recta de {first} a {last} a lo largo de {n} ciclo, porque la página de la NASA no ofrece descarga desde una dirección nasa.gov. Su límite, {limit}, es la regla de fin de vida de <a href=\"{url}\">la página de datos de baterías de la NASA</a>.",
+   "many": "El ejemplo es inventado: una línea recta de {first} a {last} a lo largo de {n} de ciclos, porque la página de la NASA no ofrece descarga desde una dirección nasa.gov. Su límite, {limit}, es la regla de fin de vida de <a href=\"{url}\">la página de datos de baterías de la NASA</a>.",
+   "other": "El ejemplo es inventado: una línea recta de {first} a {last} a lo largo de {n} ciclos, porque la página de la NASA no ofrece descarga desde una dirección nasa.gov. Su límite, {limit}, es la regla de fin de vida de <a href=\"{url}\">la página de datos de baterías de la NASA</a>."
+  },
+  "fold.sample_nasa": "Datos del ejemplo: <a href=\"{url}\">NASA Prognostics Center of Excellence</a>.",
+  "fold.not_do": "Comprueba una columna contra un límite. No juzga si el límite es el correcto. Una fila cuyo valor no es un número se omite y se cuenta.",
+  "fold.file": "Tu archivo va al servidor de Knos, que lo comprueba y lo guarda con su página de resultado, para que el enlace funcione. Un resultado de ejemplo lo puede abrir cualquiera. Tu propio archivo solo lo pueden abrir quienes tengan su enlace, y nunca se lista. El servidor guarda los resultados solo hasta su próxima reconstrucción, así que un enlace puede dejar de funcionar.",
+  "fold.test": {
+   "one": "La prueba que mostró que funciona comprueba seis archivos inventados de respuesta conocida y el ejemplo. No cubrió archivos de más de {n} fila, ni archivos separados por algo distinto de comas. <a href=\"{url}\">La prueba</a> es pública.",
+   "many": "La prueba que mostró que funciona comprueba seis archivos inventados de respuesta conocida y el ejemplo. No cubrió archivos de más de {n} de filas, ni archivos separados por algo distinto de comas. <a href=\"{url}\">La prueba</a> es pública.",
+   "other": "La prueba que mostró que funciona comprueba seis archivos inventados de respuesta conocida y el ejemplo. No cubrió archivos de más de {n} filas, ni archivos separados por algo distinto de comas. <a href=\"{url}\">La prueba</a> es pública."
+  },
+  "fold.price": {
+   "one": "Las ejecuciones del ejemplo son gratis. Con tu propio archivo: {free} gratis al día, luego {n} ejecución más por {price} en dinero de prueba. Hoy no se cobra nada.",
+   "many": "Las ejecuciones del ejemplo son gratis. Con tu propio archivo: {free} gratis al día, luego {n} de ejecuciones más por {price} en dinero de prueba. Hoy no se cobra nada.",
+   "other": "Las ejecuciones del ejemplo son gratis. Con tu propio archivo: {free} gratis al día, luego {n} ejecuciones más por {price} en dinero de prueba. Hoy no se cobra nada."
+  },
+  "fold.built_released": "Quién lo hizo: asistentes de IA escribieron el programa a través de Knos, y se publicó solo cuando pasó esa prueba. <a href=\"{url}\">El registro público</a>.",
+  "fold.built_unreleased": "Quién lo hace: asistentes de IA escriben el programa a través de Knos, y se publica solo cuando pasa esa prueba. Aún no se ha publicado.",
+  "fold.listen": "Escuchar",
+  "fold.embed": "Muestra esto en tu sitio",
+  "fold.embed_label": "Una línea de HTML para copiar en tu sitio",
+  "fold.print": "Imprimir",
+  "fold.mt": "Esta página se tradujo automáticamente y ningún hablante nativo la ha revisado.",
+  "fold.original": "Las palabras del propio programa, en inglés: {text}",
+  "embed.title": "Un resultado de Knos",
+  "ask.h": "Pregunta lo que quieras sobre investigación",
+  "ask.label": "Tu pregunta",
+  "ask.ph": "Una pregunta o el enlace de un artículo",
+  "ask.go": "Preguntar",
+  "ask.speak": "Hablar",
+  "ask.listening": "Escuchando",
+  "ask.sample": "Pregunta de ejemplo",
+  "ask.cost": "Comprobar un artículo a mano: de {low} a {high} (<a href=\"{url}\">Perignon, citando a Colliard</a>).",
+  "ask.reading_near": "Leyendo NEAR testnet...",
+  "ask.closest": "La afirmación demostrada más cercana (no es exactamente tu pregunta):",
+  "ask.holds_near": "Se cumple",
+  "ask.holds": "Sí, la afirmación se cumple",
+  "ask.fails": "No, la afirmación falla",
+  "ask.not_yet": "Aún no demostrada",
+  "ask.proved": "Demostrada por una prueba cerrada antes de empezar cualquier trabajo.",
+  "ask.locked": "Su prueba se cierra antes de empezar cualquier trabajo.",
+  "ask.behind": "{amount} test USDC de personas ajenas a Knos esta semana",
+  "ask.prove": "Demuéstralo tú",
+  "ask.claim": "La afirmación",
+  "ask.none": "Aún no coincide nada demostrado",
+  "ask.none_line": {
+   "one": "Knos ha demostrado {n} afirmación en NEAR testnet; ninguna trata de \"{q}\". Pregunta por una de ellas o escribe el enlace de un artículo.",
+   "many": "Knos ha demostrado {n} de afirmaciones en NEAR testnet; ninguna trata de \"{q}\". Pregunta por una de ellas o escribe el enlace de un artículo.",
+   "other": "Knos ha demostrado {n} afirmaciones en NEAR testnet; ninguna trata de \"{q}\". Pregunta por una de ellas o escribe el enlace de un artículo."
+  },
+  "ask.notwhat": "No es lo que necesito",
+  "ask.why": "¿Por qué, en una palabra? (opcional)",
+  "ask.why_label": "Por qué, en una palabra",
+  "ask.thanks": "Gracias.",
+  "ask.noted": "Anotado.",
+  "ask.reading_paper": "Leyendo el artículo... {s} s",
+  "ask.not_read": "Sin leer",
+  "ask.no_answer": "El servidor de Knos no respondió, así que el artículo no se leyó. Quizá se está despertando.",
+  "ask.cannot": "Knos aún no puede demostrar este artículo",
+  "ask.person": "Hoy lo comprueba una persona: {checker}. Precio: {price_text}. Tiempo: {time}.",
+  "ask.someone": "alguien que lo vuelve a ejecutar",
+  "ask.unpublished": "no publicado",
+  "ask.source": "Fuente",
+  "price.title": "Precios de Knos",
+  "price.h": "Precios",
+  "price.sample_free": "Las ejecuciones del ejemplo son gratis.",
+  "price.own": "Ejecuciones con tu propio archivo",
+  "price.free_day": {
+   "one": "{n} gratis al día, en cada navegador",
+   "many": "{n} de gratis al día, en cada navegador",
+   "other": "{n} gratis al día, en cada navegador"
+  },
+  "price.after": "Después",
+  "price.f1": "Ningún estudio dio estos precios. Son valores iniciales para probar, y cada uno está en <a href=\"{url}\">el archivo de precios</a> con esa marca.",
+  "price.f2": "Cuando se acaban tus ejecuciones gratis, la herramienta muestra una pantalla con el precio. Pulsar Pagar con dinero de prueba registra un pago de prueba en el propio servidor de Knos. No hace falta tarjeta ni cuenta.",
+  "price.f3": "Las tarifas para comprobar la afirmación de un artículo están en <a href=\"{url}\">una página propia</a>.",
+  "nf.title": "No encontrada",
+  "nf.h": "No encuentro esta página",
+  "nf.p": "No tengo nada en esta dirección. Puede que un resultado se borrara al actualizar el servidor de Knos.",
+  "nf.link": "Abre la herramienta de Knos y comprueba un archivo",
+  "res.cut": {
+   "one": "Se muestran las primeras {shown} de {n} línea.",
+   "many": "Se muestran las primeras {shown} de {n} de líneas.",
+   "other": "Se muestran las primeras {shown} de {n} líneas."
+  }
+ }
+}

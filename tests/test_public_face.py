@@ -10,7 +10,7 @@ import shutil
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SENTENCE = "Knos carries research across the valley of death."
+SENTENCE = "The goal: Knos carries research across the valley of death."
 # what the MCP registry and Gemini CLI list (docs/facts.json registry_sentence): the one line itself, 49 characters,
 # inside the registry limit of 100.
 REGISTRY = SENTENCE
@@ -48,7 +48,7 @@ def test_this_tree_says_the_one_sentence_everywhere_it_describes_itself():
     # the front door's own words differ from the sentence until the founder picks one: printed as a note, not hidden
     assert said[:-1] == ([pf.door_split()] if pf.door_split() else [])
     summary = re.search(r'(?m)^description = "([^"]*)"', (ROOT / "pyproject.toml").read_text(encoding="utf-8")).group(1)
-    assert summary.startswith(pf.K1) and f"The goal: {pf.LINES[0]}" in summary   # what Knos does, then the vision line labelled as the goal
+    assert summary.startswith(pf.K1) and pf.LINES[0] in summary and pf.LINES[0].startswith("The goal: ")   # what Knos does, then the vision line labelled as the goal
     for rel in ("server.json", "gemini-extension.json"):
         assert json.loads((ROOT / rel).read_text(encoding="utf-8"))["description"] == REGISTRY
     assert pf.registry_sentence() == REGISTRY == SENTENCE                # the one line, word for word

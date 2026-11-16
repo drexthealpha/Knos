@@ -1,0 +1,224 @@
+{
+ "_meta": {
+  "lang": "zh-Hans",
+  "name": "简体中文",
+  "dir": "ltr",
+  "status": "machine translated, not reviewed by a native speaker",
+  "translated_by": "a language model (machine translation)",
+  "reviewed_by": "",
+  "tier": "A (U7 R31: a native reader must check every string before this language counts as done)",
+  "same": [],
+  "same_why": "strings written the same as in English because they are the right words in this language (or a separator)"
+ },
+ "strings": {
+  "lang.label": "语言",
+  "menu": "菜单",
+  "goal": "目标：Knos 把任何研究变成数十亿人使用的产品，用几天，而不是几年。",
+  "nav.claims": "论断",
+  "nav.papers": "论文",
+  "nav.builders": "构建者",
+  "nav.labs": "实验室",
+  "nav.prs": "合并请求",
+  "nav.pricing": "价格",
+  "nav.status": "状态",
+  "nav.source": "源代码",
+  "nav.privacy": "隐私",
+  "foot.door": "测试用钱，尚无客户。",
+  "foot.pages": "只有测试用钱，尚无客户。",
+  "door.title": "Knos：用一个限值检查测试文件",
+  "door.headline": "你能用 Knos 做什么？",
+  "tool.title": "用一个限值检查测试文件",
+  "tool.line": "适合测试电池、电机、零件或机器的任何人。",
+  "tool.sample_made_up": "示例：虚构的电池测试",
+  "tool.sample_nasa": "示例：NASA 电池测试",
+  "tool.choose_file": "选择文件",
+  "tool.paste": "或粘贴表格",
+  "tool.which": "哪一列？",
+  "tool.rule_label": "规则",
+  "tool.limit_label": "限值",
+  "rule.above": "必须保持高于",
+  "rule.below": "必须保持低于",
+  "tool.try": "试一试",
+  "tool.checking": "正在检查",
+  "tool.lim_rows": {
+   "other": "最多 {n} 行。"
+  },
+  "tool.lim_secs": {
+   "other": "每次运行在 {n} 秒后停止。"
+  },
+  "work.sending": "正在把你的文件发送给 Knos",
+  "work.sending_pct": "正在把你的文件发送给 Knos：{p}%",
+  "work.checking": "正在 Knos 服务器上检查你的文件",
+  "work.waking": "正在等待 Knos 的服务器，它可能正在唤醒",
+  "work.still": "仍在等待 Knos 服务器的结果",
+  "work.secs": "{what}，{n} 秒",
+  "stop": "停止",
+  "err.empty": "你的文件是空的，所以我还没有可检查的内容。请选择文件或粘贴表格，然后按“试一试”。",
+  "err.limit": "检查你的文件之前，我需要一个数字作为限值，比如 1.4。请输入后按“试一试”。",
+  "err.stopped": "我已停止检查。你的文件仍在框中，你可以修改它或再试一次。",
+  "err.reach": "我无法连接 Knos 的服务器，它可能正在唤醒。你的文件仍在框中，请稍后按“再试一次”。",
+  "err.none": "我暂时没能从 Knos 的服务器得到结果。你的文件仍在框中，请稍后按“再试一次”。",
+  "err.too_big": {
+   "other": "你的文件太大了。上限是 {n} 行。我把你的文件留在了框中；请试一个更短的文件。"
+  },
+  "err.too_long": {
+   "other": "这次用时太长，已被停止。请试一个更小的文件。我在 {n} 秒后停止了它，并把你的文件留在框中。"
+  },
+  "err.not_ready": "我还不能检查文件，因为这个工具的程序尚未通过判定它能否工作的测试。请稍后再试。",
+  "err.bad": "按这些设置我无法读取你的文件。请检查列和限值；你的文件仍在框中。",
+  "btn.retry": "再试一次",
+  "btn.smaller": "试一个更小的文件",
+  "btn.type_limit": "输入限值",
+  "btn.back": "回到我的文件",
+  "res.private": "只有拿到这个链接的人才能看到它。",
+  "res.shown_by": "已由一个包含 7 个已知答案文件的测试检查。",
+  "res.mine": "使用我的数据",
+  "res.copy": "复制链接",
+  "res.copied": "已复制",
+  "res.by_hand": "我无法复制链接。链接在这里，请手动复制：",
+  "res.link_label": "结果的链接",
+  "res.count_q": "统计你的访问以帮助改进 Knos？",
+  "yes": "是",
+  "no": "否",
+  "res.runs_left": {
+   "other": "还剩 {n} 次运行"
+  },
+  "res.free_left": {
+   "other": "今天还剩 {n} 次免费运行"
+  },
+  "chart.label": "数值与限值的图表",
+  "chart.label_fail": "数值与限值的图表，已标出第一个失败的行",
+  "chart.row": "第 {r} 行",
+  "rs.sep": "",
+  "rs.fail_above": "在第 {r} 行失败：{value} 不高于 {limit}。",
+  "rs.fail_below": "在第 {r} 行失败：{value} 不低于 {limit}。",
+  "rs.before": {
+   "other": "在此之前的 {n} 行均通过。"
+  },
+  "rs.pass_above": {
+   "other": "通过：全部 {n} 行都保持高于 {limit}。"
+  },
+  "rs.pass_below": {
+   "other": "通过：全部 {n} 行都保持低于 {limit}。"
+  },
+  "rs.skipped": {
+   "other": "有 {n} 行因不是数字而被跳过。"
+  },
+  "pay.headline": {
+   "other": "用 {price} 测试用钱再买 {n} 次运行"
+  },
+  "pay.line": "今天这是测试用钱，不会收取任何费用。",
+  "pay.go": "用测试用钱支付",
+  "pay.not_now": "暂不",
+  "pay.confirm": {
+   "other": "这会记录一笔 {price} 的测试付款，换取另外 {n} 次运行。不会收取任何费用。"
+  },
+  "pay.yes": "是的，记录",
+  "pay.recording": "正在记录测试付款",
+  "pay.error": "我暂时无法记录这笔测试付款。没有收取任何费用。请稍后再按“是的，记录”。",
+  "how": "工作原理",
+  "q.get": "你会得到什么",
+  "q.next": "下一步做什么",
+  "q.pay": "你要付多少",
+  "q.why": "为什么可信",
+  "q.who": "谁负责",
+  "a.tool.get": "一句话：指出第一个违反你限值的行，或说明所有行都通过，并附一张图表和指向它的链接。",
+  "a.tool.next": "按“试一试”检查示例。检查你自己的文件时，按“使用我的数据”，然后填写它的三个框。",
+  "a.res.get": "这个结果：上面的句子和图表，保存在本页的链接中。示例结果是公开的；你自己文件的结果不会被列出。",
+  "a.res.next": "按“复制链接”分享这个结果，或按“使用我的数据”检查你自己的文件。",
+  "a.pay": {
+   "other": "示例运行免费。你自己的文件：每天 {free} 次免费运行，之后用 {price} 测试用钱再买 {n} 次，由你在确认后支付。"
+  },
+  "a.why_released": {
+   "other": "一个包含 7 个已知答案文件的公开测试在发布前通过；由 Knos 的检查程序运行。未测试：超过 {n} 行的文件。"
+  },
+  "a.why_unreleased": {
+   "other": "一个包含 7 个已知答案文件的公开测试必须在发布前通过；由 Knos 的检查程序运行。未测试：超过 {n} 行的文件。"
+  },
+  "a.tool.who": "Knos 运行这个工具及其测试。下次更新没有既定日期。若要质疑某个结果，请<a href=\"{issues}\">在 GitHub 上提交 issue</a>。",
+  "a.price.get": {
+   "other": "在用完每天 {free} 次免费运行后，用这个工具对你的文件再运行 {n} 次。"
+  },
+  "a.price.next": "使用这个工具。免费运行用完后，它会显示“用测试用钱支付”；按下后再确认。",
+  "a.price.pay": {
+   "other": "{price} 测试用钱换 {n} 次运行，由你在确认后支付一次。今天不收取任何费用；不需要银行卡或账户。"
+  },
+  "a.price.why": "这些价格不是由任何研究定出的。它们是有待检验的初始值，每一个都在公开的<a href=\"{url}\">价格文件</a>中如此标注。",
+  "a.price.who": "Knos 制定这些价格，并在自己的服务器上记录每笔测试付款。若要提出异议，请<a href=\"{issues}\">在 GitHub 上提交 issue</a>。",
+  "fold.sample_made_up": {
+   "other": "示例是虚构的：在 {n} 个周期内从 {first} 到 {last} 的一条直线，因为 NASA 的页面没有提供来自 nasa.gov 地址的下载。它的限值 {limit} 是 <a href=\"{url}\">NASA 电池数据页面</a>上的寿命终止规则。"
+  },
+  "fold.sample_nasa": "示例数据：<a href=\"{url}\">NASA Prognostics Center of Excellence</a>。",
+  "fold.not_do": "它用一个限值检查一列。它不判断这个限值是否合适。数值不是数字的行会被跳过并计数。",
+  "fold.file": "你的文件会发送到 Knos 的服务器，服务器检查它，并把它和结果页面一起保存，以便链接可用。任何人都能打开示例结果。你自己的文件只有拿到链接的人才能打开，且从不被列出。服务器只在下次重建之前保存结果，所以链接可能会失效。",
+  "fold.test": {
+   "other": "证明它能工作的测试检查了六个已知答案的虚构文件和示例。它没有覆盖超过 {n} 行的文件，也没有覆盖不用逗号分隔的文件。<a href=\"{url}\">该测试</a>是公开的。"
+  },
+  "fold.price": {
+   "other": "示例运行免费。你自己的文件：每天 {free} 次免费，之后用 {price} 测试用钱再买 {n} 次运行。今天不收取任何费用。"
+  },
+  "fold.built_released": "谁构建的：AI 助手通过 Knos 编写了程序，只有在那个测试通过后才发布。<a href=\"{url}\">公开记录</a>。",
+  "fold.built_unreleased": "谁构建的：AI 助手通过 Knos 编写程序，只有在那个测试通过后才会发布。它尚未发布。",
+  "fold.listen": "朗读",
+  "fold.embed": "在你的网站上展示",
+  "fold.embed_label": "复制到你网站上的一行 HTML",
+  "fold.print": "打印",
+  "fold.mt": "本页由机器翻译，尚未经母语人士审阅。",
+  "fold.original": "程序自己的原话（英文）：{text}",
+  "embed.title": "一个 Knos 结果",
+  "ask.h": "关于研究，问什么都行",
+  "ask.label": "你的问题",
+  "ask.ph": "一个问题或一篇论文的链接",
+  "ask.go": "提问",
+  "ask.speak": "说话",
+  "ask.listening": "正在聆听",
+  "ask.sample": "示例问题",
+  "ask.cost": "人工检查一篇论文：{low} 到 {high}（<a href=\"{url}\">Perignon 引用 Colliard</a>）。",
+  "ask.reading_near": "正在读取 NEAR testnet...",
+  "ask.closest": "最接近的已证明论断（不完全是你的问题）：",
+  "ask.holds_near": "成立",
+  "ask.holds": "是的，该论断成立",
+  "ask.fails": "不，该论断不成立",
+  "ask.not_yet": "尚未证明",
+  "ask.proved": "由一个在任何工作开始前就锁定的测试证明。",
+  "ask.locked": "它的测试在任何工作开始前就被锁定。",
+  "ask.behind": "本周来自 Knos 以外人士的 {amount} test USDC",
+  "ask.prove": "亲自证明",
+  "ask.claim": "该论断",
+  "ask.none": "暂无匹配的已证明内容",
+  "ask.none_line": {
+   "other": "Knos 已在 NEAR testnet 上证明了 {n} 个论断；没有一个与“{q}”有关。请就其中一个提问，或输入一篇论文的链接。"
+  },
+  "ask.notwhat": "不是我需要的",
+  "ask.why": "为什么？用一个词说（可选）",
+  "ask.why_label": "为什么，用一个词说",
+  "ask.thanks": "谢谢。",
+  "ask.noted": "已记下。",
+  "ask.reading_paper": "正在阅读论文... {s} 秒",
+  "ask.not_read": "未读取",
+  "ask.no_answer": "Knos 的服务器没有响应，所以没有读取这篇论文。它可能正在唤醒。",
+  "ask.cannot": "Knos 暂时无法证明这篇论文",
+  "ask.person": "目前由人工检查：{checker}。价格：{price_text}。时间：{time}。",
+  "ask.someone": "重新运行它的人",
+  "ask.unpublished": "未公布",
+  "ask.source": "来源",
+  "price.title": "Knos 价格",
+  "price.h": "价格",
+  "price.sample_free": "示例运行免费。",
+  "price.own": "你自己文件的运行",
+  "price.free_day": {
+   "other": "每个浏览器每天免费 {n} 次"
+  },
+  "price.after": "用完之后",
+  "price.f1": "这些价格不是由任何研究给出的。它们是有待检验的初始值，每一个都带着这个标记写在<a href=\"{url}\">价格文件</a>中。",
+  "price.f2": "免费运行用完后，工具会显示一个带价格的页面。按“用测试用钱支付”会在 Knos 自己的服务器上记录一笔测试付款。不需要银行卡，也不需要账户。",
+  "price.f3": "检查论文论断的费用在<a href=\"{url}\">单独的页面</a>上。",
+  "nf.title": "未找到",
+  "nf.h": "我找不到这个页面",
+  "nf.p": "这个地址上什么都没有。某个结果可能在 Knos 服务器更新时被清除了。",
+  "nf.link": "打开 Knos 工具并检查一个文件",
+  "res.cut": {
+   "other": "显示 {n} 行中的前 {shown} 行。"
+  }
+ }
+}

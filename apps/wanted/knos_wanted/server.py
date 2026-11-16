@@ -1546,6 +1546,8 @@ def serve(host: str | None = None, port: int | None = None) -> None:
     print(f"knos recorded: {recorded.load()} of {len(recorded.CHIPS)} sample chips have a recorded card", flush=True)
     from . import vectors                  # the front door's first card (/api/proof), built once before the first visitor asks
     threading.Thread(target=vectors.proof, daemon=True, name="proof-warm").start()
+    from . import telegram_bot             # the tool inside Telegram: only when KNOS_TELEGRAM_TOKEN is set, else one line
+    telegram_bot.start()
     # the seeded research products cross on the first request for the board (front.board), never at boot
     httpd = ThreadingHTTPServer((host, port), make_handler(state))
     rest_ok, rest_why = state.rest.ready()

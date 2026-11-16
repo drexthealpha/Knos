@@ -2,7 +2,7 @@
 
 The goal: Knos turns any research into a product billions of people use, in days, not years.
 
-Knos carries research across the valley of death, toward Kardashev II and III.
+The goal: Knos carries research across the valley of death, toward Kardashev II and III.
 
 Every ticket here is made up (`knos.outcomes.synth`). An "AI agent" handles the treated tickets and people the
 control tickets; the chance that a ticket is solved without escalation or reopening is a parameter of the generator

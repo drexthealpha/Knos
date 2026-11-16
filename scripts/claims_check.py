@@ -49,8 +49,8 @@ for _stream in (sys.stdout, sys.stderr):   # a Windows console's code page canno
         _stream.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
     except (AttributeError, ValueError):
         pass
-SENTENCE = "Knos carries research across the valley of death."
-L2 = "Knos carries research across the valley of death, toward Kardashev II and III."   # the vision line that now carries it
+SENTENCE = "The goal: Knos carries research across the valley of death."
+L2 = "The goal: Knos carries research across the valley of death, toward Kardashev II and III."   # the vision line that now carries it
 # what a work order was, in five sentences, on the old home page (web/index.html, no longer published; nothing here
 # checks it now: tests/test_bench_docs.py still reads that file)
 LONG = ("A work order is a task, its budget and the terms that decide when it is done. All three are fixed before work "

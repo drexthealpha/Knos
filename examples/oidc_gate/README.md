@@ -4,7 +4,7 @@ Part of Knos: the Solana side (the Colosseum entry); Knos also runs claim proofs
 
 The goal: Knos turns any research into a product billions of people use, in days, not years.
 
-Knos carries research across the valley of death, toward Kardashev II and III.
+The goal: Knos carries research across the valley of death, toward Kardashev II and III.
 
 Copy [`template.rs`](template.rs), change the marked lines, build. Your instruction then runs only when a token that
 `knos-oidc` verified on chain says "repository X, branch main, workflow Y", or "Google Cloud service account Z".

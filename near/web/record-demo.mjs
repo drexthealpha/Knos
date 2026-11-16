@@ -117,7 +117,7 @@ if (jobTx) await tx(jobTx, "The locked test's hash, on NEAR testnet", 4000, "#fa
 if (splitTx) await tx(splitTx, "The contract paid: 90% agent, 10% Knos", 6000);
 await tx(REFUSED, "Refused: a payout to a lookalike account", 4600);
 await b.setContent(`<body style="margin:0;height:100vh;display:grid;place-items:center;background:#151822;color:#fff;font-family:system-ui,sans-serif;text-align:center">
-  <div><p style="font:700 52px/1.25 system-ui;max-width:1100px;margin:0 auto 40px">Knos turns any research into a product people use, in days, not years.</p>
+  <div><p style="font:700 52px/1.25 system-ui;max-width:1100px;margin:0 auto 40px">The goal: Knos turns any research into a product people use, in days, not years.</p>
   <p style="font:500 34px/1.5 ui-monospace,monospace;margin:0">drexthealpha.github.io/Knos</p><p style="font:500 34px/1.5 ui-monospace,monospace;margin:0">github.com/drexthealpha/Knos</p></div></body>`);
 let t = tb(); await b.waitForTimeout(4600); cuts.push({ f: "b", from: t, to: tb(), what: "card" });
 await flash(b, "b", tb);

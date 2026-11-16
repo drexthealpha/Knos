@@ -4,7 +4,7 @@ Part of Knos: the Solana side (the Colosseum entry); Knos also runs claim proofs
 
 The goal: Knos turns any research into a product billions of people use, in days, not years.
 
-Knos carries research across the valley of death, toward Kardashev II and III.
+The goal: Knos carries research across the valley of death, toward Kardashev II and III.
 
 `consumer.mjs` is a second application, written separately from Knos: Node 20 or later, no package, no code of Knos's. It
 reads an acceptance receipt, or a statement's status file, and a Solana cluster, and decides on its own whether the

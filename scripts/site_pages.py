@@ -27,37 +27,41 @@ import site_product
 
 ROOT = Path(__file__).resolve().parents[1]
 # Round 13: plain names (the PLAIN-WORDS rule of ROUND13-ITEMS: no "prove", "agent", "IRIS" on a stranger's screens)
-PAGES = [("claims/", "Claims"), ("prove/", "Papers"), ("agents/", "Builders"), ("labs/", "Labs"), ("check/", "Pull requests")]
+PAGES = [("claims/", "nav.claims"), ("prove/", "nav.papers"), ("agents/", "nav.builders"), ("labs/", "nav.labs"), ("check/", "nav.prs")]   # keys of web/i18n/en.json
 # the product's pages; every other page of the build leaves the published site, each old address sent to the front door
 KEEP = {"index.html", "404.html", "privacy.html", "prove/receipt/index.html", "tx/index.html"}   # Round 10, V6: one finished order, saved
 CSS = ("#ask label a { display: inline !important; min-height: 0 !important; padding: 0 !important; }\n"   # the Prove page's Claims link sits in its sentence
        ".kh { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; max-width: 760px; margin: 0 auto; padding: 8px 16px; }\n"
-       ".kh .logo { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-right: auto; color: var(--ink); text-decoration: none; font: 600 20px/1 var(--head); }\n"
+       ".kh .logo { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-inline-end: auto; color: var(--ink); text-decoration: none; font: 600 20px/1 var(--head); }\n"
        ".kh .mark { display: block; width: 28px; height: 27px; background: currentColor; -webkit-mask: var(--m) center / contain no-repeat; mask: var(--m) center / contain no-repeat; }\n"
        ".kh { position: relative; }\n"
        ".kmenu > summary { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; padding: 0 12px; cursor: pointer; list-style: none; color: var(--ink); border: 1px solid var(--line); border-radius: 10px; font-size: 16px; }\n"
        ".kmenu > summary::-webkit-details-marker { display: none; }\n"
-       ".kmenu-panel { position: absolute; right: 16px; left: 16px; top: 56px; z-index: 30; max-width: 420px; margin-left: auto; padding: 8px 12px; background: var(--paper-2); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--depth-2); }\n"
+       ".kmenu-panel { position: absolute; inset-inline: 16px; top: 56px; z-index: 30; max-width: 420px; margin-inline-start: auto; padding: 8px 12px; background: var(--paper-2); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--depth-2); }\n"
        ".kmenu-panel p { margin: 4px 0 8px; font-size: 16px; color: var(--ink-2); }\n"
        ".kh nav { display: flex; flex-direction: column; }\n"
        ".kh nav a, .kmenu-panel > a { display: flex; align-items: center; min-height: 44px; padding: 0 4px; color: var(--ink); text-decoration: none; font-size: 16px; }\n"
        ".kh nav a:hover, .kh nav a[aria-current] { text-decoration: underline; }\n")
 
 
-def header(up: str, here: str = "") -> str:
+def header(up: str, here: str = "", lang: bool = False) -> str:
     """The one header: the Knos name and one control, "Menu" (Round 13, A2: a first screen holds the Knos name and the
-    page's own words). The goal is the menu's first line, one press away on every page (A7)."""
+    page's own words). The goal is the menu's first line, one press away on every page (A7). Its words are keys of
+    web/i18n/en.json; on a page shown in every language (lang=True: the front door, the pricing page) the language
+    control sits beside the menu, on the first screen (U7 R18)."""
     cur = ' aria-current="page"'
-    links = "".join(f'<a href="{up}{p}"{cur if p == here else ""}>{name}</a>' for p, name in PAGES)
+    en = site_product.en
+    links = "".join(f'<a href="{up}{p}"{cur if p == here else ""}>{en(key)}</a>' for p, key in PAGES)
     return (f'<header class="kh" id="kh">\n  <a class="logo" href="{up or "./"}"><span class="mark" aria-hidden="true" style="--m: url({up}brand/mark.svg)"></span>Knos</a>\n'
-            f'  <details class="kmenu"><summary>Menu</summary><div class="kmenu-panel"><p class="kgoal">{site_product.GOAL}</p>'
-            f'<nav aria-label="Pages">{links}</nav><a href="{up}pricing/">Pricing</a><a href="{up}status/">Status</a></div></details>\n</header>')
+            + (f"  {site_product.TP.switcher('en')}\n" if lang else "")
+            + f'  <details class="kmenu"><summary>{en("menu")}</summary><div class="kmenu-panel"><p class="kgoal">{en("goal")}</p>'
+            f'<nav aria-label="Pages">{links}</nav><a href="{up}pricing/">{en("nav.pricing")}</a><a href="{up}status/">{en("nav.status")}</a></div></details>\n</header>')
 
 
-def with_header(html: str, up: str, here: str) -> str:
+def with_header(html: str, up: str, here: str, lang: bool = False) -> str:
     """The page's own bar (or the front door's header) replaced by the one header; the bar's script and its prerender
     rules go with it."""
-    html, n = re.subn(r'<header class="(?:bar k-bar|kh)" id="(?:k-bar|kh)">.*?</header>', lambda m: header(up, here), html, count=1, flags=re.S)
+    html, n = re.subn(r'<header class="(?:bar k-bar|kh)" id="(?:k-bar|kh)">.*?</header>', lambda m: header(up, here, lang), html, count=1, flags=re.S)
     assert n == 1, "the page has no header to replace"
     html = re.sub(r'<script type="speculationrules">.*?</script>\n?', "", html, flags=re.S)
     html = re.sub(r'<script>addEventListener\("load", \(\) => \{ const s = document\.createElement\("script"\); s\.src = "[./]*brand/bar\.js";.*?</script>\n?', "", html, flags=re.S)
@@ -251,11 +255,73 @@ def fill(html: str) -> str:
     return COMPANY_LINE.sub(company_line(), html)
 
 
+def released() -> bool:
+    """The first tool's program has been released (released_solution.py is beside its sample)."""
+    return (LIMIT / "released_solution.py").is_file()
+
+
+PERIGNON = "https://labordynamicsinstitute.github.io/crress-book/sessions/6/perignon/"
+TEST_URL = "https://github.com/drexthealpha/Knos/blob/main/near/agents/job/test_limit.py"
+NASA_URL = "https://data.nasa.gov/dataset/li-ion-battery-aging-datasets"
+
+
+def comp(key: str, v: dict, spans: dict | None = None) -> str:
+    """A composite string in English with its values, between the marks the page's script swaps it by (tool_page.STATIC_JS)."""
+    return f"<!--k:{key} {json.dumps(v)}-->{site_product.TP.h('en', key, spans, **v)}<!--/k-->"
+
+
+def made_up() -> bool:
+    """The sample is the generated table (runner_conf.py sample_made_up), so its label and its source line say so."""
+    conf = (ROOT / "apps" / "wanted" / "knos_wanted" / "runner_conf.py").read_text(encoding="utf-8")
+    return "'sample_made_up': False" not in conf
+
+
+def strings(html: str) -> str:
+    """Round 13, H3 a: every {{key}} of the front door written in from web/i18n/en.json (a plain string escaped, a
+    composite one with its values and the spans the number checks read), the {{@name}} the build chooses, and the
+    language runtime at /*I18N*/."""
+    tp, n, f = site_product.TP, numbers(), sample_facts()
+    rows, longest = data_rows(sample_text()), int(f["longest"].replace(",", ""))
+    pack = {"n": n["pack_runs"], "price": n["pack_price"]}
+    pspans = {"free": "free_runs_per_day", "n": "pack_runs", "price": "pack_price"}
+    job = re.search(r'href="([^"]+)"', job_line())
+    sample_v = {"n": rows, "first": f["first"], "last": f["last"], "limit": "1.4", "url": NASA_URL}
+    sample_sp = {"first": 'data-sample="first"', "last": 'data-sample="last"', "n": 'data-sample="rows"'}
+    pay_v = {"free": n["free_runs_per_day"], **pack}
+    five = [comp("a.res.get", {}), comp("a.res.next", {}), comp("a.pay", pay_v),
+            comp("a.why_released" if released() else "a.why_unreleased", {"n": longest}), comp("a.tool.who", {"issues": tp.ISSUES})]
+    special = {
+        "tool.sample_label": tp._e(tp.t("en", "tool.sample_made_up" if made_up() else "tool.sample_nasa")),
+        "five": tp.five("en", five),
+        "fold.sample": comp("fold.sample_made_up", sample_v, sample_sp) if made_up() else comp("fold.sample_nasa", {"url": NASA_URL}),
+        "fold.built": comp("fold.built_released", {"url": job[1]}) if job else tp.h("en", "fold.built_unreleased"),
+    }
+    composite = {"pay.headline": (pack, pspans), "pay.confirm": (pack, pspans), "fold.test": ({"n": longest, "url": TEST_URL}, {"n": 'data-sample="longest"'}),
+                 "fold.price": (pay_v, pspans), "ask.cost": ({"low": 330, "high": 763, "url": PERIGNON}, None)}
+
+    def one(m):
+        key, hints = m[1], dict(h.split("=", 1) for h in m[2].split())
+        if key.startswith("@"):
+            out = special[key[1:]]
+        elif key in composite:
+            out = comp(key, *composite[key])
+        else:
+            out = tp._e(tp.t("en", key))
+        # a number the source shows beside a key (so the facts check reads it there) must be what the build writes
+        text = re.sub(r"<[^>]+>", "", out)
+        for name, want in hints.items():
+            assert re.search(rf"(?<![\d.]){re.escape(want)}(?![\d])", text), f"web/door.html: {{{{{key}}}}} says {name}={want}, the build writes: {text}"
+        return out
+    html = re.sub(r"\{\{(@?[\w.]+)((?: \w+=[^ }]+)*)\}\}", one, html)
+    html = html.replace("<script>/*I18N*/</script>", "<script>\n" + tp.static_runtime("i18n/") + "\n</script>", 1)
+    return html.replace("</head>", f'<style id="k-i18n-css">{tp.SWITCH_CSS}</style>\n</head>', 1)
+
+
 def main(site: str) -> int:
     out = Path(site)
-    door = fill((ROOT / "web" / "door.html").read_text(encoding="utf-8"))
+    door = fill(strings((ROOT / "web" / "door.html").read_text(encoding="utf-8")))
     door = door.replace("/*CLAIMS*/[]/*END*/", json.dumps(door_claims(), ensure_ascii=False).replace("</", "<\\/"))
-    (out / "index.html").write_text(with_header(door, "", ""), encoding="utf-8")
+    (out / "index.html").write_text(with_header(door, "", "", lang=True), encoding="utf-8")
     (out / "door.html").unlink(missing_ok=True)
     near = fill((ROOT / "near" / "web" / "index.html").read_text(encoding="utf-8"))
     near = near.replace('fetch("latest.json"', 'fetch("../near/latest.json"')

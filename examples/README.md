@@ -2,7 +2,7 @@
 
 The goal: Knos turns any research into a product billions of people use, in days, not years.
 
-Knos carries research across the valley of death, toward Kardashev II and III.
+The goal: Knos carries research across the valley of death, toward Kardashev II and III.
 
 These examples are the Solana side of Knos (the Colosseum entry, tag v0.3.28 onward); the same Knos also runs claim
 proofs on NEAR testnet.

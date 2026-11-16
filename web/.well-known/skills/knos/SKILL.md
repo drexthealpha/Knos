@@ -1,6 +1,6 @@
 ---
 name: knos
-description: "Knos carries research across the valley of death. The pull request check, the part of Knos built for Colosseum (tag v0.3.28): before a pull request is paid, run Knos's checks and attach a signed receipt."
+description: "The goal: Knos carries research across the valley of death. The pull request check, the part of Knos built for Colosseum (tag v0.3.28): before a pull request is paid, run Knos's checks and attach a signed receipt."
 version: 0.4.1
 author: drexthealpha
 license: MIT

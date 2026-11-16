@@ -257,7 +257,8 @@ def inputs(body: dict) -> tuple[str, str, str, float]:
         raise Refusal(400, {"error": f"I could not find a column called \"{str(column)[:40]}\" in your file. The columns I found are: {shown}. Please pick one."})
     if n == 0:
         raise Refusal(400, {"error": "Your file has a header but no rows under it, so I have nothing to check. Please add rows, then press Try it."})
-    return table, column, rule, lim
+    # a whole limit goes to the program as a whole number, so its sentence prints it as given: 3, not 3.0 (SPEC2)
+    return table, column, rule, (int(lim) if lim.is_integer() and abs(lim) < 2**53 else lim)
 
 
 def run_program(table: str, column: str, rule: str, limit: float) -> dict:
@@ -558,8 +559,14 @@ def _base(h) -> str:
     return tasks.public_base(h._base())
 
 
-def _html(h, code: int, text: str, cache: str = "no-store") -> None:
-    h._send(code, text.encode("utf-8"), "text/html; charset=utf-8", {"Cache-Control": cache})
+def _html(h, code: int, text: str, cache: str = "no-store", lang: str = "en") -> None:
+    # the page's language follows ?lang= or Accept-Language (U7 R17), so a cache keeps one copy per language
+    h._send(code, text.encode("utf-8"), "text/html; charset=utf-8", {"Cache-Control": cache, "Vary": "Accept-Language", "Content-Language": lang})
+
+
+def _lang(h, qs) -> str:
+    """The language of a tool or result page: ?lang=, else the browser's Accept-Language, else English (H3 a)."""
+    return tool_page.pick((qs or {}).get("lang", [""])[0], h.headers.get("Accept-Language"))
 
 
 def _elsewhere(h) -> str | None:
@@ -581,24 +588,38 @@ def handle_get(h, state, u, qs) -> bool:
     if m:
         t = tool(m.group(1))
         if t is None:
-            return _html(h, 404, tool_page.missing(FRONT)) or True
+            return _html(h, 404, tool_page.missing(FRONT, _lang(h, qs)), lang=_lang(h, qs)) or True
         if not m.group(2):
             return h._send(301, b"", "text/plain", {"Location": f"/t/{t['id']}/" + (f"?{u.query}" if u.query else "")}) or True
         bump("tools_opened", _marked(h, qs))
-        return _html(h, 200, tool_page.page(t, _base(h), front=FRONT)) or True
+        return _html(h, 200, tool_page.page(t, _base(h), front=FRONT, lang=_lang(h, qs)), lang=_lang(h, qs)) or True
+    m = re.fullmatch(r"/r/([A-Za-z0-9_-]{12})/(mark|qr\.png|print)", p)
+    if m:                                                # H3 c and d: knos_wanted.result_extras
+        from . import result_extras as rx
+        rec = load_result(m.group(1))
+        if rec is None:
+            return _html(h, 404, tool_page.missing(FRONT)) or True
+        url, title, line = rx.address(_base(h), rec["id"]), (tool(rec["tool"]) or {}).get("title", TITLE), first_sentence(rec["result"])
+        if m.group(2) == "mark":
+            return h._send(200, rx.mark(title, line, url).encode("utf-8"), "text/html; charset=utf-8", rx.MARK_HEADERS) or True
+        if m.group(2) == "print":
+            return h._send(200, rx.print_page(title, line, url, f"/r/{rec['id']}/qr.png").encode("utf-8"),
+                           "text/html; charset=utf-8", rx.PRINT_HEADERS) or True
+        return h._send(200, rx.qr_png(url), "image/png", rx.QR_HEADERS) or True
     m = re.fullmatch(r"/r/([A-Za-z0-9_-]{12})(/?)", p)
     if m:
         rec = load_result(m.group(1))
         if rec is None and not m.group(2):
             return False                                 # /r/<code> with no slash: a referral link (product_routes)
         if rec is None:
-            return _html(h, 404, tool_page.missing(FRONT)) or True
+            return _html(h, 404, tool_page.missing(FRONT, _lang(h, qs)), lang=_lang(h, qs)) or True
         if not m.group(2):
             return h._send(301, b"", "text/plain", {"Location": f"/r/{rec['id']}/" + (f"?{u.query}" if u.query else "")}) or True
         why = _elsewhere(h)
         if why:
             bump(why, _marked(h, qs))
-        return _html(h, 200, tool_page.page(tool(rec["tool"]) or tool(TOOL_ID), _base(h), shape(rec, _base(h)), front=FRONT)) or True
+        return _html(h, 200, tool_page.page(tool(rec["tool"]) or tool(TOOL_ID), _base(h), shape(rec, _base(h)), front=FRONT,
+                                            lang=_lang(h, qs)), lang=_lang(h, qs)) or True
     m = re.fullmatch(r"/og/(t|r)/([A-Za-z0-9_-]{1,40})\.png", p)
     if m:
         if m.group(1) == "t":

@@ -1,0 +1,19 @@
+{
+ "claim": "limit-check",
+ "job_id": "job-1116141254",
+ "release_tx": "98aGZMUckf21Xn2ZWojJ3iD7wZJZcGWxjBZowZz362px",
+ "release_url": "https://testnet.nearblocks.io/txns/98aGZMUckf21Xn2ZWojJ3iD7wZJZcGWxjBZowZz362px",
+ "post_tx": "G1DykWaCSMECdA9byZfS9HxGf5Wpoowc36C1ehjfARBR",
+ "built_by": "agent-a2.knos-swarm-1105.testnet",
+ "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017 on NEAR AI Cloud",
+ "model_calls": 2,
+ "model_call_ids": [
+  "chatcmpl-9632a2ba-41fb-4b0c-bf45-33e04cffa2e3",
+  "chatcmpl-b668e95b-2ee7-444a-8496-9ee949007536"
+ ],
+ "posted_at": 1794838342.86295,
+ "paid_at": 1794838426.609725,
+ "posting_to_release_s": 83.7,
+ "sha256": "302f5ebceccce0021f63c2e6ebd533fc873e4db27f0735aa69a13ab8380652b7",
+ "code_from": "https://knos.onrender.com/api/near/claim/code?claim=limit-check"
+}

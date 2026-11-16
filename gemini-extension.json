@@ -1,7 +1,7 @@
 {
   "name": "knos",
   "version": "0.4.1",
-  "description": "Knos carries research across the valley of death.",
+  "description": "The goal: Knos carries research across the valley of death.",
   "mcpServers": {
     "knos": {
       "command": "uvx",

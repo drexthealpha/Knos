@@ -4,7 +4,7 @@ Part of Knos: the Solana side (the Colosseum entry); Knos also runs claim proofs
 
 The goal: Knos turns any research into a product billions of people use, in days, not years.
 
-Knos carries research across the valley of death, toward Kardashev II and III.
+The goal: Knos carries research across the valley of death, toward Kardashev II and III.
 
 A referee is a GitHub repository of yours that runs a work order's checks again and asks GitHub to sign the result.
 1. [Make an empty repository](https://github.com/new?name=knos-judge&visibility=public&owner=@me) in your own account and add its one file, [`knos-attest.yml`](../knos-attest.yml) (the same as [`templates/knos-attest`](../../templates/knos-attest)), as `.github/workflows/knos-attest.yml`: `python -m knos.host_judge editor <you>/knos-judge` prints the link that opens GitHub's editor with it filled in. It needs no secret, wallet or key.

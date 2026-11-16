@@ -84,7 +84,7 @@ README_FIRST = "Knos locks a test before any work starts, and test money moves t
 def test_every_description_is_a_sentence_of_facts_json():
     facts = json.loads((ROOT / "docs" / "facts.json").read_text(encoding="utf-8"))
     said = {facts["sentence"], facts["registry_sentence"], facts["l1"], facts["l1"] + " " + facts["l2"]}
-    said |= {README_FIRST + " The goal: " + facts["l1"]}                                  # pyproject: what Knos does, then the goal
+    said |= {README_FIRST + " " + facts["l1"]}                                  # pyproject: what Knos does, then the goal
     pyproject = re.search(r'(?m)^description = "(.*)"$', (ROOT / "pyproject.toml").read_text(encoding="utf-8")).group(1)
     npm = json.loads((ROOT / "sdk" / "settle" / "package.json").read_text(encoding="utf-8"))["description"]
     server = json.loads((ROOT / "server.json").read_text(encoding="utf-8"))["description"]

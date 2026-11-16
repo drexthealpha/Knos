@@ -1,8 +1,8 @@
 # knos-pay-interface
 
-Knos turns any research into a product billions of people use, in days, not years.
+The goal: Knos turns any research into a product billions of people use, in days, not years.
 
-Knos carries research across the valley of death, toward Kardashev II and III.
+The goal: Knos carries research across the valley of death, toward Kardashev II and III.
 
 Fund, top up, refund and read a Knos work order from another Solana program.
 

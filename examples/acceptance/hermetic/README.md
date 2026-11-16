@@ -2,7 +2,7 @@
 
 The goal: Knos turns any research into a product billions of people use, in days, not years.
 
-Knos carries research across the valley of death, toward Kardashev II and III.
+The goal: Knos carries research across the valley of death, toward Kardashev II and III.
 
 This folder is not a fourth task. It shows what to add to any black-box bundle (the three beside it, or one made by
 `knos accept init`) so that the pull request's code runs in a container, and so that either party can run the referee

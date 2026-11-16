@@ -35,6 +35,7 @@ COPY --chown=app near/scripts/near_counters.py /app/near/scripts/
 COPY --chown=app near/claims/claims.json near/claims/usdc_market.json /app/near/claims/
 COPY --chown=app near/balances.json /app/near/
 COPY --chown=app scripts/near_balances.py /app/scripts/
+COPY --chown=app web/i18n /app/web/i18n
 RUN chown -R app /app/near
 USER app
 ENV KNOS_NEAR_ROOT=/app HOST=0.0.0.0 PORT=8080 KNOS_WANTED_CACHE=/data/qloo-mcp KNOS_WANTED_STATE=/data/state KNOS_WANTED_RECORD=/data/record \

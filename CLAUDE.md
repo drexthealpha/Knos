@@ -1,6 +1,6 @@
 # Knos for contributors
 
-Knos carries research across the valley of death.
+The goal: Knos carries research across the valley of death.
 NEAR testnet and Solana devnet only; test units, never real money.
 
 ## Layout

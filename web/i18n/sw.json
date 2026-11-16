@@ -1,0 +1,249 @@
+{
+ "_meta": {
+  "lang": "sw",
+  "name": "Kiswahili",
+  "dir": "ltr",
+  "status": "machine translated, not reviewed by a native speaker",
+  "translated_by": "a language model (machine translation)",
+  "reviewed_by": "",
+  "tier": "B (U7 R32: no published human score for current models; a full edit by a native speaker is needed)",
+  "same": [
+   "rs.sep"
+  ],
+  "same_why": "strings written the same as in English because they are the right words in this language (or a separator)"
+ },
+ "strings": {
+  "lang.label": "Lugha",
+  "menu": "Menyu",
+  "goal": "Lengo: Knos igeuze utafiti wowote kuwa bidhaa inayotumiwa na mabilioni ya watu, kwa siku, si kwa miaka.",
+  "nav.claims": "Madai",
+  "nav.papers": "Makala",
+  "nav.builders": "Wajenzi",
+  "nav.labs": "Maabara",
+  "nav.prs": "Maombi ya kuunganisha",
+  "nav.pricing": "Bei",
+  "nav.status": "Hali",
+  "nav.source": "Msimbo chanzo",
+  "nav.privacy": "Faragha",
+  "foot.door": "Pesa za majaribio, bado hakuna wateja.",
+  "foot.pages": "Pesa za majaribio tu, bado hakuna wateja.",
+  "door.title": "Knos: kagua faili ya majaribio dhidi ya kikomo",
+  "door.headline": "Unaweza kufanya nini na Knos?",
+  "tool.title": "Kagua faili ya majaribio dhidi ya kikomo",
+  "tool.line": "Kwa yeyote anayejaribu betri, mota, vipuri au mashine.",
+  "tool.sample_made_up": "Mfano: jaribio la betri la kubuni",
+  "tool.sample_nasa": "Mfano: jaribio la betri la NASA",
+  "tool.choose_file": "Chagua faili",
+  "tool.paste": "Au bandika jedwali",
+  "tool.which": "Safu wima ipi?",
+  "tool.rule_label": "Kanuni",
+  "tool.limit_label": "Kikomo",
+  "rule.above": "lazima ibaki juu ya",
+  "rule.below": "lazima ibaki chini ya",
+  "tool.try": "Jaribu",
+  "tool.checking": "Inakagua",
+  "tool.lim_rows": {
+   "one": "Hadi safu {n}.",
+   "other": "Hadi safu {n}."
+  },
+  "tool.lim_secs": {
+   "one": "Ukaguzi husimama baada ya sekunde {n}.",
+   "other": "Ukaguzi husimama baada ya sekunde {n}."
+  },
+  "work.sending": "Inatuma faili yako kwa Knos",
+  "work.sending_pct": "Inatuma faili yako kwa Knos: {p}%",
+  "work.checking": "Inakagua faili yako kwenye seva ya Knos",
+  "work.waking": "Inasubiri seva ya Knos, ambayo huenda inaamka",
+  "work.still": "Bado inasubiri matokeo kutoka seva ya Knos",
+  "work.secs": "{what}, sek {n}",
+  "stop": "Simamisha",
+  "err.empty": "Faili yako iko tupu, kwa hiyo sina cha kukagua bado. Chagua faili au bandika jedwali, kisha bonyeza Jaribu.",
+  "err.limit": "Nahitaji kikomo kama namba, kwa mfano 1.4, kabla sijakagua faili yako. Tafadhali iandike, kisha bonyeza Jaribu.",
+  "err.stopped": "Nimesimamisha ukaguzi. Faili yako bado iko kwenye kisanduku, kwa hiyo unaweza kuibadilisha au kujaribu tena.",
+  "err.reach": "Sikuweza kufikia seva ya Knos. Huenda inaamka. Faili yako bado iko kwenye kisanduku; bonyeza Jaribu tena baada ya muda mfupi.",
+  "err.none": "Sikuweza kupata matokeo kutoka seva ya Knos sasa hivi. Faili yako bado iko kwenye kisanduku; bonyeza Jaribu tena baada ya muda mfupi.",
+  "err.too_big": {
+   "one": "Faili yako ni kubwa mno. Kikomo ni safu {n}. Nimeiweka faili yako kwenye kisanduku; jaribu fupi zaidi.",
+   "other": "Faili yako ni kubwa mno. Kikomo ni safu {n}. Nimeiweka faili yako kwenye kisanduku; jaribu fupi zaidi."
+  },
+  "err.too_long": {
+   "one": "Hii ilichukua muda mrefu mno ikasimamishwa. Jaribu faili ndogo zaidi. Niliisimamisha baada ya sekunde {n} na nikaiweka faili yako kwenye kisanduku.",
+   "other": "Hii ilichukua muda mrefu mno ikasimamishwa. Jaribu faili ndogo zaidi. Niliisimamisha baada ya sekunde {n} na nikaiweka faili yako kwenye kisanduku."
+  },
+  "err.not_ready": "Siwezi kukagua faili bado, kwa sababu programu ya zana hii haijafaulu jaribio linaloamua kama inafanya kazi. Tafadhali jaribu tena baadaye.",
+  "err.bad": "Sikuweza kusoma faili yako kwa mipangilio hii. Angalia safu wima na kikomo; faili yako bado iko kwenye kisanduku.",
+  "btn.retry": "Jaribu tena",
+  "btn.smaller": "Jaribu faili ndogo zaidi",
+  "btn.type_limit": "Andika kikomo",
+  "btn.back": "Rudi kwenye faili yangu",
+  "res.private": "Ni watu wenye kiungo hiki tu wanaoweza kuiona.",
+  "res.shown_by": "Imekaguliwa na jaribio la faili 7 zenye majibu yanayojulikana.",
+  "res.mine": "Tumia data yangu",
+  "res.copy": "Nakili kiungo",
+  "res.copied": "Imenakiliwa",
+  "res.by_hand": "Sikuweza kunakili kiungo. Hiki hapa, ukinakili mwenyewe:",
+  "res.link_label": "Kiungo cha matokeo",
+  "res.count_q": "Tuhesabu ziara zako ili kusaidia kuboresha Knos?",
+  "yes": "Ndiyo",
+  "no": "Hapana",
+  "res.runs_left": {
+   "one": "Imebaki ukaguzi {n}",
+   "other": "Imebaki ukaguzi {n}"
+  },
+  "res.free_left": {
+   "one": "Leo umebaki na ukaguzi {n} wa bure",
+   "other": "Leo umebaki na ukaguzi {n} wa bure"
+  },
+  "chart.label": "Chati ya thamani pamoja na kikomo",
+  "chart.label_fail": "Chati ya thamani pamoja na kikomo, safu ya kwanza iliyoshindwa imewekwa alama",
+  "chart.row": "Safu {r}",
+  "rs.sep": " ",
+  "rs.fail_above": "Imeshindwa kwenye safu {r}: {value} si juu ya {limit}.",
+  "rs.fail_below": "Imeshindwa kwenye safu {r}: {value} si chini ya {limit}.",
+  "rs.before": {
+   "one": "Ilifaulu kwa safu {n} iliyotangulia.",
+   "other": "Ilifaulu kwa safu {n} zilizotangulia."
+  },
+  "rs.pass_above": {
+   "one": "Imefaulu: safu {n} inabaki juu ya {limit}.",
+   "other": "Imefaulu: safu zote {n} zinabaki juu ya {limit}."
+  },
+  "rs.pass_below": {
+   "one": "Imefaulu: safu {n} inabaki chini ya {limit}.",
+   "other": "Imefaulu: safu zote {n} zinabaki chini ya {limit}."
+  },
+  "rs.skipped": {
+   "one": "Safu {n} imerukwa kwa sababu si namba.",
+   "other": "Safu {n} zimerukwa kwa sababu si namba."
+  },
+  "pay.headline": {
+   "one": "Ukaguzi {n} zaidi kwa {price} za pesa za majaribio",
+   "other": "Ukaguzi {n} zaidi kwa {price} za pesa za majaribio"
+  },
+  "pay.line": "Leo hizi ni pesa za majaribio. Hakuna kinachotozwa.",
+  "pay.go": "Lipa kwa pesa za majaribio",
+  "pay.not_now": "Si sasa",
+  "pay.confirm": {
+   "one": "Hii inarekodi malipo ya majaribio ya {price} kwa ukaguzi {n} zaidi. Hakuna kinachotozwa.",
+   "other": "Hii inarekodi malipo ya majaribio ya {price} kwa ukaguzi {n} zaidi. Hakuna kinachotozwa."
+  },
+  "pay.yes": "Ndiyo, rekodi",
+  "pay.recording": "Inarekodi malipo ya majaribio",
+  "pay.error": "Sikuweza kurekodi malipo ya majaribio sasa hivi. Hakuna kilichotozwa. Bonyeza Ndiyo, rekodi tena baada ya muda mfupi.",
+  "how": "Jinsi inavyofanya kazi",
+  "q.get": "Unachopata",
+  "q.next": "Cha kufanya baadaye",
+  "q.pay": "Unacholipa",
+  "q.why": "Kwa nini uamini hili",
+  "q.who": "Nani anawajibika",
+  "a.tool.get": "Sentensi moja inayotaja safu ya kwanza inayovunja kikomo chako, au inayosema safu zote zimefaulu, pamoja na chati na kiungo chake.",
+  "a.tool.next": "Bonyeza Jaribu ili kukagua mfano. Kwa faili yako mwenyewe, bonyeza Tumia data yangu kisha ujaze visanduku vyake vitatu.",
+  "a.res.get": "Matokeo haya: sentensi na chati hapo juu, yamehifadhiwa kwenye kiungo cha ukurasa huu. Matokeo ya mfano ni ya umma; ya faili yako hayaorodheshwi.",
+  "a.res.next": "Bonyeza Nakili kiungo kushiriki matokeo haya, au Tumia data yangu kukagua faili yako.",
+  "a.pay": {
+   "one": "Mfano ni bure. Faili zako: ukaguzi {free} wa bure kwa siku, kisha {price} za pesa za majaribio kwa {n} zaidi, unalipa wewe baada ya kuthibitisha.",
+   "other": "Mfano ni bure. Faili zako: ukaguzi {free} wa bure kwa siku, kisha {price} za pesa za majaribio kwa {n} zaidi, unalipa wewe baada ya kuthibitisha."
+  },
+  "a.why_released": {
+   "one": "Jaribio la umma la faili 7 zenye majibu yanayojulikana lilifaulu kabla ya kutolewa; kikaguzi cha Knos kiliendesha. Halijajaribiwa: faili zaidi ya safu {n}.",
+   "other": "Jaribio la umma la faili 7 zenye majibu yanayojulikana lilifaulu kabla ya kutolewa; kikaguzi cha Knos kiliendesha. Halijajaribiwa: faili zaidi ya safu {n}."
+  },
+  "a.why_unreleased": {
+   "one": "Jaribio la umma la faili 7 zenye majibu yanayojulikana lazima lifaulu kabla ya kutolewa; kikaguzi cha Knos huliendesha. Halijajaribiwa: faili zaidi ya safu {n}.",
+   "other": "Jaribio la umma la faili 7 zenye majibu yanayojulikana lazima lifaulu kabla ya kutolewa; kikaguzi cha Knos huliendesha. Halijajaribiwa: faili zaidi ya safu {n}."
+  },
+  "a.tool.who": "Knos inaendesha zana hii na jaribio lake. Hakuna tarehe iliyopangwa ya sasisho lijalo. Kupinga matokeo, <a href=\"{issues}\">fungua issue kwenye GitHub</a>.",
+  "a.price.get": {
+   "one": "Ukaguzi {n} zaidi wa zana kwenye faili zako, baada ya ukaguzi wako {free} wa bure wa siku kutumika.",
+   "other": "Ukaguzi {n} zaidi wa zana kwenye faili zako, baada ya ukaguzi wako {free} wa bure wa siku kutumika."
+  },
+  "a.price.next": "Tumia zana. Ukaguzi wa bure ukiisha, itaonyesha Lipa kwa pesa za majaribio; ibonyeze, kisha uthibitishe.",
+  "a.price.pay": {
+   "one": "{price} za pesa za majaribio kwa ukaguzi {n}, unalipa wewe mara moja baada ya kuthibitisha. Leo hakuna kinachotozwa; hakuna kadi wala akaunti inayohitajika.",
+   "other": "{price} za pesa za majaribio kwa ukaguzi {n}, unalipa wewe mara moja baada ya kuthibitisha. Leo hakuna kinachotozwa; hakuna kadi wala akaunti inayohitajika."
+  },
+  "a.price.why": "Hakuna utafiti ulioweka bei hizi. Ni thamani za kuanzia za kujaribiwa, kila moja imewekwa alama hiyo kwenye <a href=\"{url}\">faili ya bei</a> ya umma.",
+  "a.price.who": "Knos inaweka bei hizi na kurekodi kila malipo ya majaribio kwenye seva yake. Kupinga moja, <a href=\"{issues}\">fungua issue kwenye GitHub</a>.",
+  "fold.sample_made_up": {
+   "one": "Mfano huu ni wa kubuni: mstari ulionyooka kutoka {first} hadi {last} kwa mzunguko {n}, kwa sababu ukurasa wa NASA hautoi upakuaji kutoka anwani ya nasa.gov. Kikomo chake, {limit}, ni kanuni ya mwisho wa uhai kwenye <a href=\"{url}\">ukurasa wa data ya betri wa NASA</a>.",
+   "other": "Mfano huu ni wa kubuni: mstari ulionyooka kutoka {first} hadi {last} kwa mizunguko {n}, kwa sababu ukurasa wa NASA hautoi upakuaji kutoka anwani ya nasa.gov. Kikomo chake, {limit}, ni kanuni ya mwisho wa uhai kwenye <a href=\"{url}\">ukurasa wa data ya betri wa NASA</a>."
+  },
+  "fold.sample_nasa": "Data ya mfano: <a href=\"{url}\">NASA Prognostics Center of Excellence</a>.",
+  "fold.not_do": "Inakagua safu wima moja dhidi ya kikomo kimoja. Haiamui kama kikomo ndicho sahihi. Safu ambayo thamani yake si namba inarukwa na kuhesabiwa.",
+  "fold.file": "Faili yako inakwenda kwenye seva ya Knos, inayoikagua na kuihifadhi pamoja na ukurasa wa matokeo yake, ili kiungo kifanye kazi. Matokeo ya mfano yanaweza kufunguliwa na yeyote. Faili yako mwenyewe inaweza kufunguliwa tu na wenye kiungo chake, na haiorodheshwi kamwe. Seva huhifadhi matokeo hadi itakapojengwa upya tu, kwa hiyo kiungo kinaweza kuacha kufanya kazi.",
+  "fold.test": {
+   "one": "Jaribio lililoonyesha kuwa inafanya kazi linakagua faili sita za kubuni zenye majibu yanayojulikana na mfano. Halikushughulikia faili ndefu kuliko safu {n}, wala faili zilizotenganishwa kwa kitu kingine zaidi ya koma. <a href=\"{url}\">Jaribio</a> ni la umma.",
+   "other": "Jaribio lililoonyesha kuwa inafanya kazi linakagua faili sita za kubuni zenye majibu yanayojulikana na mfano. Halikushughulikia faili ndefu kuliko safu {n}, wala faili zilizotenganishwa kwa kitu kingine zaidi ya koma. <a href=\"{url}\">Jaribio</a> ni la umma."
+  },
+  "fold.price": {
+   "one": "Ukaguzi wa mfano ni bure. Kwa faili yako mwenyewe: {free} bure kwa siku, kisha ukaguzi {n} zaidi kwa {price} za pesa za majaribio. Leo hakuna kinachotozwa.",
+   "other": "Ukaguzi wa mfano ni bure. Kwa faili yako mwenyewe: {free} bure kwa siku, kisha ukaguzi {n} zaidi kwa {price} za pesa za majaribio. Leo hakuna kinachotozwa."
+  },
+  "fold.built_released": "Aliyeijenga: wasaidizi wa AI waliandika programu kupitia Knos, na ilitolewa tu jaribio hilo lilipofaulu. <a href=\"{url}\">Rekodi ya umma</a>.",
+  "fold.built_unreleased": "Anayeijenga: wasaidizi wa AI huandika programu kupitia Knos, na hutolewa tu jaribio hilo linapofaulu. Bado haijatolewa.",
+  "fold.listen": "Sikiliza",
+  "fold.embed": "Onyesha hili kwenye tovuti yako",
+  "fold.embed_label": "Mstari mmoja wa HTML wa kunakili kwenye tovuti yako",
+  "fold.print": "Chapisha",
+  "fold.mt": "Ukurasa huu umetafsiriwa na mashine na haujakaguliwa na mzungumzaji asilia.",
+  "fold.original": "Maneno ya programu yenyewe, kwa Kiingereza: {text}",
+  "embed.title": "Matokeo ya Knos",
+  "ask.h": "Uliza chochote kuhusu utafiti",
+  "ask.label": "Swali lako",
+  "ask.ph": "Swali au kiungo cha makala",
+  "ask.go": "Uliza",
+  "ask.speak": "Ongea",
+  "ask.listening": "Inasikiliza",
+  "ask.sample": "Swali la mfano",
+  "ask.cost": "Kukagua makala moja kwa mkono: {low} hadi {high} (<a href=\"{url}\">Perignon, akimnukuu Colliard</a>).",
+  "ask.reading_near": "Inasoma NEAR testnet...",
+  "ask.closest": "Dai lililothibitishwa lililo karibu zaidi (si swali lako hasa):",
+  "ask.holds_near": "Linasimama",
+  "ask.holds": "Ndiyo, dai linasimama",
+  "ask.fails": "Hapana, dai halisimami",
+  "ask.not_yet": "Bado halijathibitishwa",
+  "ask.proved": "Limethibitishwa na jaribio lililofungwa kabla kazi yoyote haijaanza.",
+  "ask.locked": "Jaribio lake hufungwa kabla kazi yoyote haijaanza.",
+  "ask.behind": "{amount} test USDC kutoka kwa watu nje ya Knos wiki hii",
+  "ask.prove": "Thibitisha mwenyewe",
+  "ask.claim": "Dai",
+  "ask.none": "Bado hakuna kilichothibitishwa kinacholingana",
+  "ask.none_line": {
+   "one": "Knos imethibitisha dai {n} kwenye NEAR testnet; hakuna linalohusu \"{q}\". Uliza kuhusu mojawapo, au weka kiungo cha makala.",
+   "other": "Knos imethibitisha madai {n} kwenye NEAR testnet; hakuna linalohusu \"{q}\". Uliza kuhusu mojawapo, au weka kiungo cha makala."
+  },
+  "ask.notwhat": "Si ninachohitaji",
+  "ask.why": "Kwa nini, kwa neno moja? (si lazima)",
+  "ask.why_label": "Kwa nini, kwa neno moja",
+  "ask.thanks": "Asante.",
+  "ask.noted": "Imeandikwa.",
+  "ask.reading_paper": "Inasoma makala... sek {s}",
+  "ask.not_read": "Haijasomwa",
+  "ask.no_answer": "Seva ya Knos haikujibu, kwa hiyo makala haikusomwa. Huenda inaamka.",
+  "ask.cannot": "Knos bado haiwezi kuthibitisha makala hii",
+  "ask.person": "Leo mtu huikagua: {checker}. Bei: {price_text}. Muda: {time}.",
+  "ask.someone": "mtu anayeiendesha tena",
+  "ask.unpublished": "haijachapishwa",
+  "ask.source": "Chanzo",
+  "price.title": "Bei za Knos",
+  "price.h": "Bei",
+  "price.sample_free": "Ukaguzi wa mfano ni bure.",
+  "price.own": "Ukaguzi wa faili yako mwenyewe",
+  "price.free_day": {
+   "one": "{n} bure kwa siku, katika kila kivinjari",
+   "other": "{n} bure kwa siku, katika kila kivinjari"
+  },
+  "price.after": "Baada ya hapo",
+  "price.f1": "Hakuna utafiti uliotoa bei hizi. Ni thamani za kuanzia za kujaribiwa, na kila moja iko kwenye <a href=\"{url}\">faili ya bei</a> ikiwa na alama hiyo.",
+  "price.f2": "Ukaguzi wako wa bure ukiisha, zana huonyesha skrini moja yenye bei. Kubonyeza Lipa kwa pesa za majaribio kunarekodi malipo ya majaribio kwenye seva ya Knos yenyewe. Hakuna kadi wala akaunti inayohitajika.",
+  "price.f3": "Ada za kukagua dai la makala ziko kwenye <a href=\"{url}\">ukurasa wake</a>.",
+  "nf.title": "Haikupatikana",
+  "nf.h": "Siwezi kupata ukurasa huu",
+  "nf.p": "Sina chochote kwenye anwani hii. Huenda matokeo yalifutwa seva ya Knos iliposasishwa.",
+  "nf.link": "Fungua zana ya Knos na ukague faili",
+  "res.cut": {
+   "one": "Inaonyesha mistari {shown} ya kwanza kati ya {n}.",
+   "other": "Inaonyesha mistari {shown} ya kwanza kati ya {n}."
+  }
+ }
+}

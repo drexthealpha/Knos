@@ -4,7 +4,7 @@ Part of Knos: the Solana side (the Colosseum entry); Knos also runs claim proofs
 
 The goal: Knos turns any research into a product billions of people use, in days, not years.
 
-Knos carries research across the valley of death, toward Kardashev II and III.
+The goal: Knos carries research across the valley of death, toward Kardashev II and III.
 
 A program that writes one record, `["build", program, executable hash]`, only when GitHub signed that one build
 workflow, on `main` or a release tag, on a GitHub-hosted runner, built exactly those bytes. `knos-oidc` checks

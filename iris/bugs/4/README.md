@@ -1,6 +1,6 @@
 # Embedded Python: iris.sql.exec with an int past 64 bits fails with SystemError
 
-Knos carries research across the valley of death, toward Kardashev II and III.
+The goal: Knos carries research across the valley of death, toward Kardashev II and III.
 
 Build: `IRIS for UNIX (Ubuntu Server LTS for x86-64 Containers) 2026.3.0AI (Build 154U)`, Python 3.12.3.
 

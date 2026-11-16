@@ -4,7 +4,7 @@ Part of Knos: the Solana side (the Colosseum entry); Knos also runs claim proofs
 
 The goal: Knos turns any research into a product billions of people use, in days, not years.
 
-Knos carries research across the valley of death, toward Kardashev II and III.
+The goal: Knos carries research across the valley of death, toward Kardashev II and III.
 
 `knos-oidc` verifies an RS256 token whoever signed it. Each folder here is one issuer: the documented way to get a
 token there, the claims it signs, which of them a program can gate on, the call that registers its key, and the lines

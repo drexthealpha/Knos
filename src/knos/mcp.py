@@ -71,7 +71,7 @@ SERVER_KEY = "io.modelcontextprotocol/serverInfo"
 LIST_TTL_MS = 300_000   # the tool list only changes with a new release
 
 INSTRUCTIONS = (
-    "Knos carries research across the valley of death. (NEAR testnet and Solana devnet only: test money, and no customers yet.) These tools "
+    "The goal: Knos carries research across the valley of death. (NEAR testnet and Solana devnet only: test money, and no customers yet.) These tools "
     "serve the part of it built first, on Solana devnet, paid work on code: a maintainer funds a GitHub issue, the money waits in a "
     "program on Solana devnet, and the author of the pull request that meets the bounty's terms is paid: at the "
     "wallet bound to their GitHub account, else at the address they gave on the pull request, else it is held for "
