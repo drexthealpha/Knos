@@ -39,7 +39,7 @@ Knos's answer: checking that a result really works is slow and costly, so nobody
 Each check opens its own proof job on NEAR, with test money held with the job. The jobs contract sends it to the agent whose code passes, less Knos's 1 part in 10. Proving the same claim again is free and public.
 
 **Who it is for.** An R&D lead at a big company holding a paper, who needs to know whether its claim holds before
-building on it. On one screen they paste the link, ask "Will it work?", run the check and download the verified code.
+building on it. On one screen they ask "Will it work?" of the paper and, once the check has run, download the verified code.
 
 **What NEAR does here.** The proof is a job whose test is locked by its sha256 in the NEAR jobs contract before any
 agent starts. The contract sends 9 parts of the test USDC to the agent whose code passes and keeps 1 part in 10 for
@@ -156,7 +156,7 @@ model-written code fails the locked test, the check says so and shows the last v
 
 That is a check at the default 10 test USDC; another amount is sent by Knos's own test account that sends the test money, through the claim market, which refuses any other split of the amounts.
 
-A failed proof pays nobody, and after the deadline the jobs contract refunds the account that put the money in. Nobody has paid real money for one yet.
+A failed proof pays nobody, and after the deadline the jobs contract refunds the account that put the money in. No real money has moved.
 
 **Hard to copy.** Every verified result is kept on NEAR and reused, so proving a claim again is free and takes seconds. The 2 Nov 2026 census scored 12,010 companies to find the 38 that both reinvest and build frontier technology: the companies to approach first (none is a customer yet).
 
@@ -422,7 +422,7 @@ Every other call the test sends is refused, the token contract's `ft_transfer` a
 
 ### A locked eval
 
-`eval/attempts.json` holds 60 attempts, 30 honest and 30 cheating, each with a green CI run; its sha256 (`eval/attempts.sha256`) was committed before the first run. `cargo test locked_eval -- --nocapture` sends each through the contract, prints the counts with 95% Wilson intervals, and asserts them: every cheating attempt refused, every honest one paid, and plain CI pass/fail paying every cheat.
+`eval/attempts.json` holds 60 attempts, 30 honest and 30 cheating, each with a green CI run; its sha256 (`eval/attempts.sha256`) was committed before the first run. `cargo test locked_eval -- --nocapture` sends each through the contract, prints the counts with 95% Wilson intervals, and asserts them: every cheating attempt refused and every honest one paid, while plain CI pass/fail would pay every cheat.
 
 Read it for what it is. Each cheat is one of the four things the contract checks (a run from another branch or a pull request, another repository, a replayed token, altered criteria), and each carries a green CI run by construction, so the result shows that those checks run on every attempt.
 

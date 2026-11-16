@@ -2,7 +2,8 @@
 
 A chain is public and permanent. Nothing written to it can be erased or corrected, and anyone can read it without
 asking. This page says, for each way of using Knos, what a stranger can learn, so a buyer can decide before the
-first order. Everything here is on Solana devnet with test USDC.
+first order. This page covers the payment programs on Solana devnet, with test USDC; the NEAR testnet jobs contract
+is not covered here.
 
 [SECURITY.md](SECURITY.md#12-private-repositories-exactly-what-the-chain-shows), section 12, holds the same facts
 with the tests that check them.
@@ -249,11 +250,10 @@ private order, and a batch's ledger are never sent to the chain, and no Knos ser
 (section 4). What the chain holds of them is a hash, which proves correspondence and nothing more (section 5).
 
 Nothing on this page is a privacy guarantee. It lists what the command found in what the programs write today; a
-careful outsider with other data (GitHub's public activity, a wallet's other transactions, the timing of releases)
-may infer more.
+careful outsider with other data (GitHub's public activity, or a wallet's other transactions) may infer more.
 
 ## What is not done
 
-- Amounts, ids and wallets are in the clear in every mode. No confidential transfer is used.
+- Amounts, ids and wallets are in the clear in every mode. No confidential transfer is used, and nothing here has
+  been reviewed by an outside party.
 - There is no scoped or time-limited access to evidence: whoever holds a bundle or a ledger holds all of it.
-- Nothing here has been reviewed by an outside party.

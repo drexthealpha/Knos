@@ -1,7 +1,8 @@
 """Kept for its record: a page of the earlier demand-check flow (its output is now swept to a redirect).
-The page of one crossing, for the front door (web/crossing/<id>/index.html): the demand behind it, the hashed Ready
-brief (the hash recomputed here from the brief the project holds), each pre-order held on devnet, the check that
-counted them, and each release with what released it, read from its own transaction. Static: it asks nothing when read.
+It wrote the page of one crossing for the earlier front door (web/crossing/<id>/index.html): the demand behind it, the
+hashed Ready brief (the hash recomputed here from the brief the project holds), each pre-order held on devnet, the
+check that counted them, and each release with what released it, read from its own transaction. Static: it asked
+nothing when read.
 
     python scripts/crossing_page.py <project id> [--check]
 """

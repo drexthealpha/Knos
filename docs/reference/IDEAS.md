@@ -1,11 +1,11 @@
-# Idea in, then wanted? (steps 1 and 2 of the one flow)
+# Idea in, then wanted? (the `knos idea` commands)
 
-Research dies in the valley of death on three walls: money comes before proof, referees are slow, and single attempts
-fail. Every crossing started with two steps, in every field of science:
+Built in October 2026, before the NEAR entry (the current flow, [NEAR.md](NEAR.md)), and still working: two steps
+that turn a research claim into a record and test whether anyone wants it.
 
 1. **Idea in.** An idea from anyone: a person, a game player, an AI agent, or a claim found in a research source.
    It becomes one Claim record that every later step reads.
-2. **Wanted? (wall 1).** Demand evidence, then money a buyer sets aside for each stage, released when the stage's
+2. **Wanted?** Demand evidence, then money a buyer sets aside for each stage, released when the stage's
    check passes, and returned where a milestone is missed.
 
 Code: `src/knos/ideas/` (`knos idea ...` on the command line; six read-only `knos mcp` tools, listed when the operator sets `KNOS_MCP_TOOLS=ideas`, so the default tool list is unchanged).

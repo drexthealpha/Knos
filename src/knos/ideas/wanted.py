@@ -1,4 +1,4 @@
-"""Wanted? Step 2 of the one flow, wall 1: demand evidence, then a buyer's test money locked for the product and
+"""Wanted? The step after idea in (wall 1): demand evidence, then a buyer's test money locked for the product and
 released stage by stage at named milestones.
 
 Demand evidence, two kinds:

@@ -61,7 +61,7 @@ def recorded(name: str) -> dict:
 
 
 # ---- reading the chain's log ---------------------------------------------------------------------------------------
-def test_events_come_only_from_the_escrow_and_only_from_transactions_that_succeeded():
+def test_events_come_only_from_the_vault_and_only_from_transactions_that_succeeded():
     good = tx(100, "relayer", "knos:funded repo=5 issue=7 amount=50000000 mode=0 by=900", "something else")
     assert network_stats.events_of(good) == [{"event": "funded", "v": 1, "at": 100, "signer": "relayer", "keys": ["relayer", PAY1], "repo": 5,
                                              "issue": 7, "amount": 50000000, "mode": 0, "by": 900}]

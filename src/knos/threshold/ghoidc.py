@@ -1,8 +1,9 @@
 """Referee host 2 (GitHub Actions) proves who it is with a GitHub Actions OIDC token: no founder-made token anywhere.
 
 .github/workflows/referee.yml runs on a cron (every 5 minutes) and on workflow_dispatch with `permissions: id-token:
-write`. For every post to the app server it asks the runner for a fresh ID token (audience AUDIENCE) and sends it with
-the post; the app server (knos_wanted.referee) verifies it here before it accepts host 2's commitments or share:
+write`. It also has a repository_dispatch trigger (host 1 wakes it when a session opens), but EVENTS leaves that event
+out, so the posts of a run started that way are refused (docs/reference/REFEREE_FROST.md says so). For every post to
+the app server it asks the runner for a fresh ID token (audience AUDIENCE) and sends it with the post; the app server (knos_wanted.referee) verifies it here before it accepts host 2's commitments or share:
 
     RS256 under a key of GitHub's published JWKS (the issuer's discovery document -> jwks_uri)
     iss              https://token.actions.githubusercontent.com

@@ -176,10 +176,10 @@ export function parseRep(raw) {
 }
 
 // ---- who can change a program ---------------------------------------------------------------------------------------
-/** The upgrade authority in a program-data account: an address, null when the program has no upgrade authority, undefined when
- *  the bytes are not a program-data account (the program is not deployed). */
 /** The first bytes of a program's data account that upgradeAuthority reads: pass as account()'s `slice`. */
 export const PROGRAM_DATA_HEAD = { offset: 0, length: 45 };
+/** The upgrade authority in a program-data account: an address, null when the program has no upgrade authority, undefined when
+ *  the bytes are not a program-data account (the program is not deployed). */
 export function upgradeAuthority(programDataBytes) {
   if (!programDataBytes || programDataBytes.length < 45 || programDataBytes[0] !== 3) return undefined;
   return programDataBytes[12] === 1 ? b58(programDataBytes.slice(13, 45)) : null;

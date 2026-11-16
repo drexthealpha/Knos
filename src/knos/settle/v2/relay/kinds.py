@@ -137,7 +137,7 @@ def _plan(ledger, payer: Keypair, jwt: str, terms: bytes | str | None, jwks: dic
         raise _no(t.kind, "token expired")
     handler, v = cast(Kind, _handler(t.aud)), version(ledger, payer)     # its kind is known: one handler
     if v < handler.since:
-        raise _no(t.kind, "the payment program on this cluster is version 2.0, which takes no such token yet; it will once the announced upgrade to 2.1 is live")
+        raise _no(t.kind, "the payment program on this cluster is version 2.0, which takes no such token; 2.1 and later take it")
     if handler.github:
         _github_token(t, now, handler.private)
     plan = handler.plan(_Ask(ledger, payer, me, t, now, v, terms.encode() if isinstance(terms, str) else terms, jwks))

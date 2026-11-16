@@ -82,7 +82,7 @@ Each NEAR claim with its code, its test and its testnet transaction: [near/CLAIM
 | Contracts | the jobs contract locks each test's sha256, holds the test money with the job and, after the checker's signed pass, sends 9 parts to the agent and keeps 1 part in 10 for Knos's account, in one transaction; after the deadline it refunds the account that put the money in ([one refund](https://drexthealpha.github.io/Knos/tx/?h=GdtVSaPqybHgAgDj7NkjymbAtwD3pQZ5vkeCVQKVxik9), [refused before its deadline](https://drexthealpha.github.io/Knos/tx/?h=6NeMksB6nBmaUMSNmbyYMxFdWRtwXDj6TncUWwrFN67q)); `get_totals` and `get_agent_record` count it all (a check with another amount than the default 10 test USDC is sent by Knos's own test account that sends the test money, through the claim market) | `near/contract/`, `near/market/`; accounts in [docs/reference/NEAR.md](docs/reference/NEAR.md) |
 | Agent spending rules | an agent's budget in the jobs contract refuses a spend over its cap, over its daily cap, to a payee off its allow-list, or while an owner has paused the contract, and holds a spend over its hold line until the approver releases it; each is on chain with the contract's own answer, and a solution the AI reviewer rejected for a hard-coded answer is recorded there too (`record_rejection` takes the payer's or an owner's word: it records what the reviewer said, it does not check it) | [the saved check](https://drexthealpha.github.io/Knos/prove/receipt/#rules), the receipt's "spending cap" step |
 | Private inference | NEAR AI Cloud writes and reviews agent A's code; its attestation and each answer's signature are verified, and before it pays the jobs contract recovers NEAR AI's signer with `ecrecover` and logs `model_verified` ([one release](https://drexthealpha.github.io/Knos/tx/?h=4a6KCPier4TtoSGbezHe2wLchx1dwhKSyfGmnJmS9BRD)); a check on agent A's fixed program logs "fixed rule, no model signature". The TEE attestation is checked off chain, by Knos's server; the contract checks only that the signer is one an owner added | `near/contract/src/jobs.rs`, `apps/wanted/knos_wanted/near_attest.py` |
-| Who decides a pass | Knos's checker runs the locked test off chain; the jobs contract pays only on a release token signed by the checker's key, which 2 of the 3 owners set. The checker, the test account that sends the test money and all 3 owner accounts are Knos's own | `near/contract/src/jobs.rs` (`release_job`), `near/agents/checker.py` |
+| Who decides a pass | Knos's checker runs the locked test off chain; the jobs contract pays only on a release token signed by the checker's key, which 2 of the 3 owners set. The checker and all 3 owner accounts are Knos's own, as is the test account that sends the test money | `near/contract/src/jobs.rs` (`release_job`), `near/agents/checker.py` |
 | Chain Signatures | a separate payout path, not part of the check flow: `knos-pay-1103.testnet`'s `sign_payout` had NEAR's MPC signer sign a Solana devnet payout on 3 Nov ([tx 4eJPkBn5…](https://drexthealpha.github.io/Knos/tx/?h=4eJPkBn5jiAoGGBayYKVmreHcL5nqFCLhnRD1Rw4kKUR)) | [docs/reference/NEAR.md](docs/reference/NEAR.md) |
 
 Keys, as NEAR testnet's `view_access_key_list` shows them: the jobs and claim market contracts hold none (deleted
@@ -171,7 +171,7 @@ The live run of 12 Nov, the contest task part by part, the bonuses and troublesh
 the one whose test passed. In replay mode PAY runs a devnet simulation of that payout: it proves the gate reached PAY
 and the payout path ran end to end, and no money moves.
 
-**Why I built this.** A solo founder, building Knos since 1 Sep 2026. IRIS, Docker and the build would not fit on an 8 GB laptop, so every IRIS build and test moved to one GitHub
+**Why I built this.** A solo founder, building Knos since 1 Sep 2026. IRIS and its Docker build would not fit on an 8 GB laptop, so every IRIS build and test moved to one GitHub
 Codespace ([the problems I hit](https://github.com/drexthealpha/Knos/blob/main/docs/reference/IRIS.md#problems-i-hit-and-how-i-fixed-them)).
 <!-- /entry:iris -->
 
@@ -203,3 +203,5 @@ The code as entered: https://github.com/drexthealpha/Knos/tree/v0.3.28. More: [d
 [Why](docs/WHY.md) Knos exists. The full reference: [docs/reference/NEAR.md](docs/reference/NEAR.md), [docs/reference/IRIS.md](docs/reference/IRIS.md) and
 [docs/reference/COLOSSEUM.md](docs/reference/COLOSSEUM.md). MIT licence. Built by drexthealpha, a
 solo founder.
+
+<!-- mcp-name: io.github.drexthealpha/knos -->

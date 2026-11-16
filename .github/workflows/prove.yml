@@ -16,7 +16,7 @@ name: knos prove
 #            the token, its relay and a comment on the pull request. It checks out nothing and runs none of the pull
 #            request's code.
 #            THE COMMENT IS ONE, and it carries the five states of the payment (received, accepted, submitted,
-#            confirmed, finalized; docs/reference/RELAY.md): posted when the command has found something in escrow for the pull
+#            confirmed, finalized; docs/reference/RELAY.md): posted when the command has found money held on chain for the pull
 #            request ("received"), edited when the terms hold and GitHub has signed ("accepted, settling": before the
 #            token goes to Solana), edited again when the payment lands, and once more when it is finalized. Never a
 #            new comment per state. No commit status or check is written on the merge commit: that needs

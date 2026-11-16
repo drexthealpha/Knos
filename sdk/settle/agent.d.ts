@@ -152,6 +152,7 @@ export interface Statement {
   from: number;
   to: number;
   meter: { buyers: MeterMonthRow[]; evaluations: number; accepted: number; rejected: number; value: number; fees: number };
+  /** The payments the payment program logged to the seller in the month (the field keeps its first name for callers). */
   escrow: { payments: Payment[]; paid: number; scanned: number; unread: number; complete: boolean };
   said: string;
   notes: string[];

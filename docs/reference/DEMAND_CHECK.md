@@ -173,13 +173,13 @@ the report.
 abstract with its DOI, OpenAlex `cited_by_count`, year, retraction status, Nobel recognition from
 `apps/wanted/knos_wanted/data/nobel.toml` (rows quote and link nobelprize.org press releases), and the product it enables.
 
-After the demand check, "why it never crossed" flags the three walls only with evidence: money before proof (>= 5 years,
+After the demand check, "why it never crossed" flags a wall only with evidence: money before proof (>= 5 years,
 Nobel or >= 1,000 citations, and no Qloo product for it), slow referees (an OpenAlex field or topic that is clinical or
 regulated), failed attempts (Qloo products like it with popularity < 0.3); otherwise "no evidence".
 
-## Sibyl is the agent's memory; the chain holds the money rules
+## The agent's memory; the chain holds the money rules
 
-Sibyl is the agent's working memory. Each crossing is remembered (claim `crossing:<hash of the paper id>`: when, the
+The agent keeps a working memory in Knos's memory store. Each crossing is remembered (claim `crossing:<hash of the paper id>`: when, the
 product phrase, the decision, the report). The next crossing of the same paper starts from that memory, for example by
 reusing the product phrase the maker settled on.
 
@@ -262,7 +262,7 @@ into the Knos Record.
 
 ## Record, anchor, fees
 
-| Event | Knos Record (Sibyl) | Fee line (config/fees.yaml) |
+| Event | Knos Record | Fee line (config/fees.yaml) |
 |---|---|---|
 | demand report | WARM claim `demand:<hash>` + COLD `experiment` | none: the report is free until the founder sets a price |
 | pre-order locked | COLD `funding` + the claim's new state | `funding` (0 at lock) |

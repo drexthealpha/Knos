@@ -35,10 +35,10 @@ def _prove(root, seq: int) -> dict:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="knos record", description="Knos Record: the append-only, hash-chained, devnet-anchored record.")
     sub = ap.add_subparsers(dest="cmd", required=True)
-    v = sub.add_parser("verify", help="recompute every hash and Merkle root and check them against Solana and Sibyl")
+    v = sub.add_parser("verify", help="recompute every hash and Merkle root and check them against Solana and the memory engine")
     v.add_argument("path", nargs="?", default=None)
     v.add_argument("--offline", action="store_true", help="do not read the chain; recompute only")
-    v.add_argument("--no-sibyl", action="store_true", help="do not consult Sibyl's store beside the file")
+    v.add_argument("--no-sibyl", action="store_true", help="do not consult the memory store beside the file")
     v.add_argument("--signer", action="append", default=[], help="an anchoring public key to trust (repeat it). To verify YOUR OWN record, pass the public key of the wallet that anchored it "
                         "(knos record anchor's signer), or set KNOS_RECORD_SIGNERS=<key>[,<key>...]. Default: KNOS_RECORD_SIGNERS, else Knos's pinned key 8aukezen..")
     v.add_argument("--json", action="store_true")
@@ -51,7 +51,7 @@ def main(argv: list[str] | None = None) -> int:
     j.add_argument("--claim", default=None)
     j.add_argument("--kind", default=None)
     j.add_argument("--json", action="store_true")
-    s = sub.add_parser("search", help="search the record in Sibyl (every tier), with the reason for what came back")
+    s = sub.add_parser("search", help="search the record in the memory engine (every tier), with the reason for what came back")
     s.add_argument("query")
     s.add_argument("--root", default=None, help="the record's folder (default: the one `knos record journal` reads)")
     s.add_argument("--limit", type=int, default=20)
@@ -96,7 +96,7 @@ def main(argv: list[str] | None = None) -> int:
                                   if isinstance(line, dict) and "seq" in line else json.dumps(r, sort_keys=True, default=str))[:300])
                 st = got.get("store") or {}
                 if st.get("pct_used") is not None:
-                    print(f"Sibyl store: {st['db_size_bytes']} bytes, {100 * st['pct_used']:.1f}% of the {st['tier']} tier's soft cap.")
+                    print(f"Memory store: {st['db_size_bytes']} bytes, {100 * st['pct_used']:.1f}% of the {st['tier']} tier's soft cap.")
             return 0
         if args.cmd == "prove":
             print(json.dumps(_prove(args.path, args.seq), indent=1))

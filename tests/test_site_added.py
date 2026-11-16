@@ -13,7 +13,6 @@ from pathlib import Path
 import _posix
 
 ROOT = Path(__file__).resolve().parents[1]
-BROWSERS = "/opt/pw-browsers"          # where this project's machines keep Chromium; anywhere else playwright's default holds
 
 
 def test_the_build_offers_only_the_pages_it_holds(tmp_path: Path):

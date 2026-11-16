@@ -2,7 +2,7 @@
 
 Contributions are welcome and unpaid, unless the issue shows a funded order.
 A funded order pays test money on NEAR testnet or Solana devnet, which has no monetary value.
-Do not post a wallet address for payment: the payment program pays only the address a payee binds to a funded order.
+A wallet address in an ordinary comment pays nothing: a funded order pays the wallet linked to your GitHub account, or the one you name with `/knos address` on the pull request (below).
 
 Funded work is listed by `knos work list`. An issue with no funded order pays nothing, whatever a comment on it says. The issues labelled `knos-relay` and `knos-memory`, and the one titled "knos tokens", are logs that a workflow writes. They are not tasks.
 
@@ -242,10 +242,11 @@ seconds, for 10 minutes at most, and ends with "Do NOT push yet" when the file i
 
 ### Publishing the crates and the npm package
 
-Three packages, each published: `knos-oidc-interface` 0.3.14 and `knos-pay-interface` 0.3.14 on crates.io
+Three packages, each published. Their first versions went up by hand, by the owner, on 8 October 2026:
+`knos-oidc-interface` 0.3.14 and `knos-pay-interface` 0.3.14 on crates.io
 ([knos-oidc-interface](https://crates.io/crates/knos-oidc-interface),
 [knos-pay-interface](https://crates.io/crates/knos-pay-interface)) and `knos-settle` 0.3.20 on npm
-([knos-settle](https://www.npmjs.com/package/knos-settle)), all three by hand by the owner on 8 October 2026.
+([knos-settle](https://www.npmjs.com/package/knos-settle)), which moves with every release since.
 
 After the first version, `release.yml` publishes them with no stored secret (the jobs `crates-trusted` and
 `npm-trusted`): the registry exchanges the run's GitHub OIDC token for a credential that lives minutes, and npm

@@ -973,7 +973,8 @@ def load(path: Path) -> tuple[dict, dict | None]:
 
 
 def register(app, help_lines: list | None = None) -> None:
-    """`knos statement make | approve | pay | settle-sync | complete | status | grn | show | export | verify`, on the main app. `help_lines`: cli._HELP."""
+    """`knos statement make | accept | refuse | approve | pay | settle-sync | complete | status | grn | show | export | verify`, on the main app.
+    `help_lines`: cli._HELP."""
     import datetime
 
     import importlib
@@ -981,10 +982,10 @@ def register(app, help_lines: list | None = None) -> None:
 
     sub = typer.Typer(add_completion=False, no_args_is_help=True,
                       help="Make the accounts-payable statement. Each invoice line is marked policy met, disputed, duplicate or not enough "
-                           "evidence, then tracked through accepted, authorised and settled. Output: JSON, CSV and PDF.")
+                           "evidence, then tracked step by step until it is settled. Output: JSON, CSV and PDF.")
     app.add_typer(sub, name="statement")
     if help_lines is not None:
-        help_lines.append(("statement", "For money", "An invoice's statement for accounts payable: JSON, CSV and PDF; approve, record payment, verify."))
+        help_lines.append(("statement", "For money", "An invoice's statement for accounts payable, then its approvals and payment records."))
     file_arg = typer.Argument(..., help="the statement's JSON file")
     on_opt = typer.Option("", "--on", help="the day, YYYY-MM-DD (today when left out)")
 

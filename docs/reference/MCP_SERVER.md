@@ -2,7 +2,7 @@
 
 `knos mcp` speaks the Model Context Protocol on stdio: the stateless 2026-07-28 version (`server/discover`) and the
 session versions before it ([specification](https://modelcontextprotocol.io/specification/2026-07-28), read 14 Oct
-2026). Its tools are listed in `src/knos/mcp.py`. Since 0.3.31 it also serves (`src/knos/mcp_more.py`):
+2026). Its tools are listed in `src/knos/mcp.py`. Since 0.4.0 it also serves (`src/knos/mcp_more.py`):
 
 **Resources** (`resources/list`, `resources/read`), each a JSON document:
 
@@ -21,9 +21,13 @@ session versions before it ([specification](https://modelcontextprotocol.io/spec
 
 `KNOS_MCP_REPOS` limits the bounty template to its repositories, as it limits the tools.
 
-**Prompts** (`prompts/list`, `prompts/get`): `earn_a_bounty` (find, reserve, verify, submit, collect),
-`fund_a_bounty` (`issue`, `amount`: the fee and terms first, nothing posted until the person says yes) and
-`before_pull_request` (run `knos_verify`, paste its lines).
+**Prompts** (`prompts/list`, `prompts/get`):
+
+| prompt | what |
+| --- | --- |
+| `earn_a_bounty` | find, reserve, verify, submit, collect |
+| `fund_a_bounty` | `issue`, `amount`: the fee and terms first, nothing posted until the person says yes |
+| `before_pull_request` | run `knos_verify`, paste its lines |
 
 **Output schema**: every tool declares `outputSchema: {"type": "object"}`; every answer is one JSON object in
 `structuredContent`, with the same JSON as text beside it.

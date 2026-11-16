@@ -58,7 +58,7 @@ from .settle.v2 import pay as pay2
 
 PROGRAMS = {str(pay.PAY_ID): 1, str(pay2.PAY_ID): 2}      # the vault of each deployment
 METER = str(meter.METER_ID)         # knos_meter: no vault, a count of evaluations (its events are of deployment 2)
-# What each program's lines are called as events: {log prefix: what goes in front of the line's own word}. An vault
+# What each program's lines are called as events: {log prefix: what goes in front of the line's own word}. A vault
 # of the second deployment prints jobs (knos2) and work orders (knos3); the meter prints knosm.
 _NAMES = {1: {"knos": ""}, 2: {"knos2": "", "knos3": "order_"}}
 _METER_NAMES = {"knosm": "meter_"}

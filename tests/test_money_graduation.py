@@ -37,7 +37,7 @@ def _plan(claim: str, amount: int = 100 * USDC + 3, ids=None, **kw):
     return graduation.plan(PASSED, claim_id=claim, repo_id=JUDGE_REPO, amount=amount, contributors=contributors(ids), wf_sha=WF_SHA, **kw), ids
 
 
-def test_a_passing_verdict_opens_an_escrow_that_pays_the_split_and_the_treasury(chain):
+def test_a_passing_verdict_opens_a_vault_that_pays_the_split_and_the_treasury(chain):
     c, cfg = chain, fees_config.load()
     p, ids = _plan("claim-escrow")
     fee_before, tip_before, funder_before = c.balance(c.fee), c.balance(c.tip), c.balance(c.funder_tok)

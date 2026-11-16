@@ -14,10 +14,11 @@ On devnet today the pots are SPL token accounts whose owner is an SPL Token MULT
 no single key, the funder's included, can move them; a release is a token transfer that m referees co-sign, in one
 transaction with a Memo carrying the signed verdict's digest, so the chain binds each release to its verdict. What
 it does NOT do on chain: read the verdict's fields or refund by itself after a deadline (the referees sign the
-refund). knos_pay's verdict release path (an m-of-n referee verdict checked by the ed25519 precompile, with expiry and
-replay protection on chain) is the production path; when it is deployed the same verdict messages
-(knos.labs.verdicts.message) release a knos_pay order instead. The fee then follows knos_pay (0.30% on chain, the rest
-of the 3% invoiced: `cfg.platform("lab_order", amount)`).
+refund). knos_pay 0.3.34 has a release path of that kind (a PANEL order: m of n referee keys, checked by the ed25519
+precompile, each signer counted once), on a separate devnet test deployment (docs/reference/IDEAS.md); the lab vault
+does not use it yet. Its referees sign knos_pay's own verdict digest, not knos.labs.verdicts.message, so moving the
+lab vault onto it means signing that digest. The fee would then follow knos_pay (0.30% on chain, the rest of the 3%
+invoiced: `cfg.platform("lab_order", amount)`).
 """
 from __future__ import annotations
 

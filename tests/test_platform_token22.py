@@ -57,7 +57,7 @@ def test_a_classic_mint_and_a_plain_token_2022_mint_have_nothing_to_say():
     (tlv(3, PK), [("MintCloseAuthority", "warn")]),
     (tlv(25, bytes(56)), [("ScaledUiAmount", "warn")]),
 ])
-def test_each_extension_that_moves_stops_or_shrinks_escrowed_money_is_named(ext, want):
+def test_each_extension_that_moves_stops_or_shrinks_held_money_is_named(ext, want):
     assert names(T.mint_risks(mint(ext))) == want
     assert T.refused(T.mint_risks(mint(ext))) is any(s == "refuse" for _, s in want)
 
@@ -82,7 +82,7 @@ def test_check_tells_a_mint_from_an_account_and_from_anything_else():
     assert T.check("11111111111111111111111111111111", b"")["kind"] == "other"
 
 
-def test_fund_wallet_refuses_a_mint_whose_delegate_could_take_the_escrow(monkeypatch):
+def test_fund_wallet_refuses_a_mint_whose_delegate_could_take_the_held_money(monkeypatch):
     from solders.pubkey import Pubkey
 
     from knos import cli

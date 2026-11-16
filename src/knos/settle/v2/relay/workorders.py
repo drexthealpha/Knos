@@ -36,7 +36,7 @@ def _options(kind: str, raw: bytes, amount: int, actor: int = 0, owner: int = 0,
                         "(.knos/acceptance/<issue>/ with a `blackbox.sh`), and without one only a merge pays")
     if raw[33] == 1 and not any(raw[34:]) and v < fees.NEW_VERSION:
         raise _no(kind, "this order asks for the presentation grace (a token issued by the deadline is still taken for two hours after it), which "
-                        "the payment program on this cluster does not have yet: it comes with the announced upgrade to knos_pay 2.2. Fund without it until then")
+                        "the payment program on this cluster does not have: it runs knos_pay 2.1, and the grace came with 2.2. Fund without it on this cluster")
     if quorum and not 2 <= quorum <= judges:
         raise _no(kind, f"`quorum {quorum}` needs that many judges this order can have, and it has {judges}: its own repository, a neutral "
                         "run unless `neutral off`, and a judge repository if it names one")

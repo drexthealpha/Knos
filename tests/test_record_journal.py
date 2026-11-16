@@ -1,4 +1,4 @@
-"""Knos Record's journal: append-only JSON Lines, hash-chained, each line held in Sibyl's memory engine in its tier
+"""Knos Record's journal: append-only JSON Lines, hash-chained, each line held in the memory engine in its tier
 (claims WARM, events COLD, papers REFERENCE), and nothing that may not be public goes in (src/knos/record/journal.py)."""
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ def rec(tmp_path):
     return tmp_path / "rec"
 
 
-def test_lines_chain_and_land_in_their_sibyl_tiers(rec):
+def test_lines_chain_and_land_in_their_memory_tiers(rec):
     c = record.claim("claim-1", {"title": "synthetic claim", "spec_hash": SPEC, "synthetic": True}, domain="ml", root=rec)
     v = record.append("verdict", {"spec_hash": SPEC, "passed": False, "cheat": "test_edited", "synthetic": True}, claim="claim-1", root=rec)
     p = record.paper("arxiv:2401.00001", {"title": "a paper", "sha256": "b" * 64}, root=rec)
@@ -35,7 +35,7 @@ def test_lines_chain_and_land_in_their_sibyl_tiers(rec):
     assert st.reference("record:paper:arxiv:2401.00001")["_hash"] == p["hash"]              # REFERENCE: the paper
     assert [e["hash"] for e in record.remembered(st)] == [c["hash"], v["hash"], p["hash"]]   # COLD: every line
     assert [e["kind"] for e in record.claim_events("claim-1", store=st)] == ["claim", "verdict"]
-    with contextlib.closing(sqlite3.connect(rec / "sibyl.db")) as con:                       # in Sibyl's own tables
+    with contextlib.closing(sqlite3.connect(rec / "sibyl.db")) as con:                       # in the memory engine's own tables
         assert con.execute("select count(*) from journal_events").fetchone()[0] == 3
         assert con.execute("select count(*) from entities where category = 'record_claim'").fetchone()[0] == 1
 
@@ -88,12 +88,12 @@ def test_kinds_ids_and_size_are_checked(rec):
     assert record.entries(rec) == []
 
 
-def test_without_sibyl_there_is_no_record(rec, monkeypatch):
+def test_without_the_memory_engine_there_is_no_record(rec, monkeypatch):
     import sys
     monkeypatch.setitem(sys.modules, "sibyl_memory_client", None)
     with pytest.raises(ImportError):
         record.append("verdict", {"passed": True}, root=rec)
-    assert not (rec / "journal.jsonl").exists()              # Sibyl first, then the file: nothing half-written
+    assert not (rec / "journal.jsonl").exists()              # the memory engine first, then the file: nothing half-written
 
 
 def test_the_default_place_is_knos_home(knos_home, monkeypatch):

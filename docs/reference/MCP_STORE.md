@@ -1,7 +1,7 @@
 # Knos in AI assistants (the app-store MCP)
 
 Knos answers two questions inside any assistant that speaks MCP: is this product wanted, and is this brief clear enough
-to fund. Nothing moves money inside the assistant. A pre-order, a funding or a payout is a link out to the Knos site.
+to fund. Nothing moves money inside the assistant: funding and payouts are links out to the Knos site.
 
 ## Connect
 
@@ -33,4 +33,4 @@ Every tool declares a title and `readOnlyHint` / `destructiveHint` annotations.
 - Support: open an issue at https://github.com/drexthealpha/Knos/issues.
 - What Knos will not fund: [REFUSE.md](REFUSE.md).
 
-Devnet and test money only. Results are aggregate taste, not a forecast and not about any one person.
+NEAR testnet and Solana devnet, test money only. Results are aggregate taste, not a forecast and not about any one person.

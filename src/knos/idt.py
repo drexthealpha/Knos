@@ -298,7 +298,7 @@ def register(app, help_lines: list | None = None) -> None:
     sub = typer.Typer(add_completion=False, no_args_is_help=True, help="Intent Disambiguation Tax: route a brief, or draft one cheaply.")
     app.add_typer(sub, name="idt")
     if help_lines is not None:
-        help_lines.append(("idt", None, "Route a brief (effort, budget, one question) or draft the shortest Ready one with Claude."))
+        help_lines.append(("idt", None, "Route a brief to an effort level and a token budget, or draft the shortest Ready one with Claude."))
 
     @sub.command("check")
     def check_(brief: Path = typer.Argument(..., help="A brief as JSON: {milestones: [...], kill_fee_bps, challenge_s}"),
@@ -314,7 +314,7 @@ def register(app, help_lines: list | None = None) -> None:
             raise typer.Exit(1)           # not ready: a script or CI can stop on it
 
     @sub.command("draft")
-    def draft_(ask: str = typer.Argument(..., help="What the brief is for, in plain words (a paper, a product, a task)"),
+    def draft_(ask: str = typer.Argument(..., help="What the brief is for, in plain words"),
                samples: int = typer.Option(3, "--samples", help="short drafts to make; the shortest Ready one is kept"),
                outline: bool = typer.Option(False, "--outline", help="CoThink: a Haiku outline first, the main model executes it"),
                loop: bool = typer.Option(False, "--loop", help="Iteration of Thought: up to 3 rounds that stop once Ready")) -> None:

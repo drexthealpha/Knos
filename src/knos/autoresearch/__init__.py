@@ -12,7 +12,7 @@ The pattern is Karpathy's autoresearch loop (agent edits one file, fixed-time ru
     graduation: baseline and best are scored once on a second sealed set (hidden_final) never used in the loop; the
         lift must clear the agreed bar on both seeds, with the judging code unchanged since sealing
     every experiment, verdict, cheat and the split plan go to Knos Record (knos.record when present, else the same
-        hash-chained journal kept here in Sibyl + JSONL); the payout is a PLAN, devnet test units, no transfer
+        hash-chained journal kept here in the local memory store and a JSONL file); the payout is a PLAN, devnet test units, no transfer
 
     python -m knos.autoresearch run examples/autoresearch --out /tmp/ar --iterations 12
 

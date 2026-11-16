@@ -25,8 +25,8 @@ measured against a control group chosen by a hash and paid in tiers under a cap:
 | Back-office processing | an invoice matched, a claim adjudicated, a record reconciled | the system of record's entry before and after, a control total that must tie, and a sample a person reads | No. Nothing is built |
 | Agent services | a task one agent bought from another | whatever the task's kind above needs; the order names the suite or the record before the work | In part: an order bought over HTTP and paid on a merge ([`examples/x402_attested`](../../examples/x402_attested), [`examples/agent_pays_agent`](../../examples/agent_pays_agent)). No other kind of task |
 
-Every row needs the same three things from Knos (terms fixed before the work, a run somebody else signed, a count
-made once) and one thing Knos does not supply: a record of the outcome that the party being paid cannot write.
+Every row needs the same from Knos (terms fixed before the work, and a run somebody else signed that is counted
+once) and one thing Knos does not supply: a record of the outcome that the party being paid cannot write.
 
 ## The models that run here
 
@@ -41,8 +41,8 @@ made once) and one thing Knos does not supply: a record of the outcome that the 
 the black-box suite and, beside it, a naive check that looks only at what the supplier was shown. The honest submission
 is accepted by both.
 
-The cheating submission (copied visible labels; the worked example's answer written down; a result pasted into the
-script) is accepted by the naive check and refused by the black-box suite.
+The cheating submission (the visible labels copied, or an answer written down where it should be computed) is
+accepted by the naive check and refused by the black-box suite.
 
 ## Funded by a comment, paid by the suite
 
@@ -107,13 +107,13 @@ versions of kind and Kubernetes and the image's id) and `SHA256SUMS`.
 `evaluator_observed` is the verdict and what was checked. `ids` are the deliverable's and the evaluation's
 (`knos.ids`). And `limitations`, always:
 
-- The cluster ran on a runner that Knos started: one party ran the cluster, the Job and the referee.
+- The cluster ran on a runner that Knos started: one party ran the cluster and the referee's Job in it.
 - The issuer is self-hosted. Its URL does not resolve and its key set was read from the cluster's own API server, so
   nobody outside that run can fetch the key and compare it.
 - This shows that the path works for a workload identity that is not a forge. It does not show that an independent
   party ran it.
 - The cluster signed which service account asked for this audience. It did not sign what the Job read or decided.
-- The buyer, the seller and the work order are the example's sample values. Nobody bought this.
+- The parties and the work order are the example's sample values. Nobody bought this.
 
 **What the meter does with it.** Not what it does with a forge's token, and the difference is the program's.
 `knos_meter` Record takes a token of GitHub's from a pinned workflow and refuses a token verified under a private
@@ -306,12 +306,12 @@ a test key.
    like one who was helped. A buyer who pays per resolution reads a sample; the terms here do not say how large.
 3. **Reversal after the fact.** Checking after the window needs none. A correction of an accepted evaluation exists
    in the ledger ([METER.md](METER.md)) and is not used here.
-4. **A customer.** The buyer, the seller and every ticket are sample values. Nobody bought this.
+4. **A customer.** The parties and every ticket are sample values. Nobody bought this.
 
 ## Pay for a measured result
 
 **In plain words.** Until now Knos paid when tests passed. This section is about paying for a result you can only see in
-data: more support tickets solved without a person, more trial users who buy, less time to a first reply.
+data: more support tickets solved without a person, or less time to a first reply.
 
 The buyer
 and the seller write the result down before the work starts, a share of the items is kept aside as a control group
@@ -417,8 +417,8 @@ So a buyer who never starts the measurement, or withholds or breaks the data, is
 goes back to the buyer after the deadline. Nothing in this version stops that; what it gives the seller is:
 
 - **Time.** `dispute_window_days` is used at funding: `knos outcome` refuses to fund orders whose deadline comes
-  before the window's end plus that many days (`escrow.fund_ixs`), so the seller has that long, after the window, to
-  see a measurement run, ask for one, or take the dispute elsewhere.
+  before the window's end plus that many days (`fund_ixs` in the `knos.outcomes` package), so the seller has that
+  long, after the window, to see a measurement run or, failing that, to take the dispute elsewhere.
 - **Evidence.** The spec both parties signed, its hash on the orders' issue, and the pinned workflow mean anyone
   with the data can rerun the measurement and show what it would have paid.
 
@@ -444,8 +444,8 @@ measuring workflow at a commit and the order pins `prove.yml`'s commit, so the m
 ### Knos Record
 
 Every measurement appends one public `verification` entry (spec hash, domain `outcomes`, passed or refused, each
-tier's result, the lift and its bound) and one `cheat` entry per refusal, and every funding, payment and refund one
-entry with its devnet signature, through Knos Record's API ([SUPPLIER.md](SUPPLIER.md)).
+tier's result, the lift and its bound) and one `cheat` entry per refusal, and every funding, and every payment or
+refund, one entry with its devnet signature, through Knos Record's API ([SUPPLIER.md](SUPPLIER.md)).
 
 Entries hold hashes, amounts and signatures only: no item ids, no rows, no token, no key, and `synthetic: true` for
 made-up data.

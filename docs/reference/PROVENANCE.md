@@ -17,8 +17,8 @@ hold is printed as **MISSING** with the reason. Nothing is filled in.
    `solana-verify build` in a pinned image and hands the hash to `upgrade_gate`, a program on chain. It records the
    hash with the commit and the run's number, but only when GitHub's signed token says that run built it. The record is
    an account anyone can read: `python scripts/provenance.py --rpc` prints it for the hash each program runs.
-3. **Build hash.** Make the build yourself from the commit ([ASSURANCE.md](ASSURANCE.md), "compare a deployed program
-   with the source") and compare the hash. Nobody outside Knos has reported doing so.
+3. **Build hash.** Make the build yourself from the commit ([ASSURANCE.md](ASSURANCE.md), "To compare a deployed
+   program with the source") and compare the hash. Nobody outside Knos has reported doing so.
 4. **Hash on chain.** `python scripts/provenance.py --rpc` reads the program's data account at the public id and
    prints its hash; `solana-verify get-program-hash <id> -u devnet` reads the same bytes without Knos's code.
 5. **Upgrade proposal and execution.** The proposal is an account of the Squads multisig; its state, its approvals
@@ -58,8 +58,8 @@ scripts/exercise_public.py propose` writes them into `docs/provenance.json`, `ne
 
 Until that run has made the build the row says **MISSING**, and until the proposal has executed it says `not live yet`.
 
-What the chain does not show: that the build does what its source says (that is what the tests, the fuzzing and the
-proofs are for), or that anyone outside Knos has followed it. Everything here is devnet.
+What the chain does not show: that the build does what its source says (that is what the tests and the fuzzing are
+for, with the proofs), or that anyone outside Knos has followed it. Everything here is Solana devnet.
 
 ## The chains
 

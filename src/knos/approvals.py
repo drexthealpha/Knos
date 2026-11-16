@@ -4,7 +4,7 @@
     knos approve check  --approver mei-acme --requester ravi-acme --amount 1200 [--on 2026-10-06] [--as finance]
     knos approve status --offer .knos/procurement/offers/bug-fix-octocat.yaml
 
-The policy is one file in the buyer's repository, `.knos/procurement/policy.yaml` (docs/reference/SECURITY.md has the schema):
+The policy is one file in the buyer's repository, `.knos/procurement/policy.yaml` (`policy_problems` below is its schema):
 four roles (requester, approver, finance, auditor), the forge accounts that hold each and between which dates, and
 thresholds that say how many approvers an amount needs and from where finance signs too.
 

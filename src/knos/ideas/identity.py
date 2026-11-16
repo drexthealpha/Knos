@@ -6,8 +6,9 @@
 
 What this proves, and what it does not: reading a public ORCID record shows the iD EXISTS and what its owner made
 public; it does not show the person in front of Knos OWNS it. Ownership is "sign in with ORCID" (OAuth, the
-/authenticate scope): that token, and paying an ORCID-authenticated payee, belong to knos_pay's issuer-agnostic release
-path (V34PAY). Until then an identity read here is marked `verified: "public record read, not signed in"`.
+/authenticate scope): binding an ORCID iD to a wallet with that token belongs to the knos_pay panel test build
+(BindOrcid, knos.proof.issuers). This module never signs in, so an identity read here is marked `verified` as a public
+record read, not signed in.
 
 ORCID rules (info.orcid.org/faq/what-are-the-api-limits, read 14 Oct 2026): the anonymous API allows 12 requests/s,
 burst 40, and 25,000 reads a day per IP; the registered Public API (client credentials) 100,000 reads a day per client.

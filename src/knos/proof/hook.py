@@ -150,7 +150,7 @@ def stop(payload: dict, store=None, runners=None) -> tuple[str, str]:
     n = st.get("count", 0) + 1 if st.get("digest") == v.digest else 1
     msg = "Knos could not prove what your last message claims:\n" + v.explain()
     if owed:
-        msg += "\nrun because an earlier claim here was refused on it (Knos remembers that in Sibyl): " + ", ".join(owed)
+        msg += "\nrun because an earlier claim here was refused on it (Knos remembers that): " + ", ".join(owed)
     if told:
         msg += "\n" + told
     if n > MAX_BLOCKS:   # blocked MAX_BLOCKS times on this exact evidence: let it stop, loudly
@@ -278,7 +278,7 @@ def respond(client: str, payload: dict, store=None, runners=None) -> tuple[str, 
         return "", 0
     if client == "hermes" and name == "pre_llm_call":
         told = _briefing(str(payload.get("cwd") or ""), store)
-        return (json.dumps({"context": "Knos, from Sibyl's memory of this repository: " + told}) if told else ""), 0
+        return (json.dumps({"context": "Knos, from its memory of this repository: " + told}) if told else ""), 0
     event = _read(client, payload)
     if event is None:
         return "", 0

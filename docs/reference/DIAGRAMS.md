@@ -1,8 +1,8 @@
 # Knos diagrams
 
-The source of each picture in README.md. Pages that cannot draw Mermaid (Open Exchange, PyPI) show the picture, drawn by `python scripts/diagrams.py render`.
+The source of each picture in [COLOSSEUM.md](COLOSSEUM.md), [NEAR.md](NEAR.md) and [IRIS.md](IRIS.md). Pages that cannot draw Mermaid (Open Exchange, PyPI) show the picture, drawn by `python scripts/diagrams.py render`.
 
-## How it works
+## How it worked in the Colosseum entry (tag v0.3.28)
 
 ```mermaid
 flowchart TB
@@ -16,7 +16,7 @@ flowchart TB
 
 *Money moves only when a step passes its test.*
 
-## Paid when the check passes
+## Paid when the check passes (the Colosseum entry)
 
 ```mermaid
 flowchart TB

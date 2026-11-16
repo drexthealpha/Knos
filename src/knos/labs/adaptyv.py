@@ -26,8 +26,8 @@ Terms that shape this adapter (docs.adaptyvbio.com/api-reference/integrator-part
 not 'bundle' user orders under your own key"; keys are not stored in plain text (Knos does not store them at all);
 resellers and distributors must join the Partner Program (not joined).
 
-What is Knos's and not Adaptyv's: the run mapping (one run per sequence, controls marked) and the QC rule (the positive
-control bound, every sequence reported, results complete). Fixture mode replays fixtures/adaptyv.json: responses built
+What is Knos's and not Adaptyv's: the run mapping (one run per sequence, controls marked) and the QC rule (every
+positive control bound with a fit that is not poor, and the results complete). Fixture mode replays fixtures/adaptyv.json: responses built
 from the shapes and examples in Adaptyv's OpenAPI document, with made-up ids and values (labelled; never a real order).
 """
 from __future__ import annotations

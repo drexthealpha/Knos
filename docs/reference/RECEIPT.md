@@ -1,7 +1,8 @@
 # The acceptance receipt
 
-A settlement on Knos leaves three public facts: a work order, a token GitHub or GitLab signed that says the order's
-terms were met, and a transaction that paid. The **acceptance receipt** is one JSON document that joins them.
+A settlement on Knos leaves public facts: a work order and the transaction that paid it, with, between them, a token
+GitHub or GitLab signed that says the order's terms were met. The **acceptance receipt** is one JSON document that
+joins them.
 
 It holds nothing private and nothing that is not already public, so anyone can rebuild it from the chain and
 compare digests. It is what a buyer files, what a seller shows, and what a third party can check.
@@ -93,9 +94,9 @@ any of these holds, each computed and none typed:
 - an evaluator's owner or starter is a payee ("The evaluator's account is the payee's"), or the funder;
 - the evaluators that spoke are one party.
 
-Every receipt, weak or not, also lists what stayed outside the evaluation: that the workflow file decides what it
-reads (the issuer signed which workflow ran, not what it ran), that the order's own repository checked when it did,
-and that nothing shows the terms asked for the right thing.
+Every receipt, weak or not, also lists what stayed outside the evaluation, in sentences such as these: the workflow
+file decides what it reads (the issuer signed which workflow ran, not what it ran); nothing shows the terms asked for
+the right thing.
 
 A receipt that is not weak is not a proof that the work is right: its Assurance part still names who is trusted at
 its level.
@@ -544,7 +545,8 @@ ids differ. It does not say two people differ.
 }
 ```
 
-Example values from the test vectors: the fee shown is 1%. Today's fee is 0.30%, at least 0.05 (knos_pay 2.2).
+Example values from the test vectors: the fee shown is 1%. Today's fee on Solana devnet is 0.30%, at least 0.05,
+paid by the funder on top (knos_pay 2.2).
 
 Its digest is `e6a72d9d5760a99a824c48a7923a7a771d2cd26d54253fbe61005a236d711add`.
 
@@ -805,7 +807,8 @@ made while the chain had the record is what can still be checked.
 }
 ```
 
-Example values from the test vectors: the fee shown is 1%. Today's fee is 0.30%, at least 0.05 (knos_pay 2.2).
+Example values from the test vectors: the fee shown is 1%. Today's fee on Solana devnet is 0.30%, at least 0.05,
+paid by the funder on top (knos_pay 2.2).
 
 | field | what it is | where it comes from |
 |---|---|---|

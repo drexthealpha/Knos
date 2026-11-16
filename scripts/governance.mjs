@@ -5,9 +5,11 @@
 //                      can be executed 8 days after the vote that approved it, and not before (172800 s, 48 hours,
 //                      until 11 Oct 2026, when proposal 9 set it). In that time a
 //                      vote of the members can cancel it, and anyone can read the proposal on chain.
-//   guardian multisig  its vault is the GUARDIAN both programs name. Time lock 0, so that a revocation is not
-//                      delayed. It can approve a signing key GitHub's signature admitted, revoke a key, and pause
-//                      new funding for at most seven days. It has no instruction that moves money.
+//   guardian multisig  its vault is the GUARDIAN both programs name. Time lock 0, so that a pause is not delayed.
+//                      It pauses new funding for at most seven days. The knos_oidc build devnet runs today also takes
+//                      its Approve and Revoke of a signing key; this tree's knos_oidc source gives those to the upgrade
+//                      vault instead (pins::KEY_ADMIN), so once that build's upgrade executes `guardian approve|revoke`
+//                      is refused (error 79). It has no instruction that moves money.
 //
 // Both are autonomous (no config authority): members, threshold and time lock change only by a vote of the members,
 // and the upgrade multisig's own time lock applies to that vote too. Their addresses come from two "create keys" and
@@ -190,7 +192,8 @@ export const programData = (program) => PublicKey.findProgramAddressSync([progra
 // ---- the instructions a vault signs ---------------------------------------------------------------------------------
 const meta = (pubkey, isSigner, isWritable) => ({ pubkey, isSigner, isWritable });
 
-/** knos_oidc Approve (tag 6) or Revoke (tag 7): key_admin(s) key(w) (pins::KEY_ADMIN, not the guardian). */
+/** knos_oidc Approve (tag 6) or Revoke (tag 7): signer(s) key(w). The signer passed here is the guardian, as the live
+ *  build takes it; this tree's source takes only pins::KEY_ADMIN (the upgrade vault) there. */
 export function keyIx(tag, guardian, key) {
   return new TransactionInstruction({ programId: new PublicKey(IDS.knos_oidc), data: Buffer.from([tag]), keys: [meta(guardian, true, false), meta(key, false, true)] });
 }

@@ -42,15 +42,15 @@ TZ=UTC git log --date=format-local:'%Y-%m-%d %H:%M' --format='%ad %h %s' | grep 
 
 ## Before Knos 0.2
 
-- **Knos 0.1.0 to 0.1.8**, 1–7 Sep 2026: a shared local memory for coding agents, with claims on topics and a guard
-  on edits, built on Sibyl. It is a different product from the one here.
+- **Knos 0.1.0 to 0.1.8**, 1 to 7 Sep 2026: a shared local memory for coding agents, with claims on topics and a guard
+  on edits, built on an outside memory engine. It is a different product from the one here.
 - Almost none of Knos 0.1 is in the tree. Its memory server, claims, edit guard, payment gate and integrations were
   removed in 0.2.0 and 0.3.10. They remain in the git history.
-- One dependency carries over: Sibyl's memory client, which the referee and the local hook still use.
+- One dependency carries over: that memory engine's client library, which the referee and the local hook still use.
 
 ## The releases since
 
-- **29 Sep – 2 Oct 2026, Knos 0.2.0 to 0.3.9** (first commit 30 Sep). 0.2.0 was built on top of 0.1.8. These
+- **29 Sep to 2 Oct 2026, Knos 0.2.0 to 0.3.9** (first commit 30 Sep). 0.2.0 was built on top of 0.1.8. These
   versions tried claims enforced at edit time across agent vendors, agent budgets, a jobs market with held money,
   the Stop hook, the Agent PR Index, and a first payment program that verified GitHub's signature on chain but whose keys
   and workflows were registered by an admin. They are kept as they stood at 0.3.9 in
@@ -119,7 +119,7 @@ The commit history shows those turns.
 - **Shank** (Metaplex) is the format of the IDL files in `idl/`; they were written by hand from the programs'
   source, not generated.
 - **Wycheproof** test vectors (Google, Apache-2.0) are in `programs/knos_oidc/tests/vectors/`, unmodified.
-- **Sibyl** (`sibyl-memory-client`, by Sibyl Labs) is the memory engine, used as a dependency.
+- **The memory engine** is another project's library, used as a dependency; Knos did not write it.
 - Dependencies: `solana-program`, `solana-security-txt` (Rust); `typer`, `rich`, `solders` (Python). The web app
   loads `@wallet-standard/app` from a CDN only when a sponsor connects a wallet.
 - The history and economics in [WHY.md](WHY.md) (the UCP 600, Akerlof, Spence, Holmström and Milgrom, and the
@@ -166,10 +166,10 @@ the software does about it, and what it does not do.
 - **no warranty.** The software is offered as it is, under its licence. Nobody promises that a verdict is right;
 - **no service commitment.** No uptime, no response time, no support hours, for the relay, the site or anything else;
 - **no data-processing terms.** No agreement covers personal data, and none can be signed ([PRIVACY.md](PRIVACY.md));
-- **no insurance, no indemnity, no refund from Knos.** Knos holds nobody's money and returns nobody's loss.
+- **no insurance or indemnity, and no refund from Knos.** Knos holds nobody's money and returns nobody's loss.
 
 So when the count is wrong, the loss stays where the mechanisms below leave it. Nobody makes it good. Money on
-devnet is test USDC, which is why this is acceptable today and would not be with real money.
+NEAR testnet and Solana devnet is test money, which is why this is acceptable today and would not be with real money.
 
 ### The kinds of wrong
 

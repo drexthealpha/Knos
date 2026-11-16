@@ -218,7 +218,7 @@ the rent of the key's account, measured in the simulator with Solana's rent rule
 
 ## GitLab
 
-knos-oidc verifies a gitlab.com ID token as it verifies GitHub's. `knos-pay` 2.1, the build of proposal 4 of the upgrade multisig, reads one too
+knos-oidc verifies a gitlab.com ID token as it verifies GitHub's. `knos-pay` since 2.1, the build of proposal 4 of the upgrade multisig, reads one too
 ([`programs-v2/knos_pay/src/gl.rs`](../../programs-v2/knos_pay/src/gl.rs)), for two things: funding a work order from a Balance, and paying one.
 
 It is tested in LiteSVM against tokens shaped as GitLab documents them ([`tests/test_gitlab_pay.py`](../../tests/test_gitlab_pay.py)); it has
@@ -353,4 +353,4 @@ That check asked an endpoint that needs a token the job does not have, and now r
   upgrade ([SECURITY.md](SECURITY.md), "When keys run out").
 - The first deployment has no upgrade authority, so nobody can change it, and its faults stay: a key it trusts never expires and cannot be
   revoked, and a key attestation counts from any repository.
-- Devnet only, and no outside review yet. Mainnet waits for one.
+- Solana devnet only, and no outside review yet. Mainnet waits for one.

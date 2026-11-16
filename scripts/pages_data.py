@@ -639,7 +639,9 @@ def render_operations_md(ops: dict) -> str:
              "which is published beside it on the site (`" + SITE + "/operations.json`); nothing here is typed by hand.", ""]
     lines += [f"Generated {ops['generated']}." if ops.get("generated") else "No measurement has been made yet: this is the page as it is committed, and the live page on the site replaces it.", ""]
     lines += ["## The canary", "",
-              f"The canary is the scheduled workflow `{c.get('workflow') or CANARY}` of `{c.get('repository') or CANARY_REPO}`, meant to run every 30 minutes. These are its runs as GitHub lists them.", ""]
+              f"The canary is the scheduled workflow `{c.get('workflow') or CANARY}` of `{c.get('repository') or CANARY_REPO}`, made to run every 30 minutes. "
+              + ("Knos's own canary rounds there have stopped: none runs now. " if (c.get("repository") or CANARY_REPO) == CANARY_REPO else "")
+              + "These are its runs as GitHub lists them.", ""]
     if not c.get("runs"):
         lines += [f"No runs to show. {_sentence(c.get('note')) or 'Nothing has been measured yet.'}", ""]
     else:

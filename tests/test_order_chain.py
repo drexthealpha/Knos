@@ -1,5 +1,5 @@
-"""knos_pay 2.1 in the Solana runtime (LiteSVM), beside the second deployment's verifier: the four fixes to the 2.0
-paths (whole units and counted mints, the Token-2022 allow-list, a Balance's side account, single-use pay tokens),
+"""knos_pay as this tree builds it (2.2) in the Solana runtime (LiteSVM), beside the second deployment's verifier: the
+four fixes 2.1 made to the 2.0 paths (whole units and counted mints, the Token-2022 allow-list, a Balance's side account, single-use pay tokens),
 Version, SetBalanceX, SetPlan, and work orders: funded by a wallet or from a Balance with the fee on top, paid by the
 order's own repository to one to four payees, held, settled, topped up, refunded. Every refusal an attacker would
 try, and a random walk in which what entered each order equals what left it plus what it holds."""

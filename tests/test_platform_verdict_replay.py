@@ -1,5 +1,5 @@
 """knos.platform.verdict.check spends the verdict it accepts: a replay is refused even by a caller that keeps no
-nonce set of its own (a replay found in review: a caller that keeps no nonce set). Synthetic keys and data."""
+nonce set of its own (found in review). Synthetic keys and data."""
 from __future__ import annotations
 
 from solders.keypair import Keypair

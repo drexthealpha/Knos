@@ -729,8 +729,9 @@ def test_the_attestation_script_reads_a_version_3_receipt_and_attests_its_own_di
 
 
 def test_the_attestation_script_takes_a_version_5_receipt_and_attests_its_own_digest(tmp_path):
-    """Since 0.3.19 a receipt is written as version 5. The attestation's fields are those of the version 4 receipt it
-    holds, and the digest attested is the version 5 receipt's own: what `knos receipt` prints for it."""
+    """From 0.3.19 a receipt was written as version 5 (version 6 since 11 Oct 2026, the same receipt with the 8-day time
+    lock). The attestation's fields are those of the version 4 receipt a version 5 one holds, and the digest attested is
+    the version 5 receipt's own: what `knos receipt` prints for it."""
     node = shutil.which("node")
     if not node:
         pytest.skip("needs Node")

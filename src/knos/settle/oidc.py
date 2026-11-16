@@ -1,4 +1,4 @@
-"""Client for knos-oidc (programs/knos_oidc): the Solana program that verifies an RS256 OIDC token from GitHub
+"""Client for the first deployment's knos-oidc (programs/knos_oidc; the second's is knos.settle.v2.oidc): the Solana program that verifies an RS256 OIDC token from GitHub
 Actions or GitLab CI on chain. Pure instruction builders and account readers; no network.
 
     ixs = write_ixs(payer, tid, jwt)                 # the token into its account (several chunks)

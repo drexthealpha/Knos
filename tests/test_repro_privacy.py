@@ -66,9 +66,9 @@ def test_a_reproduced_result_publishes_a_page_per_claim_and_the_funding_link_onl
     page = (folder / "index.html").read_text()
     assert '<section id="accuracy">' in page and "<script" not in page and "held-out" in page
     assert "funding" not in page                                            # the example names none
-    funded = dict(result, funding="https://example.org/preorder")
+    funded = dict(result, funding="https://example.org/fund")
     funded["digest"] = rr.digest(funded)
-    assert "https://example.org/preorder" in pb.page(funded) and "https://example.org/preorder" not in pb.badge_svg(funded)
+    assert "https://example.org/fund" in pb.page(funded) and "https://example.org/fund" not in pb.badge_svg(funded)
     assert json.loads((folder / "result.json").read_text())["digest"] == result["digest"]
     assert all(v not in json.dumps(logs) for v in ("GH_TOKEN", "BEGIN PRIVATE"))
 

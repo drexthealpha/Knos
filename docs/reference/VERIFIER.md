@@ -136,9 +136,9 @@ It does not prove that the claims are true about the world. GitHub signs which w
 not what that workflow read or decided; a cloud signs which service account asked, not what the code behind it
 does.
 
-It does not make a token single-use (bind it to one action in the audience and record the action), it does not
-stop a token minted for another program (require your own audience prefix), and a key the issuer has lost is
-trusted until it is revoked or expires.
+It does not make a token single-use (bind it to one action in the audience and record the action), nor does it
+stop a token minted for another program (require your own audience prefix). A key the issuer has lost is trusted
+until it is revoked or expires.
 
 A private key proves only what the wallet that registered it says. [SECURITY.md](SECURITY.md) has the whole list
 and [OIDC.md](OIDC.md) the reader's API and the trust root.

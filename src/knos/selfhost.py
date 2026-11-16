@@ -483,8 +483,8 @@ def register(app: Any, help_lines: list | None = None) -> None:
     import importlib
     typer = importlib.import_module("typer")
     if help_lines is not None:
-        help_lines.append(("selfhost", "For money", "Run the record API, relay and approver in your own cloud."))
-    group = typer.Typer(help="Knos in the buyer's own cloud: one image, three roles, one config file (deploy/knos.example.toml).", no_args_is_help=True)
+        help_lines.append(("selfhost", "For money", "Run Knos in your own cloud from one config file."))
+    group = typer.Typer(help="Knos in the buyer's own cloud: one image and one config file (deploy/knos.example.toml).", no_args_is_help=True)
     app.add_typer(group, name="selfhost", rich_help_panel="For money")
 
     @group.command("check")

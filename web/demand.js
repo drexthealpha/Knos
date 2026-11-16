@@ -19,7 +19,7 @@ function script() {
 export async function renderDemand(el) {
   if (!document.getElementById("fam-css")) { const st = document.createElement("style"); st.id = "fam-css"; st.textContent = CSS; document.head.append(st); }
   el.innerHTML = `<h2>Is it wanted?</h2>
-    <p>Qloo's taste data answers who, where, and at what price, before any money moves.</p>
+    <p>Qloo's taste data says who wants it and where, before any money moves.</p>
     <form id="fd-demand" class="card" autocomplete="off">
       <label for="fd-idea">The product, in a sentence</label><textarea id="fd-idea" rows="2" maxlength="500" placeholder="trail running shoes for ultramarathons"></textarea>
       <label for="fd-place">Launch market (optional)</label><input id="fd-place" maxlength="60" placeholder="Austin">

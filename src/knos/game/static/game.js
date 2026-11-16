@@ -24,7 +24,7 @@ function render() {
   const s = state;
   $("title").textContent = s.title;
   $("meta").textContent = `Field: ${s.field}. Round ${s.round} of ${s.rules.rounds}, ${s.rules.per_round} attempts a round. Metric: ${s.metric} (${s.direction}). `
-    + `To be paid, an attempt must beat the baseline by ${s.min_lift} on the final sealed set, and the player must have a GitHub or ORCID identity. Status: ${s.status}. Spec ${s.spec_hash.slice(0, 16)}.`;
+    + `To be paid, an attempt must beat the baseline by ${s.min_lift} on the final sealed set, and the player's GitHub or ORCID identity must be bound to a wallet on chain. Status: ${s.status}. Spec ${s.spec_hash.slice(0, 16)}.`;
   $("program").textContent = s.program;
   $("idea").textContent = s.idea;
   $("synthetic").hidden = !s.synthetic;
@@ -39,7 +39,7 @@ function render() {
     cell(tr, r.kind); cell(tr, r.shown); cell(tr, r.attempts); cell(tr, r.refused + (r.out ? " (out)" : ""));
     tb.appendChild(tr);
   });
-  $("pot").textContent = `Pooled: ${usdc(s.pot.total)} test USDC from ${s.pot.pledges.length} funder(s), split by the referee's final verdicts.`;
+  $("pot").textContent = `Pooled: ${usdc(s.pot.total)} test units in ${s.pot.pledges.length} pledge(s), split by the referee's final verdicts.`;
   const ul = $("pledges"); ul.textContent = "";
   s.pot.pledges.forEach((p) => { const li = document.createElement("li"); li.textContent = `${p.funder}: ${usdc(p.amount)} (${p.cluster}${p.label ? ", " + p.label : ""})${p.order ? " order " + p.order : ""}`; ul.appendChild(li); });
   if (s.final) {

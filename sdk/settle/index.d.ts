@@ -70,10 +70,10 @@ export function fundAudience(issue: Num, amount: Num, mode?: number, checksHex?:
 export function payAudience(repoId: Num, issue: Num, authorId: Num, headSha: string, checksHex?: string, mode?: number): string;
 export function vetoAudience(repoId: Num, issue: Num): string;
 export function claimAudience(address: Address): string;
-/** The fee on a payment of the FIRST deployment (2.5%, at least 0.05, never more than the amount). The live knos_pay 2.2 charges 0.30%, at least 0.05: v2.feeOf. */
 /** One fee rule of knos_pay (v2.FEE_RULES). Amounts in millionths of a whole unit; rates in basis points. */
 export interface FeeRule { readonly release: string; readonly build: string; readonly bps: number; readonly floor: number; readonly planMin: number;
   readonly jobBps: number; readonly jobFloor: number; readonly tiers: ReadonlyArray<readonly [number, number]>; }
+/** The fee on a payment of the FIRST deployment (2.5%, at least 0.05, never more than the amount). The live knos_pay 2.2 charges 0.30%, at least 0.05: v2.feeOf. */
 export function feeOf(amount: Num): number;
 export function wfRepoHash(repository: string): Promise<Bytes>;
 export interface Job1 {
@@ -400,9 +400,9 @@ export interface V2 {
   errorWords(err: unknown): string | null;
   /** What the fund audience of a PRIVATE order carries as its terms: sha256(scope || terms hash). */
   privateFundTerms(scope: Bytes | string, termsHash: Bytes | string): Promise<Bytes>;
-  /** The arbiter's ruling: who is paid, in what shares. Relayed with payOrderIx. */
   /** What prove.yml asks GitHub to sign to pay an AUTO order without a merge: mode 1, one payee paid in full. */
   autoAudience(order: Address, headSha: string, termsHex: string, pr: Num, payeeId: Num, address?: Address | null): string;
+  /** The arbiter's ruling: who is paid, in what shares. Relayed with payOrderIx. */
   ruleAudience(order: Address, payees: Payee[]): string;
   /** An organisation's bind token. */
   orgBindAudience(address: Address): string;

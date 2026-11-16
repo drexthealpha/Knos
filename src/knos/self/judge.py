@@ -15,8 +15,9 @@ In order, the first refusal decides (no candidate code runs before step 5):
     5. public tier               the target's public tests pass on the candidate
     6. sealed tier               the hidden bundle: the metric on parent and candidate, the hidden tests, each re-run;
                                  the agent's own number, if it gave one, must be what the referee measured
-    7. merge rule                the target improves by at least min_gain; a gain above implausible_gain_rel is held
+    7. merge rule                the target improves by at least min_gain
     8. shadow                    the target's neighbouring tests, parent beside candidate: a disagreement is held
+    9. plausible gain            a gain above implausible_gain_rel is held
 
 Decision: accept (the loop then applies the daily cap and moves it to canary) | held (founder review) | refused.
 """

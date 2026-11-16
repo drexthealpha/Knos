@@ -110,7 +110,7 @@ and refuses a token whose marker exists, whatever the state of the other account
   the token; `CloseMarker` returns the rent after that time and not before. [SECURITY.md](SECURITY.md), section 15,
   says how the devnet faucet's pair of instructions (`FaucetOpen`, then the funding) fits the rule.
 - **Also enforced by time:** a token is refused an hour after its expiry and when dated more than five minutes
-  ahead of the chain's clock, An order also refuses any token issued before it was funded (allowing 30 seconds of
+  ahead of the chain's clock. An order also refuses any token issued before it was funded (allowing 30 seconds of
   clock difference). So a token made for an earlier order at the same address is refused for two reasons.
 - **Checked by:** `tests/test_double_pay.py`; the machine above, for every token it signs;
   `test_a_comment_funds_an_order_from_a_balance_once` and
@@ -249,8 +249,8 @@ devnet, pays 300.00.
   under `knos_pay` 2.1 (2.5% of the first 1,000, 1% to 50,000, 0.5% above, at least 0.40) pays, refunds
   and reverts with that fee; a top-up of it is charged at 0.30% and never less than the fee already there. A Plan set
   under 2.1 (0.5% to 2.5%) is read as 0.30%: no rate is above the standard one.
-- **Volume rates are not on chain.** The proposed price list ([PRICING.md](../PRICING.md)) offers 0.20% on monthly value
-  above 1,000,000 USD; that would be a rebate under a contract, not a rule of the program.
+- **Planned prices are not on chain.** The price list ([PRICING.md](../PRICING.md)) plans a 1% release fee; it
+  would reach the program only through an upgrade, which waits 8 days in public.
   The program knows 0.30%, the floor, and a Plan's rate for one repository owner.
 - **Checked by:** the unit tests of `order_fee` and `fee_of` in [`lib.rs`](../../programs-v2/knos_pay/src/lib.rs) and
   the Kani harnesses in [`proofs.rs`](../../programs-v2/knos_pay/src/proofs.rs) (run by `cargo test` and `cargo kani`,
@@ -403,7 +403,7 @@ under two ids without a return between them, and no line booked from a transacti
 `tests/test_completeness.py` shows it finds both when they are planted).
 
 **What is remembered.** How an exception was resolved (corrected, accepted or refused) is kept in the buyer's memory
-through `knos.proof.history` (Sibyl, the memory library Knos uses: it keeps one entry per supplier and terms, and one journal event per
+through `knos.proof.history` (the memory library Knos uses: it keeps one entry per supplier and terms, and one journal event per
 resolution), and is
 recalled when the same source appears again under the same terms.
 

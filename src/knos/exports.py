@@ -358,7 +358,7 @@ def parts_check(export_text: str, parts_text: str) -> list[str]:
 
 # ---- the purchase-order match, and the invoice as cXML ---------------------------------------------------------------------
 STATEMENT_MORE = {
-    "match": {"name": "Knos: purchase-order match", "extension": "csv", "source": "docs/reference/COMPANIES.md#bank-transfers", "confirmed": "Knos's own format", "unverified": ""},
+    "match": {"name": "Knos: purchase-order match", "extension": "csv", "source": "docs/reference/COMPANIES.md#statements", "confirmed": "Knos's own format", "unverified": ""},
     "ariba": {"name": "SAP Ariba: cXML InvoiceDetailRequest", "extension": "xml",
               "source": "https://compass.coupa.com/en-us/products/product-documentation/supplier-resources/for-suppliers/integration-resources/"
                         "standard-invoice-examples/sample-cxml-invoice-with-both-backed-and-unbacked-lines",

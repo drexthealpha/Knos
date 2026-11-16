@@ -162,7 +162,7 @@ def from_memory(store, repos, supplier) -> dict:
                 where = {"repository": repo, "pull_request": pull, "url": f"https://github.com/{repo}/pull/{pull}" if repo.count("/") == 1 else None}
                 counts[event].append({**where, **({"appeal": ids[pull]} if event in ("appealed", "overturned") and pull in ids else {})})
     judged = {(w["repository"], w["pull_request"]) for k in ("accepted", "rejected") for w in counts[k]}
-    return {"read": True, "source": "the supplier's memory in the Sibyl engine (knos.proof.history supplier_record, appeals)",
+    return {"read": True, "source": "the memory engine's record of the supplier (knos.proof.history supplier_record, appeals)",
             "repositories": sorted(named.values()), "category": MEMORY_CATEGORY, "sample": len(judged),
             "period": {"from": None, "to": None, "unit": "not kept: the memory holds the pull requests, not a calendar"},
             "counts": {k: {"n": len(v), "evidence": v} for k, v in counts.items()}}

@@ -2,7 +2,7 @@
   "version": "0.3.14",
   "name": "knos_meter",
   "docs": [
-    "Acceptance without escrow: a neutral on-chain count of evaluations that GitHub signed, paid from prepaid credits. It moves no customer money.",
+    "Acceptance with no money held for a job: a neutral on-chain count of evaluations that GitHub signed, paid from prepaid credits. It moves no customer money.",
     "Upgradeable only through a multisig with a public 8-day time lock, until an outside review.",
     "The multisig is 2 of 3, and today one person holds all three keys.",
     "A native program: this file is written by hand from programs-v2/knos_meter/src (lib.rs lists every instruction, state.rs every account) and checked by tests/test_meter_chain.py.",

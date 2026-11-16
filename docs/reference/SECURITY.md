@@ -13,7 +13,8 @@ Whether one is still pending, has run or was replaced, and from when it can run,
 and by the site's [upgrade record](https://drexthealpha.github.io/Knos/upgrades.json);
 [`web/upgrades.json`](../../web/upgrades.json) is the committed copy, of the time it names.
 
-Knos runs on Solana devnet and the money is test USDC. **Nobody outside Knos has reviewed the security of
+Knos runs on NEAR testnet and Solana devnet, and the money is test USDC; this page covers the Solana devnet
+programs. **Nobody outside Knos has reviewed the security of
 anything here:** not the programs, the workflows, the relay, the clients, the site or these documents. What the
 programs guarantee about money, one sentence each with its test, is in [INVARIANTS.md](INVARIANTS.md); who can
 change the programs is in [GOVERNANCE.md](GOVERNANCE.md).
@@ -80,7 +81,7 @@ serve jobs pinned to that label.
 
 The token still says `github-hosted`
 ([research note](https://github.com/amiller/github-zktls/blob/master/tasks/substitution-demo/research-note.md),
-runs of 21–24 Aug 2026; [GitHub community discussion 205732](https://github.com/orgs/community/discussions/205732)).
+runs of 21 to 24 Aug 2026; [GitHub community discussion 205732](https://github.com/orgs/community/discussions/205732)).
 So pinning a workflow file and its commit fixes the code that was asked to run. It does not fix the machine, when
 the repository belongs to such an organisation.
 
@@ -678,7 +679,7 @@ that tests pass, CI is green, a release or a bare "done", Knos runs that check i
 fails.
 
 It is a local aid: a person can remove it, and an agent run without hooks does not have it. What it learns
-stays in Sibyl's store on your machine ([`src/knos/store.py`](../../src/knos/store.py)).
+stays in a memory store on your machine ([`src/knos/store.py`](../../src/knos/store.py)).
 
 **The MCP tools** hold no key and send nothing. The ones that act return the exact comment or transaction for a
 person or an agent to send. Whatever a repository or an account wrote is returned in a field named `untrusted`, cut
@@ -1154,7 +1155,7 @@ For a security or procurement review. Each line is something a reviewer asks for
   audited anything.
 - **One operator.** One person writes the code and holds every member key of the upgrade multisig. The same person
   runs the relay, and no second person reviews a change.
-- **Devnet only.** The money is test USDC. Nothing here has run with real money.
+- **NEAR testnet and Solana devnet only.** The money is test USDC. Nothing here has run with real money.
 - **No contract.** There is no named legal entity, no terms of service, no data-processing agreement and no
   service-level agreement.
 - **No support contract.** Today one person answers; there is no support contract and no on-call team.
@@ -1220,7 +1221,7 @@ The first three cannot be removed. They come with the design.
 27. **The assurance is the author's own.** [ASSURANCE.md](ASSURANCE.md) says what is tested, what is fuzzed, and
     what is not; its section "Fuzzing, mutation testing and model checking: the state of each" has the differential
     test of the verifier and the fuzz targets, and [`fuzz.json`](../fuzz.json) is the recorded run.
-28. **Devnet only, and no outside buyer.** By 3 Oct 2026 no outside repository had funded a task.
+28. **NEAR testnet and Solana devnet only, and no outside buyer.** By 3 Oct 2026 no outside repository had funded a task.
 29. **Everything depends on one GitHub account** that hosts the pinned workflows, the rotate workflow and
     the relay. If it is suspended, funded orders can only be refunded and keys run out within 30 days
     ([GOVERNANCE.md](GOVERNANCE.md), section 6).

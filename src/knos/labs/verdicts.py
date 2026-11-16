@@ -204,7 +204,7 @@ class SpentStore:
     """Every lab verdict already accepted, kept on disk so a replay is refused across processes and restarts: one JSON
     line per spent (order, nonce) in <Knos home>/labs/verdicts-spent.jsonl (KNOS_LAB_VERDICTS_SPENT names another
     file). The same rule as knos.platform.verdict (V34PAY): a verdict that is ACCEPTED is spent; a refusal spends
-    nothing; record=False is a dry run. Writes take an exclusive lock and are fsynced."""
+    nothing; record=False is a dry run. Writes are fsynced, and take an exclusive lock everywhere but Windows."""
 
     def __init__(self, path=None):
         from pathlib import Path

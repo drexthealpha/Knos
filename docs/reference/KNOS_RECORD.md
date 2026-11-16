@@ -23,7 +23,7 @@ One JSON object per line in `journal.jsonl`:
 | `seq` | the line's number, from 0 |
 | `ts` | UTC time it was written |
 | `kind` | `claim`, `paper`, or an event: `experiment`, `verification`, `verdict`, `cheat`, `refusal`, `payout`, `refund`, `funding`, `graduation`, `split`, `anchor` |
-| `tier` | where Sibyl's memory engine keeps it: `WARM` (claim), `REFERENCE` (paper), `COLD` (every event) |
+| `tier` | where the memory engine keeps it: `WARM` (claim), `REFERENCE` (paper), `COLD` (every event) |
 | `claim` | the claim or paper id the line is about, or null |
 | `domain` | a short field name such as `ml`, or empty |
 | `payload` | the facts: spec hash, pass or fail, cheat type, amount in the mint's smallest unit, devnet transaction signature |
@@ -39,19 +39,19 @@ name that does not say it is a signature or a hash.
 
 Sample data says `"synthetic": true` in its payload.
 
-## Sibyl holds every line too
+## The memory engine holds every line too
 
-Knos remembers through Sibyl's memory engine and nothing else (`tests/test_sibyl_is_load_bearing.py`). The record
-uses three of its tiers, in Sibyl's local store `sibyl.db` beside the file (tenant `knos-record`):
+Knos remembers through its memory engine and nothing else (`tests/test_record_journal.py`). The record
+uses three of its tiers, in the engine's local store beside the file (tenant `knos-record`):
 
 - **WARM**: one entity per research claim (category `record_claim`), holding its latest state.
 - **COLD**: one journal event for every line, claims and papers included. This is the second witness.
 - **REFERENCE**: one reference document per paper (`record:paper:<id>`).
 
-A line goes to Sibyl first and to the file second. Without Sibyl's package there is no record at all.
+A line goes to the memory engine first and to the file second. Without the engine's package there is no record at all.
 
-Why it matters: cutting lines off the end of the file breaks no hash. Held to Sibyl's journal, the cut is caught;
-with no memory, or with Sibyl's store deleted, it is not (`tests/test_record_verify.py`). An anchored root catches the
+Why it matters: cutting lines off the end of the file breaks no hash. Held to the engine's journal, the cut is caught;
+with no memory, or with the engine's store deleted, it is not (`tests/test_record_verify.py`). An anchored root catches the
 same cut once an anchor covers those lines.
 
 ## Anchoring a batch on Solana devnet
@@ -85,9 +85,9 @@ the file.
    `src/knos/record/anchoring.py`. Today the pinned key is the build's own devnet wallet
    `8aukezen9sAALWShcZKK3hi8WawBi4vR6qmLf764PGBv`. Without the pin, anyone could rewrite the whole file and anchor it
    again with a wallet of their own, and every hash and root would agree.
-4. When Sibyl's store is beside the file, every line Sibyl's journal holds must be in the file, unchanged, and the
-   other way round. Each claim entity and paper reference must point at its latest line. A public copy has no store
-   beside it. It is checked by 1 to 3, and the report says Sibyl was not consulted.
+4. When the memory engine's store is beside the file, every line the engine's journal holds must be in the file,
+   unchanged, and the other way round. Each claim entity and paper reference must point at its latest line. A public
+   copy has no store beside it. It is checked by 1 to 3, and the report says the memory was not consulted.
 
 Exit code 0 when every check passes, 1 otherwise. `--json` prints the report.
 
@@ -144,11 +144,11 @@ The record does not stop edits. It makes them show, to someone who checks, withi
   can both be seen. Today one key, the build's devnet wallet, anchors this record.
 - A record with no anchor proves nothing about its past: a rewritten copy would verify the same way. The report says
   when there is no anchor.
-- Lines written after the last anchor have only the file's hashes and Sibyl's journal behind them. Cutting them from
-  the end of a public copy, which has no Sibyl store beside it, is not caught until the next anchor.
+- Lines written after the last anchor have only the file's hashes and the memory engine's journal behind them.
+  Cutting them from the end of a public copy, which has no memory store beside it, is not caught until the next anchor.
 - Nobody outside Knos has reviewed this code.
 
-## Retention: what a root proves, who keeps what, and what is left if Knos disappears
+## Retention: what a root proves, and what is left if Knos disappears
 
 A batch's root (one fingerprint of all its lines, a Merkle root, written on chain) proves one thing: a line you hold is among the lines that were put under
 that root, and has not changed since. It is a commitment. It is not a copy and it is not a count of what should

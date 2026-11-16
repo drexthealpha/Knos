@@ -193,7 +193,7 @@ def register(app: typer.Typer, out, Stop, repo_of) -> None:
         issue_file=typer.Option(None, "--issue-file", help="the issue as GitHub's API gives it (else fetched)"),
         diff=typer.Option(None, "--diff", help="the pull request's unified diff from the base"),
         evidence=typer.Option(None, "--evidence", help="write the evidence JSON here"),
-        store=typer.Option(None, "--store", help="a directory the judge remembers in (Sibyl's local store: <dir>/sibyl.db)"),
+        store=typer.Option(None, "--store", help="a directory the judge remembers in (the memory engine's local store: <dir>/sibyl.db)"),
         repo_name=typer.Option("", "--repo", help="owner/name"),
         agent=typer.Option("", "--agent", help="the pull request's author"),
         body_file=typer.Option(None, "--body-file", help="the pull request's description"),
@@ -414,8 +414,8 @@ def register(app: typer.Typer, out, Stop, repo_of) -> None:
 
     @memory.command("pull")
     def memory_pull(repo_name: str = typer.Option(..., "--repo", help="owner/name"),
-                    store: Path = typer.Option(..., "--store", help="the directory of the judge's Sibyl store")) -> None:
-        """Load what earlier runs learned, from the repository's knos-memory issue into the judge's Sibyl store."""
+                    store: Path = typer.Option(..., "--store", help="the directory of the judge's memory store")) -> None:
+        """Load what earlier runs learned, from the repository's knos-memory issue into the judge's memory store."""
         from .. import judge
         from . import history
         from . import memory as lessons
@@ -426,7 +426,7 @@ def register(app: typer.Typer, out, Stop, repo_of) -> None:
 
     @memory.command("push")
     def memory_push(repo_name: str = typer.Option(..., "--repo", help="owner/name"),
-                    store: Path = typer.Option(..., "--store", help="the directory of the judge's Sibyl store"),
+                    store: Path = typer.Option(..., "--store", help="the directory of the judge's memory store"),
                     run_id: str = typer.Option("", "--run", help="this run's id, named in the comment")) -> None:
         """Post what this run learned to the repository's knos-memory issue (opened if there is none). Needs a token
         that may write issues: a run in the repository's own context."""

@@ -97,8 +97,8 @@ def _price_units(lab: str, spec: Spec) -> tuple[int, str]:
 def referee_keys(wallets: Path, referees: Path, payer: Keypair) -> list[Keypair]:
     """The referees' keys, from THEIR folder: never the buyer's. Refused when the folder is the buyer's wallets folder
     (or inside it), or when the funder's own key is one of them: a buyer holding the referee keys could sign FAIL on a
-    lab that did the work. Until a referee registry exists (V34PAY), the folder stands in for independent referees;
-    on one machine they are not independent, and the output says so."""
+    lab that did the work. The demo does not draw its referees from Knos's referee registry (config/referees.yaml): the
+    folder stands in for independent referees; on one machine they are not independent, and the output says so."""
     w, r = wallets.resolve(), referees.resolve()
     if r == w or w in r.parents:
         raise ValueError("the referee keys may not live in the buyer's wallets folder: give --referees a folder the referees hold")

@@ -120,13 +120,13 @@ def _check_sibyl(lines: list[dict], store, problems: list[str]) -> dict:
     differs = sorted(s for s in in_file if s in by_seq and journal.canonical(by_seq[s]) != journal.canonical(in_file[s]))
     edited = sorted(s for s, e in by_seq.items() if e.get("hash") != journal.line_hash(e))
     if edited:
-        problems.append(f"{len(edited)} line(s) in Sibyl's journal do not hash to what they say (seq {edited[:5]}): the memory was edited")
+        problems.append(f"{len(edited)} line(s) in the memory's journal do not hash to what they say (seq {edited[:5]}): the memory was edited")
     if missing_from_file:
-        problems.append(f"Sibyl's journal holds {len(missing_from_file)} line(s) the file does not (seq {missing_from_file[:5]}): lines were removed")
+        problems.append(f"the memory's journal holds {len(missing_from_file)} line(s) the file does not (seq {missing_from_file[:5]}): lines were removed")
     if missing_from_sibyl:
-        problems.append(f"the file holds {len(missing_from_sibyl)} line(s) Sibyl's journal never saw (seq {missing_from_sibyl[:5]})")
+        problems.append(f"the file holds {len(missing_from_sibyl)} line(s) the memory's journal never saw (seq {missing_from_sibyl[:5]})")
     if differs:
-        problems.append(f"{len(differs)} line(s) differ between the file and Sibyl's journal (seq {differs[:5]})")
+        problems.append(f"{len(differs)} line(s) differ between the file and the memory's journal (seq {differs[:5]})")
     latest: dict[tuple[str, str], dict] = {}
     for e in lines:
         if e.get("tier") in ("WARM", "REFERENCE"):
@@ -136,7 +136,7 @@ def _check_sibyl(lines: list[dict], store, problems: list[str]) -> dict:
         held = store.get(journal.CLAIM_CATEGORY, name) if tier == "WARM" else store.reference(journal.PAPER_PREFIX + name)
         if held.get("_hash") != e["hash"]:
             what = "claim" if tier == "WARM" else "paper"
-            problems.append(f"Sibyl's {tier} {what} {name!r} is not the file's latest line for it (seq {e['seq']})")
+            problems.append(f"the memory's {tier} {what} {name!r} is not the file's latest line for it (seq {e['seq']})")
         else:
             tiers[tier] += 1
     return {"consulted": True, "cold_events": len(kept), "warm_claims_ok": tiers["WARM"], "reference_papers_ok": tiers["REFERENCE"],
@@ -171,7 +171,7 @@ def verify(root=None, *, offline: bool = False, fetch: Callable[[str, str], dict
         if st is not None:
             sib = _check_sibyl(lines, st, problems)
         elif use_sibyl:
-            problems.append("Sibyl's store was asked for and there is none beside the file")
+            problems.append("a memory store was asked for and there is none beside the file")
     return {"ok": not problems, "path": str(path), "lines": len(lines), "head": lines[-1]["hash"] if lines else journal.GENESIS,
             "anchored": covered, "unanchored": len(lines) - covered, "anchors": rows, "chain_read": not offline,
             "signers": sorted(trusted), "sibyl": sib, "problems": problems}
@@ -189,11 +189,11 @@ def lines_of(report: dict) -> list[str]:
         out.append(f"  {report['unanchored']} line(s) after the last anchor: nothing on chain vouches for them yet")
     s = report.get("sibyl") or {}
     if s.get("consulted"):
-        out.append(f"  Sibyl: {s['cold_events']} COLD event(s), {s['warm_claims_ok']} WARM claim(s) and {s['reference_papers_ok']} "
+        out.append(f"  memory: {s['cold_events']} COLD event(s), {s['warm_claims_ok']} WARM claim(s) and {s['reference_papers_ok']} "
                    "REFERENCE paper(s) agree with the file" if not (s["missing_from_file"] or s["missing_from_sibyl"] or s["differs"] or s["edited"])
-                   else "  Sibyl: the memory and the file disagree (see below)")
+                   else "  memory: the memory and the file disagree (see below)")
     else:
-        out.append("  Sibyl: not consulted (no store beside the file)")
+        out.append("  memory: not consulted (no store beside the file)")
     if not report.get("chain_read", True):
         out.append("  chain: not read (--offline): the roots were recomputed, not checked against Solana")
     for p in report.get("problems", []):

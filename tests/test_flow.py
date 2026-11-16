@@ -478,7 +478,7 @@ def test_a_tip_is_funded_on_the_merged_pull_request_and_hands_over_to_settle(tmp
     assert "Knos settle: no tip waits for pull request #12 on Solana, so there is nothing to pay." in capsys.readouterr().out
 
 
-def test_a_tip_that_could_reach_nobody_or_comes_from_nobody_is_not_put_in_escrow(tmp_path):
+def test_a_tip_that_could_reach_nobody_or_comes_from_nobody_is_not_held(tmp_path):
     w = bounty(tmp_path, author=DEVIN)
     w.hub.merge(12)
     run = w.run(w.hub.commented(12, HUBOT, "/knos tip 5"))
@@ -585,7 +585,7 @@ def test_every_other_knos_comment_gets_its_answer(tmp_path):
     assert reply(12, HUBOT, "/knos pay @mona", 1) == "Knos: GitHub did not answer for this pull request, so nothing was done. Post the comment again."
 
 
-def test_status_says_what_is_in_escrow_its_terms_and_who_holds_the_issue(tmp_path):
+def test_status_says_what_is_held_its_terms_and_who_holds_the_issue(tmp_path):
     w = world(tmp_path)
 
     def status(n: int = 7, code: int = 0) -> str:
@@ -1009,7 +1009,7 @@ def test_a_proof_the_chain_refuses_or_nobody_relays_is_said_with_what_to_do(tmp_
     assert only(w, 12).endswith("already paid or refunded). Nothing is held for this issue; a maintainer funds it with `/knos fund <amount>` first.")
 
 
-def test_a_push_says_nothing_about_a_pull_request_with_nothing_in_escrow_and_a_person_who_asks_is_answered(tmp_path, capsys):
+def test_a_push_says_nothing_about_a_pull_request_with_nothing_held_and_a_person_who_asks_is_answered(tmp_path, capsys):
     w = world(tmp_path)
     w.hub.pull(12, MONA, "Fixes #7")
     push = w.hub.merge(12)

@@ -122,7 +122,6 @@ def main(argv=None) -> int:
             _print(g.finish())
         elif a.cmd == "pot":
             from .. import chain
-            from . import payout
             _print(pot_report(g, chain.ledger))
         elif a.cmd == "panel":
             from . import payout

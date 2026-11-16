@@ -30,7 +30,7 @@ The documents in this folder are listed below, with the seven front pages too.
 
 | document | what it answers |
 |---|---|
-| [STORY.md](../STORY.md) | one crossing on one page, step by step, each with its evidence |
+| [STORY.md](../STORY.md) | an earlier run on Solana in six steps, each with its evidence |
 | [NEAR.md](NEAR.md) | Knos on NEAR in full: every claim, the accounts on testnet, the tests and attacks, the disclosure |
 | [IRIS.md](IRIS.md) | Knos on InterSystems IRIS in full: the contest task part by part, the bonuses, troubleshooting, the architecture |
 | [COLOSSEUM.md](COLOSSEUM.md) | the pull request check on Solana devnet and the README's old reference sections: what is real today, the programs |
@@ -38,17 +38,17 @@ The documents in this folder are listed below, with the seven front pages too.
 | [CAPABILITIES.md](CAPABILITIES.md) | every capability, the stage it has reached, and the file or transaction that shows it |
 | [BENCH.md](BENCH.md) | every measured number, with the command that reproduces it |
 | [TAMPER.md](TAMPER.md) | which cheating submissions each referee refuses, and how much correct work each accepts |
-| [KNOS_RECORD.md](KNOS_RECORD.md) | every check, cheat caught and payout as one hash-chained public file, anchored on devnet, and how to verify it |
+| [KNOS_RECORD.md](KNOS_RECORD.md) | every check and payout, with each cheat caught, as one hash-chained public file, anchored on devnet, and how to verify it |
 | [REFEREE_FROST.md](REFEREE_FROST.md) | the referee panel as one FROST key (2 of 3 hosts sign), and m of n referees on chain |
 | [REFEREE.md](REFEREE.md) | the referee: Works (sealed tests, a locked referee, the cheat library, re-runs), Wanted and Makeable, and the free maintainer mode |
 | [LOAD.md](LOAD.md) | many orders open at once, in the local simulator |
 | [DRILLS.md](DRILLS.md) | the safety paths, tested on the same program files that run on devnet |
 | [drills_recovery.md](drills_recovery.md) | what a funder does in three failures, with a key of their own |
 | [INVARIANTS.md](INVARIANTS.md) | what holds about money and concurrency, each with its test |
-| [ASSURANCE.md](ASSURANCE.md) | the tests, the fuzzing and the proofs; no outside firm has reviewed anything |
+| [ASSURANCE.md](ASSURANCE.md) | the tests and the fuzzing, with the proofs; no outside firm has reviewed anything |
 | [UNWRAPS.md](UNWRAPS.md) | every place a program can panic, and why it cannot be reached |
 | [PROVENANCE.md](PROVENANCE.md) | how each deployed program traces back to the source code it was built from |
-| [FAUCET.md](FAUCET.md) | how a stranger gets test USDC and funds a first task, the faucet's rules, and its key |
+| [FAUCET.md](FAUCET.md) | how a stranger gets test USDC and funds a first task, and the faucet's rules and key |
 | [REPRODUCE.md](REPRODUCE.md) | how someone else runs it and files a signed report |
 | [REPRODUCED.md](REPRODUCED.md) | knos.yml: a research repository's claims re-run on a second machine and held-out data; contested results stay private |
 | [NUMBERS.md](../NUMBERS.md) | nine numbers about use by anyone outside, zeros included |
@@ -69,7 +69,7 @@ The documents in this folder are listed below, with the seven front pages too.
 |---|---|
 | [VERIFIER.md](VERIFIER.md) | a Solana program that checks the signed identity tokens of GitHub, GitLab, Google and others |
 | [OIDC.md](OIDC.md) | the `knos-oidc` program, instruction by instruction |
-| [METER.md](METER.md) | what is counted, the two ledgers, and the statement both sides rebuild |
+| [METER.md](METER.md) | what is counted in the two ledgers, and the statement both sides rebuild |
 | [RECEIPT.md](RECEIPT.md) | the acceptance receipt and its schema |
 | [TERMS.md](TERMS.md) | terms a contract can cite by hash |
 | [DISPUTES.md](DISPUTES.md) | who can do what in a dispute, at each state, with nobody from Knos |
@@ -88,10 +88,10 @@ The documents in this folder are listed below, with the seven front pages too.
 | [COMPANIES.md](COMPANIES.md) | the panels for buyers and suppliers: statements, bank files, approvals, netting, enforcement, vendors |
 | [SUPPLIER.md](SUPPLIER.md) | for the supplier: the rules before the work, every refusal in plain words, appeals |
 | [AGENTS.md](AGENTS.md) | an agent finds work, takes it, submits it and is paid |
-| [DEMAND_CHECK.md](DEMAND_CHECK.md) | the demand check on Qloo's MCP server: a maker's demand report, a buyer agent, pre-orders held on devnet |
+| [DEMAND_CHECK.md](DEMAND_CHECK.md) | the demand check: what Qloo's taste data says about an idea, and the report it writes |
 | [REFUSE.md](REFUSE.md) | what Knos will not fund: the refuse list every Ready check applies |
-| [MCP_STORE.md](MCP_STORE.md) | Knos in AI assistants: the read-only app-store MCP, its tools, limits and privacy |
-| [OUTSIDE_TRUTH.md](OUTSIDE_TRUTH.md) | Open signals scored against 200 past SBIR awards with known outcomes: no better than chance |
+| [MCP_STORE.md](MCP_STORE.md) | Knos in AI assistants: the read-only app-store MCP and its tools, with their limits and privacy |
+| [OUTSIDE_TRUTH.md](OUTSIDE_TRUTH.md) | the demand check scored against outside truth: SBIR awards, crowdfunded launches, Census counts and film fans |
 | [qloo_lift_ranked_plan.md](qloo_lift_ranked_plan.md) | The rules of the ranked test on a public dataset of crowdfunded product launches, committed before it ran |
 | [taste_truth_plan.md](taste_truth_plan.md) | The rules of the MovieLens taste test, committed before it ran |
 | [where_truth_plan.md](where_truth_plan.md) | The rules of the where-demand test, committed before it ran |
@@ -101,7 +101,7 @@ The documents in this folder are listed below, with the seven front pages too.
 | [impact_prereg_plan.md](impact_prereg_plan.md) | The launch-city test against the model alone, fixed before any call or prediction |
 | [baseline_prereg_plan.md](baseline_prereg_plan.md) | The launch-city ranking against Qloo popularity alone and population, fixed before any data is read |
 | [QLOO-COVERAGE.md](QLOO-COVERAGE.md) | every Qloo parameter, type and endpoint the docs list, and where a person sets it on each interface |
-| [IDEAS.md](IDEAS.md) | an idea in from anyone or any research source, every field; demand, then pull commitments released in stages |
+| [IDEAS.md](IDEAS.md) | the first two steps of the earlier flow: an idea in from anyone, then demand evidence |
 
 ## 5. How do I build on it?
 
@@ -120,15 +120,15 @@ The documents in this folder are listed below, with the seven front pages too.
 
 | document | what it answers |
 |---|---|
-| [PRICING.md](../PRICING.md) | what it costs: demand checks and Ready briefs are free, the fee when held money is released |
+| [PRICING.md](../PRICING.md) | what it costs: the check is free; the fee each chain takes |
 | [TRUST.md](../TRUST.md) | who holds the keys today, how to ask for one, and what is tested |
 | [GOVERNANCE.md](GOVERNANCE.md) | who can change what today, and what waits in public |
-| [MONEY.md](MONEY.md) | the one fee config, graduation held money and pre-orders, contributor splits, x402, the revenue data |
+| [MONEY.md](MONEY.md) | the one fee config, contributor splits, x402 and the revenue data; the earlier flow's graduation and pre-order pool |
 | [CHARTER.md](CHARTER.md) | the rights Knos gives you: each enforced by a named test, or marked a promise |
 | [SECURITY.md](SECURITY.md) | who is trusted for what, every limit, and what does not exist for a review |
 | [ATTESTOR.md](ATTESTOR.md) | what the forge's signature proves and does not, and five ways to narrow the gap; two exist |
 | [PRIVACY.md](PRIVACY.md) | what goes in public, and what does not |
-| [DISCLOSURE.md](DISCLOSURE.md) | what was built when, who answers if the count is wrong, and the law examined |
+| [DISCLOSURE.md](DISCLOSURE.md) | what was built when and who answers if the count is wrong; the law examined |
 
 ## What is in this repository
 
@@ -139,7 +139,9 @@ The documents in this folder are listed below, with the seven front pages too.
 | [`.github/workflows`](../../.github/workflows) | The workflows a repository calls, published at one pinned commit of the `workflows-<sha12>` tags of `drexthealpha/Knos` (`drexthealpha/knos-workflows` before the 0.3.34 branch, whose files and history are in [`repos/knos-workflows`](../../repos/knos-workflows/)). |
 | [`src/knos`](../../src/knos) | What the workflows run: the referee, the relay, receipts, statements, the Stop hook, the MCP server. |
 | [`crates`](../../crates), [`idl`](../../idl), [`sdk/settle`](../../sdk/settle), [`examples`](../../examples), [`conformance`](../../conformance) | What another team builds on. |
-| [`web`](../../web) | The site. It reads GitHub, Solana and NEAR in the browser and calls the Knos server (knos.onrender.com) for live checks. |
+| [`near`](../../near) | The NEAR entry: the contracts on NEAR testnet and the code that runs against them. |
+| [`iris`](../../iris) | Knos on InterSystems IRIS (the IRIS entry). |
+| [`web`](../../web) | The site. It reads GitHub and both chains in the browser and calls the Knos server (knos.onrender.com) for live checks. |
 | [`terms`](../../terms) | The terms registry: each set of terms, by hash. |
 
 ## The crossing in full (before the NEAR entry)
@@ -148,8 +150,8 @@ Until November 2026 an idea or a paper got a demand check, then a Ready brief, t
 payment when its check passed. The current flow, a paper's claim checked against a test locked on NEAR testnet, is in
 [START.md](../START.md).
 
-- Each milestone of a Ready brief has a target, a checker and a deadline, locked by its criteria hash ([IDEAS.md](IDEAS.md)).
-- With no passed check by the deadline, the amount and the fee go back, and that needs no token.
+- Each milestone of a Ready brief had a target and a checker, with a deadline, locked by its criteria hash
+  ([IDEAS.md](IDEAS.md)). With no passed check by the deadline, the amount and the fee went back, and that needed no token.
 - A proof checked by code that runs the work apart from it is harder to cheat: of 63 cheating submissions, plain CI passed 56 and that check passed none ([TAMPER.md](TAMPER.md)).
 
 ## History

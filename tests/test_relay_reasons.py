@@ -43,7 +43,7 @@ SEEN = [
     ("no open job on this issue accepted the token", "knos"),       # a bounty is there, and refused this token
     ("nothing is in escrow at 9xQ (never funded, or already paid or refunded)", "user"),
     # the same reasons in the relay's words of today (the ones above are in the log as they were said)
-    ("the payment program on this cluster is version 2.0, which takes no such token yet; it will once the announced upgrade to 2.1 is live", "knos"),
+    ("the payment program on this cluster is version 2.0, which takes no such token; 2.1 and later take it", "knos"),
     ("no bounty is held for this issue (never funded, or already paid or refunded)", "user"),
     ("nothing is held at 9xQ (never funded, or already paid or refunded)", "user"),
 ]

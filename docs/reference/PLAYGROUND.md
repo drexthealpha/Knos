@@ -1,6 +1,6 @@
 # The playground
 
-Knos's own [issues](https://github.com/drexthealpha/Knos/issues), where a GitHub account and nothing else tries both sides of Knos. No wallet, nothing installed, nothing spent.
+Knos's own [issues](https://github.com/drexthealpha/Knos/issues), where a GitHub account and nothing else tries both sides of Knos. No wallet and nothing to install.
 Until the 0.3.34 branch it was drexthealpha/knos-playground (its files and history: [repos/knos-playground](../../repos/knos-playground/)). It is kept on GitHub, because the Colosseum judge path in the README uses its pull request 35.
 
 Test USDC, no monetary value. Who outside has used it is counted at the end of this page, never claimed.
@@ -68,7 +68,7 @@ workflow at the commit it pins. Anywhere but the playground, `/knos fund` is for
 
 ## How it is counted
 
-Three numbers, never added to each other, in [`outsiders.json`](https://drexthealpha.github.io/Knos/outsiders.json) and
+The counts, never added to each other, in [`outsiders.json`](https://drexthealpha.github.io/Knos/outsiders.json) and
 in `stats.json` under `outsiders` ([`scripts/outsiders.py`](../../scripts/outsiders.py)):
 
 - **Outside funders**: accounts and wallets that are not Knos's and funded a task. A stranger who funds in the
@@ -79,8 +79,8 @@ in `stats.json` under `outsiders` ([`scripts/outsiders.py`](../../scripts/outsid
 - **Outside payees**: accounts that are not Knos's and were paid by a task somebody else funded. Solving your own
   task does not count.
 
-- **Outside pull requests on funded tasks**: three more numbers (received, merged, paid)
-  (`pulls` in [`scripts/outsiders.py`](../../scripts/outsiders.py)): received and merged from GitHub, paid from the chain.
+- **Outside pull requests on funded tasks** (`pulls` in [`scripts/outsiders.py`](../../scripts/outsiders.py)): how
+  many were received and merged, read from GitHub, and how many were paid, read from the chain.
   A stranger paid for a task Knos funded is an outside payee, never an outside funder.
 
 What is Knos's is listed in [`scripts/own_github_ids.json`](../../scripts/own_github_ids.json).

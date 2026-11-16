@@ -330,7 +330,7 @@ def _line_hash(line: dict) -> str:
 
 class Audit:
     """Who signed in, approved and exported: a hash-chained log in the memory engine. `store`: a knos.proof.history
-    store (SibylStore.local(...) in the container)."""
+    store (the memory engine's local store in the container, knos.selfhost)."""
 
     def __init__(self, store: Any):
         self.store = store

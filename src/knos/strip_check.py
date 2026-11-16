@@ -115,7 +115,7 @@ def register(app, help_lines: list | None = None) -> None:
     import importlib
     typer = importlib.import_module("typer")       # named here and not imported: this module is standard library only at import
     if help_lines is not None:
-        help_lines.append(("protect", "For money", "Whether GitHub stops a buyer removing the Knos workflow before merging: closed, partly or open."))
+        help_lines.append(("protect", "For money", "Whether GitHub stops a buyer removing the Knos workflow before merging, and how far."))
 
     @app.command("protect")
     def protect_(check_strip: str = typer.Option(..., "--check-strip", metavar="OWNER/REPO", help="the repository to read"),

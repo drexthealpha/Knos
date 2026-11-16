@@ -407,7 +407,7 @@ def test_what_the_second_deployments_results_say_in_words():
     assert ghrelay.note({"ok": True, "kind": "key", "sigs": [], "key": "K", "added": True}) == "Key K added."      # the first deployment's own result, as ever
 
 
-# -- the verify-only limit -----------------------------------------------------------------------------------------------------
+# -- a work order's tokens -----------------------------------------------------------------------------------------------------
 def test_an_orders_tokens_travel_under_their_own_markers_and_an_issuers_url_beside_its_key_token(world):
     """What flow and attest post for a work order (take, cancel, revert, rule), an organisation's claim, and the rotate
     workflow's token for a key of any issuer, whose comment starts with the issuer's URL."""
@@ -460,6 +460,7 @@ def test_what_a_work_orders_results_say_in_words():
         "Key K of the issuer https://gitlab.example.com registered with the verifier: it verifies after a day's wait, once the guardian has approved it.")
 
 
+# -- the verify-only limit -----------------------------------------------------------------------------------------------------
 def test_verify_only_is_limited_to_20_a_day_for_one_repository(world):
     gh, relays, state = world
     t0 = 1_791_021_600.0                                        # 2026-10-03 10:00 UTC

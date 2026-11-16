@@ -1,4 +1,5 @@
-"""knos-pay in the Solana runtime (LiteSVM), with knos-oidc beside it: a bounty for one issue is paid to the pull
+"""knos-pay of the first deployment (programs/, built earlier) in the Solana runtime (LiteSVM), with knos-oidc beside
+it: a bounty for one issue is paid to the pull
 request author's GitHub account only on a GitHub-signed token from the funder's pinned workflow, and leaves the vault
 only on that user's own claim token. No admin instruction exists; every wrong token is refused; a random walk over
 every instruction keeps each vault equal to what is owed."""

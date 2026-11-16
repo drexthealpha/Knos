@@ -17,7 +17,8 @@ flowchart TB
 *Who can change the programs today, and what waits in public.*
 
 This page says who can change the programs and the keys they trust, what stands between that power and a user's
-money. It describes the programs as devnet holds them, with test USDC; the pending proposals
+money. It describes the Solana programs as devnet holds them, with test USDC (the NEAR testnet contracts are not
+covered here); the pending proposals
 are in [`web/upgrades.json`](../../web/upgrades.json). [SECURITY.md](SECURITY.md) is
 the security model; [INVARIANTS.md](INVARIANTS.md) is what the programs guarantee while they are unchanged.
 

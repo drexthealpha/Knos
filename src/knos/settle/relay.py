@@ -1,6 +1,8 @@
-"""Carries one GitHub-signed token to the chain: verifies it with knos-oidc, then sends the knos-pay instruction its
-audience asks for. Anyone can run this and pay the gas; the money goes where the token says, never where the relayer
-says. The always-on worker calls `submit` for every token a repository's workflow publishes.
+"""The first deployment's relay (Knos 0.3.11 and earlier, programs/ on Solana devnet): carries one GitHub-signed token
+to the chain, verifies it with knos-oidc, then sends the knos-pay instruction its audience asks for. Anyone can run
+this and pay the fees; the money goes where the token says, never where the relayer says. Knos's public worker
+(knos.proof.ghrelay) calls `submit` for every `knos:` token a workflow posts; the second deployment's relay
+(knos.settle.v2.relay) hands it key tokens as well.
 
     submit(ledger, payer, jwt)   ->  {"ok": True, "kind": "pay", "sigs": [...], ...}  or  {"ok": False, "why": "..."}
 

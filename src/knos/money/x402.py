@@ -164,7 +164,7 @@ class Server:
 
     def bazaar(self) -> dict:
         from . import x402_exact as X
-        return X.bazaar("GET", description="Knos paid check: the cheat checks, the repository's tests twice and a signed receipt for a "
+        return X.bazaar("GET", description="Knos x402 demo check, in devnet test USDC: the cheat checks, the repository's tests twice and a signed receipt for a "
                                            "committed change (run by `knos verify`; this endpoint meters it)",
                         output_example={"paid": True, "n": 0, "left": 0},
                         output_schema={"type": "object", "properties": {"paid": {"type": "boolean"}, "left": {"type": "integer"}},

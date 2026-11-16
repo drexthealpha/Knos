@@ -30,7 +30,7 @@ T = "ab" * 32
 
 
 class Memory:
-    """A store with the two calls knos.proof.history needs: what the Sibyl store gives, held in a dict."""
+    """A store with the two calls knos.proof.history needs: what the memory engine's store gives, held in a dict."""
 
     def __init__(self):
         self.held: dict = {}

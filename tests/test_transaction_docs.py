@@ -34,7 +34,7 @@ def test_the_witnessed_links_agree_with_the_readme():
     assert "pull/8" not in text and "pull/8" not in _read(ROOT / "README.md")
 
 
-def test_the_transaction_page_and_the_changelog_say_which_build_runs_now_and_that_the_time_lock_is_not_applied():
+def test_the_transaction_page_and_the_changelog_say_which_build_runs_now_and_whether_the_time_lock_is_applied():
     # once the manifest records knos_pay 2.2 on chain, no page may call 2.1 the build of today or proposal 8 pending,
     # and while docs/reference/GOVERNANCE.md says the time lock is approved and not yet applied, the release's entry says the same
     def flat(rel: str) -> str:

@@ -52,8 +52,8 @@ measurements under the names a reader asks for, each with its own n, p50 and p95
 A stage no line recorded prints "not recorded" in every cell. Nothing is filled in from another stage or guessed.
 
 THE FIVE CLOCKS (`--clocks` prints the table; the JSON report carries it as `clocks`; docs/reference/LOAD.md has it). The six
-stages are one wait cut in six. A reader who asks "how fast is it" asks about five different clocks, and only one of
-them is Knos's own to shorten:
+stages are one wait cut in six. A reader who asks "how fast is it" asks about five different clocks, and two of
+them (evidence availability and the decision) are Knos's own to shorten:
 
     work execution               the forge starts a runner and runs the job    workflow scheduling, evaluation
     evidence availability        the signed token reaches whoever acts on it   relay pickup

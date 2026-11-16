@@ -1,4 +1,4 @@
-"""`knos idea ...`: step 1 (idea in) and step 2 (wanted?) of the one flow, from a terminal.
+"""`knos idea ...`: idea in, then wanted? (the demand check and devnet pull commitments), from a terminal.
 
     knos idea get pmid:33057194 --out idea.json     a claim from a research source, one Claim record (live read)
     knos idea search arxiv "perovskite stability"   claims in one source
@@ -80,7 +80,7 @@ def register(app, help_lines: list | None = None) -> None:
         help_lines.append(("idea", None, "Idea in from anyone or any research source (every field), then demand + pull commitments locked in stages."))
     g = typer.Typer(help="An idea from a person, a player, an AI agent or a research source (OpenAlex, arXiv, PubMed/Europe PMC, "
                          "bioRxiv/medRxiv, Crossref + retractions, ClinicalTrials.gov, patents) as one Claim record; then wanted? "
-                         "(demand check + pre-orders + pull commitments released in stages). docs/reference/IDEAS.md", no_args_is_help=True)
+                         "(the demand check, then devnet orders: pull commitments in stages, pre-orders in a pool). docs/reference/IDEAS.md", no_args_is_help=True)
     app.add_typer(g, name=GROUP)
 
     def guard(fn):
@@ -121,7 +121,7 @@ def register(app, help_lines: list | None = None) -> None:
                kind: str = typer.Option("person", "--kind", help="person, player or agent"),
                agent_name: str = typer.Option(None, "--agent", help="with --kind agent: the agent's name"),
                out_file: Path = typer.Option(None, OUT), as_json: bool = typer.Option(False, JSON)) -> None:
-        """An idea from a person, a player or an AI agent."""
+        """An idea stated by its author (--kind says who), not read from a source."""
         from . import person
         from .identity import short, who
         ident = short(who(by)) if by else ({"kind": "agent", "name": agent_name} if agent_name else None)

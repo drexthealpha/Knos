@@ -259,7 +259,7 @@ relay sends every instruction in a transaction of its own. The real GitHub Actio
 
 So a bounty to someone who had been paid before, in a repository that had funded before, cost a relayer 105,000
 lamports (0.000105 SOL) end to end. A first payout to a new person cost about 3,150,000 more, once. The rent
-figures are the local test chain's; [PRICING.md](../PRICING.md), section 2, has today's lower ones.
+figures are the local test chain's; [METER.md](METER.md) has the clusters' lower rate today (5,080 lamports a byte).
 
 **Second deployment.** A bounty or a work order is two tokens, not three: the payment goes straight to a wallet, so
 there is no claim. A person who gives no address binds a wallet once, with a third token.
@@ -311,7 +311,7 @@ transaction created a payee's token account (`TIP`, `TIP_FIRST` in `programs-v2/
 evaluation is the transactions that verify the token and one `Record` of 609 bytes and 81,357 compute units. Its marker is 88 bytes.
 
 The simulator held 1,503,360 lamports of the relayer's rent for it; at 5,080 lamports a byte,
-the rate [PRICING.md](../PRICING.md) cites for a cluster, that is 1,097,280 (computed, not measured).
+the rate [METER.md](METER.md) cites for a cluster, that is 1,097,280 (computed, not measured).
 
 It is locked
 until two hours into the next month and then returned in full by `CloseMark` (1,710 compute units each, 26 to a

@@ -57,7 +57,7 @@ class Rule:
         return min(max(plan.fee_bps, self.plan_min), self.bps) if plan is not None and now < plan.expires else self.bps
 
     def rate(self, bps: int | None = None) -> str:
-        """The rule as a rate: "0.3% of the amount, at least 0.05"."""
+        """The rule as a rate: "0.30% of the amount, at least 0.05"."""
         first = pct(self.bps if bps is None else bps)
         if not self.tiers:
             return f"{first} of the amount, at least {_money(self.floor)}"

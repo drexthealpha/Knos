@@ -5,7 +5,7 @@ Back to the [README](../../README.md#from-the-intersystems-contest).
 <!-- entry:iris -->
 ## Run it on IRIS
 
-Inside InterSystems IRIS, the production checks each research step's test result before that step is paid. An AI agent reads the test result and a rule decides; above $50 a person must also say yes.
+Inside InterSystems IRIS, the production checks each lab step's test result before that step is paid. An AI agent reads the test result and a rule decides; above $50 a person must also say yes.
 Every amount is test money.
 
 **One story.** A hospital lab funds a startup to build the online shop for its test kits. Step one pays $120 when the

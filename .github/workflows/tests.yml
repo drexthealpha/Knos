@@ -14,8 +14,8 @@ name: tests
 # Windows, the slowest, four: one of its three shards took 4m18s on a slow runner (run 37628951379; 2m34s the run
 # before), over the target. pytest-xdist counts the cores itself (https://pytest-xdist.readthedocs.io/en/stable/distribution.html).
 #
-# The suite is offline (conftest refuses every non-loopback connection) and includes the two Solana programs in
-# LiteSVM, the judge on Python, Node, Go and Rust repositories, its sandbox, and the tamper benchmark.
+# The suite is offline (conftest refuses every non-loopback connection) and includes the Solana programs in
+# LiteSVM, the judge on Python, Node, Go, Rust and Ruby repositories, its sandbox, and the tamper benchmark.
 #
 # This is also the gate of every release: release.yml calls this whole workflow on the tagged commit (workflow_call)
 # and publishes nothing unless every job here passed. A job added here is part of that gate; do not give one a
@@ -39,7 +39,7 @@ permissions:
   contents: read
 
 env:
-  KNOS_NEAR_AI_OFF: "1"   # no NEAR AI model call ever runs in CI (its $10 credit is for live orders)
+  KNOS_NEAR_AI_OFF: "1"   # no NEAR AI model call ever runs in CI (its $10 credit is for live checks)
 jobs:
   pytest:
     name: pytest (${{ matrix.os }}, ${{ matrix.python }}, ${{ matrix.part }})
@@ -376,7 +376,7 @@ jobs:
 
   # Every number in the README opening and on the home page is checked against a file in the repo, devnet or GitHub (scripts/claims_check.py). And no document says of a fact that several of them state
   # (a count of capabilities at a stage, a program's version, an upgrade's time, the fee) anything but what its one
-  # source says (scripts/doc_claims.py; it reads files of the repository only). Five more checks read files
+  # source says (scripts/doc_claims.py; it reads files of the repository only). More checks read files
   # only: no statement contradicts the capability list, the source or the price book (scripts/truth_check.py); every
   # description of Knos is the one sentence (scripts/public_face.py); the enforcement table is whole (knos.enforce); and the recorded run of the
   # stand-alone verifier is what a run gives now (scripts/archive_verify.py); and no public file states a
@@ -405,8 +405,8 @@ jobs:
       - run: python scripts/secret_scan.py       # no key in the tree, every reviewed hit named
 
   # ruff (imports, statements, syntax, pyflakes) and mypy over src/knos, each at one version, with the settings in
-  # pyproject.toml. Permissive to start: pyproject.toml lists, in words, what is not checked (one ruff rule and 1
-  # module of mypy's) so each can come out one line at a time. The package is installed so that mypy reads the types
+  # pyproject.toml. Permissive to start: pyproject.toml lists, in words, what is not checked (one ruff rule; mypy skips
+  # untyped function bodies) so each can come out one line at a time. The package is installed so that mypy reads the types
   # of what it imports, as a developer's editor does. About a minute with the cache.
   lint:
     runs-on: ubuntu-latest
@@ -443,9 +443,6 @@ jobs:
       - run: vulture src/knos scripts --min-confidence 60
       - run: python scripts/settle_fixtures.py --check
 
-  # One check for branch protection to require: it passes only when every job above passed. It runs when one of them
-  # failed too (a job that is skipped because what it needs failed counts as passed for a required check, which is the
-  # hole this condition closes), and not when the run was cancelled.
   iris:
     # the IRIS referee's rules with no IRIS image: knos_iris.referee is knos.referee_rules, exact names and codes
     runs-on: ubuntu-latest
@@ -462,6 +459,9 @@ jobs:
       - run: uv pip install --system -e . pytest
       - run: python -m pytest -q iris/tests/test_referee_rules.py iris/tests/test_iris_fixes.py
 
+  # One check for branch protection to require: it passes only when every job above passed. It runs when one of them
+  # failed too (a job that is skipped because what it needs failed counts as passed for a required check, which is the
+  # hole this condition closes), and not when the run was cancelled.
   all-green:
     name: all-green
     if: ${{ !cancelled() }}

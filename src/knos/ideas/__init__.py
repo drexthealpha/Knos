@@ -1,7 +1,5 @@
-"""Idea in: step 1 of the one flow Knos runs, for every field of science.
-
-Research dies in the valley of death on three walls. Every crossing starts here: an idea
-from anyone, made into ONE record the rest of Knos (wanted, attempts, referee, labs, graduation) reads.
+"""Idea in: a claim from anyone or any research source, in every field of science, made into ONE record that the
+rest of knos.ideas (wanted, commit) and knos.graduation read.
 
 Where an idea comes from (`origin.kind`):
     person      anyone, with an identity: ORCID iD and/or GitHub account (knos.ideas.identity), or none

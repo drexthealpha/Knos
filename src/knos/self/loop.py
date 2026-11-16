@@ -8,7 +8,7 @@
     rollback    one command: a version leaves the loop branch, the branch goes back to the best remaining version
     referee     a referee change (the founder's): red-team gate, shadow on past jobs, founder signature
 
-State folder (outside the repository): archive.json, record/ (Knos Record + Sibyl), referee-main/ (the trusted
+State folder (outside the repository): archive.json, record/ (Knos Record and its local memory store), referee-main/ (the trusted
 checkout), runs/<version>/ (request, verdict, the candidate's diff), bundles/<target>/{sealed,audit}.tgz (the hidden
 bundles, which the founder keeps; their hashes are in targets.yml). The loop never pushes and never touches main:
 promoting a canary version to main is the founder's pull request (targets.yml loop.auto_merge_to_main: false).

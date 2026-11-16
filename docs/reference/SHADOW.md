@@ -2,7 +2,7 @@
 
 Shadow mode answers one question about an invoice that bills per merged change: **which of these billed changes had a failed
 check when they were merged?** It asks the buyer for no trust, no money, no install and no process change. It only reads
-GitHub. Nothing is written there, nothing is paid and nothing is held.
+GitHub. Nothing is written there, and nothing is paid or held.
 
 For a public repository everything it needs is public, so it works with nobody's cooperation. For a private one, the buyer's
 own read token is enough. A supplier can run it on its own invoice before sending it. In a browser, for a small invoice: the

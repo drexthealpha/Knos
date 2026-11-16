@@ -1,4 +1,4 @@
-"""Bounties mode of Knos Gate: an issue funded in vault is paid to the first pull request that passes the hidden tests
+"""Bounties mode of Knos Gate: an issue funded in a knos_pay vault is paid to the first pull request that passes the hidden tests
 AND is merged by the maintainer; a claim that fails Gate is closed.
 
 The money is not new code. A bounty is a knos_pay vault on Solana devnet (`knos fund-wallet OWNER/REPO#N AMOUNT`, or

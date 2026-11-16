@@ -382,7 +382,7 @@ def test_knos_check_pr_reads_a_ticked_template_box_as_the_authors_claim():
     for a description that ticked "My PR passes all CI/CD checks", while the site showed that claim false."""
     ticked = ("## Pre-Submission checklist\r\n\r\n- [x] I have added meaningful tests\r\n"
               "- [x] My PR passes all CI/CD checks (e.g., lint, format, unit tests)\r\n"
-              "- [ ] I have received a Greptile **Confidence Score of at least 4/5** before requesting a maintainer review\r\n")
+              "- [ ] I have received a bot review **Confidence Score of at least 4/5** before requesting a maintainer review\r\n")
     runs = [_run("All Other Providers / Run tests", "failure"), _run("lint", "success")]
     got = call("knos_check_pr", {"pr": "octo/widgets#12"}, None, _pull(ticked, runs))["structuredContent"]
     assert (got["verdict"], got["claims"], got["untrusted"]["failed_checks"]) == ("false", ["CI is green"], ["All Other Providers / Run tests"])
@@ -868,7 +868,7 @@ def test_knos_fund_refuses_what_the_command_would_not_read_or_would_read_differe
     assert _sentence(call("knos_fund", {"issue": "octo/widgets#7", "amount": "5"}, ledger, no_owner)) == "GitHub's answer for repos/octo/widgets has no owner."
 
 
-def test_knos_settle_checks_the_merge_and_the_escrow_before_it_hands_back_the_comment():
+def test_knos_settle_checks_the_merge_and_the_vault_before_it_hands_back_the_comment():
     from knos import commands
     ledger, github = world2()
     base = {"ref": "main", "repo": {"full_name": "octo/widgets", "default_branch": "main"}}

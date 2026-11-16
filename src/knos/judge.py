@@ -34,10 +34,12 @@ What judge() enforces:
                   could not decide is never accepted and never rejected; `passed` is true only for accepted.
     sandbox       every command that runs pull request code (its dependency install, its tests) runs as another user
                   (uid 65534), with an empty environment, and the tests run with no network. So that code cannot
-                  write the judge's files, its memory, the job's outputs, or call out. `--sandbox require` (what
-                  prove.yml passes) refuses to judge without it.
-    sentinel      a random-named passing test and a random-named failing canary are added; the report must show the
-                  sentinel passed and the canary failed, or the runner was faked or patched to pass everything.
+                  write the judge's files, its memory, the job's outputs, or call out. `--sandbox require` refuses
+                  to judge without it; `--sandbox hermetic` (what prove.yml passes) runs a black-box check in a
+                  container where the machine can, and is `require` otherwise.
+    sentinel      a random-named passing test and a random-named failing canary are added (every runner but command
+                  and blackbox); the report must show the sentinel passed and the canary failed, or the runner was
+                  faked or patched to pass everything.
     fail-to-pass  every acceptance check passes on the pull request and at least one fails on the base; every other
                   test that passed on the base still passes; the pull request collects no fewer tests than the base.
 

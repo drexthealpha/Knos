@@ -1048,7 +1048,7 @@
    "name": "a receipt of version 1",
    "ok": false,
    "refused": "receipt",
-   "why": "This is not an acceptance receipt of version 2 to 5 with an accepted verdict (docs/reference/RECEIPT.md)."
+   "why": "This is not an acceptance receipt of version 2 to 6 with an accepted verdict (docs/reference/RECEIPT.md)."
   },
   {
    "checked": [

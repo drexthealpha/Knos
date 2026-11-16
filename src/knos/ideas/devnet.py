@@ -1,4 +1,5 @@
-"""Steps 1 and 2 on Solana devnet for three ideas from three different fields, with real API reads and real vault.
+"""Idea in and wanted? on Solana devnet for three ideas from three different fields, with real API reads and real
+devnet orders.
 
     python -m knos.ideas.devnet --wallets DIR --out FILE.json [--fund-from KEYFILE --fund-sol 0.3]
 
@@ -15,8 +16,8 @@ is REFUNDED to the buyer on devnet (anyone may send RefundOrder) while its other
 DIR holds the demo's own devnet keys (payer.json, buyer.json, mint.json; created when missing, never printed). The
 payer is funded from --fund-from once (the transfer signature is written to the output). Test money of the demo's
 own mint (6 decimals, no freeze authority). Devnet only. Releasing a met stage needs the judge's signed token (GitHub
-OIDC from the pinned prove.yml today; V34PAY's verdict path next): it is not faked here; the payout path runs in
-LiteSVM in tests/test_ideas_litesvm.py.
+OIDC from the pinned prove.yml, on the public program): it is not faked here; the payout path runs in LiteSVM in
+tests/test_ideas_litesvm.py. Stages judged by a referee panel run on the panel test build: knos.ideas.devnet_panel.
 """
 from __future__ import annotations
 

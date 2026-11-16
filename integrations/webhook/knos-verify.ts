@@ -128,7 +128,7 @@ async function receiptHolds(r: any, token: string, claims: Json, facts: Facts): 
   } catch {
     shaped = false;
   }
-  if (!shaped) throw new No("receipt", "This is not an acceptance receipt of version 2 to 5 with an accepted verdict (docs/reference/RECEIPT.md).");
+  if (!shaped) throw new No("receipt", "This is not an acceptance receipt of version 2 to 6 with an accepted verdict (docs/reference/RECEIPT.md).");
   if ((await sha256(unb64(token.slice(token.lastIndexOf(".") + 1)))) !== digest) {
     throw new No("receipt", "The receipt names another token than the one given (token_sha256 differs).");
   }

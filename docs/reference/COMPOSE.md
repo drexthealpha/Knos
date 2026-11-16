@@ -34,11 +34,11 @@ does not prove. [`examples/issuers`](../../examples/issuers) has one example per
 | list funded work, or show an account's or a repository's record | the static files the site publishes, written by [`scripts/pages_data.py`](../../scripts/pages_data.py): `u/<login>.json`, `r/<owner>/<repo>.json`, `badge/...`, `rank/earners` and `rank/funders` | `tests/test_pages_data.py` |
 | let a coding agent find, take, fund and settle work | `knos mcp`: twenty-three tools; the ones that act return the comment or transaction to send ([INSTALL.md](INSTALL.md)) | `tests/test_mcp.py` |
 
-Three rules hold for every consumer of the verifier, and the examples show each. First, give your program its own
-audience prefix, so a token minted for another program is useless to yours.
+Every consumer of the verifier keeps to these rules, and the examples show each. Give your program its own audience
+prefix, so a token minted for another program is useless to yours.
 
-Second, bind the token to one action and record that the action was done, because a verified token can be read by
-anyone until an hour after it expires. Third, take the key account when a revoked key must stop at once.
+Bind the token to one action and record that the action was done, because a verified token can be read by anyone
+until an hour after it expires; and take the key account when a revoked key must stop at once.
 
 [OIDC.md](OIDC.md) has the reader's API and [SECURITY.md](SECURITY.md) what the verifier does and does not promise.
 

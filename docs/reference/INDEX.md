@@ -139,7 +139,8 @@ Its verified acceptance rate is `null`, and `not_derived` says why; a row with n
 the sample read once, on 2026-10-01 (`search-window-sample-v0`, at most 20 hits a search window). Its rows are in
 [`agent_pr_ci.json`](../agent_pr_ci.json), so their rate is worked out; none has 30 claims in a week.
 
-The scheduled Monday run of [`index.yml`](../../.github/workflows/index.yml) adds each new week.
+The scheduled Monday run of [`index.yml`](../../.github/workflows/index.yml) proposes each new week as a pull request;
+none has been merged since the week of 28 September 2026.
 
 ## The sampling design
 
@@ -277,7 +278,7 @@ default branch.
 9. **Also paid through Knos** (`verified` in the file). The count of a week's claimed pull requests that were also
    paid through Knos under terms with a black-box check: an acceptance check the pull request could not edit,
    attested by a signed CI run. It is 0 today. No sampled pull request has been paid through Knos, whose payments so
-   far are test USDC on Solana devnet. The script counts it from a list of such payments (`--paid`); until one is
+   far are test money on NEAR testnet and Solana devnet. The script counts it from a list of such payments (`--paid`); until one is
    given, the file says no list was joined.
 
 ## How each agent is told apart

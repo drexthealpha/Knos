@@ -3,7 +3,7 @@
   verify_ix(program, proof, inputs)          instruction 0: the transaction fails unless the proof verifies
   record_ix(program, payer, proof, inputs)   instruction 1: verifies, then writes the verdict PDA
   verdict_address(program, inputs)           ["verdict", spec_hash, pred_hash, threshold (2 bytes)]
-  parse_verdict(data) / payable(...)         what a payout checks before it pays on a proof
+  parse_verdict(data) / payable(...)         what a payout checks before it pays
   send(url, payer, ixs)                      one devnet transaction; returns its signature and compute units
 
 The layouts are the program's (programs-v2/knos_zk/src/lib.rs). Nothing here signs with any key but the one passed.

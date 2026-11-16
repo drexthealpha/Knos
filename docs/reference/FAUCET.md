@@ -17,7 +17,9 @@ line. `/knos faucet passkey` sends to the address your account bound with `/knos
 transaction. It is set to give 20 test USDC; no grant has been made yet.
 
 2. **Install the workflow in YOUR repository.** One pull request: the Install page builds the link, or follow
-[INSTALL.md](INSTALL.md). 3. **Fund a task.** On an issue of your repository, comment `/knos fund 5`. With a passkey
+[INSTALL.md](INSTALL.md).
+
+3. **Fund a task.** On an issue of your repository, comment `/knos fund 5`. With a passkey
 wallet, sign the order on the Buy page instead: the money then comes from your wallet, and the relay pays the
 transaction fee.
 
@@ -45,7 +47,7 @@ The daily cap follows the source. Circle's devnet faucet gives 20 USDC every 2 h
 
 ## A retry never sends twice
 
-Every grant is a row in a journal, kept in the Sibyl store and carried in the faucet's own replies on the issue (a
+Every grant is a row in a journal, kept in Knos's memory store and carried in the faucet's own replies on the issue (a
 runner keeps no disk between runs). The row is written before anything is signed. The transfer's signature is written
 to the row, and to the reply, before the transfer is sent.
 

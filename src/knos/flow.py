@@ -428,7 +428,7 @@ def _jobs(run: Run, repo_id: int, issue: int) -> list:
 
 def _orders(run: Run, repo_id: int, issue: int) -> list:
     """[(address, Order)] of every work order (knos_pay 2.1) on one issue that holds money: open, held for its payee,
-    or in its warranty. None while this cluster's knos_pay is 2.0. Raises when the chain does not answer."""
+    or in its warranty. [] while this cluster's knos_pay is 2.0. Raises when the chain does not answer."""
     if not run.version():
         return []
     found = run.ledger.program_accounts(pay.PAY_ID, pay.ORDER_LEN, {8: _u64(repo_id) + _u64(issue)})
@@ -3157,7 +3157,7 @@ def hidden_terms(salt: bytes, raw: bytes) -> bytes:
 def hidden_pull(salt: bytes, number: int) -> int:
     """How a PRIVATE order's pay token names its pull request: a number made of the order's salt and the pull request's,
     the same every time (a standing order pays each pull request once), that does not say which it is. Six bytes of the
-    hash, so below 2^48 (at most 15 digits): knos_pay's audience parser takes at most 18 digits (claims.rs parse_u64), and a
+    hash, so below 2^48 (at most 15 digits): knos_pay's audience parser takes at most 18 digits (knos_oidc's claims.rs parse_u64), and a
     receipt's JSON number holds only integers below 2^53 (docs/reference/RECEIPT.md). Eight bytes made 19 orders in 20 unpayable."""
     return int.from_bytes(hashlib.sha256(salt + b"knos3:pull" + _u64(number)).digest()[:6], "little")
 

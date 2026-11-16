@@ -151,7 +151,7 @@ def test_it_reads_only_the_transactions_a_receipt_is_built_from():
     assert c.pay(order, [(AUTHOR, 10_000, wallet)], pr=PR, actor_id=MAINT), c.err
     mine = list(c.named[str(pay.PAY_ID)])                 # every vault transaction of the harness, oldest first
     other = [f"other{n:03}" for n in range(1000 - len(mine))]       # the rest of the vault's newest 1,000: other orders'
-    escrow = other[:500] + mine[:2] + other[500:700] + mine[2:] + other[700:]
+    listed = other[:500] + mine[:2] + other[500:700] + mine[2:] + other[700:]
     empty = {"slot": 1, "blockTime": 0, "meta": {"err": None, "logMessages": []}, "transaction": {"message": {"accountKeys": ["x"], "instructions": []}}}
     now, asked = [0.0], []
 
@@ -159,7 +159,7 @@ def test_it_reads_only_the_transactions_a_receipt_is_built_from():
         now[0] += 0.25
         asked.append((method, params[0] if params else None))
         if method == "getSignaturesForAddress" and params[0] == str(pay.PAY_ID):
-            return [{"signature": s, "err": None} for s in reversed(escrow)]
+            return [{"signature": s, "err": None} for s in reversed(listed)]
         if method == "getTransaction" and params[0] in other:
             return empty
         return c.call(method, params)
@@ -171,7 +171,7 @@ def test_it_reads_only_the_transactions_a_receipt_is_built_from():
         now[0], asked[:] = 0.0, []
         got = receipt.from_chain(target, "https://api.devnet.solana.com", call=devnet, clock=lambda: now[0])
         assert receipt.digest(got) == receipt.digest(full) and receipt.check(got) is None
-        read = [p for m, p in asked if m == "getTransaction" and p in escrow]
+        read = [p for m, p in asked if m == "getTransaction" and p in listed]
         assert read and set(read) <= set(mine) and not set(read) & set(other)
         assert now[0] < 15.0, now[0]          # under 60 requests in all, the receipt's own included
 

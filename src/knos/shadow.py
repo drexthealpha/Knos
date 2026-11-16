@@ -563,8 +563,6 @@ def run(text: str, get, out: Path | None = None, reader: Reader | None = None, e
         write(st, out)
         (out / EVIDENCE).write_bytes(evidence(text, book))       # what `knos statement make` and `verify` read: no network needed again
     if events is not None:
-        import time
-
         from . import events as log
         log.keep(events, lambda: log.from_shadow(st, named or "invoice", month or time.strftime("%Y-%m", time.gmtime())))
     return st
@@ -581,7 +579,7 @@ def register(app, help_lines: list | None = None) -> None:
     @app.command("shadow", rich_help_panel="For money")
     def shadow_(invoice: Path = typer.Argument(..., help="the invoice: a CSV or JSON whose lines name pull requests (an address or owner/repo#number), with an amount and a supplier if it has them"),
                 token_env: str = typer.Option("GH_TOKEN", "--token-env", help="the environment variable that holds a GitHub read token (needed for a private repository; without one GitHub answers 60 requests an hour)"),
-                out: Path = typer.Option(None, "--out", help="write statement.json, statement.csv and statement.sha256 here, and keep a resume file so a second run asks GitHub only for what is missing"),
+                out: Path = typer.Option(None, "--out", help="write the statement's files and evidence.json here, and keep a resume file so a second run asks GitHub only for what is missing"),
                 recorded_file: Path = typer.Option(None, "--recorded", help="read GitHub's answers from this file ({path: answer}) and not from the network"),
                 refresh: bool = typer.Option(False, "--refresh", help="with --out: ask GitHub again about lines an earlier run finished"),
                 as_json: bool = typer.Option(False, "--json", help="print the statement's JSON"),
@@ -591,7 +589,7 @@ def register(app, help_lines: list | None = None) -> None:
         """Shadow mode: check an invoice that bills per merged change against GitHub. It lists billed changes that had a
         failed check at merge, were not merged, are billed twice, or could not be read (counted apart, never
         guessed). It prints the amount in dispute, its share of the invoice, and the statement's sha256 so
-        both sides can confirm they hold the same one. It only reads GitHub: nothing is written, paid or held.
+        both sides can confirm they hold the same one. It only reads GitHub: it writes nothing there and holds no money.
         A failed check at merge does not prove the work is bad, and a passing one does not prove it is good."""
         from . import cli
         try:

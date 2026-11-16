@@ -824,7 +824,7 @@ def test_terms_diff_says_in_plain_words_what_changed_between_two_versions_of_a_p
         "The work may now also change files matching `docs/*.md`.",
         "The work may now touch `.knos/**`.",
         "How long the issue can be reserved changed: 7 days before, not at all now.",
-        "The repository's rules for funding (.knos/policy.yml) are named by one version and not by the other: who may fund, the caps, the defaults.",
+        "The repository's rules for funding (.knos/policy.yml) are named by one version and not by the other: who may fund, and the caps and defaults it sets.",
     ]
     back = tt.diff(v2, v1)
     assert len(back) == 9 and "The work may no longer touch `.knos/**`." in back and "The work may no longer change files matching `docs/*.md`." in back

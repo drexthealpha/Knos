@@ -46,7 +46,7 @@ def register(app, help_lines: list | None = None) -> None:
     import importlib
     typer = importlib.import_module("typer")
     if help_lines is not None:
-        help_lines.append(("gate", "For a repository's workflows","The gate of Knos: sealed hidden tests and cheat checks on outside pull requests, one check, one comment, a signed receipt."))
+        help_lines.append(("gate", "For a repository's workflows", "The gate of Knos: sealed hidden tests and cheat checks on outside pull requests, reported in one check with a signed receipt."))
     gate = typer.Typer(add_completion=False, help="The gate of Knos: a maintainer's check on outside pull requests (docs/reference/REFEREE.md)")
     app.add_typer(gate, name="gate")
     receipt = typer.Typer(add_completion=False, help="Knos Receipt: signed, offline-verifiable, counts only")
@@ -226,7 +226,7 @@ def register(app, help_lines: list | None = None) -> None:
             typer.echo("Nothing was changed (add --apply).")
 
     @bounty.command("quote")
-    def quote_(amount: str = typer.Argument(..., help="in USDC, like 20 or 12.5"),
+    def quote_(amount: str = typer.Argument(..., help="in test USDC on devnet, like 20 or 12.5"),
                kind: str = typer.Option("job", "--kind", help="job (the fee comes out of it) or order (on top)")) -> None:
         """A bounty's fee and where it goes, read from the one fee config."""
         from decimal import Decimal
@@ -236,10 +236,11 @@ def register(app, help_lines: list | None = None) -> None:
         typer.echo(json.dumps(B.quote(units, kind), indent=1))
 
     @bounty.command("treasury")
-    def treasury_(mint: str = typer.Argument(...), escrow: str = typer.Option(None, "--escrow", help="a job or order account")) -> None:
+    def treasury_(mint: str = typer.Argument(...), account: str = typer.Option(None, "--account", help="a job or order account"),
+                  old_name: str = typer.Option(None, "--escrow", hidden=True)) -> None:
         """The token account a bounty's fee lands in, for a mint: Knos's Squads vault's."""
         from . import bounty as B
-        typer.echo(json.dumps(B.treasury(mint, escrow), indent=1))
+        typer.echo(json.dumps(B.treasury(mint, account or old_name), indent=1))
 
 
 def main(argv: list[str] | None = None) -> int:      # python -m knos.gate.cli (the Action calls it this way)

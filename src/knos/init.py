@@ -432,7 +432,8 @@ def undo(hosts: list[str] | None = None) -> dict:
 # ---- `knos init --host <name>`: one project, one host ----------------------------------------------------------------
 # Each route writes the files that host reads from a project folder, in the fields its documentation names (the pages
 # and the day they were read are in integrations/hosts/README.md). The user's home is written only with --global, and
-# only for the three hosts that read their MCP servers from nowhere else. A second run changes nothing.
+# only for Cline and Hermes Agent, which read their MCP servers from nowhere else (Windsurf and goose also read only
+# the home: they get the lines to add by hand). A second run changes nothing.
 
 GATES = {"yes": "a false \"done\" is sent back to the agent with the check that failed",
          "each edit": "there is no \"done\" to check: the host runs Knos after each edit and gives the model what failed",
@@ -519,11 +520,11 @@ def _server(argv: list[str], **more) -> dict:
 RULE = """# Knos
 
 Before you say that work here is done, that tests pass, that CI is green or that something shipped, run the check
-yourself and say what it printed. This host has no hook that checks the claim for you, so the same check runs on the
-pull request: a description that says "tests pass" over a failed check is refused there.
+yourself and say what it printed. This host has no hook that checks the claim for you. Where Knos checks this
+repository's pull requests, a description that says "tests pass" over a failed check is refused there.
 
-- Run the repository's own tests, and quote the last lines of their output.
-- If a check failed and you could not fix it, say so plainly instead of "done".
+- Run the repository's own tests and quote the last lines of their output; if a check failed and you could not fix
+  it, say so plainly instead of "done".
 - `knos_check_pr` (the `knos` MCP server) says whether a pull request's claims agree with GitHub's record.
 """
 

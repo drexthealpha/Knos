@@ -1621,7 +1621,7 @@ def test_an_orders_fund_token_is_refused_before_any_fee_and_the_faucet_funds_one
     # the deployed 2.0 vault knows no order: its relay says so, and spends nothing
     monkeypatch.setattr(relay, "_VERSION", {("litesvm", pay.PAY_ID): 0})
     for jwt in (order_fund_jwt(c, issue()), order_pay_jwt(c, first, [(77, 10_000, None)])):
-        assert refused(oenv, jwt, TERMS, "the payment program on this cluster is version 2.0, which takes no such token yet")
+        assert refused(oenv, jwt, TERMS, "the payment program on this cluster is version 2.0, which takes no such token")
     assert relay.refund_orders_due(net, c.payer, c.now()) == [] and relay.settle_orders_held(net, c.payer) == []
 
 

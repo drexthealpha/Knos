@@ -48,7 +48,7 @@ def sbpf_version(elf: bytes | None) -> int | None:
 
 
 def fast(elf: bytes | None) -> bool:
-    """Whether this build of knos-oidc does its RSA on 64-bit limbs: built for sBPF v2 (`uhmul64`) or,
+    """Whether this build of knos-oidc does its RSA on 64-bit limbs: built for sBPF v2 (`uhmul64`) or
     v3 (four 32-bit products per 128-bit one: slower than v2, faster than 32-bit limbs)."""
     v = sbpf_version(elf)
     return v in (2, 3)

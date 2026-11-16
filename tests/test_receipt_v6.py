@@ -1,6 +1,6 @@
 """Receipt version 6 (docs/reference/RECEIPT.md, Version 6): the same receipt as version 5, its upgrade multisig line
 saying the 8-day time lock in force since 11 Oct 2026. Its vectors (docs/receipt/vectors.v6.json, conformance kit 5)
-are written from the version 5 vectors here: `python tests/test_receipt_v6.py --write`. Versions 1 to 5 still check."""
+and its schema are written from version 5's here: `python tests/test_receipt_v6.py --write`. Versions 1 to 5 still check."""
 import copy
 import json
 import sys
@@ -80,11 +80,6 @@ def test_new_receipts_are_version_6():
     assert rc.trust_now("github", "merge", "repository")[-1] == rc.NEW_TRUST
 
 
-if __name__ == "__main__" and "--write" in sys.argv:
-    FILE.write_text(json.dumps({"note": NOTE, "valid_v6": valid(), "invalid_v6": invalid()}, indent=1, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
-    print("wrote", FILE.name)
-
-
 SCHEMA = ROOT / "docs" / "receipt" / "acceptance-receipt.v6.schema.json"
 
 
@@ -121,6 +116,9 @@ def test_the_attestation_script_takes_a_version_6_receipt_and_attests_its_own_di
     assert done.returncode == 0, done.stderr
     assert json.loads(done.stdout) == [v["sha256"] for v in six] == [rc.digest(v["receipt"]) for v in six]
 
+
 if __name__ == "__main__" and "--write" in sys.argv:
+    FILE.write_text(json.dumps({"note": NOTE, "valid_v6": valid(), "invalid_v6": invalid()}, indent=1, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
+    print("wrote", FILE.name)
     SCHEMA.write_text(json.dumps(schema(), indent=1, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
     print("wrote", SCHEMA.name)

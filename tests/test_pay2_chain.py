@@ -1,6 +1,6 @@
 """knos-pay, second deployment, in the Solana runtime (LiteSVM) with the second deployment's verifier beside it: a
 bounty is funded by one GitHub-signed comment from a prefunded Balance (or by a wallet), its terms fixed at funding,
-and paid on a GitHub-signed proof straight to the payee's wallet. Every instruction on its happy path, every refusal,
+and paid straight to the payee's wallet once GitHub signs that the merged pull request met them. Every instruction on its happy path, every refusal,
 the record, the pause, Token-2022 mints, what a revoked or expired signing key stops, and a random walk that keeps
 each vault equal to its open jobs."""
 from __future__ import annotations
@@ -1147,7 +1147,7 @@ def test_a_token_is_taken_only_with_the_key_account_it_names(chain):
     its place: not another key of the verifier's that is just as good, not a copy of the key's bytes, not a token account."""
     c = chain
     uses = each_use(c)
-    wrong = {"another key of the verifier's": other_key(c), "the key's bytes in an account of the escrow's": _forged(c, c.key),
+    wrong = {"another key of the verifier's": other_key(c), "the key's bytes in an account of the payment program's": _forged(c, c.key),
              "the key's bytes in an account of nobody's": _forged(c, c.key, pay.SYSTEM), "a token account": account(uses["Pay"], "payToken")}
     assert all(oidc.key_usable(oidc.read_key(c.data(k)), c.now()) == (True, "") for k in (c.key, wrong["another key of the verifier's"]))
     before = untouched(c, uses)
@@ -1436,7 +1436,7 @@ def test_a_mint_that_turns_bad_takes_no_new_money_and_money_in_escrow_still_leav
     assert not c.send([pay.fund_balance_ix(c.payer.pubkey(), tok, c.key, bal, coin, repo, n, TERMS, pay.TOKEN_2022)]) and code(c) == 95
     ix = pay.fund_wallet_ix(w.pubkey(), wtok, coin, REPO, n, 5 * USDC, WF_REPO, WF_SHA, TERMS, token_program=pay.TOKEN_2022)
     assert not c.send([ix], w) and code(c) == 95
-    # what is in vault is paid, and the Balance's unspent money is withdrawn
+    # what is in the vault is paid, and the Balance's unspent money is withdrawn
     payee, wallet = user(), Keypair().pubkey()
     assert do_pay(c, job, pay_token(c, job, payee, wallet), payee, wallet), c.err
     assert c.balance(pay.ata(wallet, coin, pay.TOKEN_2022)) == 9_950_000 and c.balance(pay.vault_pda(coin)) == 0

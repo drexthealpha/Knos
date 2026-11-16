@@ -1002,9 +1002,7 @@ def render(doc: dict) -> str:
                 "token must land one after another.", "",
                 "With one relayer the claim of a minute does **not** hold for 1,000 orders arriving together; "
                 "the table shows from how many relayers it does." if not d["relayers"]["1"]["under_a_minute"] else
-                "How it is derived: blocks = the largest of (all compute / the block limit), (all compute / relayers x 12M), (fund compute / 12M) "
-                "and (pay compute / 12M), rounded up; seconds = blocks x 0.4. It is a floor on the time, not a forecast: it counts only the compute "
-                "the transactions consumed, assumes an otherwise empty block and an even split between relayers.", ""]
+                "With one relayer the claim of a minute holds for 1,000 orders arriving together, by this arithmetic.", ""]
     out += ["## 4. On a cluster (devnet)", "",
             "`python scripts/load.py --devnet N --issuer-key issuer.pem --wallet <keypair> --write`, run by the operator at release. GitHub will "
             "not sign a thousand tokens on demand, so a test issuer signs them, and its key is registered as a private key of the operator's "

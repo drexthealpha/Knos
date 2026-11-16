@@ -129,7 +129,7 @@ check on its own pull requests. It turns green when work is accepted under a fun
 
 ## What none of these panels has
 
-- Single sign-on on the public site. Knos has no accounts: identity is GitHub's and a wallet's.
+- Single sign-on on the public site. These panels have no accounts: identity is GitHub's and a wallet's.
 - A legal entity to sign with. Knos has none, and no support agreement.
 - A connection to any finance system or bank. The panels make files; nothing sends them.
 - Real money. Devnet only.

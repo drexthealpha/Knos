@@ -11,9 +11,10 @@
     fund_ix(p, funder, token, mint, amount)  the unsigned FundOrderWallet one funder's wallet signs: amount + payout fee
     state(ledger, p, mint)      the pot as the chain has it (only orders on the pot's own terms and mint are counted)
     pay_litesvm(root, p, pledges, payees)    the payout leg replayed in LiteSVM (LABEL): knos_pay pays an order only on
-                                a pay token from its judge (a GitHub-signed run of the pinned prove.yml, or the m-of-n
-                                referee verdict path when it lands); a game judged by Knos has no GitHub run, so the
-                                same orders are funded and paid in the program's test build, exactly as it divides them
+                                a pay token from its judge (a GitHub-signed run of the pinned prove.yml); a game judged by
+                                Knos has no GitHub run, so the same orders are funded and paid in the program's test
+                                build, exactly as it divides them. The m-of-n referee verdict path runs on the knos_pay
+                                panel test build on devnet (knos.game.payout, `knos game pay`)
 
 Fees: the payout fee (live, knos_pay) is on top of each order, paid by the funder; the Knos bounty fee
 (fees.bounty_platform, decided) applies to the pot, its on-chain part being that payout fee and the rest invoiced off

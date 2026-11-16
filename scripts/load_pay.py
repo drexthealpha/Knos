@@ -3,7 +3,7 @@
     python scripts/load_pay.py --relays 4 --orders 40 --simulate               # here: the path, every count; no rate
     python scripts/load_pay.py --relays 4 --tokens pay.json --wallet <keypair>  # the release run, on devnet
 
-`scripts/load.py measure` times FUNDING only (FundOrderWallet takes no token): it never sent PayOrder, so it says
+`scripts/load.py measure` without `--pay` times FUNDING only (FundOrderWallet takes no token): it never sends PayOrder, so it says
 nothing of a payment's whole path. This does. One payment is what a relay does for one pay token: write the token
 on chain, verify GitHub's signature (knos_oidc, several transactions), then PayOrder (knos_pay). Each relay has a
 fee payer of its own, and a payment always goes to the relay of its part (`knos.settle.v2.relayq.part_of` of the

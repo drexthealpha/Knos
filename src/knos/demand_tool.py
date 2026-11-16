@@ -2,7 +2,7 @@
 
 Any agent gets the same code-made decision as Knos's web app without holding a Qloo key: the tool POSTs the idea to the
 hosted demand check (KNOS_WANTED_URL, its /api/check), where Qloo's API is called server side and the decision (OPEN
-pre-orders with a target and a reserve, REFUSE with reasons, or "cannot decide: no Qloo evidence") is made by code.
+with a target and a reserve in units, REFUSE with reasons, or "cannot decide: no Qloo evidence") is made by code.
 Read-only: nothing is locked or signed by this tool.
 """
 from __future__ import annotations
@@ -24,7 +24,7 @@ MCP_TOOLS: list[dict[str, Any]] = [{
     "title": "Is this product wanted? (Qloo demand check)",
     "description": ("Check a product idea against Qloo's taste data through Knos's hosted demand check: the closest existing "
                     "products and the market leader, the idea's taste tags, who (age, gender), where (places), audience "
-                    "segments, rising or falling, and overlap vs the leader. Returns a decision made by code: OPEN pre-orders "
+                    "segments, rising or falling, and overlap vs the leader. Returns a decision made by code: OPEN "
                     "(target units and reserve) or REFUSE with reasons; without Qloo evidence it says 'cannot decide'. "
                     "Every number names the Qloo call that produced it. Directional demand evidence, not a sales forecast."),
     "properties": {"idea": {"type": "string", "description": "the product idea in plain words, or a paper's DOI (3 to 500 characters)"},

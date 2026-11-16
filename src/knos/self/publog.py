@@ -1,5 +1,5 @@
 """The self loop's public log: every attempt, verdict, cheat caught and payout, written to Knos Record (knos.record:
-one hash-chained JSON Lines file held in Sibyl tier by tier, anchored on devnet by Merkle root). Nothing here writes
+one hash-chained JSON Lines file held in the local memory store tier by tier, anchored on devnet by Merkle root). Nothing here writes
 the file itself; Record refuses anything that looks like a secret, a key, an e-mail or a local path.
 
 One iteration writes, in order (domain "self", claim "self:<target>:<version>"):

@@ -6,8 +6,8 @@
 # Run workflow, and enter the Solana address that should receive everything waiting under your GitHub account.
 #
 # How it works: this run asks GitHub for a token that says "GitHub user <you> ran this by hand in their own repository
-# and names <address>". Nobody else can get GitHub to sign that. The token is posted on an issue here; anyone (Knos's
-# always-on worker does) carries it to Solana, where knos-oidc checks GitHub's signature and knos-pay sends your
+# and names <address>". Nobody else can get GitHub to sign that. The token is posted on an issue here; anyone can carry it
+# to Solana devnet (Knos's public worker does), where knos-oidc checks GitHub's signature and knos-pay sends your
 # balance to the address. You need no SOL: the relayer pays the fee. The token can only ever pay that address.
 name: knos claim (first deployment)
 

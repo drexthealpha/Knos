@@ -1,4 +1,4 @@
-"""Pay after proof from any source (knos_pay 0.3.34) in LiteSVM, on the 0.3.34 test build of knos_pay
+"""Orders settled by a judge other than a forge's CI (knos_pay 0.3.34) in LiteSVM, on the 0.3.34 test build of knos_pay
 (tests/fixtures/knos_pay_v2_0334_test.so) beside the committed test build of knos_oidc.
 
 The Confidential Space and ORCID tokens here are signed by TEST issuer keys (generated per test, registered for the

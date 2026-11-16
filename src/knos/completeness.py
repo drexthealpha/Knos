@@ -11,9 +11,9 @@ its lines name. What does not match is never fixed in place; it is listed, one e
     duplicated   one deliverable under two ids (two lines, or two orders, naming the same pull request or order):
                  counted once, the others flagged and left out of the count
 
-    check(st, sources, store, terms, supplier)  the report: exceptions, what is counted once, what is carried
+    check(st, sources, store, supplier)         the report: exceptions, what is counted once, what is carried
     remember(store, exc, resolution, ...)       how an exception was resolved, kept in the buyer's memory through
-                                                knos.proof.history (Sibyl); `check` recalls it when the same source
+                                                knos.proof.history (the memory engine); `check` recalls it when the same source
                                                 comes back. NullStore keeps and recalls nothing.
     contradictions(st, status)                  records of one line that cannot all be true (paid under two ids;
                                                 booked from a transaction that was not final)
@@ -265,7 +265,7 @@ def words(report: dict) -> list[str]:
     return out
 
 
-# ---- memory: how an exception was resolved, through knos.proof.history (Sibyl) ----------------------------------------
+# ---- memory: how an exception was resolved, through knos.proof.history ----------------------------------------------------
 
 def _history():
     """knos.proof.history, named and not imported: `knos statement` is reached from the relay, whose install has no

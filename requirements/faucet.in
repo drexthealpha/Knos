@@ -1,8 +1,8 @@
 # What the faucet job installs (worker.yml, job `faucet`): what a job that holds a key installs (sign.in), and
 # sibyl-memory-client, the storage library the faucet keeps its journal in (knos.faucet, knos.proof.history).
-# Each by its hash, and nothing else.
+# Each by its hash, and nothing else. Below 0.9, as pyproject.toml pins it (0.9.0 needs an account).
 #
 # Compile again after any change here, and at every release:
 #   uv pip compile requirements/faucet.in --generate-hashes --python-version 3.12 --no-config -o requirements/faucet.txt
 -r sign.in
-sibyl-memory-client>=0.8.1
+sibyl-memory-client>=0.8.1,<0.9

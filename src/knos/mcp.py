@@ -1,5 +1,7 @@
 """`knos mcp`: paid work and claim checks for a coding agent, over the Model Context Protocol on stdio. It offers 23
 tools: 20 in five groups, and the three money tools knos_fees, knos_graduate and knos_preorder (knos.money.agent).
+More are listed when the operator turns them on: the game's tools (KNOS_GAME_DIR), and the idea and demand check
+tools (KNOS_MCP_TOOLS=ideas,demand).
 
 Read only (public Solana and GitHub data: no key, no wallet, nothing written):
 
@@ -69,8 +71,8 @@ SERVER_KEY = "io.modelcontextprotocol/serverInfo"
 LIST_TTL_MS = 300_000   # the tool list only changes with a new release
 
 INSTRUCTIONS = (
-    "Knos carries research across the valley of death. (Solana devnet, test money, no customers yet.) These tools serve one use of "
-    "it, paid work on code: a maintainer funds a GitHub issue, the money waits in a "
+    "Knos carries research across the valley of death. (NEAR testnet and Solana devnet only: test money, and no customers yet.) These tools "
+    "serve the part of it built first, on Solana devnet, paid work on code: a maintainer funds a GitHub issue, the money waits in a "
     "program on Solana devnet, and the author of the pull request that meets the bounty's terms is paid: at the "
     "wallet bound to their GitHub account, else at the address they gave on the pull request, else it is held for "
     "their account. knos_bounties lists the paid work you can take now; knos_bounty says what one bounty asks for, "

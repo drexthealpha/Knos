@@ -1,4 +1,4 @@
-"""The `knos mcp` tools for idea in (step 1) and wanted? (step 2), listed when KNOS_MCP_TOOLS=ideas. Read-only: they read public research APIs and
+"""The `knos mcp` tools for idea in and wanted?, listed when KNOS_MCP_TOOLS=ideas. Read-only: they read public research APIs and
 build plans; none signs or sends a transaction (`knos idea commit` does that, from a terminal, with the buyer's key).
 
 Words that come from a research source (a title, a venue, a topic, a researcher's name) are someone else's text:
@@ -28,10 +28,10 @@ MCP_TOOLS: list[dict[str, Any]] = [
                     "words": {"type": "string", "description": "search words"},
                     "limit": {"type": "integer", "minimum": 1, "maximum": 25, "default": 5, "description": "how many"}},
      "required": ["source", "words"]},
-    {"name": "knos_idea_in", "title": "An idea from a person, a player or an agent",
+    {"name": "knos_idea_in", "title": "An idea stated by its author",
      "description": "Make a Knos Claim record from a stated idea: the statement, its field (given or guessed), who says it (an ORCID iD "
                     "or GitHub login, read from the public record; reading proves the iD exists, not that the caller owns it) and "
-                    "whether a person, a game player or an AI agent states it. Sends nothing.",
+                    "what kind of author states it (`kind`). Sends nothing.",
      "properties": {"statement": {"type": "string", "description": "the claim, one sentence"},
                     "field": {"type": "string", "description": "one of the 26 fields (OpenAlex topics), e.g. Materials Science"},
                     "by": {"type": "string", "description": "orcid:0000-0000-0000-0000 or github:login"},
@@ -43,10 +43,10 @@ MCP_TOOLS: list[dict[str, Any]] = [
      "properties": {"who": {"type": "string", "description": "orcid:0000-0000-0000-0000 or github:login"}}, "required": ["who"]},
     {"name": "knos_idea_wanted", "title": "Is the idea wanted? Demand + pull commitment plan",
      "description": "Step 2 (wall 1): Knos's demand check on the product the idea would become (Qloo via its "
-                    "official MCP harness; a labelled MOCK until QLOO_API_KEY) and the plan of a pre-order: a buyer locks test "
-                    "money to buy `units` at `price`, held in one knos_pay order per stage and released "
-                    "stage by stage at named milestones (preprint posted, trial registered, results posted, referee pass, lab QC...). Returns the plan "
-                    "with amounts, fees (config/fees.yaml) and deadlines; it signs and sends nothing (`knos idea commit` locks it).",
+                    "official MCP harness; a labelled MOCK until QLOO_API_KEY) and the plan of a pull commitment: a buyer locks test "
+                    "money on Solana devnet to buy `units` at `price`, held in one knos_pay order per stage and released "
+                    "stage by stage at named milestones (preprint posted, trial registered, results posted, referee pass, lab QC...). Returns each "
+                    "stage's amount and deadline, with the fees of config/fees.yaml; it signs and sends nothing (`knos idea commit` locks it).",
      "properties": {"ref": _REF,
                     "units": {"type": "integer", "minimum": 1, "maximum": 1_000_000, "default": 10, "description": "N units the buyer commits to"},
                     "price": {"type": "integer", "minimum": 1, "maximum": 1_000_000, "default": 4, "description": "P whole test units per unit"},

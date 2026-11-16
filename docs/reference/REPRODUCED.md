@@ -34,7 +34,7 @@ compute:
   max_seconds: 600
 authors:
   - github: someone
-funding: https://example.org/pre-order     # optional; shown on a reproduced result page only
+funding: https://example.org/funding      # optional; shown on a reproduced result page only
 ```
 
 | field | meaning |

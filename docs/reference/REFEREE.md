@@ -1,9 +1,10 @@
 <img src="../../web/brand/mark.svg" height="40" alt="Knos">
 
-# The referee: Works, Wanted, Makeable
+# The referee
 
-**In plain words.** The referee answers three questions about a piece of research or code: does it work, does anyone
-want it, and can it be made at a profit. A verdict passes only when all three do.
+**In plain words.** The referee asks of a piece of research or code whether it works ("Works" below), and whether
+people want it enough to pay more than making it costs ("Wanted" and "Makeable"). A verdict passes only when every
+check does.
 
 The person or agent doing the work
 cannot see the tests that referee it, cannot change the referee, and is refused when it tries one of the known cheats.
@@ -124,8 +125,9 @@ submissions of the benchmark are checked against the rules too (none is refused)
 
 ## Wanted
 
-`referee.DemandBook().lock(spec_hash, buyer, amount, escrow_ref=...)` records a pre-order;
-`referee.wanted(orders, min_buyers=N, min_locked=X)` passes when N distinct buyers have X locked. Only orders with a
+`referee.DemandBook().lock(spec_hash, buyer, amount, ...)` records a buyer's order with a reference to the devnet
+account that holds its money; `referee.wanted(orders, min_buyers=N, min_locked=X)` passes when N distinct buyers have
+X locked. Only orders with a
 held-money reference count (a pledge is shown and not counted), each buyer counts once, and the bar is set by whoever asks.
 Amounts are integers in the currency's smallest unit.
 
@@ -148,12 +150,12 @@ environments).
 
 The free Knos check (`action.yml`) gains `maintainer-mode`: `off` (the default), `comment`, `label` or `close`.
 
-With it on, the check reads the pull request's diff with the cheat library and labels a pull request that edits
-existing tests, touches files outside `scope`, or fails the check; `close` also closes it with one comment naming the
+With it on, the check reads the pull request's diff with the cheat library and labels a pull request that fails the
+check, or that edits existing tests or files outside `scope`; `close` also closes it with one comment naming the
 rule and asking for a new pull request.
 
 Knos's own labels whose cause a later push removed are taken off again. The `scope` globs reach Knos as written (the
-shell never expands them). No money, no wallet and no chain are involved, and none of the pull request's code runs.
+shell never expands them). Neither money nor a chain is involved, and none of the pull request's code runs.
 
 Install: add the Knos check workflow from [INSTALL.md](INSTALL.md), give the job `pull-requests: write` and
 `issues: write`, and add `with: maintainer-mode: label` (or `close`) to the `uses: drexthealpha/Knos@...` step; add
@@ -164,7 +166,7 @@ the job's own token.
 
 ## Knos Gate in GitHub's own places: code scanning, annotations, attestations, a required check
 
-Knos Gate refuses a pull request that cheats (edits a test, touches a workflow, writes outside the scope the
+Knos Gate refuses a pull request that cheats (edits a test or a workflow, or writes outside the scope the
 maintainer set). Since 0.3.31 each refused finding also appears where a maintainer already looks on GitHub, and a
 maintainer can make the check required in one command.
 
@@ -235,8 +237,8 @@ the work is CORRECT against tests the sender could not see. Gate does that, and 
 Gate check can be the bypass signal a maintainer opts into (`pass_label`).
 
 Unsolicited bot pull requests are merged far less often (Greenkeeper 32%, ASE 2017) than opted-in ones (Dependabot
-about 70%, median about 4 hours, arXiv 2206.07230). Gate is opt-in by the maintainer and needs no wallet, no token and
-no held money.
+about 70%, median about 4 hours, arXiv 2206.07230). Gate is opt-in by the maintainer and needs no wallet and no held
+money.
 
 ### Install
 
@@ -368,7 +370,7 @@ The App's code is `github-app/server.py` (logic: `src/knos/gate/app.py`) and its
 ## Task packages: a merged fix as a sealed, verified task
 
 **In plain words.** When a maintainer merges a pull request that fixes an issue and adds tests, that pair is a good
-task: a real problem, a real fix, and tests that tell right from wrong. `knos taskpack export` packs it. The tests are
+task: a real problem with its real fix, and tests that tell right from wrong. `knos taskpack export` packs it. The tests are
 sealed, so a solver cannot see them.
 
 Knos checks that the tests fail before the fix and pass after it. Anyone holding

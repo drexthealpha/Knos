@@ -32,7 +32,7 @@ vector of the version before:
 | ledger2 | 2 | 42 | the meter's batch commitment, format 2: an event's canonical bytes, its leaf, a batch's root, an inclusion proof, and the pair of batches that differ only in which evaluation was accepted ([METER.md](METER.md)) |
 
 The receipt's vectors are the ones [`docs/receipt/vectors.json`](../receipt/vectors.json) already held; the kit reads that
-file and keeps no copy. Nobody outside Knos has run the kit: the two implementations that pass it are Knos's own.
+file and keeps no copy. Nobody outside Knos has run the kit: the two implementations run against it are Knos's own.
 
 ## The formats
 

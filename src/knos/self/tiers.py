@@ -5,8 +5,8 @@
              parent and the candidate, its tests judge the candidate; both run twice and must agree. What leaves this
              module for an agent is pass/fail; the counts and the metric go to the public log; no test's text, name
              or output ever does (the logs are deleted with the temporary folder).
-    audit    a second hidden bundle, never used to decide a merge: `knos self audit` runs it on accepted versions on a
-             schedule, to catch work that fits the sealed tests and nothing else.
+    audit    a second hidden bundle, never used to decide a merge: `knos self audit` runs it on accepted versions when
+             asked, to catch work that fits the sealed tests and nothing else.
 
 Every run of candidate code (and of the parent's, to compare) goes through the loop's jail: a clean environment with
 no token and no secret, a new network namespace (no network) and a new mount namespace in which the loop's state

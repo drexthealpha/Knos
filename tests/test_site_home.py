@@ -32,7 +32,7 @@ def test_the_snapshot_cards_are_the_ones_its_rows_draw():
     assert run.returncode == 0, run.stdout + run.stderr
 
 
-def test_the_bare_address_opens_on_the_products_with_three_one_tap_actions_each():
+def test_the_old_first_screen_holds_the_products_with_three_one_tap_actions_each():
     home = _section("view-home")
     # the first screen names its buyer and has one box (web/brand/hero.html, scripts/sync_brand.py); the products follow
     mission = "See who would buy it first."

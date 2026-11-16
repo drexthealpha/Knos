@@ -1,9 +1,9 @@
 """The public record as static files (scripts/pages_data.py), counted from recorded inputs: the vaults' log lines as
 network_stats reads them, a relay log, GitHub's answers as a dict. No network, no chain.
 
-The scenario (`scenario()`): funder 501 (a Balance) funds five jobs in octo/widgets, funder 502 one in acme/gadgets,
-and Knos's own account funds one. They end as: paid to alice (real), refunded after bob's merge (merged but unpaid),
-paid in test USDC, paid to the funder's own account, paid to Knos's own account.
+The scenario (`scenario()`): funder 501 (a Balance) funds four jobs in octo/widgets, Knos's own account a fifth there,
+and funder 502 one in acme/gadgets. 501's end as: paid to alice (real), refunded after bob's merge (merged but unpaid),
+paid to alice in test USDC, paid to the funder's own account. Knos's job is paid to alice, and 502's to carol.
 """
 
 from __future__ import annotations
@@ -511,6 +511,8 @@ def test_a_split_of_a_work_order_is_counted_for_each_payee():
     lat = load(files, "latency.json")
     assert lat["merge_to_paid"]["all_time"]["n"] == 1 and lat["merge_to_paid"]["all_time"]["split"]["queue"]["n"] == 1
     assert lat["merge_to_paid"]["all_time"]["split"]["chain"]["p50"] == 5 and "only when it could measure it" in lat["definitions"]["split"]
+
+
 # ---- one number, one pipeline ----------------------------------------------------------------------------------------
 def test_the_documents_and_the_site_state_one_merge_to_paid(tmp_path):
     """merge to paid is measured by network_stats.measure() and by nothing else: latency.json, stats.json (the Numbers

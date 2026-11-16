@@ -506,7 +506,6 @@ def test_claim_makes_the_repository_itself_when_the_template_cannot_be_used_and_
     assert not got["bound"] and said[-1].startswith("Not bound yet.") and time.monotonic() - t0 < 5
 
 
-
 # -- knos claim --org ------------------------------------------------------------------------------------------------------------
 class OrgGh:
     """The `gh` command of a member of an organisation, faked: the organisation, its knos-claim repository and the file

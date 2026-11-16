@@ -212,7 +212,7 @@ def test_an_order_with_the_grace_takes_a_token_issued_by_its_deadline_and_is_not
     if not build.new:       # 2.1 refuses the byte (the program: E_TERMS); the relay says so before any fee
         txs = net.txs
         r = carry(env, order_fund_jwt(c, issue(), options=graced, work=600), relay2_terms())
-        assert not r["ok"] and "which the payment program on this cluster does not have yet: it comes with the announced upgrade to knos_pay 2.2" in r["why"], r
+        assert not r["ok"] and "which the payment program on this cluster does not have: it runs knos_pay 2.1, and the grace came with 2.2" in r["why"], r
         assert net.txs == txs
         return
     terms = relay2_terms()

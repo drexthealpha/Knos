@@ -27,7 +27,7 @@ The flow Knos runs:
   3. Knos polls Iris for the message (`attestation`), checks the decoded message against the plan (`check`): domain 5,
      the right token account, the amount net of the fee executed, the hookData.
   4. receiveMessage on Solana mints into the funder's own token account (anyone may submit it); then the funder's
-     FundOrderWallet moves it into vault, which the funder signs, or signs ahead with a durable nonce
+     FundOrderWallet moves it into the order's vault, which the funder signs, or signs ahead with a durable nonce
      (knos.platform.nonce) so the whole thing completes unattended once the mint lands.
 Step 4's receiveMessage instruction (Anchor, with the token messenger's remaining accounts) is not built here: it is
 the next step once a testnet transfer can be made.

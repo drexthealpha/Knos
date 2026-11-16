@@ -483,7 +483,7 @@ class Game:
         if which not in ("train", "val"):
             raise GameError("which: train or val")
         rows = self.task.public()[which]
-        n =len(rows[0][0]) if rows else 0
+        n = len(rows[0][0]) if rows else 0
         lines = [",".join([f"x{i}" for i in range(n)] + ["y"])]
         lines += [",".join([repr(float(v)) for v in x] + [str(int(y))]) for x, y in rows]
         return "\n".join(lines) + "\n"

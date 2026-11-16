@@ -3,7 +3,8 @@
 //     python conformance/run.py --impl "node conformance/impl/knos_js.mjs"
 //
 // SDK: operations answered by a function sdk/settle exports. ADAPTER: operations sdk/settle has no function for, done
-// here from the description in docs/reference/CONFORMANCE.md with nothing of the SDK's but its sha256; they show that the
+// here from the description in docs/reference/CONFORMANCE.md with nothing of the SDK's but its sha256 and hex (and, for
+// ledger2.root, meter.evalKey to order the events); they show that the
 // description is enough to write a second implementation from, and they are not a claim about the SDK. Everything
 // else is answered `unsupported`: the SDK does not check receipts (so it says no verdict of one) and does not write a
 // statement's text.

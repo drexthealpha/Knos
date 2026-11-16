@@ -2,8 +2,9 @@
 github.com/lazor-kit/program-v2), driven from Python with no SDK.
 
 Why not knos_passkey here. knos_passkey (programs-v2/knos_passkey) lets a passkey sign exactly two things: a token
-Withdraw, and one FundOrderWallet of the knos_pay it pins (5y7iWJ1V..., the public program). Knos's pre-orders run as
-PANEL orders on the knos_pay panel test build (devnet FaMHCjzy...), and a maker who factors a receivable must sign
+Withdraw, and one FundOrderWallet of the knos_pay it pins (5y7iWJ1V..., the public program). The pre-orders of the
+Solana flow Knos built earlier (tag v0.3.28) run as PANEL orders on the knos_pay panel test build (devnet FaMHCjzy...),
+and a maker who factors a receivable must sign
 knos_pay's Assign or hand the wallet the receivable is paid to to a lender. knos_passkey can sign neither. A LazorKit
 wallet can: its vault PDA signs any CPI the passkey approved (Execute), and its owner can be handed to another passkey
 (TransferOwnership). Both are checked by Solana's secp256r1 precompile (SIMD-0075) over a WebAuthn assertion.

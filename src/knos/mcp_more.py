@@ -37,7 +37,7 @@ _SECRET = os.urandom(32)        # signs requestState; a restart only means the p
 
 RESOURCES = [
     {"uri": "knos://fees", "name": "fees", "title": "Knos fees",
-     "description": "Every Knos fee, from config/fees.yaml, with each line's status (live, decided, placeholder). On devnet all money is test money.",
+     "description": "Every Knos fee, from config/fees.yaml, with each line's status (live, decided, proposed or placeholder). On devnet all money is test money.",
      "mimeType": "application/json"},
     {"uri": "knos://cheats", "name": "cheats", "title": "Cheat rules",
      "description": "The rules Knos refuses work by (editing tests, skipping them, touching workflows, out-of-scope files, ...): read before writing the change.",

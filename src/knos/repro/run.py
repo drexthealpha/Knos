@@ -5,8 +5,8 @@ token, key or secret of the machine.
 A claim holds when the metric it names is within its tolerance of the expected value on BOTH runs. The result is:
 
     reproduced   every claim holds on both runs and no cheat rule fired. Only this result gets a badge or a public page.
-    contested    a claim missed its tolerance, a metric was missing, or a cheat rule fired. Kept PRIVATE: it goes to the
-                 authors first and is never published by Knos.
+    contested    a claim missed its tolerance, a metric was missing, or a cheat rule fired. Kept PRIVATE, with a notice
+                 for the authors (knos.repro.publish.notice), and never published by Knos.
     failed       the entry or the data generator did not finish (error, or over the compute budget). Kept private too.
     incomplete   there was no held-out split to run (no generator and no --heldout folder). Kept private; no badge.
 

@@ -19,7 +19,7 @@ The entry added Knos to Claude Code with one command: `claude mcp add --transpor
 
 ## Paid only when the test passes
 
-The proof is checked before any money moves. A milestone names its checker in the brief. The proof can be:
+In that entry the proof was checked before any money moved. A milestone named its checker in the brief. The proof could be:
 
 - a lab result or a public evidence page, read by the milestone's checker;
 - checks that GitHub signs, verified on chain;
@@ -93,7 +93,7 @@ knos idea release <commitment> <stage> --sig <verdict>    # pay a met stage on t
 knos idea refund <commitment> <stage> --wallet <keypair>  # refund a missed stage; anyone may send it
 ```
 
-Install with `pip install knos`. In the entry the app answered the same steps over HTTP: `POST /api/check` (the demand check), `POST /api/ready` (the Ready brief) and `POST /api/preorder` (a pre-order on devnet). Run `knos idea --help` for every option.
+Install with `pip install knos`. In the entry the app answered the same steps over HTTP: `POST /api/check` ran the demand check, and `POST /api/ready` then `POST /api/preorder` took a Ready brief to a pre-order on devnet. Run `knos idea --help` for every option.
 
 ## Check every claim yourself
 

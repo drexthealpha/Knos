@@ -108,9 +108,6 @@ def test_a_size_that_cannot_be_computed_is_refused(baseline, effect, alpha, powe
         pp.per_arm(baseline, effect, alpha, power)
 
 
-# ---- the page -----------------------------------------------------------------------------------------------------------
-
-
 # ---- the command line ---------------------------------------------------------------------------------------------------
 
 def test_the_command_line_writes_the_file_and_prints_its_sha256(tmp_path):

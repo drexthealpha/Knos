@@ -264,7 +264,7 @@ def diff(a: dict, b: dict) -> list[str]:
         out.append(f"How long the issue can be reserved changed: {_days(a['reserve'])} before, {_days(b['reserve'])} now.")
     if a.get("policy") != b.get("policy"):
         out.append("The repository's rules for funding (.knos/policy.yml) " + ("changed between the two" if a.get("policy") and b.get("policy") else
-                   "are named by one version and not by the other") + ": who may fund, the caps, the defaults.")
+                   "are named by one version and not by the other") + ": who may fund, and the caps and defaults it sets.")
     if a.get("vendor") != b.get("vendor"):
         out.append(f"The one account it pays changed: account id {a.get('vendor') or 'none'} before, {b.get('vendor') or 'none'} now.")
     return out

@@ -278,7 +278,7 @@ def lines(q: dict, money: str = "test USDC", decimals: int = 6) -> list[str]:
 
 
 def register(app: Any, help_lines: list | None = None) -> None:
-    """`knos advance offer | take | status`. `help_lines`: cli._HELP, which gets the command's line."""
+    """`knos advance offer | take | quote | status`. `help_lines`: cli._HELP, which gets the command's line."""
     import importlib
     typer = importlib.import_module("typer")
     if help_lines is not None:

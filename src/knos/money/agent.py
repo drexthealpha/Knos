@@ -30,9 +30,9 @@ def _tool(name: str, title: str, description: str, properties: dict, required: l
 
 TOOLS = [
     _tool("knos_fees", "Knos fees",
-          "The fee Knos charges, from its one fee config: for `kind` (payout, bounty, funding, graduation, task_package, "
-          "verification, x402_check, verified_merge) and an amount (or a count, for verification, x402_check and verified_merge), "
-          "or the whole schedule with each line's status (live on devnet, decided, proposed, or placeholder). Test money on devnet.",
+          "The fee Knos charges on Solana devnet, from its one fee config: for `kind` (payout, bounty, funding, graduation, task_package, "
+          "bounty_platform, lab_order, verification, x402_check, verified_merge) and an amount (or a count, for verification, x402_check and verified_merge), "
+          "or the whole schedule with each line's status (live on devnet, decided, proposed, or placeholder). Test money on devnet. The NEAR testnet jobs contract keeps its own fee, 1 part in 10.",
           {"kind": {"type": "string", "enum": list(fees_config.KINDS)}, "amount": _AMOUNT,
            "count": {"type": "integer", "minimum": 0}, "used": {"type": "integer", "minimum": 0}}, []),
     _tool("knos_graduate", "Graduate a verified claim",

@@ -16,7 +16,7 @@
   "instructions": [
     {
       "name": "Fund",
-      "docs": ["A wallet escrows a bounty for one issue of one repository, pinning the repository and commit of the workflows that can prove it."],
+      "docs": ["A wallet funds a bounty, held in the vault, for one issue of one repository, pinning the repository and commit of the workflows that can prove it."],
       "accounts": [
         {"name": "funder", "isMut": true, "isSigner": true, "desc": "The funding wallet; pays the job's rent"},
         {"name": "job", "isMut": true, "isSigner": false, "desc": "PDA [\"job\", repoId u64 LE, issue u64 LE, funder]"},

@@ -326,7 +326,8 @@ def ix_json(ix) -> dict:
 # supplier and period; an envelope is the finance owner's limit over the same money `decide` judges on chain, and it
 # counts what leaves the Balance: the amount and the fee on top. The files are a small, fixed part of YAML that this
 # module and web/procure.js read with the same few lines and judge with the same sentences
-# (tests/data/procure_cases.json holds both to one answer). docs/reference/SECURITY.md, "Procurement files", is the schema.
+# (tests/data/procure_cases.json holds both to one answer). The schema is the code: card_problems, offer_problems and
+# envelope_problems below.
 PROCUREMENT = ".knos/procurement"           # the directory in the buyer's repository
 FILES = {"rate-card": "rate-cards", "standing-offer": "offers", "budget-envelope": "envelopes"}     # kind -> subdirectory; the policy is policy.yaml
 PERIODS = {"week": 7, "month": 30, "quarter": 90}       # a cap's period in days: at most what one order may wait (knos_pay MAX_WORK)
@@ -718,7 +719,7 @@ SAMPLE_REPOSITORY = "drexthealpha/Knos"     # where the sample below is set: web
 
 def sample() -> dict:
     """One small organisation's four files and its approvals so far, as data: what the console shows before a
-    repository is named, and what the tests and docs/reference/SECURITY.md use. It is set in this project's own playground
+    repository is named, and what the tests use. It is set in this project's own playground
     repository, drexthealpha/Knos, so that no link of the console leads to somebody else's; the files and the
     people in them (the -acme accounts) are made up."""
     hashes = published_terms()

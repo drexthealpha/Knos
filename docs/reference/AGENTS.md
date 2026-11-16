@@ -138,8 +138,8 @@ HEAD of a checkout (src/knos/verify/):
 | `fail` | 1 | fix what `reasons` names; never weaken a test |
 | `refused` | 3 | the AI policy forbids this pull request: do not open it |
 
-The same rule ships as a skill for Claude Code (`plugin/skills/knos-verify/`, loaded with the Knos plugin), OpenClaw
-(`integrations/skills/openclaw/knos-verify/`). Hermes Agent uses the MCP server or the plugin ([Hermes Agent](#hermes-agent) below).
+The same rule ships as a skill for Claude Code (`plugin/skills/knos-verify/`, loaded with the Knos plugin) and for
+OpenClaw (`integrations/skills/openclaw/knos-verify/`). Hermes Agent uses the MCP server or the plugin ([Hermes Agent](#hermes-agent) below).
 
 ## Contributor rounds
 

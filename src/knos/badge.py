@@ -296,7 +296,7 @@ def register(app) -> None:
                    index: Path = typer.Option(Path("docs/index.json"), "--index", help="build: the Agent PR Index feed (Knos's public table of agent pull requests), for an agent listed there"),
                    events_log: Path = typer.Option(None, "--events", help="build: the events log to count work settled through Knos from (default: KNOS_EVENTS)"),
                    supplier_id: list[str] = typer.Option([], "--id", help="build: a name the supplier has in the events log (repeat it; default: the supplier's name)"),
-                   memory: Path = typer.Option(None, "--memory", help="build: the folder of the local memory store (Sibyl) that holds what Knos learned about the supplier"),
+                   memory: Path = typer.Option(None, "--memory", help="build: the folder of the local memory store that holds what Knos learned about the supplier"),
                    repo: list[str] = typer.Option([], "--repo", help="build: a repository to recall the supplier in, owner/repo (repeat it)"),
                    as_of: str = typer.Option(None, "--as-of", help="build: the day to write in the file, YYYY-MM-DD"),
                    invoice: str = typer.Option("", "--invoice", help="receipt: the number of the invoice it goes with"),

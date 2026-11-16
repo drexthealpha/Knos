@@ -1,4 +1,5 @@
-"""Clients for the second deployment (programs-v2): knos-oidc and knos-pay with key expiry, prefunded balances and terms fixed at funding, and knos-meter."""
+"""Clients for the second Solana devnet deployment (programs-v2): knos-oidc with key expiry, knos-pay with prefunded balances and
+terms fixed at funding, knos-meter and knos-passkey."""
 from __future__ import annotations
 
 import json

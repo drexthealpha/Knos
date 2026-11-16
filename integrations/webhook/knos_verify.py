@@ -5,7 +5,7 @@
     if got["ok"]: ...            # got["facts"]: order, commit, pull_request, repository_id, terms_hash, mode, payees, workflow
 
 `evidence` is the raw token GitHub signed (a string), or a mapping with `token` and, when you have them, `receipt`
-(the acceptance receipt, version 2 to 5: a mapping or its JSON) and `terms` (the order's terms, the exact bytes that were
+(the acceptance receipt, version 2 to 6: a mapping or its JSON) and `terms` (the order's terms, the exact bytes that were
 hashed at funding). Those are token.jwt, receipt.json and terms.json of a Knos evidence bundle. `jwks` is the
 issuer's public keys as you trust them: GitHub's published set
 (https://token.actions.githubusercontent.com/.well-known/jwks, fetched and kept by you), or the bundle's key.json.
@@ -127,7 +127,7 @@ def _receipt(r, token: str, claims: dict, facts: dict) -> None:
     except Exception:  # noqa: BLE001 - a missing field, or not a mapping at all
         shaped = False
     if not shaped:
-        raise _No("receipt", "This is not an acceptance receipt of version 2 to 5 with an accepted verdict (docs/reference/RECEIPT.md).")
+        raise _No("receipt", "This is not an acceptance receipt of version 2 to 6 with an accepted verdict (docs/reference/RECEIPT.md).")
     if hashlib.sha256(_unb64(token.rsplit(".", 1)[1])).hexdigest() != digest:
         raise _No("receipt", "The receipt names another token than the one given (token_sha256 differs).")
     if told != _told(claims) or issuer != claims.get("iss") or str(repo) != str(claims.get("repository_id")):

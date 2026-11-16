@@ -41,7 +41,7 @@ def test_every_example_is_quoted_from_fixtures_and_a_free_lab_at_zero():
 
 
 @pytest.mark.parametrize("ref", [None, ""])
-def test_no_order_without_money_in_escrow(ref):
+def test_no_order_without_held_money(ref):
     for a in labs.ADAPTERS.values():
         with pytest.raises(ValueError, match="no order without held money"):
             a.order(a.example, ref)

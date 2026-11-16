@@ -645,7 +645,7 @@ class Round:
             self.at["issue"] = now
             return {"number": 30}
         if bare == "repos/o/r/issues/30/comments":
-            return [{"body": "Thanks!"}, *([{"body": "Knos: 5.00 test USDC from the devnet faucet is in escrow for issue #30"}] if now - self.at["issue"] >= self.fund else [])]
+            return [{"body": "Thanks!"}, *([{"body": "Knos: 5.00 test USDC from the devnet faucet is held for issue #30"}] if now - self.at["issue"] >= self.fund else [])]
         if bare == "repos/o/r":
             return {"default_branch": "main"}
         if bare == "repos/o/r/git/ref/heads/main":
@@ -755,7 +755,6 @@ def test_every_settlement_is_remembered_and_a_funding_proposes_terms_from_that_m
     w.hub.issue(10)
     assert flow.command(w.run(w.hub.commented(10, HUBOT, "/knos fund 20"))) == 0
     assert "changes under `docs/guide` failed `lint` 4 times: add it?" in w.hub.knos(10)[-1] and "as a work order" in w.hub.knos(10)[-1]
-
 
 
 def test_a_pull_request_paid_stays_paid_in_memory_when_another_run_settles_it_later_and_refuses(tmp_path):

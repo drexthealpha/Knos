@@ -43,8 +43,9 @@ pub const USDC_DEVNET: Pubkey = pubkey!("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJ
 pub const USDC_MAINNET: Pubkey = pubkey!("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
 
 // Prices and bounds, in millionths of ONE WHOLE UNIT of the mint (`units` turns them into the mint's smallest units).
-// The fee is knos_pay 2.2's: one rate and a floor. A program at 2.1 (the public one until the upgrade to 2.2 executes)
-// charges its own, older fee; what an order was charged is always the `fee` its account holds (`Order::fee`).
+// The fee is knos_pay 2.2's: one rate and a floor. The public program ran 2.1, with its own older fee, until proposal 8
+// upgraded it to 2.2 on 9 Oct 2026 (web/upgrades.json); what an order was charged is always the `fee` its account holds
+// (`Order::fee`).
 pub const FEE_BPS: u64 = 30; // 0.30%: the one rate of an order's fee, or the owner's Plan (no lower than 10)
 pub const ORDER_FEE_MIN: u64 = 50_000; // 0.05: the floor
 pub const ORDER_MIN_AMOUNT: u64 = 5_000_000;

@@ -2,18 +2,18 @@
 
 # Money: one fee config, graduation, splits, x402 and the revenue data
 
-**In plain words.** Every Knos fee on Solana lives in one file, and the code reads it from there; the NEAR contracts compile their own 1 part in 10. When a claim passes, money for its next step and its first orders is held on devnet until the milestone's checks pass.
+**In plain words.** Every Knos fee on Solana lives in one file, and the code reads it from there; the NEAR contracts compile their own 1 part in 10. Today a check on NEAR testnet runs with test money held with the job: the jobs contract sends 9 parts to the agent whose code passed the locked test and keeps 1 part in 10 (`FEE_PARTS` in `near/contract/src/jobs.rs`). Nobody pays for a proof.
 
-When the work is accepted, everyone who helped is paid their share at once.
+The graduation code below is an earlier Solana devnet flow, kept and tested: when a claim passed, money for its next milestone and a pre-order pool were held until the milestone's checks passed, then paid out in fixed shares.
 
-What is held, released and charged now: [the money page](https://knos.onrender.com/money).
+What is held and released now, with the price list: [the money page](https://knos.onrender.com/money).
 
-How the money moves:
+How the money moved in that earlier flow:
 
-1. A verdict passes (works, wanted, makeable).
-2. It opens held money for the milestone and a pre-order pool: knos_pay orders.
-3. The referee workflow signs acceptance: the split is paid to the researcher, agent, lab and referee, and the fee goes to the treasury.
-4. If the deadline passes first, the money and the fee go back to whoever paid.
+1. A verdict passed all the referee's checks.
+2. It opened held money for the milestone and a pre-order pool: knos_pay orders.
+3. The referee workflow signed acceptance: the split was paid to the researcher, agent, lab and referee, and the fee went to the treasury.
+4. If the deadline passed first, the money and the fee went back to whoever paid.
 
 **Revenue today: 0.** Knos runs on Solana devnet and NEAR testnet only. Every fee the program takes there is test money, and nothing
 has been sold.
@@ -65,7 +65,7 @@ The product's prices (demand check, deep demand check, Ready brief, proof page, 
 2026. Deep checks are charged by card once the company exists; nobody is charged today. The company pays the payment
 costs on top of the 1% release fee. The solver keeps 100% of what they are paid.
 
-Cards cover milestones up to 500 USD; larger milestones are paid by bank transfer or in USDC.
+The plan: cards for milestones up to 500 USD, bank transfer or USDC above that. Card payment is not built.
 
 The 1% is not live: the deployed `knos_pay` charges its payout fee, 0.30%, until a timelocked program upgrade carries
 the new rate.
@@ -98,7 +98,7 @@ sends the payment keeps its tip (0.05, or 0.30 on a payee's first payment); the 
 
 ## Contributor splits
 
-Every payout is shared among four roles, by fixed basis points (`splits.roles`, decided 14 Oct 2026: 60 researcher /
+A graduation payout is shared among four roles, by fixed basis points (`splits.roles`, decided 14 Oct 2026: 60 researcher /
 25 agents / 10 labs / 5 referees):
 
 | role | basis points |
@@ -131,7 +131,7 @@ Both are **private** orders (`F_PRIVATE`, salted scope): they store no repositor
 up as a bounty on a GitHub issue. The salt is `sha256("knos-grad:" + claim id)`, derived from the public claim id on
 purpose, so anyone can find a claim's held money and pool.
 
-No token here pays backers out of revenue: a pre-order buys the product, and held money funds a milestone or comes
+No token here pays anyone out of revenue: a pre-order buys the product, and held money funds a milestone or comes
 back.
 
 ### On devnet (13 Oct 2026)
@@ -157,7 +157,7 @@ not fake one.
 The payout path, with the four-way split and the fee, runs against the program's test build in LiteSVM
 (`tests/test_money_graduation.py`).
 
-## For agents: MCP, Hermes and x402
+## For agents: MCP and x402
 
 `knos.money.agent` has three tools in the MCP shape: `knos_fees`, `knos_graduate` and `knos_preorder`. They quote and
 plan, and return the unsigned instruction the paying wallet signs itself; they never read a key. `agent.call(name,

@@ -2,7 +2,7 @@
 
 A transaction normally names a recent blockhash and dies with it, about 33 s on devnet today (knos.platform.blockhash).
 That is too short for a funder whose approver signs on another machine, a financier who signs an assignment
-a hardware or cold wallet, or an agent that prepares a funding while its owner approves it. A durable
+from a hardware or cold wallet, or an agent that prepares a funding while its owner approves it. A durable
 nonce replaces the blockhash with a value stored in a nonce account; the transaction stays good until that value is
 advanced, and the first instruction of the transaction advances it, so the same bytes can land once and never again
 (https://solana.com/docs/advanced/confirmation, durable transaction nonces; SIMD-0242 "Static Nonce Account Only" is

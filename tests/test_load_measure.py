@@ -47,7 +47,6 @@ def test_relays_with_their_own_fee_payers_fund_apart_and_through_one_shared_acco
     assert load.token_balance(sim, Pubkey.from_string(got["shared_account"])) == 7
 
 
-
 def test_a_transaction_that_landed_while_its_relay_waited_past_its_window_is_asked_about_not_signed_again():
     """The relays share one clock (on a cluster, the wall clock). A relay that was held up between landing a transaction
     and asking its status, while another relay's polling moved the clock past its window, signed it again and sent it
@@ -81,6 +80,7 @@ def test_a_transaction_that_landed_while_its_relay_waited_past_its_window_is_ask
     jump.append(61.0)               # held up again, past the whole wait for `finalized`, before the first status is asked
     sender.finalize([got])
     assert got.ok and got.finalized is not None, got
+
 
 def test_the_fee_payers_are_the_same_every_run_so_a_run_that_died_is_swept_by_the_next():
     from solders.keypair import Keypair

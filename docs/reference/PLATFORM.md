@@ -1,7 +1,7 @@
-# Knos on today's Solana: sBPF v3, one-transaction verification, v1 transactions (work of the 0.4.0 release; not yet deployed: proposals 13 to 15)
+# Knos on today's Solana: sBPF v3, one-transaction verification, v1 transactions, finality (work of the 0.4.0 release; not yet deployed: proposals 13 to 15)
 
-**In plain words.** Every Knos program ever built was built for the oldest program format, sBPF v0 (no commit ever
-targeted another). This release builds the four programs for sBPF v3, which devnet runs
+**In plain words.** Before this work every Knos program was built for the oldest program format, sBPF v0 (no commit
+before it targeted another). This release builds the four programs for sBPF v3, which devnet runs
 today and which future upgrades will require.
 
 A build for sBPF v2 checks a GitHub token's RSA signature in ONE transaction instead of two (measured on devnet:
@@ -216,7 +216,8 @@ transaction does not run.
 ## 7. The upgrade
 
 The v3 buffers were proposed to the upgrade multisig `9HcsMEo2…` (vault `CKCrTB…`, time lock 691,200 s): proposal 13
-for knos_pay and proposals 14 and 15 for knos_oidc, each approved 2 of 2 and executable since 11 Nov 2026. None has
+for knos_pay and proposals 14 and 15 for knos_oidc, each with the 2 approvals the 2-of-3 multisig needs, and
+executable since 11 Nov 2026. None has
 executed: the public ids still run knos_oidc 2.2 and knos_pay 2.2 ([web/upgrades.json](../../web/upgrades.json)).
 
 SIMD-0500 (`B8JJXC…`, not active on devnet on 13 Oct 2026) will refuse v0, v1 and v2 deployments once active; programs
@@ -350,7 +351,7 @@ wall-clock time").
 A blockhash fetched at `confirmed`
 therefore had **about 33 s** left, not the minute older pages assumed.
 
-That is too short for a funder whose approver signs on another machine, a hardware or cold wallet, or an agent whose owner approves its funding.
+That is too short for a funder whose approver signs on another machine or a cold wallet, or for an agent whose owner approves its funding.
 
 A durable nonce replaces the blockhash with a value kept in a nonce account; the transaction's first instruction
 advances it, so the signed bytes stay good until they land, and land once.

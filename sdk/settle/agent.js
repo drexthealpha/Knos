@@ -137,7 +137,7 @@ function lines(logs, program) {
   return out;
 }
 
-/** The terms an account was funded with: the JSON a `terms` line of the escrow printed in the transactions that named it,
+/** The terms an account was funded with: the JSON a `terms` line of the payment program printed in the transactions that named it,
  *  whose hash is the one the account holds. null when no such line is there (the node's history is shorter, or the order is private). */
 async function termsOf(c, address, hashHex) {
   const found = [];
@@ -184,7 +184,7 @@ function whyNot(item, now) {
 
 /**
  * What is on offer for one issue: every open work order and job (the second deployment's two ways to fund) with the
- * terms in words, what the author receives, the deadline and the funder's record, from public RPC reads of the escrow.
+ * terms in words, what the author receives, the deadline and the funder's record, from public RPC reads of the payment program.
  * `repo` is the repository's GitHub id; `issue` its number. A private order hides its repository and issue on the chain,
  * so it is not found here. Resolves to { repoId, issue, at, items, said, missing, unread, note }.
  */
@@ -260,7 +260,7 @@ async function monthAccounts(c, sellerId, ym) {
     .sort((a, b) => a.buyerId - b.buyerId);
 }
 
-/** What a seller billed and was paid in one month, from the meter's and the escrow's own log lines. */
+/** What a seller billed and was paid in one month, from the meter's and the payment program's own log lines. */
 const same = (a, b) => ["evaluations", "accepted", "rejected", "value", "fees"].every((k) => a[k] === b[k]);
 
 /**
@@ -268,7 +268,7 @@ const same = (a, b) => ["evaluations", "accepted", "rejected", "value", "fees"].
  * { seller, month, meter, escrow, said, notes }:
  *   meter   each buyer's month account (billable evaluations, accepted, rejected, declared value, fees in credits), recomputed
  *           from the meter's own log lines and compared with it (`agrees`), and the sums
- *   escrow  the payments the escrow logged to this seller in the month (a work order's `knos3:paid` line, a job's `knos2:paid`),
+ *   escrow  (the field's name, kept for callers) the payments the payment program logged to this seller in the month (a work order's `knos3:paid` line, a job's `knos2:paid`),
  *           in the mint's smallest units as logged, with the transaction of each, and how far the history was read
  * `most` caps the transactions read per history (default 1000), `pageSize` the signatures asked for per call (default 100,
  * at most 1000), and `timeoutMs` the whole read (default 60000): a history cut short by either says so in `notes`.
@@ -316,9 +316,9 @@ export async function statement(connection, seller, month, { most = 1000, pageSi
   return { seller: Number(sellerId), month: when.label, from: when.from, to: when.to, meter: { buyers, ...sums }, escrow, said: text, notes };
 }
 
-/** Which one do you mean? The first step of the valley: the hosted demand check (POST /api/check) asked about an idea or
- * a paper's DOI. With no `picked`, it answers with the readings to choose from (`kind: "which_one"`); with `picked: true`
- * the idea is checked exactly as given. The one call of this module that asks a server, the one every Knos surface asks. */
+/** Which one do you mean? The hosted demand check (POST /api/check) asked about an idea or a paper's DOI. With no
+ * `picked`, it answers with the readings to choose from (`kind: "which_one"`); with `picked: true` the idea is checked
+ * exactly as given. The one call of this module that asks a server. */
 export async function demand(idea, { base = "https://knos.onrender.com", picked = false, fetch: get = globalThis.fetch } = {}) {
   const r = await get(`${base}/api/check`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idea, ...(picked ? { picked: true } : {}) }) });
   if (!r.ok) throw new Error(`the demand check answered HTTP ${r.status}`);

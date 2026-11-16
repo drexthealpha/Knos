@@ -1,4 +1,5 @@
-// The front door (web/front_door.js): your own invoice is the first thing the site checks.
+// The invoice check (web/front_door.js), one tool of Knos: it checks your own invoice. The front door itself is
+// web/door.html (tests/test_one_page.py); this module is served as a file, not as the first screen.
 //   node tests/web/front_door.mjs          the module's functions, with no browser
 //   node tests/web/front_door.mjs page <site dir>     and the page in headless Chromium, on a build of the site
 //                                                     (scripts/build_site.sh): the control alone, then the first screen
@@ -33,7 +34,7 @@ same("with the answers of examples/shadow/recorded.json", SAMPLE_BOOK, JSON.pars
 const invoice = parse(SAMPLE_INVOICE), st = statement(invoice, await gather(invoice, recorded(SAMPLE_BOOK)));
 const WANT = ["agreed", "disputed", "disputed", "duplicate", "agreed", "duplicate", "insufficient_evidence"], COUNTS = { agreed: 2, disputed: 2, duplicate: 2, insufficient_evidence: 1 };
 same("the sample's seven lines fall into the four groups", st.lines.map(stateOf), WANT);
-// THE STATEMENT the front door makes (web/statement_make.js) is the one `knos statement make` writes from the same invoice
+// THE STATEMENT the invoice check makes (web/statement_make.js) is the one `knos statement make` writes from the same invoice
 // and the same answers: tests/data/statement/front_door.* are the Python's (tests/test_site_front_door.py holds them to it)
 const make = await load("statement_make.js"), finance = await load("finance_data.js"), fixture = (name) => readFileSync(join(here, "../data/statement", name), "utf8");
 const made = await make.fromShadow({ invoice: SAMPLE_INVOICE, answers: SAMPLE_BOOK }, SAMPLE_META);
@@ -73,7 +74,7 @@ const listing = [1, 2, 3, 5, 9, 12, 13, 14].map((n) => book[`repos/acme/app/pull
 const listed = await repoInvoice({ owner: "acme", repo: "app" }, async () => listing);
 same(`a repository is read as its merged pull requests, ${REPO_LINES} at most, none asked for twice`, [listed.invoice.lines.map((l) => l.pr), listed.known.size], [[1, 2, 5, 9, 12, 13, 14].map((n) => `acme/app#${n}`), 7]);
 // THE TEN-SECOND CHECK: one pull request alone in the box goes to its own check (web/check.js at #check=owner/repo/123);
-// an invoice, a repository's name and a line with an amount stay the front door's own
+// an invoice, a repository's name and a line with an amount stay the invoice check's own
 same("one pull request alone is the ten-second check, at its own hash", ["https://github.com/acme/app/pull/7", " https://github.com/acme/app/pull/7/files\n", "acme/app#7"].map((t) => checkHref(prOf(t))),
   ["#check=acme/app/7", "#check=acme/app/7", "#check=acme/app/7"]);
 same("  an invoice, a repository or a priced line is not", ["acme/app#1\nacme/app#2", "acme/app", "https://github.com/acme/app/pull/1,100.00,Acme Agents", "", "not a link"].map(prOf), [null, null, null, null, null]);

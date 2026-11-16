@@ -75,7 +75,7 @@ class Offer:
 
     @property
     def units(self) -> int:
-        """What goes into vault: the whole budget."""
+        """What the order holds: the whole budget."""
         return self.budget
 
 

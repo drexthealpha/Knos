@@ -1,7 +1,7 @@
 """Check every number in the front-facing text against docs/facts.json, and every fact against its source.
 
     python scripts/claims_check.py --offline   # file-backed facts (the test suite runs this)
-    python scripts/claims_check.py             # also the live facts: devnet and GitHub
+    python scripts/claims_check.py             # also the live facts, read from devnet
 
 Front-facing text is README.md, the published front door (web/door.html, which scripts/site_pages.py writes as the
 site's index.html; its body, without scripts and styles) and docs/WHY.md. Every number in it must be one a fact in

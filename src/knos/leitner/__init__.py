@@ -9,7 +9,7 @@ checked less and less; ANY failure drops it to box 1 and PAUSES its payouts unti
     s.due(now)                                   what to re-check now (days), or s.due_orders("lab:x", n) (orders)
     s.result("claim:42", passed, now, cost=1)    promote, or demote to box 1 and pause
     s.can_pay("claim:42")                        False while paused: the lab vault demo (knos.labs.devnet) asks this first
-    rotate(tests, cfg)                           sealed tests nobody fails are retired; tests that catch cheats stay hot
+    rotate(tests, pool, cfg)                     sealed tests nobody fails are retired; tests that catch cheats stay hot
 
     synthetic_history(...)  /  dashboard()       cost per verification before (re-check everything daily) and after
                                                  (Leitner), on a SYNTHETIC history, labelled synthetic everywhere

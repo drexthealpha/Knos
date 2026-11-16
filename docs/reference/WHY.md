@@ -7,7 +7,7 @@ requests that claimed passing tests, 17.8% had a failed check. That is 147 of 82
 
 Both count failed checks, not money: a failed check is not always a failed test or a false claim, and neither figure is a share of anyone's spend.
 
-How: terms fixed before the work, a signed run shows they were met, and a program on chain counts the outcome:
+How: terms are fixed before the work, and a program on chain counts the outcome once a signed run shows they were met:
 Solana devnet for pull request checks, NEAR testnet for a paper's claim. Both use test money only. Keep the evidence:
 a pull request's receipt verifies from GitHub's signatures with no chain.
 
@@ -163,7 +163,7 @@ Over 150,000 npm packages were published to farm one token reward scheme, "artif
 automated replication and dependency chains"
 ([AWS Security Blog, 13 Nov 2025](https://aws.amazon.com/blogs/security/amazon-inspector-detects-over-150000-malicious-packages-linked-to-token-farming-campaign/)).
 
-The rule: Knos computes no reward and pays from no pool. Every payment is one funder's own money for one merge in
+The rule: Knos computes no reward and pays from no pool. Every payment of a pull request check is one funder's own money for one merge in
 the repository that funder chose. The public record counts distinct funders, and keeps self-payment and test money
 out of its totals.
 
@@ -210,9 +210,9 @@ The rule: the default acceptance is the merge. Checks are necessary and not suff
 In one line: Money is released with no custodian, and neither buyer nor supplier can change the count. One person holds every upgrade key today; a program change waits 8 days in public.
 A receipt verifies with no chain; the chain is for the money and for the root.
 
-A chain gives this three things a company cannot promise. The money is committed before the work, in a program and not in a company's account. The payee needs no account with a payment company, only a GitHub account and an address, which can be a wallet made from a passkey.
+A chain gives this what a company cannot promise. The money is committed before the work, in a program and not in a company's account. The payee needs no account with a payment company, only a GitHub account and an address, which can be a wallet made from a passkey.
 
-And the verifier is a program any other program can call ([OIDC.md](OIDC.md)). A company running the same payment program would be one more party to trust. Until an
+The verifier is also a program any other program can call ([OIDC.md](OIDC.md)). A company running the same payment program would be one more party to trust. Until an
 outside review Knos is still such a party, through its multisig (section 4).
 
 Knos runs its pull request checks on Solana devnet and a paper's claim on NEAR testnet: the same rule on both, test

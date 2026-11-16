@@ -132,7 +132,7 @@ written from that documentation. None was run inside the real host.
 Where the documentation does not state something Knos depends on (Copilot's and VS Code's transcript lines, the fields of opencode's
 `session.idle`, the folder goose and Windsurf start a hook in), the route is marked `unconfirmed`.
 
-The pages, the dates they show, the exact event and answer for each host, and what Knos's memory of earlier checks (the Sibyl memory engine)
+The pages, the dates they show, the exact event and answer for each host, and what Knos's memory of earlier checks
 adds to the answer are in [integrations/hosts/README.md](../../integrations/hosts/README.md):
 
 | Host | Pages read (5 October 2026) |

@@ -77,7 +77,7 @@ Remembered: 3 earlier submissions were refused for touching tests/conftest.py: y
 ```
 
 It also remembers each preflight result, and `--by <login>` recalls your own record here (accepted, rejected, appealed, overturned). All of it
-lives in Sibyl Labs' memory engine, a local database (`sibyl-memory-client`), looked up with the engine's own search inside one category;
+lives in the memory engine Knos uses, a local database, looked up with the engine's own search inside one category;
 there is no side file. With the engine absent, preflight works the same and says `Memory is off`.
 
 `--no-memory` recalls and remembers nothing.
@@ -285,8 +285,8 @@ and who decides, and the payment date (with a holdback, the part kept back and t
 
 ## What is not here yet
 
-- `/knos appeal` is recorded by the workflow, and nothing starts the neutral run for you: you, the buyer or anyone
-  starts it (section 3).
+- `/knos appeal` is recorded by the workflow, and nothing starts the neutral run for you: anyone starts it, you
+  or the buyer included (section 3).
 - No order's options are read by `knos preflight` from the chain: `--auto`, `--arbiter` and `--netted --reserve` are
   told to it, and what is not told is printed as lacked or not checked.
 - The referee's refusals reach the supplier's memory when the workflow records them with
@@ -355,7 +355,7 @@ That is a program upgrade (multisig, public 8-day delay) and has not been built.
 
 **Knos carries research across the valley of death.**
 
-The party whose work is rated (an agent builder, an agency, a vendor) gets four things from Knos and pays for none of
+The party whose work is rated (an agent builder or a vendor, for example) gets four things from Knos and pays for none of
 them. The buyer still pays ([PRICING.md](../PRICING.md)); the rated party never pays, and a record cannot
 be bought or changed for money.
 
@@ -387,7 +387,7 @@ overturned on appeal, reverted. Each count is `{"n", "from", "evidence"}`: `n` i
 | source | read with | what it counts | the evidence behind a count |
 |---|---|---|---|
 | the events log (`src/knos/events.py`) | `--events <log>`, `--id <the supplier's name in the log>` | deliverables: each once, under the verdict it has after every correction; an event a correction voided is `reverted` | the event's id, its line and that line's sha256 in the chain, and where the issuer's evidence is (a transaction, a batch and its root) |
-| the supplier's history, stored with Sibyl Labs' memory engine (a local database Knos uses) (`knos.proof.history` `supplier_record`, `appeals`) | `--memory <folder>`, `--repo owner/repo` | pull requests accepted and rejected under funded orders, appeals, rejections overturned | the pull requests, and an appeal's id |
+| the supplier's history, stored in the memory engine Knos uses, a local database (`knos.proof.history` `supplier_record`, `appeals`) | `--memory <folder>`, `--repo owner/repo` | pull requests accepted and rejected under funded orders, appeals, rejections overturned | the pull requests, and an appeal's id |
 
 Accepted and rejected come from the log when it holds the supplier, and from the memory otherwise: they are never
 added, because both would count the same work. Insufficient evidence, disputed and reverted are the log's; appealed
@@ -537,7 +537,7 @@ writes `<slug>.history.json` (`knos.record-history/1`). It is never put in the f
 
 | field | what it holds | read from |
 |---|---|---|
-| `per_buyer` | the counts for each repository an order was funded in (its owner is the buyer), and by month | the supplier's history, stored with Sibyl Labs' memory engine (a local database Knos uses); the events log, which names no buyer, by month |
+| `per_buyer` | the counts for each repository an order was funded in (its owner is the buyer), and by month | the supplier's history, stored in the memory engine Knos uses (a local database); the events log, which names no buyer, by month |
 | `disputes` | each disputed deliverable; each appeal with its state, its reason and how it ended | the events log; `knos.proof.history` `appeals` |
 | `corrections` | every correction that names one of the supplier's events: what it changed and why | the events log |
 | `time_to_accept` | the count, the fastest, the median, the ninetieth percentile, the slowest, four buckets | a times file the supplier gives: the events log keeps no times |
@@ -582,7 +582,7 @@ only when the server can answer.
 
 ### Search (0.3.31)
 
-`knos record search QUERY [--json]` searches the record in Sibyl's store across its tiers with Sibyl's own cross-tier
-search (sibyl-memory-client 0.8.1, `MemoryClient.search`), which returns a verdict with the rows: how many matched,
+`knos record search QUERY [--json]` searches the record in the memory engine's store across its tiers with the engine's own cross-tier
+search (`MemoryClient.search`), which returns a verdict with the rows: how many matched,
 or that nothing matched, or that the store is empty (`verdicts.refine_zero`). It also prints the store's size against
 its tier's soft cap (`free_tier_status`). Tests: `tests/test_record_search.py`.

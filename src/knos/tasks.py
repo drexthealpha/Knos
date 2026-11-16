@@ -411,7 +411,7 @@ def register(app, help_lines: list | None = None) -> None:
     """`knos task ...` on the command line (typer is named here only: an MCP session never loads it)."""
     import importlib
     typer = importlib.import_module("typer")
-    sub = typer.Typer(no_args_is_help=True, help="Take a funded test task; the merge pays (`post`: post one, as a buyer). Test USDC, no monetary value.")
+    sub = typer.Typer(no_args_is_help=True, help="Take a funded test task; the merge pays (`post` is the older buyer flow, kept for tasks already funded). Test USDC, no monetary value.")
     board = typer.Option(BOARD, "--board", help="tasks.json: a file or a URL")
 
     def said(fn):
@@ -432,7 +432,7 @@ def register(app, help_lines: list | None = None) -> None:
 
     @sub.command("show")
     def _show(ref: str, board: str = board, as_json: bool = typer.Option(False, "--json")) -> None:
-        """One task: the amount, the acceptance terms, how payment happens."""
+        """One task: its amount, and how the work is accepted and paid."""
         t = said(lambda: find(fetch(board), ref))
         show_(t, as_json, [FIRST] + lines(t))
 
@@ -465,7 +465,7 @@ def register(app, help_lines: list | None = None) -> None:
               reruns: int = typer.Option(1, "--reruns", help="how many times the referee judges again before a verdict stands"),
               send: bool = typer.Option(False, "--send", help="open the issue and post the seal with gh, as you (money is never moved here)"),
               as_json: bool = typer.Option(False, "--json")) -> None:
-        """Post a task as a buyer: the spec as an issue, your hidden tests sealed, the exact funding command and its fee."""
+        """The older flow, kept for tasks already funded. Post a task as a buyer: the spec as an issue with your hidden tests sealed, and the exact funding command with its fee."""
         from . import buyer
 
         def go():

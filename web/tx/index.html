@@ -51,7 +51,7 @@ const DID = { release_job: "pay a job after the checker's signed pass", release_
   redeem: "pay out a settled market's shares", vote: "settle a market by vote", set_test: "change a claim's locked test" };
 const tu = (n) => Number(n) < 1e4 ? n + " units (millionths of a test USDC)" : (Number(n) / 1e6).toFixed(2) + " test USDC";   // a spend of 1 or 3 units would round to 0.00
 // what each event of the jobs contract says, in one line (its own names: near/contract/src/jobs.rs, fn event)
-const SAYS = { release: (d) => `The jobs contract released ${d.job} to ${d.agent}; agent A's code: ${d.model}.`,
+const SAYS = { release: (d) => `The jobs contract released ${d.job} to ${d.agent} (${d.model}).`,
   model_verified: (d) => `The jobs contract checked the model's signature (signer ${d.signer}) and released ${d.job} to ${d.agent}.`,
   spend_held: (d) => `${d.agent} asked to spend ${tu(d.amount)} to ${d.to}: held until the approver ${d.approver} releases it.`,
   spend_approved: (d) => `The approver released ${d.agent}'s held spend of ${tu(d.amount)} to ${d.to}.`,

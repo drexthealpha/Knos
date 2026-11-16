@@ -58,7 +58,7 @@ def test_no_page_scrolls_sideways(tmp_path: Path) -> None:
 
 
 def test_the_figure_on_the_first_screen_is_the_measured_one() -> None:
-    """The second number, under the first screen (#second-fact). 17.8% is the Agent PR Index's count of repositories (docs/reference/BENCH.md): the first pull request by an agent whose
+    """The second number, under the old shell's first screen (#second-fact). 17.8% is the Agent PR Index's count of repositories (docs/reference/BENCH.md): the first pull request by an agent whose
     description said tests or CI pass had a failed check in 147 of 826. The line says no more than that."""
     bench = (ROOT / "docs" / "reference" / "BENCH.md").read_text(encoding="utf-8")
     found = re.search(r"in (\d[\d,]*) repositories, the first pull request by an AI coding agent whose description said tests or CI pass had \*\*a failed check of any kind in (\d+) \((\d+\.\d)%\)", bench)

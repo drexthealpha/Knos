@@ -33,7 +33,9 @@ The group key (devnet test): `CZ599fmDD6ATkRsbUbdZiAQE7uF9sJrGFmJ6k54ujb4E`, pan
 
 1. The maker posts evidence (`POST /api/milestone`). The app server checks it, opens a signing session for the stage's
    verdict digest and signs as host 1. Hosts 2 and 3 poll `/api/referee/pending`: `referee.yml` runs on a cron every
-   5 minutes (and on workflow_dispatch), host 3 every 30 s. No hand-made token starts host 2.
+   5 minutes (and on workflow_dispatch), host 3 every 30 s. The workflow also has a `repository_dispatch` trigger that
+   the app server fires when it holds `KNOS_REFEREE_DISPATCH_TOKEN`, but the posts of a run started that way are
+   refused (`knos.threshold.ghoidc` accepts only a schedule or workflow_dispatch run).
 2. Each host **re-checks the milestone itself** (`knos.threshold.check`): it reads the order on devnet, fetches the
    evidence page (https, public address, no redirects), requires the claim id in it and recomputes the digest. A host
    never signs a digest the coordinator hands it.
@@ -106,7 +108,7 @@ claims none.
   the referrer's share. Orders made before the group was configured keep the 3 server keys until they settle.
 - FAIL verdicts: refunds after the deadline need no verdict. A threshold FAIL verdict is not built.
 
-## Payment after proof from any source
+## A release from a verdict of any source
 
 Until 0.3.34 every Knos work order was released by a forge: a workflow at a pinned commit, run on GitHub or
 gitlab.com, whose token `knos_oidc` verified on chain. Research does not all live on a forge.
@@ -290,6 +292,6 @@ knos-oidc, and registering one is the attester's and the guardian's act on the r
 
 The 0.3.34 buffer `Dfo5pYRLY8z9yvuXDQjJQtaoqJeL7Atso8zhWy9Ehkfj` was written (with the build team's own devnet test SOL)
 and was never proposed. The knos_pay build that was proposed is proposal 13 (buffer
-`C7MrKvNU2yxMG5RJqzCkCDGowe5T1R69j3LXz3Qj1VdA`, build `e0160541…`, from commit `eb12d1be`): approved 2 of 2,
+`C7MrKvNU2yxMG5RJqzCkCDGowe5T1R69j3LXz3Qj1VdA`, build `e0160541…`, from commit `eb12d1be`): it has the 2 approvals the 2-of-3 multisig needs,
 executable since 11 Nov 2026, not executed ([web/upgrades.json](../../web/upgrades.json)). Both buffers' authority is the upgrade vault `CKCrTBN542pVhizxuSPVg8tvdnPooNxt9B7o97VuTjz2` (multisig
 `9HcsMEo2o6zZu9t1kbFWpnyKn7hiHaZYYFwNHZSpmWqK`).

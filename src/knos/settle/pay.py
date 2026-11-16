@@ -1,4 +1,5 @@
-"""Client for knos-pay (programs/knos_pay): the vault that pays a GitHub user only on a GitHub-signed token verified
+"""Client for the first deployment's knos-pay (programs/knos_pay, Knos 0.3.11 and earlier; the second's is
+knos.settle.v2.pay): the vault that pays a GitHub user only on a GitHub-signed token verified
 on chain by knos-oidc. Pure instruction builders, audiences and account readers; no network.
 
 A job is one issue of one repository: `job_pda(repository_id, issue)`. It pins the repository that holds the Knos
