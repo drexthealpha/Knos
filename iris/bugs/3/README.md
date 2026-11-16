@@ -1,6 +1,6 @@
 # AI Hub: %AI.RAG.VectorStore.IRIS makes its table in SQLUser whatever its Schema says
 
-The goal: Knos carries research across the valley of death, toward Kardashev II and III.
+Knos carries research across the valley of death, toward Kardashev II and III.
 
 Build: `IRIS for UNIX (Ubuntu Server LTS for x86-64 Containers) 2026.3.0AI (Build 154U)`.
 

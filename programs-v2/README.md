@@ -2,7 +2,7 @@
 
 The goal: Knos turns any research into a product billions of people use, in days, not years.
 
-The goal: Knos carries research across the valley of death, toward Kardashev II and III.
+Knos carries research across the valley of death, toward Kardashev II and III.
 
 This folder holds the source of Knos's **second** deployment on Solana [devnet](../docs/WORDS.md#devnet): the four
 programs the site and CLI use, plus `knos_zk` (a Groth16 verifier deployed apart, see

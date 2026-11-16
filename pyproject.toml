@@ -92,7 +92,7 @@ markers = ["slow: takes over 5 seconds (listed in tests/slow.txt); left out by -
 target-version = "py310"
 # evidence/ and repos/ hold other repositories (evidence/: one commit each, byte for byte, tests/test_evidence_copies.py;
 # repos/: the side repositories with their history, by git subtree): history, not code of Knos, so not linted.
-extend-exclude = ["evidence", "repos"]
+extend-exclude = ["evidence", "repos", "near/agents/job/data/limit/released_solution.py"]   # the released program stays byte for byte as the job released it
 
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F"]                # ruff's own default set: imports, statements, syntax, pyflakes
