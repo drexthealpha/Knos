@@ -68,7 +68,7 @@
    "came_back": 0,
    "events": {
     "leave": 212,
-    "view": 88
+    "view": 90
    },
    "first_press": 0,
    "first_result": 0,
@@ -81,7 +81,27 @@
    },
    "not_what": {},
    "proof_finished": 0,
-   "visits": 125
+   "visits": 127
+  },
+  "2026-11-16": {
+   "backed": 0,
+   "came_back": 0,
+   "events": {
+    "leave": 52,
+    "view": 42
+   },
+   "first_press": 0,
+   "first_result": 0,
+   "leave_from": {
+    "/": 12,
+    "/agents/": 10,
+    "/claim/hyperloglog/": 6,
+    "/claims/": 10,
+    "/prove/": 10
+   },
+   "not_what": {},
+   "proof_finished": 0,
+   "visits": 32
   }
  }
 }
