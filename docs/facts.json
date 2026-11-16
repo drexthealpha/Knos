@@ -667,6 +667,59 @@
    "what": "Perignon, citing Colliard and others, in the CRRESS book (session 6): exploiting economies of scale could lower a reproducibility service's average cost per paper from $763 to $330 (the front door's cost of checking one paper)",
    "source": "https://labordynamicsinstitute.github.io/crress-book/sessions/6/perignon/",
    "read": "2026-11-15"
+  },
+  {
+   "say": [
+    "5"
+   ],
+   "what": "free own-data runs a day per browser of the first tool (Round 13, C2: not from a law, a starting value to be tested), on the front door's How it works fold",
+   "json": "docs/data/pricing.json",
+   "path": "numbers.free_runs_per_day.value",
+   "equals": 5
+  },
+  {
+   "say": [
+    "20"
+   ],
+   "what": "runs in one pack of the first tool, on the front door's pay screen and How it works fold",
+   "json": "docs/data/pricing.json",
+   "path": "numbers.pack_runs.value",
+   "equals": 20
+  },
+  {
+   "say": [
+    "1"
+   ],
+   "what": "US dollars of test money for one pack of the first tool, on the front door's pay screen and How it works fold",
+   "json": "docs/data/pricing.json",
+   "path": "numbers.pack_price.value",
+   "equals": 1
+  },
+  {
+   "say": [
+    "30,000",
+    "10%",
+    "1.5"
+   ],
+   "what": "what the locked test of the HyperLogLog claim checks, on the front door's How it works fold",
+   "file": "near/claims/claims.json",
+   "has": "count 30,000 visitors within 10%, in at most 1.5 kilobytes"
+  },
+  {
+   "say": [
+    "2%"
+   ],
+   "what": "the paper's figure the HyperLogLog test did not check, on the front door's How it works fold",
+   "file": "near/claims/claims.json",
+   "has": "the paper's 2% figure at a billion items"
+  },
+  {
+   "say": [
+    "2007"
+   ],
+   "what": "the year of the HyperLogLog paper the first tool comes from",
+   "file": "near/claims/claims.json",
+   "has": "\"year\": 2007"
   }
  ]
 }

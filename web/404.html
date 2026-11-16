@@ -20,11 +20,15 @@
 <style>
 body { margin: 0; background: var(--paper); color: var(--ink); font: 400 17px/1.5 var(--text); }
 a { color: var(--accent); }
-.kh { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; max-width: 760px; margin: 0 auto; padding: 8px 16px; }
+.kh { position: relative; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; max-width: 760px; margin: 0 auto; padding: 8px 16px; }
 .kh .logo { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-right: auto; color: var(--ink); text-decoration: none; font: 600 20px/1 var(--head); }
 .kh .mark { display: block; width: 28px; height: 27px; background: currentColor; -webkit-mask: var(--m) center / contain no-repeat; mask: var(--m) center / contain no-repeat; }
-.kh nav { display: flex; flex-wrap: wrap; }
-.kh nav a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 10px; color: var(--ink); text-decoration: none; font-size: 16px; }
+.kmenu > summary { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; padding: 0 12px; cursor: pointer; list-style: none; color: var(--ink); border: 1px solid var(--line); border-radius: 10px; font-size: 16px; }
+.kmenu > summary::-webkit-details-marker { display: none; }
+.kmenu-panel { position: absolute; right: 16px; left: 16px; top: 56px; z-index: 30; max-width: 420px; margin-left: auto; padding: 8px 12px; background: var(--paper-2); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--depth-2); }
+.kmenu-panel p { margin: 4px 0 8px; font-size: 16px; color: var(--ink-2); }
+.kh nav { display: flex; flex-direction: column; }
+.kh nav a, .kmenu-panel > a { display: flex; align-items: center; min-height: 44px; padding: 0 4px; color: var(--ink); text-decoration: none; font-size: 16px; }
 .kh nav a:hover, .kh nav a[aria-current] { text-decoration: underline; }
 main { max-width: 760px; margin: 0 auto; padding: 4vh 16px 24px; }
 h1 { font: 600 clamp(28px, 6vw, 44px)/1.15 var(--head); letter-spacing: -.02em; margin: 0 0 16px; }
@@ -40,7 +44,7 @@ a:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 <body>
 <header class="kh" id="kh">
   <a class="logo" href="./"><span class="mark" aria-hidden="true" style="--m: url(brand/mark.svg)"></span>Knos</a>
-  <nav aria-label="Pages"><a href="claims/">Claims</a><a href="prove/">Prove</a><a href="agents/">For agents</a><a href="labs/">For labs (IRIS)</a><a href="check/">Check pull requests</a></nav>
+  <details class="kmenu"><summary>Menu</summary><div class="kmenu-panel"><p class="kgoal">The goal: Knos turns any research into a product billions of people use, in days, not years.</p><nav aria-label="Pages"><a href="claims/">Claims</a><a href="prove/">Papers</a><a href="agents/">Builders</a><a href="labs/">Labs</a><a href="check/">Pull requests</a></nav><a href="pricing/">Pricing</a><a href="status/">Status</a></div></details>
 </header>
 <main>
   <h1>No page lives here</h1>

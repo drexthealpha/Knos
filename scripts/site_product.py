@@ -95,7 +95,7 @@ def page(header: str, up: str, title: str, desc: str, body: str, script: str = "
             f'{theme_colors()}<link rel="icon" href="{up}icon.svg" type="image/svg+xml">\n<link rel="icon" href="{up}favicon.ico" sizes="16x16 32x32 48x48">\n'
             f'<link rel="apple-touch-icon" href="{up}brand/apple-touch-icon.png">\n<link rel="stylesheet" href="{up}brand/tokens.css">\n'
             f"<style>\n{CSS}{HEADER_CSS}</style>\n</head>\n<body>\n{header}\n<main>\n{body}\n</main>\n"
-            f'<footer><span>NEAR testnet, test money, no customers yet.</span><br><span>{GOAL}</span><br>'
+            f'<footer><span>Test money only, no customers yet.</span><br><span>{GOAL}</span><br>'
             f'<a href="{REPO}">Source</a><a href="{up}pricing/">Pricing</a><a href="{up}status/">Status</a><a href="{up}privacy.html">Privacy</a></footer>\n'
             + (f"<script>\n{script}\n</script>\n" if script else "") + "</body>\n</html>\n")
 
@@ -385,21 +385,56 @@ def agents_page(header: str) -> str:
     return page(header, "../", "Knos for agents", "One call proves a paper's claim on NEAR testnet and returns the verdict, the code and the receipt.", body, "", "agents/")
 
 
+DATA = ROOT / "docs" / "data"
+
+
+def pricing() -> dict:
+    """docs/data/pricing.json (C6): each number with its value, its unit and its source."""
+    return json.loads((DATA / "pricing.json").read_text(encoding="utf-8"))
+
+
+def usage() -> dict:
+    """docs/data/usage.json (D3), written by scripts/site_usage.py from the hosted server's /api/usage."""
+    return json.loads((DATA / "usage.json").read_text(encoding="utf-8"))
+
+
+HOW_CSS = ".how summary { display: inline-flex; align-items: center; min-height: 44px; cursor: pointer; text-decoration: underline; }\n"
+
+
 def pricing_page(header: str) -> str:
-    body = ("<h1>Pricing</h1>\n<p>Reading a claim and its proof is free.</p>\n"
-            "<h2>A new check</h2>\n<p>Running a new check holds test USDC with the job on NEAR testnet; no real money moves. When the agent's code "
-            "passes the locked test, the jobs contract sends 9 parts to that agent and 1 part to Knos's test account. "
-            "If no code passes by the deadline, the test USDC goes back. Checking the same claim again is free.</p>\n"
-            "<h2>Backing a claim</h2>\n<p>You can put 1 to 100 test USDC behind a claim. NEAR's market contract sends 90% to the "
-            "agent whose code passed and 10% to Knos, and refuses any other split.</p>\n"
-            "<p>A reproducibility service spends $330 to $763 to check one paper "
-            "(<a href=\"https://labordynamicsinstitute.github.io/crress-book/sessions/6/perignon/\">Perignon, citing Colliard and others</a>).</p>\n"
-            "<p>Today this is test money on NEAR testnet: nobody has paid real money and Knos has no customers yet. Knos has no token and no points.</p>")
-    return page(header, "../", "Knos pricing", "Reading a claim and its proof is free; a new check holds test USDC with its job on NEAR testnet.", body, "", "pricing/")
+    """Round 13, C6: every number on this page is read from docs/data/pricing.json, each in a span named for it. Plain
+    words outside the closed How it works fold (the PLAIN-WORDS rule); prices in dollars, never tokens or credits."""
+    n = {k: v["value"] for k, v in pricing()["numbers"].items()}
+    num = lambda k: f'<span data-n="{k}">{n[k]:,}</span>'   # noqa: E731
+    body = ("<h1>Pricing</h1>\n<p>Runs on the sample list are free.</p>\n"
+            f'<table id="prices"><tbody><tr><th>Runs on your own list</th><td>{num("free_runs_per_day")} free a day, in each browser</td></tr>'
+            f'<tr><th>After those</th><td>{num("pack_runs")} more runs for ${num("pack_price")} in test money</td></tr></tbody></table>\n'
+            "<p>Today this is test money. Nothing is charged.</p>\n"
+            '<details class="how"><summary>How it works</summary>'
+            '<p>No study gave these prices. They are starting values to be tested, and each one is in '
+            '<a href="../data/pricing.json">the pricing file</a> with that mark.</p>'
+            "<p>When your free runs are used up, the tool shows one screen with the price. Pressing Pay with test money "
+            "records a test payment on Knos's own server. No card and no account are needed.</p>"
+            f'<p>The fees for checking a paper\'s claim are on <a href="{REPO}/blob/main/docs/PRICING.md">a page of their own</a>.</p></details>')
+    return page(header, "../", "Knos pricing", "Sample runs are free; runs on your own list have a free daily allowance, then a pack in test money.", body, "", "pricing/").replace("</style>", HOW_CSS + "</style>", 1)
 
 
 def status_page(header: str) -> str:
-    body = ("<h1>Status</h1>\n<p>Is Knos up right now? Each line is read live.</p>\n<table id=\"st\"><tbody>"
+    """Round 13, D3: each use count with its label, from docs/data/usage.json, written into the page at build time (a 0
+    is shown as 0; a measure with too few browsers says so). The live service lines sit in the closed How it works fold:
+    they name the test network and the server's parts (the PLAIN-WORDS rule)."""
+    import site_usage
+    u = usage()
+    rows = "".join(f'<tr><th>{e(label)}</th><td class="n" data-count="{k}">{int(u["totals"].get(k) or 0):,}</td></tr>' for k, label in site_usage.COUNTS)
+    rows += "".join(f'<tr><th>{e(label)}</th><td class="n" data-measure="{k}">'
+                    + ("not enough browsers yet" if u["measures"].get(k) is None else f'{u["measures"][k]:,}') + "</td></tr>" for k, label in site_usage.MEASURES)
+    when = (f'Counted up to {e(u["read_at"].replace("T", " ").replace("Z", " UTC"))}, from the first day of use.' if u.get("read_at")
+            else "No count has been read from Knos's server yet.")
+    body = ("<h1>Status</h1>\n<p>How the counting tool is used, all days together.</p>\n"
+            f'<table id="use"><tbody>{rows}</tbody></table>\n<p class="fine" id="use-when">{when} Knos\'s own test runs are not in these counts. '
+            '<a href="../data/usage.json">The data file</a>.</p>\n'
+            '<details class="how"><summary>How it works</summary>\n'
+            "<p>Is Knos up right now? Each line is read live.</p>\n<table id=\"st\"><tbody>"
             "<tr><th>The proof service</th><td id=\"svc\">reading</td></tr>"
             "<tr><th>Live proofs today</th><td id=\"today\">reading</td></tr>"
             "<tr><th>Jobs paid to agents</th><td id=\"jobs\">reading</td></tr>"
@@ -409,7 +444,7 @@ def status_page(header: str) -> str:
             "<tr><th>Visits, 7 days</th><td id=\"funnel\">reading</td></tr>"
             "</tbody></table>\n<h2>Accounts that keep the demo up</h2>\n<table id=\"bal\"><tbody><tr><td>reading</td></tr></tbody></table>\n"
             "<p class=\"fine\">Each line is read now, from the hosted server, NEAR testnet and GitHub.</p>\n"
-            "<details class=\"fine\"><summary>How jobs paid is read</summary><p>The jobs count adds up each agent's passes in the jobs "
+            "<p class=\"fine\">The jobs count adds up each agent's passes in the jobs "
             "contract's <code>get_agent_record</code>; the money paid out is its <code>get_totals</code>.</p></details>")
     script = LIVE_JS + """(async () => {
   const [l, c, t] = await Promise.all([getJSON("/api/near/live"), getJSON("/api/near/claim/counters"), getJSON("/api/near/tests")]);
@@ -435,7 +470,7 @@ def status_page(header: str) -> str:
     if (!x.ok) { td.style.color = "#c62828"; td.style.fontWeight = "600"; tr.style.borderBottom = "2px solid #c62828"; }
     tr.append(th, td); return tr; }));
 })();"""
-    return page(header, "../", "Knos status", "The proof service, today's live proofs and the latest test run, read live.", body, script, "status/")
+    return page(header, "../", "Knos status", "How the counting tool is used, each count from the data file, zeros shown as 0.", body, script, "status/").replace("</style>", HOW_CSS + "</style>", 1)
 
 
 def privacy_page(header: str) -> str:
@@ -456,7 +491,12 @@ def privacy_page(header: str) -> str:
             "The status page shows the totals.",
             "What you type goes to the Knos server, which answers.",
             "The server reads a paper's title from its public record, Crossref.",
-            "Your browser also reads NEAR testnet's public record."]
+            "Your browser also reads NEAR testnet's public record.",
+            "The counting tool sends your list to the Knos server.",
+            "The server keeps your list with its result page and link.",
+            "Your own list is shown only to people with its link.",
+            "Say yes to counting, and your browser keeps a random id.",
+            "Without that yes, the server counts runs only as totals."]
     if usdc_market().get("live"):
         site += ["On a claim page, a NEAR sign-in library loads from esm.sh.",
                  "Your NEAR testnet account signs each trade; Knos never sees your key."]
@@ -505,17 +545,41 @@ def sitemap_xml(cs: list[dict]) -> str:
                                      + "".join(f"  <url><loc>{base}{p}</loc><lastmod>git:{src}</lastmod></url>\n" for p, src in pages) + "</urlset>\n")
 
 
+def sample() -> str:
+    """The first tool's sample list: the text the front door's box (web/door.html, #list) is filled with."""
+    door = (ROOT / "web" / "door.html").read_text(encoding="utf-8")
+    return html.unescape(re.search(r'<textarea id="list"[^>]*>(.*?)</textarea>', door, re.S)[1])
+
+
+def where_you_are() -> str:
+    """B6: the section README.md and llms.txt both carry: the one command that adds the connector, and one worked
+    example with the sample list and its result. README.md holds this same text (tests/test_site_tool.py)."""
+    lines = sample().split("\n")
+    body = json.dumps({"id": "count-distinct", "input": "\n".join(lines), "mode": "sample", "browser": "", "test": False})
+    n = len(set(lines))
+    return ("## Use Knos where you already are\n\n"
+            "Add Knos to a chat or coding assistant that takes connectors, with one command:\n\n"
+            f"```\nclaude mcp add --transport http knos {HOSTED}/mcp\n```\n\n"
+            "It gives two tools: `tools` lists what Knos can do, and `run` runs one. A worked example, the front door's sample "
+            "list sent without the connector:\n\n"
+            f"```\ncurl -X POST {HOSTED}/api/run -H \"Content-Type: application/json\" -d '{body}'\n```\n\n"
+            f"The answer's `result` is `About {n} different items`, its `exact` is `{n}`, and its `link` opens the result. "
+            "Through the connector, `run` with the same `id` and `input` returns the same answer.\n")
+
+
 def llms_txt(cs: list[dict]) -> str:
     """The site's llms.txt (https://llmstxt.org/). web/llms.txt is this same text (python3 scripts/site_product.py --sources)."""
     base = "https://drexthealpha.github.io/Knos/"
     claims_md = "".join(f"- [{c['plain']}]({base}claim/{c['name']}/): from {c['authors']}, {c['year']}; locked test sha256 {c['sha256']}\n" for c in cs)
     call = '{"url": "https://doi.org/10.46298/dmtcs.3545", "amount": 10}'
+    door = (ROOT / "web" / "door.html").read_text(encoding="utf-8")
+    desc = html.unescape(re.search(r'<meta name="description" content="([^"]*)"', door)[1])   # the front door's own line opens it
     return (
-        "# Knos\n\n> Ask anything about research. Knos answers with what is proved, by which test locked on NEAR testnet, and what is behind it.\n\n"
+        f"# Knos\n\n> {desc}\n\n"
         "Knos locks a test before any work starts, and test money moves to the agent that did the work only if that test passes. Here the "
         "work is code that proves a paper's claim, against a test locked on NEAR testnet. The result is kept on NEAR, so a "
         "second check is free. Test money only and no customers yet.\n\n"
-        f"## Pages\n\n- [Front door]({base}): ask about research, see what is proved and by which locked test\n"
+        f"## Pages\n\n- [Front door]({base}): count the different items in a list; below it, ask about research\n"
         f"- [Claims]({base}claims/): every claim, sorted by the test USDC behind it\n"
         f"- [Prove]({base}prove/): run the check of a claim and get the verdict, the verified code and the receipt\n"
         f"- [For agents]({base}agents/): the one-call API and the terminal tool\n"
@@ -523,6 +587,7 @@ def llms_txt(cs: list[dict]) -> str:
         f"- [Check pull requests]({base}check/): the pull request check, the same Knos built earlier on Solana devnet (Colosseum, tag v0.3.28)\n\n"
         f"## Claims\n\n{claims_md}\n"
         f"## For agents\n\n`POST {HOSTED}/api/near/claim/flow` with `{call}`: the verdict, the code and the receipt.\n\n"
+        + where_you_are() + "\n"
         f"## Optional\n\n- [Source]({REPO}): the repository, MIT licence\n")
 
 

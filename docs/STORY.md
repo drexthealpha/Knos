@@ -4,7 +4,7 @@
 
 **In plain words.** This page follows one project from October 2026, before the NEAR entry. Qloo checked who wanted it, and a Solana program held the backers' [test money](WORDS.md#test-usdc). The money moved only when the referees passed the step.
 
-**Knos carries research across the valley of death.**
+**The goal: Knos carries research across the valley of death.**
 
 The [front door](https://drexthealpha.github.io/Knos/) now checks a paper's claim on NEAR testnet; [START.md](START.md) shows it. No install, no sign-up.
 

@@ -1,0 +1,17 @@
+{
+  "source": "https://knos.onrender.com/api/usage",
+  "read_at": "2026-11-16T10:45:42Z",
+  "days": [],
+  "totals": {
+    "tools_opened": 0,
+    "sample_runs": 0,
+    "own_runs": 0,
+    "results_opened_elsewhere": 0,
+    "test_payments": 0
+  },
+  "measures": {
+    "day7_return": null,
+    "active_days": null,
+    "paying_share": null
+  }
+}

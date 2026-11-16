@@ -1,0 +1,192 @@
+name: sync
+
+# knos-sync (sync/, Go): the facts README.md, docs/ and web/ state, each linked in sync/claims.json to the command that
+# gives its true value (Round 13, part E).
+#
+#   build    builds and tests knos-sync on Windows, Linux and Mac (SYNC/P6.md finding 16: "for Windows, Mac and
+#            Linux"). Nothing is compiled on the founder's PC: this job makes the programs, kept as artifacts.
+#   check    on a push to main: `knos-sync check` on each of the three, so every entry's command runs on Windows too
+#            (SYNC/P2.md finding 30). Exit 1 only for a stale entry of a kind a person set to block (version, hash or
+#            count) that a person confirmed; a value from a chain or a clock is read again after 60 seconds and never
+#            blocks.
+#   measure  on a push to main: plants 30 false statements in a copy (6 of each kind) and counts what check and scan
+#            report (E9), with the notices on the unchanged repository.
+#   comment  on a pull request: one comment that lists only the facts this change made stale, each with its exact
+#            replacement (SYNC/P6.md strongest rule 7). The job that runs the pull request's code holds no write token;
+#            the job that posts runs none of it and checks nothing out.
+#
+# go.sum is written here by `go mod tidy` (checksums verified against sum.golang.org) until it is committed: the
+# artifact go-module of the Linux build holds the go.mod and go.sum to commit.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: sync-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            exe: knos-sync
+          - os: windows-latest
+            exe: knos-sync.exe
+          - os: macos-latest
+            exe: knos-sync
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version: "1.27.4"
+          cache: false
+      - name: modules (go.sum written and verified here until it is committed)
+        working-directory: sync
+        run: |
+          go mod tidy
+          go mod verify
+          if [ -n "$(git status --porcelain -- go.mod go.sum)" ]; then
+            echo "::warning::sync/go.mod or sync/go.sum is not what go mod tidy writes; commit the files of the artifact go-module"
+          fi
+      - name: go vet
+        working-directory: sync
+        run: go vet ./...
+      - name: go test
+        working-directory: sync
+        run: go test -count=1 ./...
+      - name: build
+        working-directory: sync
+        run: go build -trimpath -o "bin/${{ matrix.exe }}" .
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: knos-sync-${{ runner.os }}
+          path: sync/bin/${{ matrix.exe }}
+          if-no-files-found: error
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: runner.os == 'Linux'
+        with:
+          name: go-module
+          path: |
+            sync/go.mod
+            sync/go.sum
+      - name: knos-sync check
+        if: github.event_name != 'pull_request'
+        env:
+          EXE: sync/bin/${{ matrix.exe }}
+        run: |
+          code=0
+          "$EXE" check --markdown > "$RUNNER_TEMP/check.md" || code=$?
+          "$EXE" check --unconfirmed || true
+          cat "$RUNNER_TEMP/check.md" >> "$GITHUB_STEP_SUMMARY"
+          echo "knos-sync check exit code: $code"
+          exit "$code"
+      - name: knos-sync scan, with its memory on Linux
+        if: github.event_name != 'pull_request'
+        env:
+          EXE: sync/bin/${{ matrix.exe }}
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            /usr/bin/time -v "$EXE" scan --full 2> "$RUNNER_TEMP/time.txt"
+            grep -E "Maximum resident set size|Elapsed" "$RUNNER_TEMP/time.txt" | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            "$EXE" scan --full
+          fi
+          "$EXE" scan
+      - name: what this change made stale
+        if: github.event_name == 'pull_request' && runner.os == 'Linux'
+        env:
+          EXE: sync/bin/${{ matrix.exe }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          case "$BASE" in *[!0-9a-f]*|'') echo "not a commit: $BASE"; exit 1;; esac
+          git fetch --no-tags --depth=1 origin "$BASE"
+          git worktree add --detach "$RUNNER_TEMP/base" "$BASE"
+          "$EXE" check --json --reread-wait 0s --root "$RUNNER_TEMP/base" > "$RUNNER_TEMP/base.json" || true
+          "$EXE" check --json --root . > "$RUNNER_TEMP/head.json" || true
+          mkdir -p "$RUNNER_TEMP/comment"
+          "$EXE" report --base "$RUNNER_TEMP/base.json" --head "$RUNNER_TEMP/head.json" > "$RUNNER_TEMP/comment/comment.md"
+          cat "$RUNNER_TEMP/comment/comment.md" | tee -a "$GITHUB_STEP_SUMMARY"
+          git worktree remove --force "$RUNNER_TEMP/base"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: github.event_name == 'pull_request' && runner.os == 'Linux'
+        with:
+          name: sync-comment
+          path: ${{ runner.temp }}/comment/comment.md
+
+  measure:
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: knos-sync-Linux
+          path: ${{ runner.temp }}/bin
+      - name: plant 30 false statements in a copy and count what knos-sync reports (E9)
+        run: |
+          chmod +x "$RUNNER_TEMP/bin/knos-sync"
+          python3 -I sync/measure/plant.py --bin "$RUNNER_TEMP/bin/knos-sync" --repo . \
+            --out "$RUNNER_TEMP/measure/sync-measure.json" --markdown "$RUNNER_TEMP/measure/sync-measure.md"
+          cat "$RUNNER_TEMP/measure/sync-measure.md" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: sync-measure
+          path: ${{ runner.temp }}/measure/
+
+  comment:
+    needs: build
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write    # one comment, edited in place
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: sync-comment
+          path: ${{ runner.temp }}/comment
+      - name: post or edit the one comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PULL: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          case "$PULL" in *[!0-9]*|'') exit 1;; esac
+          body="$RUNNER_TEMP/comment/comment.md"
+          old=$(gh api "repos/$REPO/issues/$PULL/comments" --paginate \
+            --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- knos-sync -->"))) | .id' | head -n 1)
+          if [ -s "$body" ]; then
+            if [ -n "$old" ]; then
+              gh api -X PATCH "repos/$REPO/issues/comments/$old" -F body=@"$body" > /dev/null
+            else
+              gh api -X POST "repos/$REPO/issues/$PULL/comments" -F body=@"$body" > /dev/null
+            fi
+          elif [ -n "$old" ]; then
+            printf '<!-- knos-sync -->\nNo stated fact is stale after this change.\n' > "$RUNNER_TEMP/none.md"
+            gh api -X PATCH "repos/$REPO/issues/comments/$old" -F body=@"$RUNNER_TEMP/none.md" > /dev/null
+          fi

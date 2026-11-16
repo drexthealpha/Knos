@@ -1,0 +1,23 @@
+{
+  "about": "Every number the pricing page, the front door's pay screen and its How it works fold show. Each holds its value, its unit, and either the law file and rule it comes from or the mark that it comes from no law. Read by scripts/site_pages.py and scripts/site_product.py at build time.",
+  "currency": "USD",
+  "money": "test money: nothing is charged",
+  "numbers": {
+    "free_runs_per_day": {
+      "value": 5,
+      "unit": "own-data runs a day, per browser",
+      "source": "not from a law: a starting value to be tested"
+    },
+    "pack_runs": {
+      "value": 20,
+      "unit": "runs in one pack",
+      "source": "not from a law: a starting value to be tested"
+    },
+    "pack_price": {
+      "value": 1,
+      "unit": "US dollars of test money for one pack",
+      "source": "not from a law: a starting value to be tested"
+    }
+  },
+  "sample_runs": "free and not counted (ROUND13-ITEMS C1)"
+}

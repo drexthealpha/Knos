@@ -1,0 +1,74 @@
+{
+ "rows": 12010,
+ "stats": {
+  "first-scorecard rows with raw inputs": 947,
+  "v2 rated: rule gives same": 927,
+  "v2 rated: rule gives different": 20,
+  "recomputed from raw inputs": 11063,
+  "bank set Unrated": 2
+ },
+ "changes_by_field": {
+  "fcf": 1377,
+  "verdict": 24,
+  "payout": 461,
+  "reinvest": 1183,
+  "country": 2330,
+  "notes": 3717
+ },
+ "verdict_before": {
+  "Abundance": 38,
+  "Builder": 1693,
+  "Mixed": 2332,
+  "Extractive": 1850,
+  "Unrated": 6097
+ },
+ "verdict_after": {
+  "Abundance": 36,
+  "Unrated": 6115,
+  "Builder": 1687,
+  "Mixed": 2327,
+  "Extractive": 1845
+ },
+ "verdict_moves": {
+  "Abundance -> Unrated": 2,
+  "Builder -> Mixed": 5,
+  "Builder -> Unrated": 1,
+  "Mixed -> Unrated": 11,
+  "Extractive -> Unrated": 4,
+  "Extractive -> Mixed": 1
+ },
+ "countries_before": 130,
+ "countries_after": 124,
+ "reinvest_exactly_1_before": 354,
+ "reinvest_exactly_1_after": 1,
+ "reinvest_blank_after": 6557,
+ "unrated_with_ratio_before": 720,
+ "unrated_with_ratio_after": 80,
+ "period_end_parsed": 5821,
+ "period_none": 5248,
+ "rows_with_raw_inputs": 6628,
+ "notes_restored": 3717,
+ "in_lists": {
+  "rev+val": 3366,
+  "revP": 2954,
+  "valP": 2035,
+  "val": 1744,
+  "fcf": 929,
+  "rev": 573,
+  "fast+fcf+rev+val": 211,
+  "fast+fcf": 57,
+  "revP+valP": 47,
+  "rev+revP+val": 30,
+  "fast+rev+val": 24,
+  "fast+fcf+val": 10,
+  "val+valP": 5,
+  "fast+val": 4,
+  "not matched to a source list": 4,
+  "fast": 3,
+  "revP+val": 3,
+  "fast+fcf+rev+revP+val": 2,
+  "fast+revP+valP": 2,
+  "rev+val+valP": 2
+ },
+ "tickers": 6033
+}

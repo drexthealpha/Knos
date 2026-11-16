@@ -35,7 +35,7 @@ await new Promise((r) => server.listen(0, "127.0.0.1", r));
 const origin = `http://127.0.0.1:${server.address().port}`, base = origin + PREFIX;
 // and what the product pages read by design: the hosted server's NEAR answers and the visit events, NEAR testnet's public
 // RPCs, the uptime log on the gh-pages branch
-const PRODUCT = /^https:\/\/knos\.onrender\.com\/api\/(near\/[\w/]+|visits?)$|^https:\/\/(rpc\.testnet\.fastnear\.com|rpc\.testnet\.near\.org)\/?$|^https:\/\/raw\.githubusercontent\.com\/drexthealpha\/Knos\/gh-pages\/uptime\.jsonl$/;
+const PRODUCT = /^https:\/\/knos\.onrender\.com\/api\/(near\/[\w/]+|visits?|tools|run|pay)$|^https:\/\/(rpc\.testnet\.fastnear\.com|rpc\.testnet\.near\.org)\/?$|^https:\/\/raw\.githubusercontent\.com\/drexthealpha\/Knos\/gh-pages\/uptime\.jsonl$/;
 const outside = [];
 const ASKED = /^https:\/\/(api\.github\.com|api\.devnet\.solana\.com|devnet\.rpcpool\.com)\/|^https:\/\/knos\.onrender\.com\/api\/(front|proof|vectors|counter|qloo\/status)$/;     // what the pages read by design, refused here: GitHub, devnet (and its second free RPC, web/netfacts.js, once the first is refused), and the app's list of research products (web/home.js, on a reader's first move at the bare address)
 // block: a test of the request's path inside the site; a request it matches fails as a dropped connection would
@@ -66,7 +66,7 @@ const world = async (block = () => false, o = {}) => {
       words: [...document.querySelectorAll("h1, li, footer span")].map((e) => e.textContent.trim()),
       goTop: document.querySelector("main a.go")?.getBoundingClientRect().bottom,
     }));
-    check(`404: the product's one header at ${width}`, seen.logo === base && seen.nav.join("|") === "Claims|Prove|For agents|For labs (IRIS)|Check pull requests", seen);
+    check(`404: the product's one header at ${width}`, seen.logo === base && seen.nav.join("|") === "Claims|Papers|Builders|Labs|Pull requests", seen);
     check(`404: says the page is missing and offers the front door first at ${width}`, seen.h1 === "No page lives here" && seen.go === base && seen.goTop <= height, seen);
     check(`404: the vision line is labelled as the goal at ${width}`, /^The goal: /.test(seen.goal || ""), seen.goal);
     check(`404: the claims and the prices at ${width}`, seen.links.length === 2 && seen.links[0][1] === base + "claims/" && seen.links[1][1] === base + "pricing/", seen.links);

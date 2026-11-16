@@ -1,6 +1,6 @@
 # Why Knos
 
-Knos carries research across the valley of death. It takes a paper nobody has checked to code anyone can trust and use.
+The goal: Knos carries research across the valley of death. It takes a paper nobody has checked to code anyone can trust and use.
 
 The goal: Knos turns any research into a product billions of people use, in days, not years.
 

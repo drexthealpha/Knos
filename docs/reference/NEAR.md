@@ -158,7 +158,7 @@ That is a check at the default 10 test USDC; another amount is sent by Knos's ow
 
 A failed proof pays nobody, and after the deadline the jobs contract refunds the account that put the money in. No real money has moved.
 
-**Hard to copy.** Every verified result is kept on NEAR and reused, so proving a claim again is free and takes seconds. The 2 Nov 2026 census scored 12,010 companies to find the 38 that both reinvest and build frontier technology: the companies to approach first (none is a customer yet).
+**Hard to copy.** Every verified result is kept on NEAR and reused, so proving a claim again is free and takes seconds. 12,010 companies are on a first list. No outside company has bought from Knos.
 
 **Outside contributors.** Two GitHub accounts outside the team have done paid work for Knos. `jaystay-bot` wrote
 [#32](https://github.com/drexthealpha/Knos/pull/32), [#33](https://github.com/drexthealpha/Knos/pull/33) and

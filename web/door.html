@@ -3,20 +3,21 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<!-- THE FRONT DOOR of the published site (scripts/site_pages.py writes it as index.html): one box, "Ask anything about
-     research". A question or a paper's link is answered at once from what Knos has proved on NEAR testnet: the
-     claims registry is written into this page at build time (CLAIMS), their state comes from the site's own data/board.json
-     and then the live server. A paper Knos has no claim for is asked of the server. The visitor's own questions are kept in
-     their browser only (localStorage), so a second visit starts where the first ended. -->
-<title>Knos: ask anything about research</title>
-<meta name="description" content="Ask anything about research. Knos answers with what is proved, by which test locked on NEAR testnet, and what is behind it.">
+<!-- THE FRONT DOOR of the published site (scripts/site_pages.py writes it as index.html). Round 13, A2 and A7: the first
+     screen is the first tool, "Count the different items in a list", under the headline "What can you do with Knos?".
+     The box is filled with a labelled sample; "Try it" sends the list to the hosted server (POST /api/run, the contract
+     in v0328 research R13 SPEC.md) and the result is shown under the button. Below the first screen: the earlier
+     question box, unchanged. Every number in the How it works fold and the pay screen is written in at build time from
+     docs/data/pricing.json and near/claims/claims.json (the spans marked data-n and data-claim). -->
+<title>Knos: count the different items in a list</title>
+<meta name="description" content="Count the different items in a list. Paste one item on each line, and Knos says how many different items it holds.">
 <meta name="author" content="drexthealpha">
 <meta name="color-scheme" content="light dark">
 <link rel="canonical" href="https://drexthealpha.github.io/Knos/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Knos">
-<meta property="og:title" content="Knos: ask anything about research">
-<meta property="og:description" content="Ask anything about research. Knos answers with what is proved, by which test locked on NEAR testnet, and what is behind it.">
+<meta property="og:title" content="Knos: count the different items in a list">
+<meta property="og:description" content="Count the different items in a list. Paste one item on each line, and Knos says how many different items it holds.">
 <meta property="og:url" content="https://drexthealpha.github.io/Knos/">
 <meta property="og:image" content="https://drexthealpha.github.io/Knos/brand/card.png">
 <meta name="twitter:card" content="summary_large_image">
@@ -28,89 +29,320 @@
   else if (name === "iris") location.replace("labs/");
   else if (/^check(-a-pull-request)?$/.test(name)) location.replace("check/" + (h.startsWith("#check=") && h.length > 7 ? h : ""));
   else if (/^(install|claim)$/.test(name)) location.replace("check/" + h);   // the Colosseum entry's install and pay steps
-  else if (name && !/^(home|k-q)$/.test(name)) location.replace("app.html" + h); };
+  else if (name && !/^(home|k-q|tool|ask)$/.test(name)) location.replace("app.html" + h); };
   go(); addEventListener("hashchange", go); })();
 </script>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="brand/tokens.css">
 <style>
-body { margin: 0; background: var(--paper); color: var(--ink); font: 400 17px/1.5 var(--text); }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 400 18px/1.5 var(--text); }
 a { color: var(--accent); }
-.kh { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; max-width: 760px; margin: 0 auto; padding: 8px 16px; }
+.kh { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; max-width: 760px; margin: 0 auto; padding: 8px 16px; position: relative; }
 .kh .logo { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-right: auto; color: var(--ink); text-decoration: none; font: 600 20px/1 var(--head); }
 .kh .mark { display: block; width: 28px; height: 27px; background: currentColor; -webkit-mask: var(--m) center / contain no-repeat; mask: var(--m) center / contain no-repeat; }
-.kh nav { display: flex; flex-wrap: wrap; }
-.kh nav a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 10px; color: var(--ink); text-decoration: none; font-size: 16px; }
+.kmenu > summary { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; padding: 0 12px; cursor: pointer; list-style: none; color: var(--ink); border: 1px solid var(--line); border-radius: 10px; font-size: 16px; }
+.kmenu > summary::-webkit-details-marker { display: none; }
+.kmenu-panel { position: absolute; right: 16px; left: 16px; top: 56px; z-index: 30; max-width: 420px; margin-left: auto; padding: 8px 12px; background: var(--paper-2); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--depth-2); }
+.kmenu-panel p { margin: 4px 0 8px; font-size: 16px; color: var(--ink-2); }
+.kh nav { display: flex; flex-direction: column; }
+.kh nav a, .kmenu-panel > a { display: flex; align-items: center; min-height: 44px; padding: 0 4px; color: var(--ink); text-decoration: none; font-size: 16px; }
 .kh nav a:hover, .kh nav a[aria-current] { text-decoration: underline; }
 main { max-width: 760px; margin: 0 auto; padding: 0 16px; }
-.door { min-height: calc(100svh - 76px); padding: 4vh 0 24px; box-sizing: border-box; }
-.q { margin: 0 0 10px; color: var(--ink-2); }
-.cost { margin: 14px 0 0; }
-h1 { font: 600 clamp(28px, 6vw, 44px)/1.15 var(--head); letter-spacing: -.02em; margin: 0 0 16px; }
-form { display: flex; flex-wrap: wrap; gap: 8px; }
-label.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-input { flex: 1 1 260px; min-height: 52px; box-sizing: border-box; padding: 0 14px; font: 400 17px var(--text); color: var(--ink); background: var(--paper-2);
-  border: 2px solid var(--ink-2); border-radius: 10px; }
-input:focus-visible, button:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
-button { min-height: 52px; padding: 0 22px; font: 600 17px var(--text); border-radius: 10px; cursor: pointer; }
-.go { flex: 0 0 auto; background: var(--accent); color: var(--accent-fg); border: 2px solid var(--accent); }
-.go[disabled] { opacity: .75; cursor: progress; }
+h1 { font: 600 clamp(28px, 6vw, 40px)/1.15 var(--head); letter-spacing: -.02em; margin: 8px 0 12px; }
+h2 { font: 600 22px/1.25 var(--head); margin: 0 0 4px; }
+.who { margin: 0 0 12px; color: var(--ink-2); }
+label { display: block; font-weight: 600; margin: 0 0 6px; }
+textarea { display: block; width: 100%; box-sizing: border-box; min-height: 168px; padding: 10px 12px; font: 400 18px/1.4 var(--text); color: var(--ink); background: var(--paper-2);
+  border: 2px solid var(--ink-2); border-radius: 10px; resize: vertical; }
+input, textarea, button { font-family: var(--text); }
+input { min-height: 52px; box-sizing: border-box; padding: 0 14px; font-size: 18px; color: var(--ink); background: var(--paper-2); border: 2px solid var(--ink-2); border-radius: 10px; }
+input:focus-visible, textarea:focus-visible, button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+button { min-height: 44px; min-width: 44px; padding: 0 18px; font: 600 18px var(--text); border-radius: 10px; cursor: pointer; color: var(--ink); background: transparent; border: 2px solid var(--line); }
+.go { min-height: 52px; background: var(--accent); color: var(--accent-fg); border: 2px solid var(--accent); }
+#try { display: block; width: 100%; margin-top: 10px; }
+.go[disabled] { opacity: .8; cursor: progress; }
+.state { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 10px 0 0; min-height: 44px; }
+.spin { width: 18px; height: 18px; border: 3px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation: none; border-top-color: var(--line); } }
+.result { margin-top: 12px; }
+.result p { margin: 0 0 6px; }
+.about { font: 600 24px/1.25 var(--head); }
+.exact { font-weight: 600; }
+.acts { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.err { margin-top: 12px; padding: 10px 12px; border: 2px solid var(--bad); border-radius: 10px; }
+.err p { margin: 0 0 8px; }
+.how { margin: 8px 0 0; }
+.how summary { display: inline-flex; align-items: center; min-height: 44px; cursor: pointer; text-decoration: underline; }
+.how ol { margin: 4px 0 8px; padding-left: 22px; }
+.how li { margin: 0 0 8px; }
+.pay p { margin: 0 0 10px; }
+.pay .acts .go { flex: 1 1 260px; }
+.below { border-top: 1px solid var(--line); margin-top: 32px; padding: 24px 0 8px; }
+.below h2 { margin-bottom: 12px; }
+.below form { display: flex; flex-wrap: wrap; gap: 8px; }
+.below input { flex: 1 1 260px; }
+.below .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.sample { margin-top: 10px; width: 100%; text-align: left; font-weight: 500; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-.chips button { min-height: 44px; padding: 0 14px; background: transparent; color: var(--ink); border: 2px solid var(--line); font: 500 16px var(--text); }
-.sample { margin-top: 10px; background: transparent; color: var(--ink); border: 2px solid var(--line); font-weight: 500; width: 100%; text-align: left; }
+.chips button { font: 500 16px var(--text); }
 .out { margin-top: 16px; min-height: 1.5em; }
 .out .verdict { font: 600 24px/1.25 var(--head); margin: 0 0 6px; }
-.out .near { margin: 0 0 4px; color: var(--muted, #555); }
+.out .near { margin: 0 0 4px; color: var(--ink-2); }
 .out .nw-row { margin: 8px 0 0; }
-.out .nw { min-height: 44px; padding: 0 12px; font-size: 16px; background: none; border: 1px solid var(--line, #ccc); border-radius: 10px; color: var(--ink); cursor: pointer; }
+.out .nw { font-size: 16px; }
 .out .nw-done input { min-height: 44px; font-size: 16px; padding: 0 10px; max-width: 70%; }
 .out p { margin: 0 0 8px; }
 .out .next { display: inline-flex; align-items: center; min-height: 48px; padding: 0 18px; border-radius: 10px; background: var(--accent); color: var(--accent-fg); text-decoration: none; font-weight: 600; }
-.below { border-top: 1px solid var(--line); padding: 24px 0 8px; }
-.below p { margin: 0 0 12px; }
 footer { max-width: 760px; margin: 0 auto; padding: 16px; color: var(--ink-2); font-size: 16px; }
 footer a { color: var(--ink-2); display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; margin-right: 12px; }
-/* the goal, one tap on the first screen, under the sample and above the answer, so an answer never pushes it out of sight */
-.goal { margin: 0 0 8px; }
-.goal summary { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; cursor: pointer; text-decoration: underline; color: var(--ink-2); }
-.goal p { margin: 0 0 8px; color: var(--ink); }
-/* a 390 px phone: no text under 16 px, every link and control a 44 px tap target */
-@media (max-width: 460px) {
-  main p a, main td a, main li a, main dd a { padding: 12px 0; margin: -12px 0; }
-  main button, main .btn, main label, main summary, main code, main pre, main small, main th, main .fine, main input, main select { font-size: 16px; }
-  main summary { display: flex; align-items: center; min-height: 44px; }
-  nav a { display: inline-flex; align-items: center; min-height: 44px; }
-}
+[hidden] { display: none !important; }
+@media (max-width: 460px) { main p a, main li a { padding: 12px 0; margin: -12px 0; } }
 </style>
 </head>
 <body>
 <header class="kh" id="kh">
   <a class="logo" href="./"><span class="mark" aria-hidden="true" style="--m: url(brand/mark.svg)"></span>Knos</a>
-  <nav aria-label="Pages"><a href="prove/">Prove</a><a href="labs/">For labs (IRIS)</a></nav>
+  <details class="kmenu"><summary>Menu</summary><div class="kmenu-panel"><p class="kgoal">The goal: Knos turns any research into a product billions of people use, in days, not years.</p><nav aria-label="Pages"><a href="prove/">Papers</a><a href="labs/">Labs</a></nav></div></details>
 </header>
 <main>
-  <section class="door" aria-label="Ask about research">
-    <p class="q">Research takes 17 years to reach people (<a href="https://doi.org/10.1258/jrsm.2011.110180">Morris, 2011</a>).</p>
-    <h1>Ask anything about research</h1>
-    <p class="near">Every answer names its proving test.</p>
+  <section class="door" id="tool" data-tool="count-distinct" aria-labelledby="t-title">
+    <h1>What can you do with Knos?</h1>
+    <h2 id="t-title">Count the different items in a list</h2>
+    <p class="who" id="who">For anyone with a long list who wants one quick count.</p>
+    <div id="form">
+      <label for="list" id="list-label">Sample list</label>
+      <textarea id="list" name="input" rows="6" dir="auto" spellcheck="false" autocomplete="off">apple
+banana
+cherry
+apple
+grape
+lemon
+banana
+mango
+orange
+pear
+apple
+plum
+kiwi
+cherry
+lime
+grape
+mango
+peach
+banana
+lemon</textarea>
+      <p class="who" id="limits" hidden></p>
+      <button class="go" id="try" type="button" data-primary>Try it</button>
+    </div>
+    <p class="state" id="state" role="status" aria-live="polite" data-state="idle" hidden><span class="spin" id="spin" aria-hidden="true" hidden></span><span id="step" data-status></span><button id="stop" type="button" hidden>Stop</button></p>
+    <div class="err" id="err" role="alert" hidden><p id="err-text"></p><button id="err-next" type="button"></button></div>
+    <div class="result" id="result" aria-live="polite" hidden>
+      <p class="about" id="about"></p>
+      <p class="exact" id="exact" hidden></p>
+      <p id="left" hidden></p>
+      <p id="shown">Checked by a test that counted 30,000 different visitors to within 10%.</p>
+      <p id="private" hidden>Only people with this link can see it.</p>
+      <div class="acts"><button id="mine" type="button">Use my data</button><button id="copy" type="button">Copy link</button></div>
+      <p id="copied-by-hand" hidden>I could not copy the link. Here it is, to copy by hand: <input id="link-text" readonly aria-label="The result's link"></p>
+      <p id="optin" hidden>Count my visits to help improve Knos? <button id="optin-yes" type="button">Yes</button> <button id="optin-no" type="button">No</button></p>
+      <details class="how" id="how"><summary>How it works</summary><ol>
+        <li>It counts how many different lines your list holds. It does not say which items repeat or how often.</li>
+        <li>Your list goes to Knos's server, which counts it and keeps it with its result page, so the link works. A sample result can be opened by anyone. Your own list can be opened only by people who have its link, and it is never listed. The server keeps results only until it is next rebuilt, so a link can stop working.</li>
+        <li>The test that showed it works had to <span data-claim="locked">count 30,000 visitors within 10%, in at most 1.5 kilobytes</span>. It did not check <span data-claim="not_checked">counts beyond 30,000 visitors, or the paper's 2% figure at a billion items</span>.</li>
+        <li>Runs on the sample are free. Runs on your own list: <span data-n="free_runs_per_day">5</span> free a day, then <span data-n="pack_runs">20</span> more runs for $<span data-n="pack_price">1</span> in test money. Today nothing is charged.</li>
+        <li>It comes from a 2007 paper: <a href="https://doi.org/10.46298/dmtcs.3545" data-claim-link>HyperLogLog, by Flajolet, Fusy, Gandouet and Meunier</a>.</li>
+        <li>It depends on Knos's one server. When nobody has used it for a while it sleeps, and the first run is slow while it wakes.</li>
+      </ol></details>
+    </div>
+    <section class="pay" id="pay" aria-labelledby="pay-h" hidden>
+      <h2 id="pay-h"><span data-n="pack_runs">20</span> more runs for $<span data-n="pack_price">1</span> in test money</h2>
+      <p id="pay-line">Today this is test money. Nothing is charged.</p>
+      <div class="acts" id="pay-ask"><button class="go" id="pay-go" type="button">Pay with test money</button><button id="pay-no" type="button">Not now</button></div>
+      <div id="pay-confirm" hidden>
+        <p id="pay-what">This records a $<span data-n="pack_price">1</span> test payment for <span data-n="pack_runs">20</span> more runs. Nothing is charged.</p>
+        <div class="acts"><button class="go" id="pay-yes" type="button">Yes, record it</button><button id="pay-back" type="button">Not now</button></div>
+      </div>
+      <p id="pay-said" role="status"></p>
+    </section>
+  </section>
+  <section class="below" id="ask-box" aria-labelledby="ask-h">
+    <h2 id="ask-h">Ask anything about research</h2>
     <form id="ask">
       <label class="sr" for="paper">Your question</label>
       <input id="paper" name="paper" placeholder="A question or a paper's link" autocomplete="off" spellcheck="false">
       <button class="go" id="go" type="submit">Ask</button>
     </form>
     <button class="sample" id="sample" type="button">Sample question</button>
-    <details class="goal"><summary>Goal</summary><p>The goal: Knos turns any research into a product billions of people use, in days, not years.</p></details>
-    <div class="chips" id="mine" hidden></div>
+    <div class="chips" id="mine-q" hidden></div>
     <div class="out" id="out" aria-live="polite"></div>
     <p class="cost">Checking one paper by hand: $330 to $763 (<a href="https://labordynamicsinstitute.github.io/crress-book/sessions/6/perignon/">Perignon, citing Colliard</a>).</p>
   </section>
-  <p id="count" class="fine">Reading NEAR testnet...</p>
 </main>
 <footer>
   <span>Test money, no customers yet.</span><br>
   <a href="https://github.com/drexthealpha/Knos">Source</a><a href="pricing/">Pricing</a><a href="status/">Status</a>
 </footer>
 <script>
+// THE TOOL (Round 13, A2 to A6, B4, C3, C4): the API contract of v0328 research R13 SPEC.md
+(() => {
+  const HOSTED = "https://knos.onrender.com", TOOL = "count-distinct";
+  const $ = (id) => document.getElementById(id);
+  const box = $("list"), tryBtn = $("try"), state = $("state"), step = $("step"), stopBtn = $("stop"), res = $("result"), err = $("err"), pay = $("pay");
+  let SAMPLE = box.defaultValue;
+  const nf = new Intl.NumberFormat("en-US"), plural = new Intl.PluralRules("en-US");
+  // Knos's own tests and the WALK runs carry a marker and are counted apart (D2): a driven browser, or ?knos_test
+  const TEST = navigator.webdriver === true || new URLSearchParams(location.search).has("knos_test");
+  const store = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* no storage */ } } };
+  const newId = () => [...crypto.getRandomValues(new Uint8Array(12))].map((b) => b.toString(16).padStart(2, "0")).join("");
+  // a random id kept in this browser only, made when you say yes to counting your visits (D2, D4 findings 8 and 9);
+  // until then every run and the test payment send an empty id
+  const browserId = (make) => { let id = store.get("knos.browser"); if (!id && make) { id = newId(); store.set("knos.browser", id); } return id || ""; };
+  const counted = () => store.get("knos.count") === "yes";
+  const DEFAULT_SHOWN = $("shown").textContent || "";
+  let ctl = null, last = null, limits = null, pressId = null, touched = false;
+  box.addEventListener("input", () => { touched = true; });
+  const show = (el, on) => { el.hidden = !on; };
+  // the server says how many free runs are left today and how many paid ones: after a test payment, the runs left
+  const paidText = (n) => `${nf.format(n)} ${plural.select(n) === "one" ? "run" : "runs"} left`;
+  const leftText = (j) => j.paid_left > 0 ? paidText(j.runs_left) : `${nf.format(j.free_left ?? j.runs_left)} free ${plural.select(j.free_left ?? j.runs_left) === "one" ? "run" : "runs"} left today`;
+  // the sample the server holds, when it answers and the box is still the page's own sample
+  fetch(HOSTED + "/api/tools" + (TEST ? "?test=1" : ""), { credentials: "omit" }).then((r) => r.ok ? r.json() : null).then((j) => {
+    const t = j && (j.tools || []).find((x) => x.id === TOOL);
+    if (t && t.sample && !touched && box.value === SAMPLE && $("list-label").textContent === "Sample list") { SAMPLE = t.sample; box.value = t.sample; }
+  }).catch(() => {});
+  function stopWorking() {
+    clearInterval(stopWorking.tick); clearTimeout(stopWorking.later);
+    show(state, false); show($("spin"), false); show(stopBtn, false); state.dataset.state = "idle";
+    tryBtn.disabled = false; tryBtn.removeAttribute("aria-busy"); ctl = null;
+  }
+  function working(t0) {
+    // a first change at once; from 1 s a moving sign, the step Knos is on, the seconds, and Stop (U6 Rule 6)
+    step.textContent = "Sending your list to Knos";
+    show(err, false); show(res, false); show(state, true); state.dataset.state = "working";
+    tryBtn.disabled = true; tryBtn.setAttribute("aria-busy", "true");
+    stopWorking.later = setTimeout(() => { show($("spin"), true); show(stopBtn, true); }, 1000);
+    stopWorking.tick = setInterval(() => {
+      const s = Math.floor((performance.now() - t0) / 1000);
+      if (s < 1) return;
+      const what = s < 5 ? "Sending your list to Knos" : s < 15 ? "Waiting for Knos's server, which may be waking up" : "Still waiting for the count from Knos's server";
+      step.textContent = `${what}, ${s} s`;
+    }, 250);
+  }
+  function fail(text, next) {
+    // first person, the list stays in the box, and one control for the next step (U6, R2)
+    $("err-text").textContent = text;
+    const b = $("err-next");
+    b.textContent = next === "retry" ? "Try again" : next === "shorter" ? "Try a shorter list" : "Back to my list";
+    b.onclick = () => { show(err, false); if (next === "retry") run(); else { box.focus(); } };
+    show(err, true);
+  }
+  async function run() {
+    if (ctl) return;
+    const input = box.value;
+    if (!input.trim()) { fail("Your list is empty. Type or paste one item on each line, then press Try it.", "back"); box.focus(); return; }
+    const mode = input === SAMPLE ? "sample" : "own";
+    const t0 = performance.now(), mine = new AbortController(); ctl = mine;
+    working(t0);
+    const body = { id: TOOL, input, mode, browser: counted() ? browserId(true) : "", test: TEST };
+    let r = null, j = null;
+    try {
+      r = await fetch(HOSTED + "/api/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: mine.signal, credentials: "omit" });
+      j = await r.json().catch(() => null);
+    } catch (e) {
+      stopWorking();
+      if (e.name === "AbortError") { fail("I stopped the count. Your list is still in the box, so you can change it or try again.", "back"); return; }
+      fail("I could not reach Knos's server. It may be waking up. Your list is still in the box, so press Try again in a moment.", "retry"); return;
+    }
+    stopWorking();
+    if (r.status === 402 && j && j.pay) { payScreen(j.pay); return; }
+    if ((r.status === 413 || r.status === 408) && j && j.error) { fail(j.error, "shorter"); return; }
+    if (!r.ok && j && j.error) { fail(j.error, "retry"); return; }
+    if (!r.ok || !j || !j.result) { fail("I could not get a count from Knos's server just now. Your list is still in the box, so press Try again in a moment.", "retry"); return; }
+    result(j, mode);
+  }
+  function result(j, mode) {
+    last = j; limits = j.limits || limits;
+    $("about").textContent = j.result;
+    show($("exact"), j.exact != null); if (j.exact != null) $("exact").textContent = `Exact count: ${nf.format(j.exact)}`;
+    const left = mode === "own" && j.runs_left != null;
+    show($("left"), left); if (left) $("left").textContent = leftText(j);
+    $("shown").textContent = j.shown_by || DEFAULT_SHOWN;
+    show($("private"), mode === "own");
+    $("copy").textContent = "Copy link"; show($("copied-by-hand"), false);
+    show($("optin"), store.get("knos.count") == null);
+    show(res, true);
+  }
+  function payScreen(p) {
+    // one screen: the pack, test money said plainly, one main control, a way out, and a confirm step (C4, U6 Rule 23)
+    if (p.headline) $("pay-h").textContent = p.headline;
+    if (p.line) $("pay-line").textContent = p.line;
+    pressId = newId();
+    show($("form"), false); show(res, false); show(err, false);
+    show($("pay-ask"), true); show($("pay-confirm"), false); $("pay-said").textContent = "";
+    show(pay, true); $("pay-go").focus();
+  }
+  function backToTool(said) {
+    show(pay, false); show($("form"), true);
+    if (said) { $("left").textContent = said; show($("left"), true); show(res, false); }
+    tryBtn.focus();
+  }
+  $("pay-go").addEventListener("click", () => { show($("pay-ask"), false); show($("pay-confirm"), true); $("pay-yes").focus(); });
+  $("pay-no").addEventListener("click", () => backToTool(""));
+  $("pay-back").addEventListener("click", () => backToTool(""));
+  $("pay-yes").addEventListener("click", async () => {
+    const b = $("pay-yes");
+    if (b.disabled) return;   // a second press never records twice: the button is off, and the server keeps one per press id
+    b.disabled = true; $("pay-said").textContent = "Recording the test payment";
+    let j = null;
+    try {
+      const r = await fetch(HOSTED + "/api/pay", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ browser: counted() ? browserId(true) : "", press: pressId, test: TEST }), credentials: "omit" });
+      j = r.ok ? await r.json() : null;
+    } catch { j = null; }
+    if (!j || j.runs_left == null) { b.disabled = false; $("pay-said").textContent = "I could not record the test payment just now. Nothing was charged. Press Yes, record it again in a moment."; return; }
+    b.disabled = false;
+    const said = paidText(j.runs_left);
+    backToTool(said);
+    // the line under the box says what changed; the result area waits for the next run
+    $("left").hidden = true; show(res, false);
+    show(state, true); step.textContent = said; state.dataset.state = "idle"; show($("spin"), false); show(stopBtn, false);
+  });
+  tryBtn.addEventListener("click", run);
+  stopBtn.addEventListener("click", () => { if (ctl) ctl.abort(); });
+  $("mine").addEventListener("click", () => {
+    box.value = ""; touched = true;
+    $("list-label").textContent = "Your list, one item on each line";
+    if (limits && limits.max_lines != null && limits.max_seconds != null) {
+      $("limits").textContent = `Up to ${nf.format(limits.max_lines)} lines. A run stops after ${nf.format(limits.max_seconds)} seconds.`;
+      show($("limits"), true);
+    }
+    show(res, false); show(err, false); show(state, false);
+    box.focus();
+  });
+  $("copy").addEventListener("click", async () => {
+    if (!last || !last.link) return;
+    const url = last.link, b = $("copy");
+    // the label changes inside the press (a first change within 400 ms, B4) while the copy runs; if the copy fails the
+    // label goes back and the link is shown to copy by hand
+    b.textContent = "Copied";
+    let ok = false;
+    try { await navigator.clipboard.writeText(url); ok = true; } catch { ok = false; }
+    if (!ok) {
+      try { const t = Object.assign(document.createElement("textarea"), { value: url }); t.setAttribute("readonly", ""); t.style.position = "fixed"; t.style.opacity = "0";
+        document.body.append(t); t.select(); ok = document.execCommand("copy"); t.remove(); } catch { ok = false; }
+    }
+    if (ok) {
+      if (navigator.share) navigator.share({ url, title: $("t-title").textContent }).catch(() => {});   // the phone's own share sheet, after the copy
+    } else { b.textContent = "Copy link"; $("link-text").value = url; show($("copied-by-hand"), true); $("link-text").select(); }
+  });
+  const answer = (yes) => { store.set("knos.count", yes ? "yes" : "no"); if (yes) browserId(true); show($("optin"), false); };
+  $("optin-yes").addEventListener("click", () => answer(true));
+  $("optin-no").addEventListener("click", () => answer(false));
+})();
+</script>
+<script>
+// THE QUESTION BOX (unchanged, below the first screen): a question or a paper's link, answered from the claims Knos has
+// proved on NEAR testnet (written in at build time) and the live server
 (() => {
   const HOSTED = "https://knos.onrender.com";
   const CLAIMS = /*CLAIMS*/[]/*END*/;   // the claims registry, written at build time by scripts/site_pages.py
@@ -205,17 +437,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
   $("ask").addEventListener("submit", (e) => { e.preventDefault(); const v = $("paper").value.trim(); if (!v) { $("sample").click(); return; } ask(v); });
   $("sample").addEventListener("click", () => ask("Does HyperLogLog count 30,000 visitors in 1.5 KB?", true));
   // a second visit starts where the first ended: the visitor's last questions, from this browser
-  if ((mem.asked || []).length) { $("mine").hidden = false; $("mine").replaceChildren(...mem.asked.slice(0, 3).map((x) => el("button", { type: "button", textContent: x.q.length > 40 ? x.q.slice(0, 40).replace(/\s+\S*$/, "") + "..." : x.q, title: x.q, onclick: () => ask(x.q) }))); }
-  // jobs paid to agents: the jobs contract's own record, read from this browser (each pass in get_agent_record is one job
-  // paid to that agent, counted since the contract's 14 Nov 2026 upgrade), else the hosted server's copy of the same read
-  const JOBS = "jobs.knos-swarm-1105.testnet", AGENTS = ["agent-a", "agent-a2", "agent-b", "agent-b2"].map((a) => a + ".knos-swarm-1105.testnet");
-  const view = async (method, args) => { for (const rpc of ["https://rpc.testnet.fastnear.com", "https://rpc.testnet.near.org"]) {
-    const r = await json(rpc, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: "k", method: "query",
-      params: { request_type: "call_function", finality: "final", account_id: JOBS, method_name: method, args_base64: btoa(JSON.stringify(args)) } }) });
-    if (r && r.result && r.result.result) return JSON.parse(new TextDecoder().decode(new Uint8Array(r.result.result))); } throw new Error("no answer"); };
-  const counts = (n) => { $("count").textContent = n == null ? "Jobs paid: not read just now." : `${n.toLocaleString("en-US")} jobs paid to agents since 2026-11-14.`; };
-  Promise.all(AGENTS.map((agent) => view("get_agent_record", { agent }))).then((r) => counts(r.reduce((n, x) => n + (+x.passes || 0), 0)))
-    .catch(() => json(HOSTED + "/api/near/totals").then((t) => counts(t && t.since_upgrade ? t.since_upgrade.jobs_paid : null)));
+  if ((mem.asked || []).length) { $("mine-q").hidden = false; $("mine-q").replaceChildren(...mem.asked.slice(0, 3).map((x) => el("button", { type: "button", textContent: x.q.length > 40 ? x.q.slice(0, 40).replace(/\s+\S*$/, "") + "..." : x.q, title: x.q, onclick: () => ask(x.q) }))); }
 })();
 </script>
 </body>

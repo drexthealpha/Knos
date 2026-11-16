@@ -200,6 +200,22 @@ The code as entered: https://github.com/drexthealpha/Knos/tree/v0.3.28. More: [d
 
 <!-- /entry:colosseum -->
 
+## Use Knos where you already are
+
+Add Knos to a chat or coding assistant that takes connectors, with one command:
+
+```
+claude mcp add --transport http knos https://knos.onrender.com/mcp
+```
+
+It gives two tools: `tools` lists what Knos can do, and `run` runs one. A worked example, the front door's sample list sent without the connector:
+
+```
+curl -X POST https://knos.onrender.com/api/run -H "Content-Type: application/json" -d '{"id": "count-distinct", "input": "apple\nbanana\ncherry\napple\ngrape\nlemon\nbanana\nmango\norange\npear\napple\nplum\nkiwi\ncherry\nlime\ngrape\nmango\npeach\nbanana\nlemon", "mode": "sample", "browser": "", "test": false}'
+```
+
+The answer's `result` is `About 12 different items`, its `exact` is `12`, and its `link` opens the result. Through the connector, `run` with the same `id` and `input` returns the same answer.
+
 ## More
 
 [Why](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/WHY.md) Knos exists. The full reference: [docs/reference/NEAR.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/NEAR.md), [docs/reference/IRIS.md](https://github.com/drexthealpha/Knos/blob/v0.4.1/docs/reference/IRIS.md) and

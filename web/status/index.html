@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Knos status</title>
-<meta name="description" content="The proof service, today&#x27;s live proofs and the latest test run, read live.">
+<meta name="description" content="How the counting tool is used, each count from the data file, zeros shown as 0.">
 <meta name="color-scheme" content="light dark">
 <link rel="canonical" href="https://drexthealpha.github.io/Knos/status/">
 <meta property="og:title" content="Knos status">
-<meta property="og:description" content="The proof service, today&#x27;s live proofs and the latest test run, read live.">
+<meta property="og:description" content="How the counting tool is used, each count from the data file, zeros shown as 0.">
 <meta property="og:image" content="https://drexthealpha.github.io/Knos/brand/card.png">
 <meta name="theme-color" content="#07080c">
 <meta name="theme-color" content="#f4f4f0" media="(prefers-color-scheme: light)">
@@ -49,26 +49,36 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
 .kh { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; max-width: 760px; margin: 0 auto; padding: 8px 16px; }
 .kh .logo { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-right: auto; color: var(--ink); text-decoration: none; font: 600 20px/1 var(--head); }
 .kh .mark { display: block; width: 28px; height: 27px; background: currentColor; -webkit-mask: var(--m) center / contain no-repeat; mask: var(--m) center / contain no-repeat; }
-.kh nav { display: flex; flex-wrap: wrap; }
-.kh nav a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 10px; color: var(--ink); text-decoration: none; font-size: 16px; }
+.kh { position: relative; }
+.kmenu > summary { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; padding: 0 12px; cursor: pointer; list-style: none; color: var(--ink); border: 1px solid var(--line); border-radius: 10px; font-size: 16px; }
+.kmenu > summary::-webkit-details-marker { display: none; }
+.kmenu-panel { position: absolute; right: 16px; left: 16px; top: 56px; z-index: 30; max-width: 420px; margin-left: auto; padding: 8px 12px; background: var(--paper-2); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--depth-2); }
+.kmenu-panel p { margin: 4px 0 8px; font-size: 16px; color: var(--ink-2); }
+.kh nav { display: flex; flex-direction: column; }
+.kh nav a, .kmenu-panel > a { display: flex; align-items: center; min-height: 44px; padding: 0 4px; color: var(--ink); text-decoration: none; font-size: 16px; }
 .kh nav a:hover, .kh nav a[aria-current] { text-decoration: underline; }
+.how summary { display: inline-flex; align-items: center; min-height: 44px; cursor: pointer; text-decoration: underline; }
 </style>
 </head>
 <body>
 <header class="kh" id="kh">
   <a class="logo" href="../"><span class="mark" aria-hidden="true" style="--m: url(../brand/mark.svg)"></span>Knos</a>
-  <nav aria-label="Pages"><a href="../claims/">Claims</a><a href="../prove/">Prove</a><a href="../agents/">For agents</a><a href="../labs/">For labs (IRIS)</a><a href="../check/">Check pull requests</a></nav>
+  <details class="kmenu"><summary>Menu</summary><div class="kmenu-panel"><p class="kgoal">The goal: Knos turns any research into a product billions of people use, in days, not years.</p><nav aria-label="Pages"><a href="../claims/">Claims</a><a href="../prove/">Papers</a><a href="../agents/">Builders</a><a href="../labs/">Labs</a><a href="../check/">Pull requests</a></nav><a href="../pricing/">Pricing</a><a href="../status/">Status</a></div></details>
 </header>
 <main>
 <h1>Status</h1>
+<p>How the counting tool is used, all days together.</p>
+<table id="use"><tbody><tr><th>Tool opened</th><td class="n" data-count="tools_opened">0</td></tr><tr><th>Sample runs</th><td class="n" data-count="sample_runs">0</td></tr><tr><th>Runs on people&#x27;s own lists</th><td class="n" data-count="own_runs">0</td></tr><tr><th>Result links opened from another site or app</th><td class="n" data-count="results_opened_elsewhere">0</td></tr><tr><th>Test payments</th><td class="n" data-count="test_payments">0</td></tr><tr><th>Came back on day 7, percent of browsers</th><td class="n" data-measure="day7_return">not enough browsers yet</td></tr><tr><th>Days with a run in the first 7, average</th><td class="n" data-measure="active_days">not enough browsers yet</td></tr><tr><th>Paid after the free runs ran out, percent of browsers</th><td class="n" data-measure="paying_share">not enough browsers yet</td></tr></tbody></table>
+<p class="fine" id="use-when">Counted up to 2026-11-16 10:45:42 UTC, from the first day of use. Knos's own test runs are not in these counts. <a href="../data/usage.json">The data file</a>.</p>
+<details class="how"><summary>How it works</summary>
 <p>Is Knos up right now? Each line is read live.</p>
 <table id="st"><tbody><tr><th>The proof service</th><td id="svc">reading</td></tr><tr><th>Live proofs today</th><td id="today">reading</td></tr><tr><th>Jobs paid to agents</th><td id="jobs">reading</td></tr><tr><th>NEAR testnet's record</th><td id="rec">reading</td></tr><tr><th>Latest full test run</th><td id="ci">reading</td></tr><tr><th>Uptime</th><td id="up">reading</td></tr><tr><th>Visits, 7 days</th><td id="funnel">reading</td></tr></tbody></table>
 <h2>Accounts that keep the demo up</h2>
 <table id="bal"><tbody><tr><td>reading</td></tr></tbody></table>
 <p class="fine">Each line is read now, from the hosted server, NEAR testnet and GitHub.</p>
-<details class="fine"><summary>How jobs paid is read</summary><p>The jobs count adds up each agent's passes in the jobs contract's <code>get_agent_record</code>; the money paid out is its <code>get_totals</code>.</p></details>
+<p class="fine">The jobs count adds up each agent's passes in the jobs contract's <code>get_agent_record</code>; the money paid out is its <code>get_totals</code>.</p></details>
 </main>
-<footer><span>NEAR testnet, test money, no customers yet.</span><br><span>The goal: Knos turns any research into a product billions of people use, in days, not years.</span><br><a href="https://github.com/drexthealpha/Knos">Source</a><a href="../pricing/">Pricing</a><a href="../status/">Status</a><a href="../privacy.html">Privacy</a></footer>
+<footer><span>Test money only, no customers yet.</span><br><span>The goal: Knos turns any research into a product billions of people use, in days, not years.</span><br><a href="https://github.com/drexthealpha/Knos">Source</a><a href="../pricing/">Pricing</a><a href="../status/">Status</a><a href="../privacy.html">Privacy</a></footer>
 <script>
 const HOSTED = "https://knos.onrender.com";
 const $ = (id) => document.getElementById(id);

@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Knos turns any research into a product billions of people use, in days, not years. Knos carries research across the valley of death, toward Kardashev II and III.">
-<title>Knos turns any research into a product billions of people use, in days, not years. Knos carries research across the valley of death, toward Kardashev II and III.</title>
+<meta name="description" content="The goal: Knos turns any research into a product billions of people use, in days, not years. Today it checks one paper's claim with test money.">
+<title>Knos: check a paper's claim with test money</title>
 <link rel="stylesheet" href="../brand/tokens.css">
 <style>
 /* Hallmark · job: run the sample job, watch two agents try it, see only the passing one paid, try the guardrails · shape: app screen · genre: modern-minimal · theme: the Knos tokens (web/brand/tokens.css, near/DESIGN.md) */
@@ -219,7 +219,7 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
     <p><b>For agents:</b> one call runs it all and returns the verdict with its receipt:</p>
     <code class="snip">curl -X POST https://knos.onrender.com/api/near/claim/flow -H "Content-Type: application/json" -d '{"url": "https://doi.org/10.46298/dmtcs.3545", "amount": 10}'</code>
     <p><b>Safety:</b> the signing keys live only in the server's secret store, never in this page; the paper link is the only data you send; every push to main runs the full test suite; its latest finished run: <a id="tests-run" href="https://github.com/drexthealpha/Knos/actions/workflows/tests.yml">reading</a>. Knos has no token and no points.</p>
-    <p class="vision">Knos carries research across the valley of death, toward Kardashev II and III.</p>
+    <p class="vision">The goal: Knos carries research across the valley of death.</p>
   </section>
 
   <details class="buyers"><summary>Why Knos, for anyone who needs a result checked</summary>
@@ -232,7 +232,7 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
       <tr><th>Why a frontier lab could not</th><td>A lab can write the code, but nobody can trust it to grade its own work: NEAR holds the locked test and the rule that pays only on a pass, and neither Knos nor the lab can change them.</td></tr>
       <tr><th>A firm's work, by agents</th><td>Two agents write the code and a checker runs the locked test, the work of a replication firm. Agent A is paid into <a href="https://testnet.nearblocks.io/address/agent-a2.knos-swarm-1105.testnet?tab=tokentxns">its own NEAR account</a>; agent B's spending comes out of its own budget on NEAR, under a cap.</td></tr>
       <tr><th>A receipt per task</th><td>Every check ends in a receipt that lists each step's network fee, every line linked on NEAR.</td></tr>
-      <tr><th>The path to scale</th><td>Each new claim is one locked test. Every verified result is kept on NEAR and reused for free. The 2 Nov 2026 census found 38 of 12,010 companies to approach first.</td></tr>
+      <tr><th>The path to scale</th><td>Each new claim is one locked test. Every verified result is kept on NEAR and reused for free. 12,010 companies are on a first list. No outside company has bought from Knos.</td></tr>
       <tr><th>NEAR across chains</th><td>A bid can be quoted in USDC on Base through NEAR Intents, a quote only: NEAR Intents runs on mainnet, and with test money Knos moves nothing there.</td></tr>
       <tr><th>The added cost of privacy</th><td>Not measured yet: agent A's model and the reviewer run privately on NEAR AI Cloud, with the TEE attestation checked; the same calls on a non-private model have not been timed beside them.</td></tr>
       <tr><th>Leaving</th><td>Only test money moves: the test USDC behind a check is held with its job on NEAR and goes back if no agent's code passes by the deadline. You can stop at any step.</td></tr>

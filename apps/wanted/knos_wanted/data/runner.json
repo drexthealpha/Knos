@@ -1,0 +1,20 @@
+{
+ "_": "The tool runner's settings (knos_wanted.tool_run), the one place its limits and prices live. The program runs as the checker runs a locked test (near/agents/checker.py run_test): a folder of its own, python -E -s -B, a time limit. That sandbox has a time setting (near/claims/claims.json timeout_s of the claim, else the checker's default) and no input-size setting, so max_lines is set here.",
+ "tool": "count-distinct",
+ "claim_test": "test_hll.py",
+ "max_seconds_source": "near/claims/claims.json timeout_s of the claim whose test is test_hll.py; it has none, so near/agents/checker.py run_test's default: checker_default_seconds",
+ "checker_default_seconds": 20,
+ "max_lines": 100000,
+ "max_lines_source": "set here, Round 13: no sandbox setting existed for the largest input; 100,000 is the item's exact-count bound (A2)",
+ "max_body_bytes": 6000000,
+ "runs_at_once": 2,
+ "free_runs_a_day": 5,
+ "free_runs_a_day_source": "not from a law: a starting value to be tested",
+ "pack_runs": 20,
+ "pack_runs_source": "not from a law: a starting value to be tested",
+ "pack_price": "$1",
+ "pack_price_source": "not from a law: a starting value to be tested",
+ "results_kept": 2000,
+ "browsers_kept": 20000,
+ "input_kept_chars": 32000
+}

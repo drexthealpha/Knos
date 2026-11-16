@@ -415,7 +415,7 @@
     const terms = termsOf(r);
     // Open needs a launch city: with none, pre-orders cannot open (apps/wanted metros.launch_terms is the one answer)
     if (d.verdict === "OPEN" && !terms && (r.stage !== "verdict" || r.no_map)) [word, cls] = ["Not yet: Qloo sets no launch city for this idea", "refuse"];
-    // the one city list of a result: the terms' Census metros, the launch city first (the map, the list, Claude alone, /r/)
+    // the one city list of a result: the terms' US metro areas, the launch city first (the map, the list, Claude alone, /r/)
     const cities = cityList(r);
     const guess = label ? "" : slot.dataset.guess || "";
     const where = ((r.where || []).length ? r.where : (r.launch || {}).where || []).slice(0, 8), also = (r.also_love && r.also_love.domains) || [];

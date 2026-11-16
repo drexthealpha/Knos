@@ -49,15 +49,20 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
 .kh { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; max-width: 760px; margin: 0 auto; padding: 8px 16px; }
 .kh .logo { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-right: auto; color: var(--ink); text-decoration: none; font: 600 20px/1 var(--head); }
 .kh .mark { display: block; width: 28px; height: 27px; background: currentColor; -webkit-mask: var(--m) center / contain no-repeat; mask: var(--m) center / contain no-repeat; }
-.kh nav { display: flex; flex-wrap: wrap; }
-.kh nav a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 10px; color: var(--ink); text-decoration: none; font-size: 16px; }
+.kh { position: relative; }
+.kmenu > summary { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; padding: 0 12px; cursor: pointer; list-style: none; color: var(--ink); border: 1px solid var(--line); border-radius: 10px; font-size: 16px; }
+.kmenu > summary::-webkit-details-marker { display: none; }
+.kmenu-panel { position: absolute; right: 16px; left: 16px; top: 56px; z-index: 30; max-width: 420px; margin-left: auto; padding: 8px 12px; background: var(--paper-2); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--depth-2); }
+.kmenu-panel p { margin: 4px 0 8px; font-size: 16px; color: var(--ink-2); }
+.kh nav { display: flex; flex-direction: column; }
+.kh nav a, .kmenu-panel > a { display: flex; align-items: center; min-height: 44px; padding: 0 4px; color: var(--ink); text-decoration: none; font-size: 16px; }
 .kh nav a:hover, .kh nav a[aria-current] { text-decoration: underline; }
 </style>
 </head>
 <body>
 <header class="kh" id="kh">
   <a class="logo" href="./"><span class="mark" aria-hidden="true" style="--m: url(brand/mark.svg)"></span>Knos</a>
-  <nav aria-label="Pages"><a href="claims/">Claims</a><a href="prove/">Prove</a><a href="agents/">For agents</a><a href="labs/">For labs (IRIS)</a><a href="check/">Check pull requests</a></nav>
+  <details class="kmenu"><summary>Menu</summary><div class="kmenu-panel"><p class="kgoal">The goal: Knos turns any research into a product billions of people use, in days, not years.</p><nav aria-label="Pages"><a href="claims/">Claims</a><a href="prove/">Papers</a><a href="agents/">Builders</a><a href="labs/">Labs</a><a href="check/">Pull requests</a></nav><a href="pricing/">Pricing</a><a href="status/">Status</a></div></details>
 </header>
 <main>
 <h1>Privacy and terms</h1>
@@ -80,6 +85,11 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
 <li>What you type goes to the Knos server, which answers.</li>
 <li>The server reads a paper's title from its public record, Crossref.</li>
 <li>Your browser also reads NEAR testnet's public record.</li>
+<li>The counting tool sends your list to the Knos server.</li>
+<li>The server keeps your list with its result page and link.</li>
+<li>Your own list is shown only to people with its link.</li>
+<li>Say yes to counting, and your browser keeps a random id.</li>
+<li>Without that yes, the server counts runs only as totals.</li>
 </ul>
 <h2>The server</h2>
 <ul>
@@ -95,6 +105,6 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
 <li>Report a problem in <a href="https://github.com/drexthealpha/Knos/issues">GitHub issues</a>.</li>
 </ul>
 </main>
-<footer><span>NEAR testnet, test money, no customers yet.</span><br><span>The goal: Knos turns any research into a product billions of people use, in days, not years.</span><br><a href="https://github.com/drexthealpha/Knos">Source</a><a href="pricing/">Pricing</a><a href="status/">Status</a><a href="privacy.html">Privacy</a></footer>
+<footer><span>Test money only, no customers yet.</span><br><span>The goal: Knos turns any research into a product billions of people use, in days, not years.</span><br><a href="https://github.com/drexthealpha/Knos">Source</a><a href="pricing/">Pricing</a><a href="status/">Status</a><a href="privacy.html">Privacy</a></footer>
 </body>
 </html>

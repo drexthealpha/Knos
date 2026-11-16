@@ -14,7 +14,7 @@ name: pages
 on:
   push:
     branches: [main]
-    paths: ["web/**", "near/web/**", "sdk/settle/**", "examples/knos-claim.yml", "scripts/network_stats.py", "scripts/live_snapshot.py", "scripts/pages_data.py", "scripts/build_site.sh", "scripts/site_pages.py", "scripts/site_product.py", "near/claims/**", "scripts/demo_data.py", "terms/**", "scripts/upgrade_feed.py", "scripts/test_front_door_live.mjs", "docs/capabilities.json", "scripts/own_github_ids.json", "src/knos/settle/v2/program_ids.json", ".github/workflows/network.yml"]
+    paths: ["web/**", "near/web/**", "sdk/settle/**", "examples/knos-claim.yml", "scripts/network_stats.py", "scripts/live_snapshot.py", "scripts/pages_data.py", "scripts/build_site.sh", "scripts/site_pages.py", "scripts/site_product.py", "scripts/site_usage.py", "docs/data/**", "near/claims/**", "scripts/demo_data.py", "terms/**", "scripts/upgrade_feed.py", "scripts/test_front_door_live.mjs", "docs/capabilities.json", "scripts/own_github_ids.json", "src/knos/settle/v2/program_ids.json", ".github/workflows/network.yml"]
   schedule:
     - cron: "*/30 * * * *"
   workflow_dispatch:
@@ -39,6 +39,10 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -q -e .
+      # the status page's use counts, read from the app every 30 minutes before the build (never committed: the app's
+      # store restarts on each deploy, so a commit would freeze old counts); a server that does not answer keeps the file
+      - name: use counts for the status page, from the app's /api/usage
+        run: python scripts/site_usage.py
       - name: site = the web app, at the commit it was built from
         run: bash scripts/build_site.sh _site "$GITHUB_SHA"
       - name: The newest agent payout and the usage counter, from the app (the committed line stays when it does not answer)

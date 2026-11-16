@@ -363,7 +363,8 @@ def discovery() -> str:
     """GET /mcp's page, its tool line built from the tools tools/list serves (the NEAR and IRIS tools included)."""
     from .near_jobs import TOOLS as NEAR_TOOLS
     from .product_routes import MCP_TOOLS
-    return DISCOVERY.replace("{TOOL_NAMES}", ", ".join(t["name"] for t in TOOLS + MCP_TOOLS + NEAR_TOOLS))
+    from .tool_run import MCP_TOOLS as RUN_TOOLS
+    return DISCOVERY.replace("{TOOL_NAMES}", ", ".join(t["name"] for t in TOOLS + MCP_TOOLS + NEAR_TOOLS + RUN_TOOLS))
 TOOLS = [
     {"name": "knos_cross", "title": "Cross a paper to a funded product",
      "description": "Paper id (DOI, arXiv, PubMed, OpenAlex) -> research card -> Qloo evidence at every decision -> who, where, price "
@@ -505,7 +506,7 @@ def _product_tools() -> set:
 # within a daily cap.
 READ_ONLY = {"knos_research_card", "knos_demand_check", "knos_crossings", "knos_milestones", "knos_tasks", "knos_memory_search",
              "knos_memory_recall", "knos_templates", "knos_projects", "knos_openapi", "knos_ready", "knos_usage",
-             "knos_milestone_prompt", "knos_near_swarm_job", "knos_iris_check_proof", "knos_near_job_status"}
+             "knos_milestone_prompt", "knos_near_swarm_job", "knos_iris_check_proof", "knos_near_job_status", "tools"}
 STORE = {"knos_ready", "knos_demand_check"}           # no qloo_* tool: those answer an agent key only
 STORE_DAILY_CAP = 2000                                 # tool calls a day through /mcp/store, all callers together
 _store_day = {"day": "", "n": 0}
@@ -642,7 +643,8 @@ def mcp(state, msg: dict, profile: str = "full") -> dict | None:
             extra = []
         from .near_jobs import TOOLS as NEAR_TOOLS
         from .product_routes import MCP_TOOLS
-        tools = [annotate({**t, "description": DESCRIPTIONS.get(t["name"], t["description"])}) for t in TOOLS + MCP_TOOLS + NEAR_TOOLS + extra]
+        from .tool_run import MCP_TOOLS as RUN_TOOLS
+        tools = [annotate({**t, "description": DESCRIPTIONS.get(t["name"], t["description"])}) for t in TOOLS + MCP_TOOLS + NEAR_TOOLS + RUN_TOOLS + extra]
         return ok({"tools": [t for t in tools if in_store(t["name"])] if store else tools})
     if method == "tools/call":
         name, args = params.get("name"), params.get("arguments") or {}
@@ -672,10 +674,18 @@ def mcp(state, msg: dict, profile: str = "full") -> dict | None:
             return ok({"content": [{"type": "text", "text": _json.dumps(got, default=str)[:60_000]}], "structuredContent": got})
         from . import near_jobs
         from .product_routes import MCP_TOOLS as _PT
-        schema = next((t["inputSchema"] for t in TOOLS + _PT + near_jobs.TOOLS if t["name"] == name), None)
+        from . import tool_run
+        schema = next((t["inputSchema"] for t in TOOLS + _PT + near_jobs.TOOLS + tool_run.MCP_TOOLS if t["name"] == name), None)
         bad = check_args(schema, args) if schema is not None else None
         if bad:                                          # validated before anything runs (spec S6)
             return ok({"isError": True, "content": [{"type": "text", "text": bad}], "structuredContent": {"error": bad}})
+        if name in ("tools", "run"):                     # Round 13: the same JSON as GET /api/tools and POST /api/run
+            import json as _json
+            try:
+                got = tool_run.mcp_call(name, args)
+            except ValueError as why:
+                return ok({"isError": True, "content": [{"type": "text", "text": str(why)[:300]}]})
+            return ok({"content": [{"type": "text", "text": _json.dumps(got, default=str)}], "structuredContent": got})
         if name in near_jobs.HANDLERS:
             import json as _json
             try:

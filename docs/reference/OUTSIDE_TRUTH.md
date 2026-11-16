@@ -96,7 +96,7 @@ Against population Knos was -0.020, interval [-0.093, +0.047]: the test cannot t
 
 Numbers, per type and method: [the result file](baseline_prereg.json).
 
-## Launch city, pre-registered: 134 kinds of business against the Census (30 Oct 2026)
+## Launch city, pre-registered: 134 kinds of business against official US business counts (30 Oct 2026)
 
 The plan was committed before any call or prediction: [impact_prereg_plan.md](impact_prereg_plan.md) (sha256
 6e08a9f488196f64da5f302c7f774bd31e2bf534c6adde2ef172073121e4dd13).
@@ -114,10 +114,10 @@ order.
 The plan's pass rule needs every interval above 0: this run fails it, and Knos loses to the model alone at naming
 where a kind of business is dense. Raw numbers: [impact_prereg.json](impact_prereg.json).
 
-## Where demand is: 30 kinds of business against the Census
+## Where demand is: 30 kinds of business against official US business counts
 
 **In plain words.** For 30 kinds of local business, each side named the 5 large US metros where that business is most
-common per person. Census County Business Patterns 2023 gives the true top 10. Claude alone did better than Knos with
+common per person. The US County Business Patterns 2023 gives the true top 10. Claude alone did better than Knos with
 Qloo, and the interval stays below zero.
 
 A heatmap of taste says where fans of a product cluster, which is a different
@@ -125,8 +125,8 @@ thing from where shops of that kind are dense.
 
 | Measure (n=30 business types) | Value |
 |---|---|
-| Overlap at 5 with the Census top 10, Claude alone | 0.407 |
-| Overlap at 5 with the Census top 10, Knos with Qloo | 0.193 |
+| Overlap at 5 with the official top 10, Claude alone | 0.407 |
+| Overlap at 5 with the official top 10, Knos with Qloo | 0.193 |
 | Difference, Knos minus Claude | -0.213 |
 | 95% interval, 2,000 paired bootstrap resamples (seed 1) | [-0.360, -0.060] |
 

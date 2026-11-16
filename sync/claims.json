@@ -1,0 +1,439 @@
+{
+ "_": "knos-sync's links (E4): each entry is one fact, every place it is stated, the command that gives its true value, the expected value and the comparator. Pointers register facts knos-sync does not check: an existing check holds them (E1), or their source is outside the repository. No kind blocks until a person turns blocking on for version, hash or count, and an entry blocks only after a person confirms it (knos-sync confirm).",
+ "skip": [
+  "repos/",
+  "programs/",
+  "programs-v2/",
+  "programs-hook/"
+ ],
+ "historical": [
+  "docs/reference/*_plan.md",
+  "docs/reference/*_plan_v2.md"
+ ],
+ "kinds": {
+  "count": {
+   "on": true,
+   "block": false,
+   "not_useful": 0,
+   "acted_on": 0
+  },
+  "hash": {
+   "on": true,
+   "block": false,
+   "not_useful": 0,
+   "acted_on": 0
+  },
+  "name": {
+   "on": false,
+   "block": false,
+   "not_useful": 0,
+   "acted_on": 0
+  },
+  "price": {
+   "on": true,
+   "block": false,
+   "not_useful": 0,
+   "acted_on": 0
+  },
+  "version": {
+   "on": true,
+   "block": false,
+   "not_useful": 0,
+   "acted_on": 0
+  }
+ },
+ "existing": [
+  {
+   "name": "claims_check",
+   "command": "python scripts/claims_check.py",
+   "run_by": ".github/workflows/tests.yml job claims; tests/test_bench_docs.py (--offline)",
+   "checks": "every number in README.md, web/door.html and docs/WHY.md is a fact in docs/facts.json, and every fact holds against its source; a fact with doc makes that document say its numbers",
+   "files": [
+    "README.md",
+    "web/door.html",
+    "docs/WHY.md"
+   ],
+   "facts_from": "docs/facts.json"
+  },
+  {
+   "name": "doc_claims",
+   "command": "python scripts/doc_claims.py",
+   "run_by": ".github/workflows/tests.yml job claims; tests/test_doc_claims.py",
+   "checks": "facts several documents state (capability counts and stages, program versions, upgrade times, fees, payment totals, slots), each from one source"
+  },
+  {
+   "name": "bench_docs",
+   "command": "python scripts/bench_docs.py --check",
+   "run_by": "tests/test_bench_docs.py",
+   "checks": "the [[stat: name]] slots and the bench tables equal docs/bench.json and docs/facts.json by_hand"
+  },
+  {
+   "name": "capabilities",
+   "command": "python scripts/capabilities.py render --check",
+   "run_by": "scripts/capabilities.py",
+   "checks": "the capability tables between their markers are what docs/capabilities.json says"
+  },
+  {
+   "name": "rate_claims",
+   "command": "python scripts/rate_claims.py",
+   "run_by": ".github/workflows/tests.yml job claims; tests/test_rate_claims.py",
+   "checks": "every latency or throughput figure in docs/reference/LOAD.md and BENCH.md carries its sample size, program ids and date"
+  },
+  {
+   "name": "test_public_words",
+   "command": "python scripts/test_public_words.py",
+   "run_by": ".github/workflows/tests.yml job conformance",
+   "checks": "public words: no escrow, the 8-day time lock, no private or Windows user folder, the pricing sentence, two links"
+  },
+  {
+   "name": "truth_check",
+   "command": "python scripts/truth_check.py",
+   "run_by": ".github/workflows/tests.yml job claims",
+   "checks": "no public statement contradicts the capability manifest, the source or the price book"
+  },
+  {
+   "name": "stale_check",
+   "command": "python scripts/stale_check.py",
+   "run_by": ".github/workflows/tests.yml job claims",
+   "checks": "no public file states a retired figure as current"
+  },
+  {
+   "name": "site_pages",
+   "command": "bash scripts/build_site.sh",
+   "run_by": ".github/workflows/network.yml (the site's build)",
+   "checks": "writes the pricing numbers (span data-n) and the company sentence into the built pages from docs/data at build time"
+  }
+ ],
+ "generated": [
+  {
+   "start": "<!-- bench:",
+   "end": "<!-- /bench:",
+   "by": "python scripts/bench_docs.py --check"
+  },
+  {
+   "start": "<!-- programs:start -->",
+   "end": "<!-- programs:end -->",
+   "by": "python scripts/doc_claims.py"
+  },
+  {
+   "start": "<!-- capabilities:start -->",
+   "end": "<!-- capabilities:end -->",
+   "by": "python scripts/capabilities.py render --check"
+  }
+ ],
+ "entries": [
+  {
+   "id": "company-list-rows",
+   "kind": "count",
+   "subject": "records on the company list, read from the scorecard summary (F1, F3)",
+   "places": [
+    {
+     "file": "docs/reference/NEAR.md",
+     "line": 161,
+     "text": "12,010 companies are on a first list",
+     "says": "12,010"
+    }
+   ],
+   "command": [
+    "json",
+    "docs/data/scorecard_summary.json",
+    "rows"
+   ],
+   "expected": "12010",
+   "comparator": "equal",
+   "confirmed_by_person": false
+  },
+  {
+   "id": "near-wasm-sha256",
+   "kind": "hash",
+   "subject": "the sha256 of the NEAR jobs contract's wasm",
+   "places": [
+    {
+     "file": "docs/reference/NEAR.md",
+     "line": 381,
+     "text": "sha256 `7d0743021b471e76a93eacc902c63d40c9be053b162f558d09e2f436c217bfdc`",
+     "says": "7d0743021b471e76a93eacc902c63d40c9be053b162f558d09e2f436c217bfdc"
+    },
+    {
+     "file": "docs/reference/NEAR.md",
+     "line": 258,
+     "text": "(`7d074302…`, 426,766 bytes",
+     "says": "7d074302"
+    }
+   ],
+   "command": [
+    "sha256",
+    "near/wasm/knos_near.wasm"
+   ],
+   "expected": "7d0743021b471e76a93eacc902c63d40c9be053b162f558d09e2f436c217bfdc",
+   "comparator": "prefix",
+   "confirmed_by_person": false
+  },
+  {
+   "id": "near-wasm-bytes",
+   "kind": "count",
+   "subject": "the size in bytes of the NEAR jobs contract's wasm",
+   "places": [
+    {
+     "file": "docs/reference/NEAR.md",
+     "line": 258,
+     "text": "426,766 bytes, is the jobs",
+     "says": "426,766"
+    },
+    {
+     "file": "docs/reference/NEAR.md",
+     "line": 381,
+     "text": "426,766 bytes, sha256",
+     "says": "426,766"
+    }
+   ],
+   "command": [
+    "size",
+    "near/wasm/knos_near.wasm"
+   ],
+   "expected": "426766",
+   "comparator": "equal",
+   "confirmed_by_person": false
+  },
+  {
+   "id": "qloo-lift-plan-sha256",
+   "kind": "hash",
+   "subject": "the sha256 of qloo_lift_ranked_plan.md, committed before the test it plans",
+   "places": [
+    {
+     "file": "docs/reference/OUTSIDE_TRUTH.md",
+     "line": 79,
+     "text": "(qloo_lift_ranked_plan.md), sha256 `f5fc2b93dec35d813fd921962c85860a415dada508a266c274048340ea0d1da6`",
+     "says": "f5fc2b93dec35d813fd921962c85860a415dada508a266c274048340ea0d1da6"
+    }
+   ],
+   "command": [
+    "sha256",
+    "docs/reference/qloo_lift_ranked_plan.md"
+   ],
+   "expected": "f5fc2b93dec35d813fd921962c85860a415dada508a266c274048340ea0d1da6",
+   "comparator": "equal",
+   "confirmed_by_person": false
+  },
+  {
+   "id": "where-truth-plan-sha256",
+   "kind": "hash",
+   "subject": "the sha256 of where_truth_plan.md, committed before the test it plans",
+   "places": [
+    {
+     "file": "docs/reference/OUTSIDE_TRUTH.md",
+     "line": 133,
+     "text": "(where_truth_plan.md), sha256 `86b76b6640ef74759d733c5cf12f4b2b126b59385f140b5423d18908cf4da0c0`",
+     "says": "86b76b6640ef74759d733c5cf12f4b2b126b59385f140b5423d18908cf4da0c0"
+    }
+   ],
+   "command": [
+    "sha256",
+    "docs/reference/where_truth_plan.md"
+   ],
+   "expected": "86b76b6640ef74759d733c5cf12f4b2b126b59385f140b5423d18908cf4da0c0",
+   "comparator": "equal",
+   "confirmed_by_person": false
+  },
+  {
+   "id": "taste-truth-plan-sha256",
+   "kind": "hash",
+   "subject": "the sha256 of taste_truth_plan.md, committed before the test it plans",
+   "places": [
+    {
+     "file": "docs/reference/OUTSIDE_TRUTH.md",
+     "line": 156,
+     "text": "(taste_truth_plan.md), sha256 `b65eb3d437acbec06eaea9c4064c81acada2c2aa3e73b55ea678128bd4438c01`",
+     "says": "b65eb3d437acbec06eaea9c4064c81acada2c2aa3e73b55ea678128bd4438c01"
+    }
+   ],
+   "command": [
+    "sha256",
+    "docs/reference/taste_truth_plan.md"
+   ],
+   "expected": "b65eb3d437acbec06eaea9c4064c81acada2c2aa3e73b55ea678128bd4438c01",
+   "comparator": "equal",
+   "confirmed_by_person": false
+  },
+  {
+   "id": "kani-version",
+   "kind": "version",
+   "subject": "the Kani version the payment program's harnesses were verified with",
+   "places": [
+    {
+     "file": "docs/reference/ASSURANCE.md",
+     "line": 622,
+     "text": "docs/kani.json (Kani 0.68.0",
+     "says": "0.68.0"
+    },
+    {
+     "file": "docs/reference/INVARIANTS.md",
+     "line": 293,
+     "text": "verified it with Kani 0.68.0",
+     "says": "0.68.0"
+    }
+   ],
+   "command": [
+    "json",
+    "docs/kani.json",
+    "version"
+   ],
+   "expected": "0.68.0",
+   "comparator": "equal",
+   "confirmed_by_person": false
+  },
+  {
+   "id": "kani-record-file",
+   "kind": "name",
+   "subject": "the record of the Kani runs, a file that must exist",
+   "places": [
+    {
+     "file": "docs/reference/ASSURANCE.md",
+     "line": 622,
+     "text": "verified in docs/kani.json",
+     "says": "docs/kani.json"
+    }
+   ],
+   "command": [
+    "exists",
+    "docs/kani.json"
+   ],
+   "expected": "docs/kani.json",
+   "comparator": "equal",
+   "confirmed_by_person": false
+  }
+ ],
+ "pointers": [
+  {
+   "id": "pricing-free-runs",
+   "kind": "count",
+   "subject": "free own-data runs a day per browser (C2: not from a law, a starting value to be tested)",
+   "value": "5",
+   "where": [
+    "web/door.html"
+   ],
+   "source": "json docs/data/pricing.json numbers.free_runs_per_day.value",
+   "checked_by": "claims_check"
+  },
+  {
+   "id": "pricing-pack-runs",
+   "kind": "count",
+   "subject": "runs in one pack of test money (C2: not from a law)",
+   "value": "20",
+   "where": [
+    "web/door.html"
+   ],
+   "source": "json docs/data/pricing.json numbers.pack_runs.value",
+   "checked_by": "claims_check"
+  },
+  {
+   "id": "pricing-pack-price",
+   "kind": "price",
+   "subject": "US dollars of test money for one pack (C2: not from a law)",
+   "value": "1",
+   "where": [
+    "web/door.html"
+   ],
+   "source": "json docs/data/pricing.json numbers.pack_price.value",
+   "checked_by": "claims_check"
+  },
+  {
+   "id": "company-list-rows-site",
+   "kind": "count",
+   "subject": "the company sentence on the built pages (F1)",
+   "value": "12,010",
+   "where": [],
+   "source": "json docs/data/scorecard_summary.json rows, written by scripts/site_pages.py company_line()",
+   "checked_by": "site_pages"
+  },
+  {
+   "id": "numbers-outside-use-table",
+   "kind": "count",
+   "subject": "the nine counts of outside use in the table of docs/NUMBERS.md",
+   "value": "9",
+   "where": [
+    "docs/NUMBERS.md"
+   ],
+   "source": "docs/bench.json and docs/facts.json by_hand, written by scripts/bench_docs.py",
+   "checked_by": "bench_docs"
+  },
+  {
+   "id": "numbers-day7-pass",
+   "kind": "price",
+   "subject": "day-7 return: PASS at 7% or more, STOP under 7%",
+   "value": "7%",
+   "where": [
+    "docs/NUMBERS.md"
+   ],
+   "source": "LAWS/DISTRIBUTION/F5.md finding 6",
+   "checked_by": "outside"
+  },
+  {
+   "id": "numbers-active-days-pass",
+   "kind": "count",
+   "subject": "active days: PASS at 3 days or more of the first 7",
+   "value": "3",
+   "where": [
+    "docs/NUMBERS.md"
+   ],
+   "source": "LAWS/DISTRIBUTION/F5.md finding 8",
+   "checked_by": "outside"
+  },
+  {
+   "id": "numbers-first-week",
+   "kind": "count",
+   "subject": "the first 7 days a measure counts",
+   "value": "7",
+   "where": [
+    "docs/NUMBERS.md"
+   ],
+   "source": "LAWS/DISTRIBUTION/F5.md findings 6 and 8",
+   "checked_by": "outside"
+  },
+  {
+   "id": "numbers-paying-share-pass",
+   "kind": "price",
+   "subject": "paying share: PASS at 3% or more",
+   "value": "3%",
+   "where": [
+    "docs/NUMBERS.md"
+   ],
+   "source": "LAWS/DISTRIBUTION/CHECKED-D9-E2.md, D10 finding 8",
+   "checked_by": "outside"
+  },
+  {
+   "id": "numbers-paying-share-5",
+   "kind": "price",
+   "subject": "paying share: the top of the law's good range for self-serve",
+   "value": "5%",
+   "where": [
+    "docs/NUMBERS.md"
+   ],
+   "source": "LAWS/DISTRIBUTION/CHECKED-D9-E2.md, D10 finding 8",
+   "checked_by": "outside"
+  },
+  {
+   "id": "numbers-paying-share-6",
+   "kind": "price",
+   "subject": "paying share: the bottom of the law's great range for self-serve",
+   "value": "6%",
+   "where": [
+    "docs/NUMBERS.md"
+   ],
+   "source": "LAWS/DISTRIBUTION/CHECKED-D9-E2.md, D10 finding 8",
+   "checked_by": "outside"
+  },
+  {
+   "id": "numbers-paying-share-8",
+   "kind": "price",
+   "subject": "paying share: the top of the law's great range for self-serve",
+   "value": "8%",
+   "where": [
+    "docs/NUMBERS.md"
+   ],
+   "source": "LAWS/DISTRIBUTION/CHECKED-D9-E2.md, D10 finding 8",
+   "checked_by": "outside"
+  }
+ ],
+ "silenced": []
+}

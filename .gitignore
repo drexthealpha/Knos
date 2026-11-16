@@ -38,6 +38,10 @@ examples/*/target
 
 examples/target
 mutants/
+
+# knos-sync's working state (one SQLite file, rebuilt on every run) and the programs CI builds
+.knos-sync/
+sync/bin/
 # private working notes of this machine
 CLAUDE.local.md
 !iris/.env.example

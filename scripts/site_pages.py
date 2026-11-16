@@ -1,6 +1,7 @@
 """The published site's product pages, after scripts/build_site.sh has copied web/ and near/web/ into the site:
 
-- index.html: the front door (web/door.html): one line, the ask box (a question or a paper's link), one button, the sample answered on that screen.
+- index.html: the front door (web/door.html): the first tool (Round 13, A2 and A7), its numbers written in from
+  docs/data/pricing.json and near/claims/claims.json; the earlier ask box below the first screen.
 - prove/: the whole proof on NEAR (near/web/index.html), its files read from near/.
 - labs/: the same check inside a lab's InterSystems IRIS (web/iris/index.html), its video and poster read from iris/.
 - check/: the pull request checker exactly as entered at Colosseum (tag v0.3.28), from web/check-v0328/: the tag's own
@@ -22,23 +23,32 @@ from pathlib import Path
 import site_product
 
 ROOT = Path(__file__).resolve().parents[1]
-PAGES = [("claims/", "Claims"), ("prove/", "Prove"), ("agents/", "For agents"), ("labs/", "For labs (IRIS)"), ("check/", "Check pull requests")]
+# Round 13: plain names (the PLAIN-WORDS rule of ROUND13-ITEMS: no "prove", "agent", "IRIS" on a stranger's screens)
+PAGES = [("claims/", "Claims"), ("prove/", "Papers"), ("agents/", "Builders"), ("labs/", "Labs"), ("check/", "Pull requests")]
 # the product's pages; every other page of the build leaves the published site, each old address sent to the front door
 KEEP = {"index.html", "404.html", "privacy.html", "prove/receipt/index.html", "tx/index.html"}   # Round 10, V6: one finished order, saved
 CSS = ("#ask label a { display: inline !important; min-height: 0 !important; padding: 0 !important; }\n"   # the Prove page's Claims link sits in its sentence
        ".kh { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; max-width: 760px; margin: 0 auto; padding: 8px 16px; }\n"
        ".kh .logo { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-right: auto; color: var(--ink); text-decoration: none; font: 600 20px/1 var(--head); }\n"
        ".kh .mark { display: block; width: 28px; height: 27px; background: currentColor; -webkit-mask: var(--m) center / contain no-repeat; mask: var(--m) center / contain no-repeat; }\n"
-       ".kh nav { display: flex; flex-wrap: wrap; }\n"
-       ".kh nav a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 10px; color: var(--ink); text-decoration: none; font-size: 16px; }\n"
+       ".kh { position: relative; }\n"
+       ".kmenu > summary { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; padding: 0 12px; cursor: pointer; list-style: none; color: var(--ink); border: 1px solid var(--line); border-radius: 10px; font-size: 16px; }\n"
+       ".kmenu > summary::-webkit-details-marker { display: none; }\n"
+       ".kmenu-panel { position: absolute; right: 16px; left: 16px; top: 56px; z-index: 30; max-width: 420px; margin-left: auto; padding: 8px 12px; background: var(--paper-2); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--depth-2); }\n"
+       ".kmenu-panel p { margin: 4px 0 8px; font-size: 16px; color: var(--ink-2); }\n"
+       ".kh nav { display: flex; flex-direction: column; }\n"
+       ".kh nav a, .kmenu-panel > a { display: flex; align-items: center; min-height: 44px; padding: 0 4px; color: var(--ink); text-decoration: none; font-size: 16px; }\n"
        ".kh nav a:hover, .kh nav a[aria-current] { text-decoration: underline; }\n")
 
 
 def header(up: str, here: str = "") -> str:
+    """The one header: the Knos name and one control, "Menu" (Round 13, A2: a first screen holds the Knos name and the
+    page's own words). The goal is the menu's first line, one press away on every page (A7)."""
     cur = ' aria-current="page"'
     links = "".join(f'<a href="{up}{p}"{cur if p == here else ""}>{name}</a>' for p, name in PAGES)
     return (f'<header class="kh" id="kh">\n  <a class="logo" href="{up or "./"}"><span class="mark" aria-hidden="true" style="--m: url({up}brand/mark.svg)"></span>Knos</a>\n'
-            f'  <nav aria-label="Pages">{links}</nav>\n</header>')
+            f'  <details class="kmenu"><summary>Menu</summary><div class="kmenu-panel"><p class="kgoal">{site_product.GOAL}</p>'
+            f'<nav aria-label="Pages">{links}</nav><a href="{up}pricing/">Pricing</a><a href="{up}status/">Status</a></div></details>\n</header>')
 
 
 def with_header(html: str, up: str, here: str) -> str:
@@ -48,7 +58,7 @@ def with_header(html: str, up: str, here: str) -> str:
     assert n == 1, "the page has no header to replace"
     html = re.sub(r'<script type="speculationrules">.*?</script>\n?', "", html, flags=re.S)
     html = re.sub(r'<script>addEventListener\("load", \(\) => \{ const s = document\.createElement\("script"\); s\.src = "[./]*brand/bar\.js";.*?</script>\n?', "", html, flags=re.S)
-    if ".kh .logo" not in html:
+    if ".kmenu-panel" not in html:
         html = html.replace("</head>", f'<style id="kh-css">\n{CSS}</style>\n</head>', 1)
     return html
 
@@ -163,13 +173,44 @@ def door_claims() -> list[dict]:
     return out
 
 
+DATA = ROOT / "docs" / "data"
+
+
+def numbers() -> dict:
+    """docs/data/pricing.json: each number's value by name (C6)."""
+    return {k: v["value"] for k, v in json.loads((DATA / "pricing.json").read_text(encoding="utf-8"))["numbers"].items()}
+
+
+def companies() -> int:
+    """F1: the one company count a public page may show, the rows of docs/data/scorecard_summary.json (a copy of
+    LAWS/MISSION/SCORECARD/SUMMARY.json). Records of a first list (R1 finding 23), none of them a buyer."""
+    return int(json.loads((DATA / "scorecard_summary.json").read_text(encoding="utf-8"))["rows"])
+
+
+COMPANY_LINE = re.compile(r"[\d,]+ companies are on a first list\. No outside company has bought from Knos\.")
+
+
+def company_line() -> str:
+    return f"{companies():,} companies are on a first list. No outside company has bought from Knos."
+
+
+def fill(html: str) -> str:
+    """A page's numbers written in from their files: each <span data-n="name"> from docs/data/pricing.json, each
+    <span data-claim="field"> from the HyperLogLog claim of near/claims/claims.json, and the company sentence (F1)."""
+    n = numbers()
+    html = re.sub(r'(<span data-n="(\w+)">)[^<]*(</span>)', lambda m: f"{m[1]}{n[m[2]]:,}{m[3]}", html)
+    c = next(x for x in json.loads((ROOT / "near" / "claims" / "claims.json").read_text(encoding="utf-8"))["claims"] if x["name"] == "hyperloglog")
+    html = re.sub(r'(<span data-claim="(\w+)">)[^<]*(</span>)', lambda m: f"{m[1]}{site_product.e(c[m[2]])}{m[3]}", html)
+    return COMPANY_LINE.sub(company_line(), html)
+
+
 def main(site: str) -> int:
     out = Path(site)
-    door = (ROOT / "web" / "door.html").read_text(encoding="utf-8")
+    door = fill((ROOT / "web" / "door.html").read_text(encoding="utf-8"))
     door = door.replace("/*CLAIMS*/[]/*END*/", json.dumps(door_claims(), ensure_ascii=False).replace("</", "<\\/"))
     (out / "index.html").write_text(with_header(door, "", ""), encoding="utf-8")
     (out / "door.html").unlink(missing_ok=True)
-    near = (ROOT / "near" / "web" / "index.html").read_text(encoding="utf-8")
+    near = fill((ROOT / "near" / "web" / "index.html").read_text(encoding="utf-8"))
     near = near.replace('fetch("latest.json"', 'fetch("../near/latest.json"')
     # the wallet button's blank page (near/web/embed.html) needs the local NEAR server, so it is not published (S17-006)
     near = re.sub(r'<a href="embed\.html">[^<]*</a>', "", near)
@@ -220,6 +261,10 @@ def main(site: str) -> int:
     (out / "iris" / "index.html").write_text(redirect("../labs/", head), encoding="utf-8")
     site_product.HEADER_CSS = CSS
     made = site_product.write(out, header)
+    # the data files behind the pricing and status pages, published beside them (F4 new rule 12, F7 finding 1)
+    (out / "data").mkdir(exist_ok=True)
+    for name in ("pricing.json", "usage.json", "scorecard_summary.json"):
+        (out / "data" / name).write_bytes((DATA / name).read_bytes())
     (out / "tools.html").write_text(redirect("./", head), encoding="utf-8")   # linked from earlier posts: sends to the front door
     beacon(out)
     gone = sweep(out)

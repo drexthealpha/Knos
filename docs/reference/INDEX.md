@@ -330,7 +330,7 @@ its checks were still running when read. `checks` gives each count.
   after the week ends. A check run again later, a commit pushed after, or a check that had not started is not seen.
 - **The search asks for claim phrases.** "Sampled" is not every pull request the agent opened, so nothing here is a
   rate per pull request opened.
-- **A sample, not a census.** At most 30 draws a stratum, 210 an agent a week. Read the interval, not the share.
+- **A sample, not every case.** At most 30 draws a stratum, 210 an agent a week. Read the interval, not the share.
 - **A stratum above 2,000 results** cannot be drawn from its middle hours (`reachable` under `reported`).
 - **The file mixes designs.** Each row names its own (`design`); rows of different designs are not comparable, and
   the weeks added up are never ranked.

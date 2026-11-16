@@ -91,7 +91,7 @@ The documents in this folder are listed below, with the seven front pages too.
 | [DEMAND_CHECK.md](DEMAND_CHECK.md) | the demand check: what Qloo's taste data says about an idea, and the report it writes |
 | [REFUSE.md](REFUSE.md) | what Knos will not fund: the refuse list every Ready check applies |
 | [MCP_STORE.md](MCP_STORE.md) | Knos in AI assistants: the read-only app-store MCP and its tools, with their limits and privacy |
-| [OUTSIDE_TRUTH.md](OUTSIDE_TRUTH.md) | the demand check scored against outside truth: SBIR awards, crowdfunded launches, Census counts and film fans |
+| [OUTSIDE_TRUTH.md](OUTSIDE_TRUTH.md) | the demand check scored against outside truth: SBIR awards, crowdfunded launches, official US business counts and film fans |
 | [qloo_lift_ranked_plan.md](qloo_lift_ranked_plan.md) | The rules of the ranked test on a public dataset of crowdfunded product launches, committed before it ran |
 | [taste_truth_plan.md](taste_truth_plan.md) | The rules of the MovieLens taste test, committed before it ran |
 | [where_truth_plan.md](where_truth_plan.md) | The rules of the where-demand test, committed before it ran |
