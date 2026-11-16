@@ -39,7 +39,7 @@ pre { background: var(--paper-2); border: 1px solid var(--line); border-radius: 
 .fine { color: var(--ink-2); }
 footer { max-width: 760px; margin: 0 auto; padding: 16px; color: var(--ink-2); font-size: 16px; border-top: 1px solid var(--line); }
 footer a { color: var(--ink-2); display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; margin-right: 12px; }
-@media (max-width: 480px) { th, td { padding: 8px 4px; } #claims thead { display: none; } #claims tr { display: block; border-bottom: 1px solid var(--line); padding: 8px 0; } #claims td { display: block; border: 0; padding: 2px 0; text-align: left; } #claims td[data-behind]::before { content: "Behind it: "; font-weight: 600; } #claims td[data-truth]::before { content: "Does it hold? "; font-weight: 600; } #claims td[data-demand]::before { content: "100 behind it in 7 days? "; font-weight: 600; } }
+@media (max-width: 480px) { th, td { padding: 8px 4px; } #claims thead { display: none; } #claims tr { display: block; border-bottom: 1px solid var(--line); padding: 8px 0; } #claims td { display: block; border: 0; padding: 2px 0; text-align: left; } #claims td[data-behind]::before { content: "Backed with: "; font-weight: 600; } #claims td[data-truth]::before { content: "Does it hold? "; font-weight: 600; } #claims td[data-demand]::before { content: "100 behind it in 7 days? "; font-weight: 600; } }
 /* a 390 px phone: no text under 16 px, every link and control a 44 px tap target */
 @media (max-width: 460px) {
   main p a, main td a, main li a, main dd a { padding: 12px 0; margin: -12px 0; }
@@ -132,7 +132,7 @@ async function nearView(contract, method, args) {
   throw new Error(last);
 }
 async function sha256(bytes) { return [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))].map((b) => b.toString(16).padStart(2, "0")).join(""); }
-const thin = (m) => m.traders == null ? `${m.trades} trades` : `${m.traders} ${m.traders === 1 ? "trader" : "traders"}${m.traders < 5 ? ", too few to trust the price" : ""}`;
+const thin = (m) => m.traders == null ? `${m.trades} trades` : `${m.traders} ${m.traders === 1 ? "person has" : "people have"} traded${m.traders < 5 ? ", too few for the price to mean much" : ""}`;
 // jobs paid to agents: the jobs contract's own count, read from this browser (get_totals and get_agent_record, since its
 // 14 Nov 2026 upgrade; each pass of an agent is one job paid to it), else the hosted server's copy of the same read
 const AGENTS = ["agent-a", "agent-a2", "agent-b", "agent-b2"].map((a) => a + ".knos-swarm-1105.testnet");
@@ -147,11 +147,11 @@ async function jobsPaid() {
   }
 }
 function truthText(m, last) {
-  if (last) return `Holds: proved by its locked test (${last})`;
+  if (last) return `Yes, proved by a test locked before any work started (${last})`;
   if (!m) return "opens with the first check";
-  if (m.outcome === true) return "Holds: settled by the locked test";
-  if (m.outcome === false) return "Fails: settled by the locked test";
-  return `not proved yet: its first check runs the locked test (${thin(m)})`;
+  if (m.outcome === true) return "Yes, settled by a test locked before any work started";
+  if (m.outcome === false) return "No, settled by a test locked before any work started";
+  return `not proved yet: its first check runs a test locked before any work started (${thin(m)})`;
 }
 function demandText(m) {
   if (!m) return "opens soon";
@@ -169,10 +169,10 @@ def claims_page(header: str, cs: list[dict]) -> str:
     body = (f"<h1>Claims</h1>\n<p>Knos locks a test before any work starts, and test money moves to the agent that did the work only "
             f"if that test passes. Here the work is code that proves a paper's claim.</p>\n<p class=\"lead\">Every claim Knos can prove, each from a paper, each with a test locked on NEAR testnet. "
             f"Sorted by the test USDC behind each claim.</p>\n"
-            f'<table id="claims"><thead><tr><th>Claim</th><th class="n">Test USDC behind it</th><th>Does it hold?</th><th>100 behind it in 7 days?</th></tr></thead>\n<tbody>{rows}</tbody></table>\n'
+            f'<table id="claims"><thead><tr><th>Claim</th><th class="n">Backed with</th><th>Does it hold?</th><th>100 behind it in 7 days?</th></tr></thead>\n<tbody>{rows}</tbody></table>\n'
             f'<p class="fine">Each claim has two markets on NEAR testnet, their prices moving with each trade: whether it holds, '
             f'settled by its locked test, and whether 100 test USDC are put behind it within 7 days, settled by the '
-            f'record on NEAR. Test USDC behind it counts every amount the claim market recorded, Knos\'s own test account\'s '
+            f'record on NEAR. Backed with counts every payment the claim market recorded, Knos\'s own test account\'s '
             f'included; the last column counts outside accounts only.</p>\n'
             f'<p class="fine" id="as-of">Read live from NEAR testnet\'s public record.</p>\n'
             f'<h2>Tried on NEAR testnet, and refused</h2>\n<table><thead><tr><th>Attempt</th><th>What NEAR did</th><th>Record</th></tr></thead><tbody>'
@@ -180,11 +180,11 @@ def claims_page(header: str, cs: list[dict]) -> str:
             + '</tbody></table>\n<p class="fine">And in every live proof, agent B tries to spend over its cap and is refused. The contracts\' '
               '223 tests, 155 of them attacks, run on every change: <code>bash near/scripts/verify.sh</code>.</p>')
     script = LIVE_JS + """(async () => {
-  // the claim market's own record of what was put behind each claim (get_backed): its total and how many times
+  // the claim market's own record of what was put behind each claim (get_backed): its total and how many payments
   const b = await getJSON("/api/near/claims");
   const rows = [...document.querySelectorAll("#claims tbody tr")];
   for (const r of rows) { const m = (b && b.claims && b.claims[r.dataset.claim]) || {}, n = +m.proofs || 0, behind = +m.behind_usd || 0;
-    r.querySelector("[data-behind]").textContent = b ? `${usd(behind)} (${n.toLocaleString("en-US")} ${n === 1 ? "time" : "times"})` : "not read";
+    r.querySelector("[data-behind]").textContent = b ? `${usd(behind)}, in ${n.toLocaleString("en-US")} ${n === 1 ? "payment" : "payments"}` : "not read";
     r.querySelector("[data-truth]").textContent = b ? truthText(m.truth, m.last_proof) : "not read";
     r.querySelector("[data-demand]").textContent = b ? demandText(m.demand) : "not read"; r.dataset.usd = behind; }
   rows.sort((a, b) => (+b.dataset.usd || 0) - (+a.dataset.usd || 0)).forEach((r) => r.parentNode.append(r));
@@ -240,7 +240,7 @@ def claim_page(header: str, c: dict) -> str:
             '<p class="row"><button class="btn" id="verify" type="button">Check the test against NEAR</button> '
             '<button class="btn" id="tamper" type="button">Change one byte and check again</button></p>\n'
             '<p id="verdict" role="status"></p>\n'
-            '<h2>Its two markets on NEAR testnet</h2>\n<table><tbody><tr><th>Does it hold?</th><td><span id="truth">reading</span><span class="row" data-trade="truth"></span></td></tr>'
+            '<h2>What people predict, in test USDC</h2>\n<table><tbody><tr><th>Does it hold?</th><td><span id="truth">reading</span><span class="row" data-trade="truth"></span></td></tr>'
             '<tr><th>100 test USDC behind it within 7 days?</th><td><span id="demand">reading</span><span class="row" data-trade="demand"></span></td></tr></tbody></table>\n'
             '<p id="traded" role="status" class="fine"></p>\n'
             + usdc_section(c) +
@@ -359,15 +359,21 @@ def claim_page(header: str, c: dict) -> str:
 def agents_page(header: str) -> str:
     flow = (f'curl -X POST {HOSTED}/api/near/claim/flow -H "Content-Type: application/json" \\\n'
             '  -d \'{"url": "https://doi.org/10.46298/dmtcs.3545", "amount": 10}\'')
-    body = ("<h1>For agents</h1>\n<p>This page is for people who build software agents: your agent asks Knos to check a paper's "
-            "claim, and Knos answers with the verdict and the code that passed.</p>\n"
-            "<p class=\"lead\">One call proves a paper's claim on NEAR testnet: it reads the paper, runs the locked "
-            "test with test USDC held with the job and returns the verdict, the verified code and the receipt.</p>\n"
+    body = ("<h1>For agents</h1>\n<p>This page is for people who build software agents: your agent asks Knos whether a paper's "
+            "claim holds, and Knos answers yes or no with the code that proved it.</p>\n"
+            "<p class=\"lead\">Each answer comes from a test locked before any work started, run on NEAR testnet with test USDC "
+            "held with the job. No real money moves.</p>\n"
+            "<p>An answer takes 15 to 80 s when a job is ready and 1 to 2 min when one is not (checks on 14 Nov). Agents get 10 live "
+            "checks a day; after those Knos answers with the last verified proof.</p>\n"
+            "<h2>How it works</h2>\n<p>Your agent sends a paper's link and an amount of test USDC. Knos reads the paper and runs "
+            "the agents' code against the claim's locked test.</p>\n"
+            "<p>It answers yes or no with the code that passed, to download. Each transfer of test USDC comes with its link on NEAR.</p>\n"
+            "<p>Reading a claim is free. When the code passes, the jobs contract sends 9 parts of the test USDC to the agent "
+            "whose code passed and 1 part to Knos's test account.</p>\n"
             f"<h2>The call</h2>\n<pre>{e(flow)}</pre>\n"
             "<p>The answer holds <code>verdict.holds</code> (true or false), <code>cap.refused</code> (an agent's over-budget step "
             "refused on NEAR), <code>paid</code>, <code>settled</code>, <code>receipt</code> with each transfer's link, and <code>code</code>: "
-            "the verified code to download. It takes 15 to 80 s when a job is ready and 1 to 2 min when one is not (checks on 14 Nov). The agent call has its own 10 live proofs a day; after those it "
-            "answers with the last verified proof, marked <code>\"reused\": true</code>. <code>verdict.agent_a</code> says who wrote agent A's code: "
+            "the verified code to download. A reused proof is marked <code>\"reused\": true</code>. <code>verdict.agent_a</code> says who wrote agent A's code: "
             "the private model on NEAR AI Cloud, or agent A's fixed program when the model's code for that claim failed its locked test.</p>\n"
             "<h2>From a terminal</h2>\n"
             f"<pre>git clone {REPO} &amp;&amp; cd Knos\npython3 near/scripts/knos_prove.py https://doi.org/10.46298/dmtcs.3545 10</pre>\n"
@@ -402,13 +408,15 @@ def status_page(header: str) -> str:
             "<tr><th>Uptime</th><td id=\"up\">reading</td></tr>"
             "<tr><th>Visits, 7 days</th><td id=\"funnel\">reading</td></tr>"
             "</tbody></table>\n<h2>Accounts that keep the demo up</h2>\n<table id=\"bal\"><tbody><tr><td>reading</td></tr></tbody></table>\n"
-            "<p class=\"fine\">Each line is read now, from the hosted server, NEAR testnet and GitHub.</p>")
+            "<p class=\"fine\">Each line is read now, from the hosted server, NEAR testnet and GitHub.</p>\n"
+            "<details class=\"fine\"><summary>How jobs paid is read</summary><p>The jobs count adds up each agent's passes in the jobs "
+            "contract's <code>get_agent_record</code>; the money paid out is its <code>get_totals</code>.</p></details>")
     script = LIVE_JS + """(async () => {
   const [l, c, t] = await Promise.all([getJSON("/api/near/live"), getJSON("/api/near/claim/counters"), getJSON("/api/near/tests")]);
   $("svc").textContent = l ? (l.live ? "up, on NEAR testnet" : "up, live runs switched off") : "not answering";
   $("today").textContent = l ? `${l.used_today} of ${l.cap_today} on the page, ${l.agent_used_today ?? 0} of ${l.agent_cap_today ?? 0} for agents` : "not read";
-  $("rec").textContent = c && c.read_at ? `${c.proofs} transfers into Knos's fee account, many from Knos's own test account; ${usd(c.lost_usd)} lost; read ${c.read_at.replace("T", " ").replace("Z", " UTC")}` : "not read";
-  jobsPaid().then((j) => { $("jobs").textContent = j ? `${j.jobs} since the jobs contract's 14 Nov upgrade (its get_agent_record passes); ${usd(j.usd)} released by it for jobs opened since then, the agent's 9 parts and Knos's 1 part together (its get_totals)` : "not read"; });
+  $("rec").textContent = c && c.read_at ? `${c.proofs} transfers into Knos's fee account, many just Knos paying itself; ${usd(c.lost_usd)} lost; read ${c.read_at.replace("T", " ").replace("Z", " UTC")}` : "not read";
+  jobsPaid().then((j) => { $("jobs").textContent = j ? `${j.jobs} since the jobs contract's 14 Nov upgrade; ${usd(j.usd)} paid out by it for jobs opened since then, the agent's 9 parts and Knos's 1 part together` : "not read"; });
   $("ci").innerHTML = t && t.url ? `${t.passed ? "passed" : "failed"}, <a href="${t.url}">commit ${String(t.sha || "").slice(0, 8)}</a>` : "not read";
   // checks every 30 minutes by ledger.yml, kept on the gh-pages branch, so a restart cannot reset them
   fetch("https://raw.githubusercontent.com/drexthealpha/Knos/gh-pages/uptime.jsonl", { cache: "no-store" }).then((r) => r.ok ? r.text() : "").then((txt) => {
@@ -512,7 +520,7 @@ def llms_txt(cs: list[dict]) -> str:
         f"- [Prove]({base}prove/): run the check of a claim and get the verdict, the verified code and the receipt\n"
         f"- [For agents]({base}agents/): the one-call API and the terminal tool\n"
         f"- [For labs]({base}labs/): the same check inside InterSystems IRIS\n"
-        f"- [Check a PR]({base}check/): the pull request check, the same Knos built earlier on Solana devnet (Colosseum, tag v0.3.28)\n\n"
+        f"- [Check pull requests]({base}check/): the pull request check, the same Knos built earlier on Solana devnet (Colosseum, tag v0.3.28)\n\n"
         f"## Claims\n\n{claims_md}\n"
         f"## For agents\n\n`POST {HOSTED}/api/near/claim/flow` with `{call}`: the verdict, the code and the receipt.\n\n"
         f"## Optional\n\n- [Source]({REPO}): the repository, MIT licence\n")

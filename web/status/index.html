@@ -37,7 +37,7 @@ pre { background: var(--paper-2); border: 1px solid var(--line); border-radius: 
 .fine { color: var(--ink-2); }
 footer { max-width: 760px; margin: 0 auto; padding: 16px; color: var(--ink-2); font-size: 16px; border-top: 1px solid var(--line); }
 footer a { color: var(--ink-2); display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; margin-right: 12px; }
-@media (max-width: 480px) { th, td { padding: 8px 4px; } #claims thead { display: none; } #claims tr { display: block; border-bottom: 1px solid var(--line); padding: 8px 0; } #claims td { display: block; border: 0; padding: 2px 0; text-align: left; } #claims td[data-behind]::before { content: "Behind it: "; font-weight: 600; } #claims td[data-truth]::before { content: "Does it hold? "; font-weight: 600; } #claims td[data-demand]::before { content: "100 behind it in 7 days? "; font-weight: 600; } }
+@media (max-width: 480px) { th, td { padding: 8px 4px; } #claims thead { display: none; } #claims tr { display: block; border-bottom: 1px solid var(--line); padding: 8px 0; } #claims td { display: block; border: 0; padding: 2px 0; text-align: left; } #claims td[data-behind]::before { content: "Backed with: "; font-weight: 600; } #claims td[data-truth]::before { content: "Does it hold? "; font-weight: 600; } #claims td[data-demand]::before { content: "100 behind it in 7 days? "; font-weight: 600; } }
 /* a 390 px phone: no text under 16 px, every link and control a 44 px tap target */
 @media (max-width: 460px) {
   main p a, main td a, main li a, main dd a { padding: 12px 0; margin: -12px 0; }
@@ -57,7 +57,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
 <body>
 <header class="kh" id="kh">
   <a class="logo" href="../"><span class="mark" aria-hidden="true" style="--m: url(../brand/mark.svg)"></span>Knos</a>
-  <nav aria-label="Pages"><a href="../claims/">Claims</a><a href="../prove/">Prove</a><a href="../agents/">For agents</a><a href="../labs/">For labs (IRIS)</a><a href="../check/">Check a PR</a></nav>
+  <nav aria-label="Pages"><a href="../claims/">Claims</a><a href="../prove/">Prove</a><a href="../agents/">For agents</a><a href="../labs/">For labs (IRIS)</a><a href="../check/">Check pull requests</a></nav>
 </header>
 <main>
 <h1>Status</h1>
@@ -66,6 +66,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
 <h2>Accounts that keep the demo up</h2>
 <table id="bal"><tbody><tr><td>reading</td></tr></tbody></table>
 <p class="fine">Each line is read now, from the hosted server, NEAR testnet and GitHub.</p>
+<details class="fine"><summary>How jobs paid is read</summary><p>The jobs count adds up each agent's passes in the jobs contract's <code>get_agent_record</code>; the money paid out is its <code>get_totals</code>.</p></details>
 </main>
 <footer><span>NEAR testnet, test money, no customers yet.</span><br><span>The goal: Knos turns any research into a product billions of people use, in days, not years.</span><br><a href="https://github.com/drexthealpha/Knos">Source</a><a href="../pricing/">Pricing</a><a href="../status/">Status</a><a href="../privacy.html">Privacy</a></footer>
 <script>
@@ -101,7 +102,7 @@ async function nearView(contract, method, args) {
   throw new Error(last);
 }
 async function sha256(bytes) { return [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))].map((b) => b.toString(16).padStart(2, "0")).join(""); }
-const thin = (m) => m.traders == null ? `${m.trades} trades` : `${m.traders} ${m.traders === 1 ? "trader" : "traders"}${m.traders < 5 ? ", too few to trust the price" : ""}`;
+const thin = (m) => m.traders == null ? `${m.trades} trades` : `${m.traders} ${m.traders === 1 ? "person has" : "people have"} traded${m.traders < 5 ? ", too few for the price to mean much" : ""}`;
 // jobs paid to agents: the jobs contract's own count, read from this browser (get_totals and get_agent_record, since its
 // 14 Nov 2026 upgrade; each pass of an agent is one job paid to it), else the hosted server's copy of the same read
 const AGENTS = ["agent-a", "agent-a2", "agent-b", "agent-b2"].map((a) => a + ".knos-swarm-1105.testnet");
@@ -116,11 +117,11 @@ async function jobsPaid() {
   }
 }
 function truthText(m, last) {
-  if (last) return `Holds: proved by its locked test (${last})`;
+  if (last) return `Yes, proved by a test locked before any work started (${last})`;
   if (!m) return "opens with the first check";
-  if (m.outcome === true) return "Holds: settled by the locked test";
-  if (m.outcome === false) return "Fails: settled by the locked test";
-  return `not proved yet: its first check runs the locked test (${thin(m)})`;
+  if (m.outcome === true) return "Yes, settled by a test locked before any work started";
+  if (m.outcome === false) return "No, settled by a test locked before any work started";
+  return `not proved yet: its first check runs a test locked before any work started (${thin(m)})`;
 }
 function demandText(m) {
   if (!m) return "opens soon";
@@ -132,8 +133,8 @@ function demandText(m) {
   const [l, c, t] = await Promise.all([getJSON("/api/near/live"), getJSON("/api/near/claim/counters"), getJSON("/api/near/tests")]);
   $("svc").textContent = l ? (l.live ? "up, on NEAR testnet" : "up, live runs switched off") : "not answering";
   $("today").textContent = l ? `${l.used_today} of ${l.cap_today} on the page, ${l.agent_used_today ?? 0} of ${l.agent_cap_today ?? 0} for agents` : "not read";
-  $("rec").textContent = c && c.read_at ? `${c.proofs} transfers into Knos's fee account, many from Knos's own test account; ${usd(c.lost_usd)} lost; read ${c.read_at.replace("T", " ").replace("Z", " UTC")}` : "not read";
-  jobsPaid().then((j) => { $("jobs").textContent = j ? `${j.jobs} since the jobs contract's 14 Nov upgrade (its get_agent_record passes); ${usd(j.usd)} released by it for jobs opened since then, the agent's 9 parts and Knos's 1 part together (its get_totals)` : "not read"; });
+  $("rec").textContent = c && c.read_at ? `${c.proofs} transfers into Knos's fee account, many just Knos paying itself; ${usd(c.lost_usd)} lost; read ${c.read_at.replace("T", " ").replace("Z", " UTC")}` : "not read";
+  jobsPaid().then((j) => { $("jobs").textContent = j ? `${j.jobs} since the jobs contract's 14 Nov upgrade; ${usd(j.usd)} paid out by it for jobs opened since then, the agent's 9 parts and Knos's 1 part together` : "not read"; });
   $("ci").innerHTML = t && t.url ? `${t.passed ? "passed" : "failed"}, <a href="${t.url}">commit ${String(t.sha || "").slice(0, 8)}</a>` : "not read";
   // checks every 30 minutes by ledger.yml, kept on the gh-pages branch, so a restart cannot reset them
   fetch("https://raw.githubusercontent.com/drexthealpha/Knos/gh-pages/uptime.jsonl", { cache: "no-store" }).then((r) => r.ok ? r.text() : "").then((txt) => {

@@ -32,7 +32,7 @@ In that entry the proof was checked before any money moved. A milestone named it
 
 ## Try it in ten seconds
 
-Open [the front door](https://drexthealpha.github.io/Knos/), press **Try: HyperLogLog**, then **Prove it yourself**,
+Open [the front door](https://drexthealpha.github.io/Knos/), press **Sample question**, then **Prove it yourself**,
 and run the check with the test USDC you choose. Nothing to install and no sign-up ([Do this, see
 that](NEAR.md#do-this-see-that)).
 

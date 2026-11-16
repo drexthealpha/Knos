@@ -65,10 +65,10 @@ visitor and fails on memory.
 On the public pages (no install, no sign-in, no wallet, test money only):
 
 1. Open https://drexthealpha.github.io/Knos/ - see "Research takes 17 years to reach people (Morris, 2011).", "Ask
-   anything about research", "Every answer names the test that proved it.", the box, the button "Ask", "Try:
-   HyperLogLog" and "Checking one paper by hand: $330 to $763 (Perignon, citing Colliard)."
-2. Click "Try: HyperLogLog" (or ask a question of your own) - see on the same screen "Yes, the claim holds", the claim,
-   "Proved by its locked test test_hll.py, job-..." (its last proof on NEAR), "Prove it yourself" and "The claim", whose
+   anything about research", "Every answer names the test that proved it.", the box, the button "Ask", "Sample
+   question" and "Checking one paper by hand: $330 to $763 (Perignon, citing Colliard)."
+2. Click "Sample question" (or ask a question of your own) - see on the same screen "Yes, the claim holds", the claim,
+   "Proved by a test locked before any work started." with test_hll.py and job-... under it (its last proof on NEAR), "Prove it yourself" and "The claim", whose
    page shows the test file's sha256. Click that - the Prove page opens and reads the paper: "Check this claim now", "Test money: the test USDC you
    choose (1 to 100) is held with the job", the box "Test USDC held with the job:" holding 10 and the button "Run the
    check with 10 test USDC".
@@ -199,7 +199,7 @@ first tag; `hackathon-submission` is the submitted commit).
 The NEAR contract can pay a milestone out on Solana devnet through NEAR Chain Signatures
 ([Paid on Solana by Chain Signatures](#paid-on-solana-by-chain-signatures)).
 
-**Check a PR, built for Colosseum.** The [pull request checker](https://drexthealpha.github.io/Knos/check/) and its pay
+**Check pull requests, built for Colosseum.** The [pull request checker](https://drexthealpha.github.io/Knos/check/) and its pay
 step on Knos's programs on Solana devnet were built 14 Sep to 12 Oct 2026 for Colosseum (tag `v0.3.28`); they are not
 part of this NEAR entry. The NEAR work is the diff from `pre-hackathon` to `hackathon-submission`:
 https://github.com/drexthealpha/Knos/compare/pre-hackathon...hackathon-submission

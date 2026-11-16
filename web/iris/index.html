@@ -32,7 +32,7 @@
 .iris-page .iris-steps{font:500 13px/1.6 var(--mono,ui-monospace,monospace);background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:12px;margin:12px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
 .iris-page .iris-h2{font:600 var(--s2,20px)/1.2 var(--text);margin:20px 0 0}
 .iris-watch video{width:100%;height:auto;border-radius:12px;border:1px solid var(--line);background:#000}
-@media (max-width: 860px){.iris-grid{grid-template-columns:1fr}.iris-page{align-content:start}}
+@media (max-width: 860px){.iris-grid{grid-template-columns:1fr}.iris-page{align-content:start}.iris-watch{order:-1}}
 </style>
 <script>document.documentElement.classList.add("js");try { const t = localStorage.getItem("knos-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
 <link rel="preconnect" href="https://drexthealpha.github.io" crossorigin>
@@ -67,7 +67,9 @@
   <div class="iris-grid">
     <div>
       <h2>The same proof check, inside a lab: InterSystems IRIS</h2>
-      <p class="means">In IRIS, an AI Hub agent reads each test result and says met or not met; it cannot pay anyone (with no model key, a rules referee answers instead); a rule decides; above $50 a person must also say yes. It runs inside the lab's own data system (InterSystems IRIS).</p>
+      <p class="means">Each lab step's test result is checked against terms set before the work. A rule decides, and above $50 a person must also say yes. It runs inside the lab's own data system.</p>
+      <h3 class="iris-h2">How it decides</h3>
+      <p class="means">An AI Hub agent reads each test result and says met or not met; it cannot pay anyone (with no model key, a rules referee answers instead).</p>
       <h3 class="iris-h2">Install it</h3>
       <p class="means">Docker with about 4 GB free, no InterSystems login and no key: one command, on the public IRIS for Health Community image.</p>
       <pre class="iris-steps">git clone https://github.com/drexthealpha/Knos &amp;&amp; cd Knos/iris

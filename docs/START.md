@@ -22,7 +22,7 @@ The money is [test USDC](WORDS.md#test-usdc), which is worth nothing. No step ne
 
 ## 1. Check a paper's claim
 
-Open [the front door](https://drexthealpha.github.io/Knos/) and press **Try: HyperLogLog**. See "Yes, the claim
+Open [the front door](https://drexthealpha.github.io/Knos/) and press **Sample question**. See "Yes, the claim
 holds", the claim, its locked test with its sha256, and its proof.
 
 ## 2. Run the check yourself

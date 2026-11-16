@@ -66,7 +66,7 @@ const world = async (block = () => false, o = {}) => {
       words: [...document.querySelectorAll("h1, li, footer span")].map((e) => e.textContent.trim()),
       goTop: document.querySelector("main a.go")?.getBoundingClientRect().bottom,
     }));
-    check(`404: the product's one header at ${width}`, seen.logo === base && seen.nav.join("|") === "Claims|Prove|For agents|For labs (IRIS)|Check a PR", seen);
+    check(`404: the product's one header at ${width}`, seen.logo === base && seen.nav.join("|") === "Claims|Prove|For agents|For labs (IRIS)|Check pull requests", seen);
     check(`404: says the page is missing and offers the front door first at ${width}`, seen.h1 === "No page lives here" && seen.go === base && seen.goTop <= height, seen);
     check(`404: the vision line is labelled as the goal at ${width}`, /^The goal: /.test(seen.goal || ""), seen.goal);
     check(`404: the claims and the prices at ${width}`, seen.links.length === 2 && seen.links[0][1] === base + "claims/" && seen.links[1][1] === base + "pricing/", seen.links);

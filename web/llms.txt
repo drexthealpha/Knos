@@ -11,7 +11,7 @@ Knos locks a test before any work starts, and test money moves to the agent that
 - [Prove](https://drexthealpha.github.io/Knos/prove/): run the check of a claim and get the verdict, the verified code and the receipt
 - [For agents](https://drexthealpha.github.io/Knos/agents/): the one-call API and the terminal tool
 - [For labs](https://drexthealpha.github.io/Knos/labs/): the same check inside InterSystems IRIS
-- [Check a PR](https://drexthealpha.github.io/Knos/check/): the pull request check, the same Knos built earlier on Solana devnet (Colosseum, tag v0.3.28)
+- [Check pull requests](https://drexthealpha.github.io/Knos/check/): the pull request check, the same Knos built earlier on Solana devnet (Colosseum, tag v0.3.28)
 
 ## Claims
 

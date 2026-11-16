@@ -215,7 +215,7 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
   </section>
 
   <section class="facts" aria-label="Knos in numbers and in one call">
-    <p class="counters" id="counters">Live from NEAR testnet, in test dollars: <b id="c-proofs">reading</b> transfers into Knos's fee account, many of them from Knos's own test account, so money moving between Knos's own accounts; <b id="c-usd">reading</b> moved with them, agent shares included; <b id="c-lost">reading</b> lost (sent from Knos's test account, never arrived).<span id="c-at"></span> <a id="c-record" href="https://testnet.nearblocks.io/address/live.knos-swarm-1105.testnet">The public record</a></p>
+    <p class="counters" id="counters">Live from NEAR testnet: <b id="c-proofs">reading</b> transfers into Knos's fee account, many just Knos paying itself; <b id="c-usd">reading</b> moved with them, agent shares included; <b id="c-lost">reading</b> lost (sent from Knos's test account, never arrived).<span id="c-at"></span> <a id="c-record" href="https://testnet.nearblocks.io/address/live.knos-swarm-1105.testnet">The public record</a></p>
     <p><b>For agents:</b> one call runs it all and returns the verdict with its receipt:</p>
     <code class="snip">curl -X POST https://knos.onrender.com/api/near/claim/flow -H "Content-Type: application/json" -d '{"url": "https://doi.org/10.46298/dmtcs.3545", "amount": 10}'</code>
     <p><b>Safety:</b> the signing keys live only in the server's secret store, never in this page; the paper link is the only data you send; every push to main runs the full test suite; its latest finished run: <a id="tests-run" href="https://github.com/drexthealpha/Knos/actions/workflows/tests.yml">reading</a>. Knos has no token and no points.</p>
@@ -585,7 +585,7 @@ load();
       for (let n = 0; n < 6; n++) { await counters(); if ((+($("c-proofs").textContent) || 0) > was) return; await wait(3000); }
       return;
     }
-    const money = (n) => `$${(+n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const money = (n) => `${(+n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} test USDC`;   // test money: never a dollar sign
     const show = (c) => {
       // never a lower total than one already shown: two sources (the server's copy, the record read here) can disagree
       // for a while, and the higher one is the one with more of NEAR's own record in it

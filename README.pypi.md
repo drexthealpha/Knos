@@ -35,8 +35,9 @@ checks on 14 Nov ran the fixed program; the receipt and the release transaction 
 
 ### Judge it in 2 minutes
 
-1. Open https://drexthealpha.github.io/Knos/ and press **Try: HyperLogLog** - see "Yes, the claim holds" and "Proved by
-   its locked test test_hll.py, job-...". The test file's sha256 is one tap on: press **The claim** and see "The test
+1. Open https://drexthealpha.github.io/Knos/ and press **Sample question** - see "Yes, the claim holds" and "Proved by
+   a test locked before any work started.", with test_hll.py and its job under it. The test file's sha256 is one
+   tap on: press **The claim** and see "The test
    file's sha256, its fingerprint".
 2. Press **Prove it yourself**, then **Run the check with 10 test USDC** - see "1. The test is locked", "2. Two agents ran
    the paper’s result against the locked test", "3. The spending cap blocked an over-budget step" with NEAR's refusal,
