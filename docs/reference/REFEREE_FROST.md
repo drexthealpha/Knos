@@ -293,5 +293,7 @@ knos-oidc, and registering one is the attester's and the guardian's act on the r
 The 0.3.34 buffer `Dfo5pYRLY8z9yvuXDQjJQtaoqJeL7Atso8zhWy9Ehkfj` was written (with the build team's own devnet test SOL)
 and was never proposed. The knos_pay build that was proposed is proposal 13 (buffer
 `C7MrKvNU2yxMG5RJqzCkCDGowe5T1R69j3LXz3Qj1VdA`, build `e0160541…`, from commit `eb12d1be`): it has the 2 approvals the 2-of-3 multisig needs,
-executable since 11 Nov 2026, not executed ([web/upgrades.json](../../web/upgrades.json)). Both buffers' authority is the upgrade vault `CKCrTBN542pVhizxuSPVg8tvdnPooNxt9B7o97VuTjz2` (multisig
+executable since 11 Nov 2026, not executed ([web/upgrades.json](../../web/upgrades.json)).
+
+Both buffers' authority is the upgrade vault `CKCrTBN542pVhizxuSPVg8tvdnPooNxt9B7o97VuTjz2` (multisig
 `9HcsMEo2o6zZu9t1kbFWpnyKn7hiHaZYYFwNHZSpmWqK`).

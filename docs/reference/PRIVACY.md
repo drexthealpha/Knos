@@ -2,7 +2,9 @@
 
 A chain is public and permanent. Nothing written to it can be erased or corrected, and anyone can read it without
 asking. This page says, for each way of using Knos, what a stranger can learn, so a buyer can decide before the
-first order. This page covers the payment programs on Solana devnet, with test USDC; the NEAR testnet jobs contract
+first order.
+
+This page covers the payment programs on Solana devnet, with test USDC; the NEAR testnet jobs contract
 is not covered here.
 
 [SECURITY.md](SECURITY.md#12-private-repositories-exactly-what-the-chain-shows), section 12, holds the same facts

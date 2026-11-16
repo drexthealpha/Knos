@@ -129,6 +129,7 @@ submissions of the benchmark are checked against the rules too (none is refused)
 account that holds its money; `referee.wanted(orders, min_buyers=N, min_locked=X)` passes when N distinct buyers have
 X locked. Only orders with a
 held-money reference count (a pledge is shown and not counted), each buyer counts once, and the bar is set by whoever asks.
+
 Amounts are integers in the currency's smallest unit.
 
 ## Makeable

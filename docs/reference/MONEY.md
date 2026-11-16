@@ -2,7 +2,9 @@
 
 # Money: one fee config, graduation, splits, x402 and the revenue data
 
-**In plain words.** Every Knos fee on Solana lives in one file, and the code reads it from there; the NEAR contracts compile their own 1 part in 10. Today a check on NEAR testnet runs with test money held with the job: the jobs contract sends 9 parts to the agent whose code passed the locked test and keeps 1 part in 10 (`FEE_PARTS` in `near/contract/src/jobs.rs`). Nobody pays for a proof.
+**In plain words.** Every Knos fee on Solana lives in one file, and the code reads it from there; the NEAR contracts compile their own 1 part in 10.
+
+Today a check on NEAR testnet runs with test money held with the job: the jobs contract sends 9 parts to the agent whose code passed the locked test and keeps 1 part in 10 (`FEE_PARTS` in `near/contract/src/jobs.rs`). Nobody pays for a proof.
 
 The graduation code below is an earlier Solana devnet flow, kept and tested: when a claim passed, money for its next milestone and a pre-order pool were held until the milestone's checks passed, then paid out in fixed shares.
 

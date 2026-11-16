@@ -82,7 +82,7 @@ function answerHtml(r) {
     <dt>Failed: test, build, lint or type</dt><dd style="margin:0" class="k-num" id="check-test">${r.split.test.length}</dd>
     <dt>Failed: other checks</dt><dd style="margin:0" class="k-num" id="check-other">${r.split.other.length}</dd>
   </dl>${table}
-  <p class="verdict ${r.cls === "passed" ? "ok" : "bad"}" id="check-money">${r.cls === "passed" ? "Under Knos, the money would release: every check passed." : "Under Knos, the money would stay locked: GitHub does not show every check passing."}</p>
+  <p class="verdict ${r.cls === "passed" ? "ok" : "bad"}" id="check-money">${r.cls === "passed" ? "Under Knos, the money would release: every check passed." : "Under Knos, the money would stay locked: not every check passed."}</p>
   <p class="fine"><a href="${escHtml(r.url)}/checks" rel="noopener">Open its checks on GitHub</a></p>`;
 }
 

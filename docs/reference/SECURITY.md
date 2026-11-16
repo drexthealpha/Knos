@@ -15,7 +15,9 @@ and by the site's [upgrade record](https://drexthealpha.github.io/Knos/upgrades.
 
 Knos runs on NEAR testnet and Solana devnet, and the money is test USDC; this page covers the Solana devnet
 programs. **Nobody outside Knos has reviewed the security of
-anything here:** not the programs, the workflows, the relay, the clients, the site or these documents. What the
+anything here:** not the programs, the workflows, the relay, the clients, the site or these documents.
+
+What the
 programs guarantee about money, one sentence each with its test, is in [INVARIANTS.md](INVARIANTS.md); who can
 change the programs is in [GOVERNANCE.md](GOVERNANCE.md).
 
