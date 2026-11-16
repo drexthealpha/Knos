@@ -91,7 +91,7 @@ def test_the_limits_come_from_the_sandbox_settings():
     claims = json.loads((REPO / "near" / "claims" / "claims.json").read_text(encoding="utf-8"))["claims"]
     hll = next(c for c in claims if c["test"] == "test_hll.py")
     assert tool_run.limits() == {"max_lines": 100_000, "max_seconds": int(hll.get("timeout_s") or default)}
-    assert tool_run.CONF["checker_default_seconds"] == default      # data/runner.json follows the checker
+    assert tool_run.CONF["checker_default_seconds"] == default      # runner_conf.py follows the checker
 
 
 def test_the_exact_count_is_given_up_to_100000_lines():

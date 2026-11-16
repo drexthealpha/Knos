@@ -6,7 +6,7 @@ sits in front of it: one item per line in, Counter.count() out, and the exact co
 100,000 lines or fewer.
 
 It runs as the checker runs a locked test (near/agents/checker.py run_test): a temporary folder of its own,
-`python -E -s -B`, a time limit. The two limits come from one place, data/runner.json: the time limit is the one the
+`python -E -s -B`, a time limit. The two limits come from one place, runner_conf.py: the time limit is the one the
 checker uses for this claim (near/claims/claims.json timeout_s, else the checker's default), the line limit is set there
 because that sandbox had no input-size setting.
 
@@ -40,7 +40,7 @@ from pathlib import Path
 from . import tool_page, valley
 
 HERE = Path(__file__).parent
-CONF = json.loads((HERE / "data" / "runner.json").read_text(encoding="utf-8"))
+from .runner_conf import CONF
 TOOL_ID = CONF["tool"]
 TITLE = "Count the different items in a list"
 LINE = "For anyone with a long list who wants one quick count."
@@ -102,7 +102,7 @@ def solution_sha256() -> str:
 
 
 def max_seconds() -> int:
-    """The checker's time limit for this claim: claims.json timeout_s, else run_test's default (data/runner.json)."""
+    """The checker's time limit for this claim: claims.json timeout_s, else run_test's default (runner_conf.py)."""
     try:
         claims = json.loads((root() / "near" / "claims" / "claims.json").read_text(encoding="utf-8"))["claims"]
         c = next((c for c in claims if c.get("test") == CONF["claim_test"]), {})
