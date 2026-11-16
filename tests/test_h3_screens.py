@@ -19,7 +19,10 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 BROWSERS = "/opt/pw-browsers"
-EN = json.loads((ROOT / "web" / "i18n" / "en.json").read_text(encoding="utf-8"))["strings"]
+# each English message as the pages use it: its text, or its plural forms (en.json also holds a description and a
+# max_length for the translator, U7 R31)
+EN = {k: (v["text"] if "text" in v else {c: f for c, f in v.items() if c in ("zero", "one", "two", "few", "many", "other")}) if isinstance(v, dict) else v
+      for k, v in json.loads((ROOT / "web" / "i18n" / "en.json").read_text(encoding="utf-8"))["strings"].items()}
 
 
 @pytest.fixture(scope="module")

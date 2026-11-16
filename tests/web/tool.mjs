@@ -202,7 +202,7 @@ const mineState = await page.evaluate(() => {
     labels: [...document.querySelectorAll("#form label")].filter((l) => l.offsetParent).map((l) => l.textContent.trim()), ordered: order[0] < order[1] && order[1] <= order[2],
     limits: document.getElementById("limits").textContent };
 });
-check("A3: Use my data shows Choose a file, Which column? and the limit, in that order", mineState.file && mineState.col && mineState.ordered && mineState.labels.join("|") === "Choose a file|Or paste a table|Which column?" && mineState.value === "", mineState);
+check("A3: Use my data shows Choose a file, Which column? and the limit, in that order, each field with a visible label (U3.md:165)", mineState.file && mineState.col && mineState.ordered && mineState.labels.join("|") === "Choose a file|Or paste a table|Which column?|The rule|The limit" && mineState.value === "", mineState);
 check("A4: the screen states the two limits as numbers", mineState.limits === "Up to 100,000 rows. A run stops after 20 seconds.", mineState);
 await page.setInputFiles("#file", FILE2_PATH);
 await page.waitForFunction(() => document.getElementById("col").options.length > 1, null, { timeout: 5000 });

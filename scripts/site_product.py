@@ -563,6 +563,8 @@ def privacy_page(header: str) -> str:
             "The server keeps your file with its result page and link.",
             "Your own file is shown only to people with its link.",
             "Say yes to counting, and your browser keeps a random id.",
+            "With that yes, pages also send how fast they drew.",
+            "And whether your first table was the sample or your own.",
             "Without that yes, the server counts runs only as totals."]
     if usdc_market().get("live"):
         site += ["On a claim page, a NEAR sign-in library loads from esm.sh.",

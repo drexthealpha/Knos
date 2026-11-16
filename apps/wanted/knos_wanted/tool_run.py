@@ -57,7 +57,8 @@ ID = re.compile(r"[A-Za-z0-9_-]{8,64}")
 RID = re.compile(r"[A-Za-z0-9_-]{12}")
 RESULTS, BROWSERS, PRESSES, USAGE = "tool-results", "tool-browsers", "tool-presses", "tool-usage"
 FIELDS = ("tools_opened", "sample_runs", "own_runs", "results_opened_elsewhere", "test_payments", "link_previews", "connector_runs",
-          "test_payments_undone")
+          "test_payments_undone", "first_starter", "first_typed", "first_pasted")
+FIRST = ("starter", "typed", "pasted")     # where a browser's first action came from (first_action, U3 Rule 11)
 RULES = ("above", "below")
 
 READER = '''"""The reader in front of the released program: the run's four inputs in as JSON, its answer out."""
@@ -548,6 +549,20 @@ def undo(pid: str, key: str, payload: str, test: bool = False) -> dict:
 
 
 VITALS = ("lcp", "inp", "cls")
+SCREENS = ("door", "tool", "result", "price", "status")     # the five screens that send their speed
+
+
+def first_action(body: dict, test: bool = False) -> dict:
+    """The analytics event first_action (U3 Rule 11): whether a browser's first press of Try it ran the sample as it
+    stood (starter), a table typed into the box (typed), or one pasted or chosen from a file (pasted). The browser keeps it
+    and sends it once, only after its person said yes to being counted (its random id is required and not kept); it is
+    one count on the day's row, first_<source>."""
+    if body.get("event") != "first_action" or body.get("source") not in FIRST:
+        raise Refusal(400, {"error": "I count a first action only as starter, typed or pasted, so I counted nothing."})
+    if not (isinstance(body.get("browser"), str) and ID.fullmatch(body["browser"])):
+        raise Refusal(400, {"error": "I count first actions only from browsers whose person said yes to being counted, so I counted nothing."})
+    bump("first_" + body["source"], test)
+    return {"counted": True}
 
 
 def vitals(body: dict, test: bool = False) -> dict:
@@ -556,8 +571,8 @@ def vitals(body: dict, test: bool = False) -> dict:
     if not (isinstance(body.get("browser"), str) and ID.fullmatch(body["browser"])):
         raise Refusal(400, {"error": "I keep speed measures only from browsers whose person said yes to being counted, so I kept nothing."})
     screen = body.get("screen")
-    if screen not in ("tool", "result"):
-        raise Refusal(400, {"error": "I keep speed measures only for the tool page and the result page, so I kept nothing."})
+    if screen not in SCREENS:
+        raise Refusal(400, {"error": "I keep speed measures only for the front door, the tool, result, price and status pages, so I kept nothing."})
     got = {}
     for k, top in (("lcp", 120_000), ("inp", 60_000), ("cls", 100)):
         x = body.get(k)
@@ -624,7 +639,9 @@ def usage() -> dict:
                             "test payments recorded; connector_runs: runs through /mcp, sample or own file (never in sample_runs or own_runs). "
                             "test_days: the same counts for requests marked as Knos's own tests or WALK runs. measures: "
                             "own-data runs of browsers that said yes to being counted, test browsers left out. "
-                            "test_payments_undone: test payments taken back with Undo. vitals: per UTC day and screen, how "
+                            "test_payments_undone: test payments taken back with Undo. first_starter, first_typed, first_pasted: the "
+                            "first press of Try it of browsers that said yes to being counted, by where the table came from "
+                            "(the sample as it stood, typed, or pasted or chosen from a file). vitals: per UTC day and screen, how "
                             "many pages browsers that said yes to being counted measured, and the 75th percentile of their "
                             "largest paint (lcp, ms), slowest press (inp, ms) and layout shift (cls)",
             "tool_store": "the server's disk, which Render empties on every deploy: counts restart from that day"}
@@ -640,9 +657,47 @@ def _base(h) -> str:
     return tasks.public_base(h._base())
 
 
-def _html(h, code: int, text: str, cache: str = "no-store", lang: str = "en") -> None:
-    # the page's language follows ?lang= or Accept-Language (U7 R17), so a cache keeps one copy per language
-    h._send(code, text.encode("utf-8"), "text/html; charset=utf-8", {"Cache-Control": cache, "Vary": "Accept-Language", "Content-Language": lang})
+def _html(h, code: int, text: str, cache: str = "no-store", lang: str = "en", keep: bool = False) -> None:
+    # the page's language follows ?lang= or Accept-Language (U7 R17), so a cache keeps one copy per language; `keep` marks
+    # a page the offline worker (OFFLINE_SW) may keep for a visit with no network: a tool page or a sample's result, never
+    # a result from a person's own file
+    h._send(code, text.encode("utf-8"), "text/html; charset=utf-8", {"Cache-Control": cache, "Vary": "Accept-Language", "Content-Language": lang,
+                                                                     **({"X-Knos-Offline": "keep"} if keep else {})})
+
+
+# The tool and result pages with no network (LAWS UX U7.md R24): after one visit, a tool page or a sample's result opened
+# offline shows the page kept from that visit, not the browser's error page. The pages register it with the scope /t/ or
+# /r/. Network first; a page is kept only when the server marks it (X-Knos-Offline: keep), so a result from a person's
+# own file, an answer of /api/ and every other address are never kept. The copy of the page being opened is fetched
+# once at install with X-Knos-Offline-Copy, which no count takes.
+OFFLINE_SW = r"""const KEPT = "knos-tool-v1";
+const keep = (req, got) => got && got.ok && got.headers.get("X-Knos-Offline") === "keep" ? caches.open(KEPT).then((c) => c.put(req, got.clone())) : null;
+self.addEventListener("install", (e) => {
+  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((cs) => Promise.all(cs.map((c) => c.url)
+    .filter((u) => u.startsWith(self.registration.scope)).map((u) => fetch(u, { headers: { "X-Knos-Offline-Copy": "1" }, credentials: "same-origin" })
+      .then((got) => keep(new Request(u), got)).catch(() => null)))).then(() => self.skipWaiting()));
+});
+self.addEventListener("activate", (e) => {
+  e.waitUntil(Promise.all([
+    caches.keys().then((ks) => Promise.all(ks.filter((k) => k.startsWith("knos-tool-") && k !== KEPT).map((k) => caches.delete(k)))),
+  ]).then(() => self.clients.claim()));
+});
+self.addEventListener("fetch", (e) => {
+  const r = e.request;
+  if (r.method !== "GET" || r.mode !== "navigate" || new URL(r.url).origin !== self.location.origin) return;
+  e.respondWith((async () => {
+    try {
+      const got = await fetch(r);
+      const k = keep(r, got); if (k) e.waitUntil(k);
+      return got;
+    } catch (err) {
+      const kept = await caches.match(r, { ignoreVary: true });   // the copy is in the language it was opened in
+      if (kept) return kept;
+      throw err;
+    }
+  })());
+});
+"""
 
 
 def _lang(h, qs) -> str:
@@ -662,6 +717,8 @@ def _elsewhere(h) -> str | None:
 
 def handle_get(h, state, u, qs) -> bool:
     p = u.path
+    if p == "/tool-sw.js":
+        return h._send(200, OFFLINE_SW.encode("utf-8"), "text/javascript; charset=utf-8", {"Cache-Control": "no-cache"}) or True
     if p == "/api/tools":
         bump("tools_opened", _marked(h, qs))
         return h._send(200, tools_doc(), headers={"Cache-Control": "no-store"}) or True
@@ -672,8 +729,9 @@ def handle_get(h, state, u, qs) -> bool:
             return _html(h, 404, tool_page.missing(FRONT, _lang(h, qs)), lang=_lang(h, qs)) or True
         if not m.group(2):
             return h._send(301, b"", "text/plain", {"Location": f"/t/{t['id']}/" + (f"?{u.query}" if u.query else "")}) or True
-        bump("tools_opened", _marked(h, qs))
-        return _html(h, 200, tool_page.page(t, _base(h), front=FRONT, lang=_lang(h, qs), test=_marked(h, qs)), lang=_lang(h, qs)) or True
+        if not h.headers.get("X-Knos-Offline-Copy"):                 # the offline worker's copy is not a visit
+            bump("tools_opened", _marked(h, qs))
+        return _html(h, 200, tool_page.page(t, _base(h), front=FRONT, lang=_lang(h, qs), test=_marked(h, qs)), lang=_lang(h, qs), keep=True) or True
     m = re.fullmatch(r"/r/([A-Za-z0-9_-]{12})/(mark|qr\.png|print)", p)
     if m:                                                # H3 c and d: knos_wanted.result_extras
         from . import result_extras as rx
@@ -697,10 +755,10 @@ def handle_get(h, state, u, qs) -> bool:
         if not m.group(2):
             return h._send(301, b"", "text/plain", {"Location": f"/r/{rec['id']}/" + (f"?{u.query}" if u.query else "")}) or True
         why = _elsewhere(h)
-        if why:
+        if why and not h.headers.get("X-Knos-Offline-Copy"):          # the offline worker's copy is not an opening
             bump(why, _marked(h, qs))
         return _html(h, 200, tool_page.page(tool(rec["tool"]) or tool(TOOL_ID), _base(h), shape(rec, _base(h)), front=FRONT,
-                                            lang=_lang(h, qs), test=_marked(h, qs)), lang=_lang(h, qs)) or True
+                                            lang=_lang(h, qs), test=_marked(h, qs)), lang=_lang(h, qs), keep=rec["mode"] == "sample") or True
     m = re.fullmatch(r"/og/(t|r)/([A-Za-z0-9_-]{1,40})\.png", p)
     if m:
         if m.group(1) == "t":
@@ -786,7 +844,7 @@ def handle_post(h, state, path: str) -> bool:
     m = re.fullmatch(r"/t/([a-z0-9-]{1,40})/run", path)
     if m:
         return form_run(h, state, m.group(1))
-    if path not in ("/api/run", "/api/pay", "/api/vitals"):
+    if path not in ("/api/run", "/api/pay", "/api/vitals", "/api/first_action"):
         return False
     if not state.allow(h._client(), "tool" if path == "/api/run" else "tool_pay"):
         return h._send(429, {"error": "I have had a great many requests from your network in the last few minutes. Please wait a minute and try again."}) or True
@@ -797,6 +855,8 @@ def handle_post(h, state, path: str) -> bool:
             return h._send(200, run(body, h._client(), _base(h), test)) or True
         if path == "/api/vitals":
             return h._send(200, vitals(body, test)) or True
+        if path == "/api/first_action":
+            return h._send(200, first_action(body, test)) or True
         return h._send(200, pay(body, h._client(), test)) or True
     except Refusal as r:
         return h._send(r.code, r.body) or True

@@ -84,7 +84,7 @@ def test_every_language_file_has_every_key_its_placeholders_and_its_plural_forms
         for k, v in s.items():
             src = en[k] if isinstance(en[k], str) else en[k]["other"]
             forms = list(v.values()) if isinstance(v, dict) else [v]
-            assert all(f.strip() or k == "rs.sep" for f in forms), (lang, k)
+            assert all(f.strip() for f in forms), (lang, k)
             if isinstance(v, dict):
                 assert set(v) == CLDR[lang], (lang, k, sorted(v))
             for f in forms:

@@ -307,6 +307,9 @@ def og(page: str) -> dict:
 
 def outside_fold(page: str) -> str:
     body = re.sub(r"<details>.*?</details>|<script.*?</script>|<style>.*?</style>|<head>.*?</head>|<textarea.*?</textarea>", " ", page, flags=re.S)
+    # what is not shown: the language names laid out unseen (aria-hidden) and the parts that are hidden until a press
+    body = re.sub(r'<span class="klang-list kwarm" aria-hidden="true">.*?</span></span>', " ", body, flags=re.S)
+    body = re.sub(r"<(p|span|div|section)\b[^>]*\shidden\b[^>]*>.*?</\1>", " ", body, flags=re.S)
     return re.sub(r"<[^>]+>", " ", body)
 
 
@@ -319,7 +322,7 @@ def test_the_tool_page_has_its_tags_one_h1_and_plain_words(app):
     assert tags["description"] == "For anyone who tests batteries, motors, parts or machines." and words(tool_run.LINE) <= 12
     assert tags["image"].endswith("/og/t/limit-check.png")
     assert page.count("<h1") == 1 and ">Sample: made-up battery test<" in page and ">Try it<" in page and "<summary>How it works</summary>" in page
-    assert '<span id="colname"><bdi>capacity_ah</bdi></span>' in page and 'value="1.4"' in page and '<option value="above" selected>must stay above</option>' in page
+    assert '<span id="colname" data-user-content><bdi>capacity_ah</bdi></span>' in page and 'value="1.4"' in page and '<option value="above" selected>must stay above</option>' in page
     shown = outside_fold(page) + " " + " ".join(tags.values()).replace(tags["image"], "")
     for w in PLAIN:
         assert not re.search(rf"\b{w}\b", shown, re.I), w

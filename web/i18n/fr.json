@@ -17,7 +17,7 @@
  "strings": {
   "lang.label": "Langue",
   "menu": "Menu",
-  "goal": "L'objectif : que Knos transforme toute recherche en un produit utilisé par des milliards de personnes, en jours, pas en années.",
+  "goal": "L'objectif : que Knos fasse de toute recherche un produit utilisé par des milliards de gens, en jours, pas en années.",
   "nav.claims": "Affirmations",
   "nav.papers": "Articles",
   "nav.builders": "Bâtisseurs",
@@ -32,7 +32,7 @@
   "door.title": "Knos : vérifier un fichier d'essai par rapport à une limite",
   "door.headline": "Que pouvez-vous faire avec Knos ?",
   "tool.title": "Vérifier un fichier d'essai par rapport à une limite",
-  "tool.line": "Pour toute personne qui teste des batteries, des moteurs, des pièces ou des machines.",
+  "tool.line": "Pour qui teste des batteries, des moteurs, des pièces ou des machines.",
   "tool.sample_made_up": "Exemple : essai de batterie inventé",
   "tool.sample_nasa": "Exemple : essai de batterie de la NASA",
   "tool.choose_file": "Choisir un fichier",
@@ -61,15 +61,15 @@
   "work.still": "Toujours en attente du résultat du serveur de Knos",
   "work.secs": "{what}, {n} s",
   "stop": "Arrêter",
-  "err.empty": "Votre fichier est vide, je n'ai donc rien à vérifier pour l'instant. Choisissez un fichier ou collez un tableau, puis appuyez sur Essayer.",
+  "err.empty": "Votre fichier est vide, je n'ai donc rien à vérifier. Choisissez un fichier ou collez un tableau, puis appuyez sur Essayer.",
   "err.limit": "J'ai besoin de la limite sous forme de nombre, par exemple 1.4, avant de vérifier votre fichier. Saisissez-la, puis appuyez sur Essayer.",
   "err.stopped": "J'ai arrêté la vérification. Votre fichier est toujours dans la zone, vous pouvez donc le modifier ou réessayer.",
   "err.reach": "Je n'ai pas pu joindre le serveur de Knos. Il se réveille peut-être. Votre fichier est toujours dans la zone ; appuyez sur Réessayer dans un instant.",
   "err.none": "Je n'ai pas pu obtenir de résultat du serveur de Knos pour l'instant. Votre fichier est toujours dans la zone ; appuyez sur Réessayer dans un instant.",
   "err.too_big": {
-   "one": "Votre fichier est trop gros. La limite est de {n} ligne. J'ai gardé votre fichier dans la zone ; essayez-en un plus court.",
-   "many": "Votre fichier est trop gros. La limite est de {n} de lignes. J'ai gardé votre fichier dans la zone ; essayez-en un plus court.",
-   "other": "Votre fichier est trop gros. La limite est de {n} lignes. J'ai gardé votre fichier dans la zone ; essayez-en un plus court."
+   "one": "Votre fichier est trop gros. La limite est de {n} ligne. J'ai gardé votre fichier ; essayez-en un plus court.",
+   "many": "Votre fichier est trop gros. La limite est de {n} de lignes. J'ai gardé votre fichier ; essayez-en un plus court.",
+   "other": "Votre fichier est trop gros. La limite est de {n} lignes. J'ai gardé votre fichier ; essayez-en un plus court."
   },
   "err.too_long": {
    "one": "Cela a pris trop de temps et a été arrêté. Essayez un fichier plus petit. Je l'ai arrêté après {n} seconde et j'ai gardé votre fichier dans la zone.",
@@ -93,19 +93,18 @@
   "yes": "Oui",
   "no": "Non",
   "res.runs_left": {
-   "one": "Il reste {n} vérification",
-   "many": "Il reste {n} de vérifications",
-   "other": "Il reste {n} vérifications"
+   "one": "Reste {n} vérification",
+   "many": "Reste {n} de vérifications",
+   "other": "Reste {n} vérifications"
   },
   "res.free_left": {
-   "one": "Il reste {n} vérification gratuite aujourd'hui",
-   "many": "Il reste {n} de vérifications gratuites aujourd'hui",
-   "other": "Il reste {n} vérifications gratuites aujourd'hui"
+   "one": "{n} vérification gratuite ce jour",
+   "many": "{n} de vérifications gratuites ce jour",
+   "other": "{n} vérifications gratuites ce jour"
   },
   "chart.label": "Graphique des valeurs avec la limite",
   "chart.label_fail": "Graphique des valeurs avec la limite, la première ligne en échec marquée",
   "chart.row": "Ligne {r}",
-  "rs.sep": " ",
   "rs.fail_above": "Échec à la ligne {r} : {value} n'est pas au-dessus de {limit}.",
   "rs.fail_below": "Échec à la ligne {r} : {value} n'est pas en dessous de {limit}.",
   "rs.before": {
@@ -137,13 +136,13 @@
   "pay.go": "Payer avec de l'argent de test",
   "pay.not_now": "Pas maintenant",
   "pay.confirm": {
-   "one": "Ceci enregistre un paiement de test de {price} pour {n} vérification de plus. Rien n'est facturé.",
-   "many": "Ceci enregistre un paiement de test de {price} pour {n} de vérifications de plus. Rien n'est facturé.",
-   "other": "Ceci enregistre un paiement de test de {price} pour {n} vérifications de plus. Rien n'est facturé."
+   "one": "On enregistre un paiement test de {price} pour {n} vérification de plus. Rien n'est facturé.",
+   "many": "On enregistre un paiement test de {price} pour {n} de vérifications de plus. Rien n'est facturé.",
+   "other": "On enregistre un paiement test de {price} pour {n} vérifications de plus. Rien n'est facturé."
   },
   "pay.yes": "Oui, enregistrer",
   "pay.recording": "Enregistrement du paiement de test",
-  "pay.error": "Je n'ai pas pu enregistrer le paiement de test pour l'instant. Rien n'a été facturé. Appuyez à nouveau sur Oui, enregistrer dans un instant.",
+  "pay.error": "Je n'ai pas pu enregistrer le paiement de test pour l'instant. Rien n'a été facturé. Appuyez à nouveau sur Oui, enregistrer.",
   "how": "Comment ça marche",
   "price.sample": "L'exemple",
   "price.free": "Gratuit",
@@ -154,10 +153,10 @@
   "status.title": "État de Knos",
   "status.tools_opened": "Outil ouvert",
   "status.sample_runs": "Essais sur l'exemple",
-  "status.own_runs": "Vérifications de fichiers propres",
+  "status.own_runs": "Avec vos fichiers",
   "status.results_opened_elsewhere": "Résultats ouverts ailleurs",
   "status.test_payments": "Paiements de test",
-  "status.connector_runs": "Vérifications par le connecteur",
+  "status.connector_runs": "Par le connecteur",
   "status.day7_return": "Revenus le jour 7, pourcentage de navigateurs",
   "status.active_days": "Jours avec une vérification parmi les 7 premiers, moyenne",
   "status.paying_share": "Ont payé après les vérifications gratuites, pourcentage de navigateurs",
@@ -171,31 +170,31 @@
   "q.why": "Pourquoi le croire",
   "q.who": "Qui en répond",
   "a.tool.get": "Une phrase qui nomme la première ligne qui dépasse votre limite, ou dit que toutes ont réussi, avec un graphique et un lien vers elle.",
-  "a.tool.next": "Appuyez sur Essayer pour vérifier l'exemple. Pour votre propre fichier, appuyez sur Utiliser mes données et remplissez ses trois champs.",
+  "a.tool.next": "Appuyez sur Essayer pour vérifier l'exemple. Pour votre fichier, appuyez sur Utiliser mes données et remplissez ses trois champs.",
   "a.res.get": "Ce résultat : la phrase et le graphique ci-dessus, gardés au lien de cette page. Un résultat d'exemple est public ; celui de votre fichier n'est listé nulle part.",
-  "a.res.next": "Appuyez sur Copier le lien pour partager ce résultat, ou sur Utiliser mes données pour vérifier votre fichier.",
+  "a.res.next": "Copier le lien partage ce résultat ; Utiliser mes données vérifie votre propre fichier.",
   "a.pay": {
    "one": "L'exemple est gratuit. Vos fichiers : {free} vérifications gratuites par jour, puis {price} en argent de test pour {n} de plus, payé par vous après confirmation.",
    "many": "L'exemple est gratuit. Vos fichiers : {free} vérifications gratuites par jour, puis {price} en argent de test pour {n} de plus, payé par vous après confirmation.",
    "other": "L'exemple est gratuit. Vos fichiers : {free} vérifications gratuites par jour, puis {price} en argent de test pour {n} de plus, payé par vous après confirmation."
   },
   "a.why_released": {
-   "one": "Un test public de 7 fichiers aux réponses connues a réussi avant la publication ; le vérificateur de Knos l'a lancé. Non testé : fichiers de plus de {n} ligne.",
-   "many": "Un test public de 7 fichiers aux réponses connues a réussi avant la publication ; le vérificateur de Knos l'a lancé. Non testé : fichiers de plus de {n} de lignes.",
-   "other": "Un test public de 7 fichiers aux réponses connues a réussi avant la publication ; le vérificateur de Knos l'a lancé. Non testé : fichiers de plus de {n} lignes."
+   "one": "Un test public de 7 fichiers aux réponses connues a réussi avant la publication ; le vérificateur de Knos l'a lancé. Non testé : plus de {n} ligne.",
+   "many": "Un test public de 7 fichiers aux réponses connues a réussi avant la publication ; le vérificateur de Knos l'a lancé. Non testé : plus de {n} de lignes.",
+   "other": "Un test public de 7 fichiers aux réponses connues a réussi avant la publication ; le vérificateur de Knos l'a lancé. Non testé : plus de {n} lignes."
   },
   "a.why_unreleased": {
-   "one": "Un test public de 7 fichiers aux réponses connues doit réussir avant la publication ; le vérificateur de Knos le lance. Non testé : fichiers de plus de {n} ligne.",
-   "many": "Un test public de 7 fichiers aux réponses connues doit réussir avant la publication ; le vérificateur de Knos le lance. Non testé : fichiers de plus de {n} de lignes.",
-   "other": "Un test public de 7 fichiers aux réponses connues doit réussir avant la publication ; le vérificateur de Knos le lance. Non testé : fichiers de plus de {n} lignes."
+   "one": "Un test public de 7 fichiers aux réponses connues doit réussir avant la publication ; le vérificateur de Knos le lance. Non testé : plus de {n} ligne.",
+   "many": "Un test public de 7 fichiers aux réponses connues doit réussir avant la publication ; le vérificateur de Knos le lance. Non testé : plus de {n} de lignes.",
+   "other": "Un test public de 7 fichiers aux réponses connues doit réussir avant la publication ; le vérificateur de Knos le lance. Non testé : plus de {n} lignes."
   },
   "a.tool.who": "Knos fait tourner cet outil et son test. Aucune date n'est fixée pour la prochaine mise à jour. Pour contester un résultat, <a href=\"{issues}\">ouvrez un ticket sur GitHub</a>.",
   "a.price.get": {
-   "one": "{n} vérification de plus avec l'outil sur vos fichiers, une fois vos {free} vérifications gratuites du jour utilisées.",
-   "many": "{n} de vérifications de plus avec l'outil sur vos fichiers, une fois vos {free} vérifications gratuites du jour utilisées.",
-   "other": "{n} vérifications de plus avec l'outil sur vos fichiers, une fois vos {free} vérifications gratuites du jour utilisées."
+   "one": "{n} vérification de plus sur vos fichiers, une fois vos {free} vérifications gratuites du jour utilisées.",
+   "many": "{n} de vérifications de plus sur vos fichiers, une fois vos {free} vérifications gratuites du jour utilisées.",
+   "other": "{n} vérifications de plus sur vos fichiers, une fois vos {free} vérifications gratuites du jour utilisées."
   },
-  "a.price.next": "Utilisez l'outil. Quand vos vérifications gratuites sont finies, il affiche Payer avec de l'argent de test ; appuyez, puis confirmez.",
+  "a.price.next": "Utilisez l'outil. Après vos vérifications gratuites, il affiche Payer avec de l'argent de test ; appuyez et confirmez.",
   "a.price.pay": {
    "one": "{price} en argent de test pour {n} vérification, payé par vous, une fois, après confirmation. Rien n'est facturé aujourd'hui ; ni carte ni compte demandés.",
    "many": "{price} en argent de test pour {n} de vérifications, payé par vous, une fois, après confirmation. Rien n'est facturé aujourd'hui ; ni carte ni compte demandés.",
@@ -217,9 +216,9 @@
    "other": "Le test qui a montré que cela fonctionne vérifie six fichiers inventés aux réponses connues et l'exemple. Il ne couvrait pas les fichiers de plus de {n} lignes, ni ceux séparés par autre chose que des virgules. <a href=\"{url}\">Le test</a> est public."
   },
   "fold.price": {
-   "one": "Les vérifications de l'exemple sont gratuites. Avec votre propre fichier : {free} gratuites par jour, puis {n} vérification de plus pour {price} en argent de test. Aujourd'hui, rien n'est facturé.",
-   "many": "Les vérifications de l'exemple sont gratuites. Avec votre propre fichier : {free} gratuites par jour, puis {n} de vérifications de plus pour {price} en argent de test. Aujourd'hui, rien n'est facturé.",
-   "other": "Les vérifications de l'exemple sont gratuites. Avec votre propre fichier : {free} gratuites par jour, puis {n} vérifications de plus pour {price} en argent de test. Aujourd'hui, rien n'est facturé."
+   "one": "L'exemple est gratuit. Avec votre propre fichier : {free} gratuites par jour, puis {n} vérification de plus pour {price} en argent de test. Aujourd'hui, rien n'est facturé.",
+   "many": "L'exemple est gratuit. Avec votre propre fichier : {free} gratuites par jour, puis {n} de vérifications de plus pour {price} en argent de test. Aujourd'hui, rien n'est facturé.",
+   "other": "L'exemple est gratuit. Avec votre propre fichier : {free} gratuites par jour, puis {n} vérifications de plus pour {price} en argent de test. Aujourd'hui, rien n'est facturé."
   },
   "fold.built_released": "Qui l'a construit : des assistants d'IA ont écrit le programme via Knos, et il n'a été publié qu'après la réussite de ce test. <a href=\"{url}\">Le registre public</a>.",
   "fold.built_unreleased": "Qui le construit : des assistants d'IA écrivent le programme via Knos, et il n'est publié qu'une fois ce test réussi. Il n'est pas encore publié.",
@@ -251,9 +250,9 @@
   "ask.claim": "L'affirmation",
   "ask.none": "Rien de prouvé ne correspond encore",
   "ask.none_line": {
-   "one": "Knos a prouvé {n} affirmation sur NEAR testnet ; aucune ne porte sur « {q} ». Posez une question sur l'une d'elles, ou saisissez le lien d'un article.",
-   "many": "Knos a prouvé {n} d'affirmations sur NEAR testnet ; aucune ne porte sur « {q} ». Posez une question sur l'une d'elles, ou saisissez le lien d'un article.",
-   "other": "Knos a prouvé {n} affirmations sur NEAR testnet ; aucune ne porte sur « {q} ». Posez une question sur l'une d'elles, ou saisissez le lien d'un article."
+   "one": "Knos a prouvé {n} affirmation sur NEAR testnet ; aucune ne porte sur « {q} ». Interrogez-moi sur l'une d'elles, ou donnez le lien d'un article.",
+   "many": "Knos a prouvé {n} d'affirmations sur NEAR testnet ; aucune ne porte sur « {q} ». Interrogez-moi sur l'une d'elles, ou donnez le lien d'un article.",
+   "other": "Knos a prouvé {n} affirmations sur NEAR testnet ; aucune ne porte sur « {q} ». Interrogez-moi sur l'une d'elles, ou donnez le lien d'un article."
   },
   "ask.notwhat": "Ce n'est pas ce qu'il me faut",
   "ask.why": "Pourquoi, en un mot ? (facultatif)",
@@ -301,7 +300,7 @@
   },
   "ev.fail": "La ligne {r} de {column} contient {value}, comparée à {limit}.",
   "why.unknown": "Je n'ai pu comparer aucune ligne à la limite, car aucune valeur de {column} n'est un nombre.",
-  "next.pass": "Toutes les lignes ont réussi : vérifiez votre propre fichier avec Utiliser mes données.",
+  "next.pass": "Tout a réussi : vérifiez votre fichier avec Utiliser mes données.",
   "next.fail": "Ouvrez votre fichier à la ligne {r}, la première ligne qui a échoué.",
   "next.unknown": "Choisissez une colonne où chaque ligne contient un nombre, puis appuyez sur Essayer.",
   "work.rows": {
@@ -314,6 +313,7 @@
   "act.why": "Enregistré parce que vous avez appuyé sur Oui, enregistrer. Rien n'a été facturé.",
   "act.undo": "Annuler",
   "act.undone": "Le paiement de test est annulé. Rien n'a été facturé.",
-  "act.undo_error": "Je n'ai pas pu annuler le paiement de test, car certaines de ses exécutions sont déjà utilisées. Rien n'a été facturé."
+  "act.undo_error": "Je n'ai pas pu annuler le paiement de test, car certaines de ses exécutions sont déjà utilisées. Rien n'a été facturé.",
+  "offline.line": "Vous êtes hors ligne. Cette page a été gardée de votre dernière visite."
  }
 }

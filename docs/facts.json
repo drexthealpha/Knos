@@ -662,7 +662,9 @@
   {
    "say": [
     "$330",
-    "$763"
+    "$763",
+    "330",
+    "763"
    ],
    "what": "Perignon, citing Colliard and others, in the CRRESS book (session 6): exploiting economies of scale could lower a reproducibility service's average cost per paper from $763 to $330 (the front door's cost of checking one paper)",
    "source": "https://labordynamicsinstitute.github.io/crress-book/sessions/6/perignon/",

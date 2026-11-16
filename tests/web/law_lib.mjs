@@ -188,9 +188,10 @@ export const TAG_CONTROLS = () => {
 export const ARM = () => {
   window.__law = { t0: null, done: undefined, ev: [] };
   const L = window.__law;
+  try { sessionStorage.removeItem("lawDone"); } catch { /* none */ }
   const start = (ev) => { if (L.t0 === null) { L.t0 = ev.timeStamp; try { sessionStorage.setItem("lawT0", String(performance.timeOrigin + ev.timeStamp)); } catch { /* none */ } } };
   for (const t of ["pointerdown", "touchstart", "mousedown", "keydown"]) addEventListener(t, start, { capture: true, once: false });
-  const end = () => { if (L.t0 === null || L.done !== undefined || L.pending) return; L.pending = true; requestAnimationFrame(() => { L.done = performance.now() - L.t0; }); };
+  const end = () => { if (L.t0 === null || L.done !== undefined || L.pending) return; L.pending = true; requestAnimationFrame(() => { L.done = performance.now() - L.t0; try { sessionStorage.setItem("lawDone", String(L.done)); } catch { /* none */ } }); };
   new MutationObserver((ms) => { if (ms.some((m) => !(m.type === "attributes" && m.attributeName === "data-law-i"))) end(); }).observe(document, { subtree: true, childList: true, attributes: true, characterData: true });
   addEventListener("focusin", end, true); addEventListener("scroll", end, true); addEventListener("hashchange", end);
   try { new PerformanceObserver((l) => { for (const e of l.getEntries()) L.ev.push({ name: e.name, d: e.duration, at: e.startTime }); }).observe({ type: "event", durationThreshold: 16, buffered: false }); } catch { /* no event timing */ }
@@ -228,6 +229,9 @@ export async function measurePress(page, i, info, o = {}) {
         const at = p ? p.startTime : nav ? nav.domContentLoadedEventEnd : null; return t0 && at !== null && performance.timeOrigin > t0 - 5 ? performance.timeOrigin + at - t0 : null; }).catch(() => null);
       }
       page.off("framenavigated", onNav);
+      // a change the pressed page showed before the next page took over (a link's pressed look) is the first visible change
+      const before = await page.evaluate(() => { const d = sessionStorage.getItem("lawDone"); return d === null ? null : Number(d); }).catch(() => null);
+      if ((navigated || page.url() !== url0) && before !== null && (r === null || before < r)) return { ...base, ms: before, how: "new page, pressed look first" };
       if ((navigated || page.url() !== url0) && r !== null) return { ...base, ms: r, how: "new page" };
       if (navigated || page.url() !== url0) return { ...base, ms: Infinity, how: "new page, no paint time" };
     }

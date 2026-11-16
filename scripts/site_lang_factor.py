@@ -28,7 +28,8 @@ process.stdout.write(JSON.stringify(out));"""
 def texts(lang: str) -> list[str]:
     """Every string of a locale file (its _meta left out), a plural message by its "other" form."""
     strings = json.loads((I18N / f"{lang}.json").read_text(encoding="utf-8"))["strings"]
-    return [v.get("other", "") if isinstance(v, dict) else str(v) for v in strings.values()]
+    # an English message also holds its description and max_length, for the translator (U7 R31): only its text is read
+    return [(v["text"] if "text" in v else v.get("other", "")) if isinstance(v, dict) else str(v) for v in strings.values()]
 
 
 def factors() -> dict:

@@ -6,283 +6,1033 @@
   "status": "source text, written in English",
   "translated_by": "not translated: the source",
   "reviewed_by": "",
-  "note": "Every visible string of the front door, the tool page /t/<id>/, the result page /r/<id>/ and the pricing page. {name} is filled in; a value that is an object holds one form per plural category of the language (Intl.PluralRules), chosen by {n}."
+  "note": "Every visible string of the front door, the tool page /t/<id>/, the result page /r/<id>/, the pricing and the status pages. Each message holds its text (or, for a count, one form per plural category of the language, chosen by {n}), a description of where it appears and what it does, for the translator, and max_length, the longest a translation may be: IBM's allowance for the English length (U7 R5, R31). {name} is filled in."
  },
  "strings": {
-  "lang.label": "Language",
-  "menu": "Menu",
-  "goal": "The goal: Knos turns any research into a product billions of people use, in days, not years.",
-  "nav.claims": "Claims",
-  "nav.papers": "Papers",
-  "nav.builders": "Builders",
-  "nav.labs": "Labs",
-  "nav.prs": "Pull requests",
-  "nav.pricing": "Pricing",
-  "nav.status": "Status",
-  "nav.source": "Source",
-  "nav.privacy": "Privacy",
-  "foot.door": "Test money, no customers yet.",
-  "foot.pages": "Test money only, no customers yet.",
-  "door.title": "Knos: check a test file against a limit",
-  "door.headline": "What can you do with Knos?",
-  "tool.title": "Check a test file against a limit",
-  "tool.line": "For anyone who tests batteries, motors, parts or machines.",
-  "tool.sample_made_up": "Sample: made-up battery test",
-  "tool.sample_nasa": "Sample: NASA battery test",
-  "tool.choose_file": "Choose a file",
-  "tool.paste": "Or paste a table",
-  "tool.which": "Which column?",
-  "tool.rule_label": "The rule",
-  "tool.limit_label": "The limit",
-  "rule.above": "must stay above",
-  "rule.below": "must stay below",
-  "tool.try": "Try it",
-  "tool.checking": "Checking",
+  "lang.label": {
+   "text": "Language",
+   "description": "The language control at the top of every screen: the control's name.",
+   "max_length": 24
+  },
+  "menu": {
+   "text": "Menu",
+   "description": "The control at the foot of a page that opens the menu.",
+   "max_length": 12
+  },
+  "goal": {
+   "text": "The goal: Knos turns any research into a product billions of people use, in days, not years.",
+   "description": "The first line of the menu: the goal Knos works to.",
+   "max_length": 120
+  },
+  "nav.claims": {
+   "text": "Claims",
+   "description": "A link in the menu at the foot of the front door, pricing and status pages: to the page of claims.",
+   "max_length": 18
+  },
+  "nav.papers": {
+   "text": "Papers",
+   "description": "A link in the menu at the foot of the front door, pricing and status pages: to the page of papers.",
+   "max_length": 18
+  },
+  "nav.builders": {
+   "text": "Builders",
+   "description": "A link in the menu at the foot of the front door, pricing and status pages: to the page for builders.",
+   "max_length": 24
+  },
+  "nav.labs": {
+   "text": "Labs",
+   "description": "A link in the menu at the foot of the front door, pricing and status pages: to the page for labs.",
+   "max_length": 12
+  },
+  "nav.prs": {
+   "text": "Pull requests",
+   "description": "A link in the menu at the foot of the front door, pricing and status pages: to the page that checks pull requests.",
+   "max_length": 26
+  },
+  "nav.pricing": {
+   "text": "Pricing",
+   "description": "A link in the menu at the foot of the front door, pricing and status pages: to the pricing page.",
+   "max_length": 21
+  },
+  "nav.status": {
+   "text": "Status",
+   "description": "A link in the menu at the foot of the front door, pricing and status pages: to the status page.",
+   "max_length": 18
+  },
+  "nav.source": {
+   "text": "Source",
+   "description": "A link in the menu at the foot of the front door, pricing and status pages: to the source code on GitHub.",
+   "max_length": 18
+  },
+  "nav.privacy": {
+   "text": "Privacy",
+   "description": "A link in the menu at the foot of the front door, pricing and status pages: to the privacy page.",
+   "max_length": 21
+  },
+  "foot.door": {
+   "text": "Test money, no customers yet.",
+   "description": "The honesty line that heads the foot of a page: on the front door.",
+   "max_length": 53
+  },
+  "foot.pages": {
+   "text": "Test money only, no customers yet.",
+   "description": "The honesty line that heads the foot of a page: on the other pages.",
+   "max_length": 55
+  },
+  "door.title": {
+   "text": "Knos: check a test file against a limit",
+   "description": "The front door: the browser tab's title and the link preview's title.",
+   "max_length": 63
+  },
+  "door.headline": {
+   "text": "What can you do with Knos?",
+   "description": "The front door: the one heading at the top of the page.",
+   "max_length": 47
+  },
+  "tool.title": {
+   "text": "Check a test file against a limit",
+   "description": "The tool's form, on the front door and the tool page: the tool's name, a heading.",
+   "max_length": 53
+  },
+  "tool.line": {
+   "text": "For anyone who tests batteries, motors, parts or machines.",
+   "description": "The tool's form, on the front door and the tool page: the line under the tool's name, saying who it is for.",
+   "max_length": 82
+  },
+  "tool.sample_made_up": {
+   "text": "Sample: made-up battery test",
+   "description": "The tool's form, on the front door and the tool page: the label of the sample file when it is made up.",
+   "max_length": 51
+  },
+  "tool.sample_nasa": {
+   "text": "Sample: NASA battery test",
+   "description": "The tool's form, on the front door and the tool page: the label of the sample file when it is NASA's.",
+   "max_length": 45
+  },
+  "tool.choose_file": {
+   "text": "Choose a file",
+   "description": "The tool's form, on the front door and the tool page: the button that opens the file picker.",
+   "max_length": 26
+  },
+  "tool.paste": {
+   "text": "Or paste a table",
+   "description": "The tool's form, on the front door and the tool page: the label of the box to paste a table into.",
+   "max_length": 32
+  },
+  "tool.which": {
+   "text": "Which column?",
+   "description": "The tool's form, on the front door and the tool page: the label of the column field.",
+   "max_length": 26
+  },
+  "tool.rule_label": {
+   "text": "The rule",
+   "description": "The tool's form, on the front door and the tool page: the label of the rule list.",
+   "max_length": 24
+  },
+  "tool.limit_label": {
+   "text": "The limit",
+   "description": "The tool's form, on the front door and the tool page: the label of the limit field.",
+   "max_length": 27
+  },
+  "rule.above": {
+   "text": "must stay above",
+   "description": "An option of the tool's rule list, read after the column name: a value must be greater than the limit.",
+   "max_length": 30
+  },
+  "rule.below": {
+   "text": "must stay below",
+   "description": "An option of the tool's rule list, read after the column name: a value must be smaller than the limit.",
+   "max_length": 30
+  },
+  "tool.try": {
+   "text": "Try it",
+   "description": "The tool's form, on the front door and the tool page: the main button that runs the check.",
+   "max_length": 18
+  },
+  "tool.checking": {
+   "text": "Checking",
+   "description": "The tool's form, on the front door and the tool page: the main button's text while it runs.",
+   "max_length": 24
+  },
   "tool.lim_rows": {
    "one": "Up to {n} row.",
-   "other": "Up to {n} rows."
+   "other": "Up to {n} rows.",
+   "description": "The tool's form, on the front door and the tool page: the most rows a file may have. Keep {n} as written; it is filled in. One form per plural category of the language, chosen by {n}.",
+   "max_length": 30
   },
   "tool.lim_secs": {
    "one": "A run stops after {n} second.",
-   "other": "A run stops after {n} seconds."
+   "other": "A run stops after {n} seconds.",
+   "description": "The tool's form, on the front door and the tool page: the time limit of one run. Keep {n} as written; it is filled in. One form per plural category of the language, chosen by {n}.",
+   "max_length": 54
   },
-  "work.sending": "Sending your file to Knos",
-  "work.sending_pct": "Sending your file to Knos: {p}%",
-  "work.checking": "Checking your file on the Knos server",
-  "work.waking": "Waiting for Knos's server, which may be waking up",
-  "work.still": "Still waiting for the result from Knos's server",
-  "work.secs": "{what}, {n} s",
-  "stop": "Stop",
-  "err.empty": "Your file is empty, so I have nothing to check yet. Choose a file or paste a table, then press Try it.",
-  "err.limit": "I need the limit as a number, such as 1.4, before I can check your file. Please type it, then press Try it.",
-  "err.stopped": "I stopped the check. Your file is still in the box, so you can change it or try again.",
-  "err.reach": "I could not reach Knos's server. It may be waking up. Your file is still in the box, so press Try again in a moment.",
-  "err.none": "I could not get a result from Knos's server just now. Your file is still in the box, so press Try again in a moment.",
+  "work.sending": {
+   "text": "Sending your file to Knos",
+   "description": "The waiting line while the server checks a file: while the file is sent.",
+   "max_length": 45
+  },
+  "work.sending_pct": {
+   "text": "Sending your file to Knos: {p}%",
+   "description": "The waiting line while the server checks a file: while the file is sent, with the share sent. Keep {p} as written; it is filled in.",
+   "max_length": 50
+  },
+  "work.checking": {
+   "text": "Checking your file on the Knos server",
+   "description": "The waiting line while the server checks a file: while the server checks.",
+   "max_length": 60
+  },
+  "work.waking": {
+   "text": "Waiting for Knos's server, which may be waking up",
+   "description": "The waiting line while the server checks a file: while the server starts up.",
+   "max_length": 79
+  },
+  "work.still": {
+   "text": "Still waiting for the result from Knos's server",
+   "description": "The waiting line while the server checks a file: after a long wait.",
+   "max_length": 76
+  },
+  "work.secs": {
+   "text": "{what}, {n} s",
+   "description": "The waiting line while the server checks a file: the step's name and the seconds waited. Keep {n}, {what} as written; they are filled in.",
+   "max_length": 26
+  },
+  "stop": {
+   "text": "Stop",
+   "description": "The button that stops a run while it works.",
+   "max_length": 12
+  },
+  "err.empty": {
+   "text": "Your file is empty, so I have nothing to check yet. Choose a file or paste a table, then press Try it.",
+   "description": "An error shown in place of a result; it speaks as Knos, in the first person, and keeps the person's file: no file.",
+   "max_length": 133
+  },
+  "err.limit": {
+   "text": "I need the limit as a number, such as 1.4, before I can check your file. Please type it, then press Try it.",
+   "description": "An error shown in place of a result; it speaks as Knos, in the first person, and keeps the person's file: no limit typed.",
+   "max_length": 140
+  },
+  "err.stopped": {
+   "text": "I stopped the check. Your file is still in the box, so you can change it or try again.",
+   "description": "An error shown in place of a result; it speaks as Knos, in the first person, and keeps the person's file: the person stopped the run.",
+   "max_length": 112
+  },
+  "err.reach": {
+   "text": "I could not reach Knos's server. It may be waking up. Your file is still in the box, so press Try again in a moment.",
+   "description": "An error shown in place of a result; it speaks as Knos, in the first person, and keeps the person's file: the server did not answer.",
+   "max_length": 151
+  },
+  "err.none": {
+   "text": "I could not get a result from Knos's server just now. Your file is still in the box, so press Try again in a moment.",
+   "description": "An error shown in place of a result; it speaks as Knos, in the first person, and keeps the person's file: the server answered with no result.",
+   "max_length": 151
+  },
   "err.too_big": {
    "one": "Your file is too big. The limit is {n} row. I kept your file in the box; try a shorter one.",
-   "other": "Your file is too big. The limit is {n} rows. I kept your file in the box; try a shorter one."
+   "other": "Your file is too big. The limit is {n} rows. I kept your file in the box; try a shorter one.",
+   "description": "An error shown in place of a result; it speaks as Knos, in the first person, and keeps the person's file: the file has too many rows. Keep {n} as written; it is filled in. One form per plural category of the language, chosen by {n}.",
+   "max_length": 120
   },
   "err.too_long": {
    "one": "This took too long and was stopped. Try a smaller file. I stopped it after {n} second and kept your file in the box.",
-   "other": "This took too long and was stopped. Try a smaller file. I stopped it after {n} seconds and kept your file in the box."
+   "other": "This took too long and was stopped. Try a smaller file. I stopped it after {n} seconds and kept your file in the box.",
+   "description": "An error shown in place of a result; it speaks as Knos, in the first person, and keeps the person's file: the run took too long. Keep {n} as written; it is filled in. One form per plural category of the language, chosen by {n}.",
+   "max_length": 153
   },
-  "err.not_ready": "I cannot check files yet, because the program for this tool has not passed the test that decides it works. Please try again later.",
-  "err.bad": "I could not read your file with these settings. Check the column and the limit; your file is still in the box.",
-  "btn.retry": "Try again",
-  "btn.smaller": "Try a smaller file",
-  "btn.type_limit": "Type the limit",
-  "btn.back": "Back to my file",
-  "res.private": "Only people with this link can see it.",
-  "res.shown_by": "Checked by a test of 7 files with known answers.",
-  "res.mine": "Use my data",
-  "res.copy": "Copy link",
-  "res.copied": "Copied",
-  "res.by_hand": "I could not copy the link. Here it is, to copy by hand:",
-  "res.link_label": "The result's link",
-  "res.count_q": "Count my visits to help improve Knos?",
-  "yes": "Yes",
-  "no": "No",
+  "err.not_ready": {
+   "text": "I cannot check files yet, because the program for this tool has not passed the test that decides it works. Please try again later.",
+   "description": "An error shown in place of a result; it speaks as Knos, in the first person, and keeps the person's file: the tool's program has not passed its test yet.",
+   "max_length": 169
+  },
+  "err.bad": {
+   "text": "I could not read your file with these settings. Check the column and the limit; your file is still in the box.",
+   "description": "An error shown in place of a result; it speaks as Knos, in the first person, and keeps the person's file: the file cannot be read with these settings.",
+   "max_length": 143
+  },
+  "btn.retry": {
+   "text": "Try again",
+   "description": "A next-step button under an error: runs the same file again.",
+   "max_length": 27
+  },
+  "btn.smaller": {
+   "text": "Try a smaller file",
+   "description": "A next-step button under an error: goes back to the file to make it shorter.",
+   "max_length": 36
+  },
+  "btn.type_limit": {
+   "text": "Type the limit",
+   "description": "A next-step button under an error: goes to the limit field.",
+   "max_length": 28
+  },
+  "btn.back": {
+   "text": "Back to my file",
+   "description": "A next-step button under an error: goes back to the file in the box.",
+   "max_length": 30
+  },
+  "res.private": {
+   "text": "Only people with this link can see it.",
+   "description": "The result area, after a run: a result from the person's own file.",
+   "max_length": 61
+  },
+  "res.shown_by": {
+   "text": "Checked by a test of 7 files with known answers.",
+   "description": "The result area, after a run: the test that showed the tool works, a link.",
+   "max_length": 77
+  },
+  "res.mine": {
+   "text": "Use my data",
+   "description": "The result area, after a run: the button that opens the fields for the person's own file.",
+   "max_length": 22
+  },
+  "res.copy": {
+   "text": "Copy link",
+   "description": "The result area, after a run: the button that copies the result's link.",
+   "max_length": 27
+  },
+  "res.copied": {
+   "text": "Copied",
+   "description": "The result area, after a run: the button's text once the link is copied.",
+   "max_length": 18
+  },
+  "res.by_hand": {
+   "text": "I could not copy the link. Here it is, to copy by hand:",
+   "description": "The result area, after a run: when copying fails, before the link shown to copy by hand.",
+   "max_length": 77
+  },
+  "res.link_label": {
+   "text": "The result's link",
+   "description": "The result area, after a run: the name of the field that holds the link.",
+   "max_length": 34
+  },
+  "res.count_q": {
+   "text": "Count my visits to help improve Knos?",
+   "description": "The result area, after a run: the one question asking leave to count visits.",
+   "max_length": 60
+  },
+  "yes": {
+   "text": "Yes",
+   "description": "An answer button to the counting question.",
+   "max_length": 9
+  },
+  "no": {
+   "text": "No",
+   "description": "An answer button to the counting question.",
+   "max_length": 6
+  },
   "res.runs_left": {
    "one": "{n} run left",
-   "other": "{n} runs left"
+   "other": "{n} runs left",
+   "description": "The result area, after a run: runs left after a test payment. Keep {n} as written; it is filled in. One form per plural category of the language, chosen by {n}.",
+   "max_length": 26
   },
   "res.free_left": {
    "one": "{n} free run left today",
-   "other": "{n} free runs left today"
+   "other": "{n} free runs left today",
+   "description": "The result area, after a run: free runs left today. Keep {n} as written; it is filled in. One form per plural category of the language, chosen by {n}.",
+   "max_length": 44
   },
-  "chart.label": "Chart of the values with the limit",
-  "chart.label_fail": "Chart of the values with the limit, the first failing row marked",
-  "chart.row": "Row {r}",
-  "rs.sep": " ",
-  "rs.fail_above": "Failed at row {r}: {value} is not above {limit}.",
-  "rs.fail_below": "Failed at row {r}: {value} is not below {limit}.",
+  "chart.label": {
+   "text": "Chart of the values with the limit",
+   "description": "The chart of the result: its name read by screen readers.",
+   "max_length": 55
+  },
+  "chart.label_fail": {
+   "text": "Chart of the values with the limit, the first failing row marked",
+   "description": "The chart of the result: its name when a row failed.",
+   "max_length": 90
+  },
+  "chart.row": {
+   "text": "Row {r}",
+   "description": "The chart of the result: the mark on the first failing row. Keep {r} as written; it is filled in.",
+   "max_length": 21
+  },
+  "rs.fail_above": {
+   "text": "Failed at row {r}: {value} is not above {limit}.",
+   "description": "Part of the result sentence, built from the program's English sentence: a value was not above the limit. Keep {limit}, {r}, {value} as written; they are filled in.",
+   "max_length": 77
+  },
+  "rs.fail_below": {
+   "text": "Failed at row {r}: {value} is not below {limit}.",
+   "description": "Part of the result sentence, built from the program's English sentence: a value was not below the limit. Keep {limit}, {r}, {value} as written; they are filled in.",
+   "max_length": 77
+  },
   "rs.before": {
    "one": "It passed for the {n} rows before that.",
-   "other": "It passed for the {n} rows before that."
+   "other": "It passed for the {n} rows before that.",
+   "description": "Part of the result sentence, built from the program's English sentence: the rows that passed before it. Keep {n} as written; it is filled in. One form per plural category of the language, chosen by {n}.",
+   "max_length": 63
   },
   "rs.pass_above": {
    "one": "Passed: all {n} rows stay above {limit}.",
-   "other": "Passed: all {n} rows stay above {limit}."
+   "other": "Passed: all {n} rows stay above {limit}.",
+   "description": "Part of the result sentence, built from the program's English sentence: every row was above the limit. Keep {limit}, {n} as written; they are filled in. One form per plural category of the language, chosen by {n}.",
+   "max_length": 64
   },
   "rs.pass_below": {
    "one": "Passed: all {n} rows stay below {limit}.",
-   "other": "Passed: all {n} rows stay below {limit}."
+   "other": "Passed: all {n} rows stay below {limit}.",
+   "description": "Part of the result sentence, built from the program's English sentence: every row was below the limit. Keep {limit}, {n} as written; they are filled in. One form per plural category of the language, chosen by {n}.",
+   "max_length": 64
   },
   "rs.skipped": {
    "one": "{n} rows were skipped because they are not numbers.",
-   "other": "{n} rows were skipped because they are not numbers."
+   "other": "{n} rows were skipped because they are not numbers.",
+   "description": "Part of the result sentence, built from the program's English sentence: rows that held no number. Keep {n} as written; it is filled in. One form per plural category of the language, chosen by {n}.",
+   "max_length": 72
   },
   "pay.headline": {
    "one": "{n} more run for {price} in test money",
-   "other": "{n} more runs for {price} in test money"
+   "other": "{n} more runs for {price} in test money",
+   "description": "The pay screen the tool shows when the free runs are used up; the money is test money: the screen's heading. Keep {n}, {price} as written; they are filled in. One form per plural category of the language, chosen by {n}.",
+   "max_length": 63
   },
-  "pay.line": "Today this is test money. Nothing is charged.",
-  "pay.go": "Pay with test money",
-  "pay.not_now": "Not now",
+  "pay.line": {
+   "text": "Today this is test money. Nothing is charged.",
+   "description": "The pay screen the tool shows when the free runs are used up; the money is test money: the line under the heading.",
+   "max_length": 72
+  },
+  "pay.go": {
+   "text": "Pay with test money",
+   "description": "The pay screen the tool shows when the free runs are used up; the money is test money: the main button.",
+   "max_length": 38
+  },
+  "pay.not_now": {
+   "text": "Not now",
+   "description": "The pay screen the tool shows when the free runs are used up; the money is test money: the button that closes the screen.",
+   "max_length": 21
+  },
   "pay.confirm": {
    "one": "This records a {price} test payment for {n} more run. Nothing is charged.",
-   "other": "This records a {price} test payment for {n} more runs. Nothing is charged."
+   "other": "This records a {price} test payment for {n} more runs. Nothing is charged.",
+   "description": "The pay screen the tool shows when the free runs are used up; the money is test money: the confirm step before the payment is recorded. Keep {n}, {price} as written; they are filled in. One form per plural category of the language, chosen by {n}.",
+   "max_length": 97
   },
-  "pay.yes": "Yes, record it",
-  "pay.recording": "Recording the test payment",
-  "pay.error": "I could not record the test payment just now. Nothing was charged. Press Yes, record it again in a moment.",
-  "how": "How it works",
-  "price.sample": "The sample",
-  "price.free": "Free",
-  "theme.dark": "Dark theme",
-  "theme.light": "Light theme",
-  "res.change_limit": "Change the limit",
-  "work.bar": "Seconds waited",
-  "status.title": "Knos status",
-  "status.tools_opened": "Tool opened",
-  "status.sample_runs": "Sample runs",
-  "status.own_runs": "Own-file runs",
-  "status.results_opened_elsewhere": "Results opened elsewhere",
-  "status.test_payments": "Test payments",
-  "status.connector_runs": "Connector runs",
-  "status.day7_return": "Came back on day 7, percent of browsers",
-  "status.active_days": "Days with a run in the first 7, average",
-  "status.paying_share": "Paid after the free runs ran out, percent of browsers",
-  "status.too_few": "not enough browsers yet",
-  "status.when": "Counted to {at}, without Knos's own tests.",
-  "status.none": "No count has been read from Knos's server yet.",
-  "status.file": "The data file",
-  "q.get": "What you get",
-  "q.next": "What to do next",
-  "q.pay": "What you pay",
-  "q.why": "Why believe this",
-  "q.who": "Who is responsible",
-  "a.tool.get": "One sentence that names the first row breaking your limit, or says every row passed, with a chart and a link to it.",
-  "a.tool.next": "Press Try it to check the sample. For your own file, press Use my data and fill in its three boxes.",
-  "a.res.get": "This result: the sentence and chart above, kept at this page's link. A sample result is public; one from your own file is not listed.",
-  "a.res.next": "Press Copy link to share this result, or Use my data to check your own file.",
+  "pay.yes": {
+   "text": "Yes, record it",
+   "description": "The pay screen the tool shows when the free runs are used up; the money is test money: the confirm button.",
+   "max_length": 28
+  },
+  "pay.recording": {
+   "text": "Recording the test payment",
+   "description": "The pay screen the tool shows when the free runs are used up; the money is test money: while the payment is recorded.",
+   "max_length": 47
+  },
+  "pay.error": {
+   "text": "I could not record the test payment just now. Nothing was charged. Press Yes, record it again in a moment.",
+   "description": "The pay screen the tool shows when the free runs are used up; the money is test money: the payment could not be recorded.",
+   "max_length": 138
+  },
+  "how": {
+   "text": "How it works",
+   "description": "The name of the fold that explains how the tool works.",
+   "max_length": 24
+  },
+  "price.sample": {
+   "text": "The sample",
+   "description": "The pricing page: a row of the price table: the sample file.",
+   "max_length": 30
+  },
+  "price.free": {
+   "text": "Free",
+   "description": "The pricing page: the price of a run on the sample.",
+   "max_length": 12
+  },
+  "theme.dark": {
+   "text": "Dark theme",
+   "description": "The light and dark switch at the foot of a page: the switch's text when it turns the page dark.",
+   "max_length": 30
+  },
+  "theme.light": {
+   "text": "Light theme",
+   "description": "The light and dark switch at the foot of a page: the switch's text when it turns the page light.",
+   "max_length": 22
+  },
+  "res.change_limit": {
+   "text": "Change the limit",
+   "description": "The result area, after a run: the button to change the limit and run again.",
+   "max_length": 32
+  },
+  "work.bar": {
+   "text": "Seconds waited",
+   "description": "The waiting line while the server checks a file: the name of the progress bar of seconds waited.",
+   "max_length": 28
+  },
+  "status.title": {
+   "text": "Knos status",
+   "description": "The status page of counts: the browser tab's title.",
+   "max_length": 22
+  },
+  "status.tools_opened": {
+   "text": "Tool opened",
+   "description": "The status page of counts: a count: the tool opened.",
+   "max_length": 22
+  },
+  "status.sample_runs": {
+   "text": "Sample runs",
+   "description": "The status page of counts: a count: runs on the sample.",
+   "max_length": 22
+  },
+  "status.own_runs": {
+   "text": "Own-file runs",
+   "description": "The status page of counts: a count: runs on people's own files.",
+   "max_length": 26
+  },
+  "status.results_opened_elsewhere": {
+   "text": "Results opened elsewhere",
+   "description": "The status page of counts: a count: result links opened in another browser.",
+   "max_length": 44
+  },
+  "status.test_payments": {
+   "text": "Test payments",
+   "description": "The status page of counts: a count: test payments.",
+   "max_length": 26
+  },
+  "status.connector_runs": {
+   "text": "Connector runs",
+   "description": "The status page of counts: a count: runs through the connector.",
+   "max_length": 28
+  },
+  "status.day7_return": {
+   "text": "Came back on day 7, percent of browsers",
+   "description": "The status page of counts: a measure: browsers that came back on day 7.",
+   "max_length": 63
+  },
+  "status.active_days": {
+   "text": "Days with a run in the first 7, average",
+   "description": "The status page of counts: a measure: days with a run in the first week.",
+   "max_length": 63
+  },
+  "status.paying_share": {
+   "text": "Paid after the free runs ran out, percent of browsers",
+   "description": "The status page of counts: a measure: browsers that paid after the free runs.",
+   "max_length": 75
+  },
+  "status.too_few": {
+   "text": "not enough browsers yet",
+   "description": "The status page of counts: shown in place of a measure with too few browsers.",
+   "max_length": 42
+  },
+  "status.when": {
+   "text": "Counted to {at}, without Knos's own tests.",
+   "description": "The status page of counts: when the counts were read. Keep {at} as written; it is filled in.",
+   "max_length": 68
+  },
+  "status.none": {
+   "text": "No count has been read from Knos's server yet.",
+   "description": "The status page of counts: when no count could be read.",
+   "max_length": 74
+  },
+  "status.file": {
+   "text": "The data file",
+   "description": "The status page of counts: the link to the data file.",
+   "max_length": 26
+  },
+  "q.get": {
+   "text": "What you get",
+   "description": "A label of the five lines of the fold How it works, on the tool, result and pricing pages: what the person gets.",
+   "max_length": 24
+  },
+  "q.next": {
+   "text": "What to do next",
+   "description": "A label of the five lines of the fold How it works, on the tool, result and pricing pages: what to do next.",
+   "max_length": 30
+  },
+  "q.pay": {
+   "text": "What you pay",
+   "description": "A label of the five lines of the fold How it works, on the tool, result and pricing pages: what it costs.",
+   "max_length": 24
+  },
+  "q.why": {
+   "text": "Why believe this",
+   "description": "A label of the five lines of the fold How it works, on the tool, result and pricing pages: why to believe it.",
+   "max_length": 32
+  },
+  "q.who": {
+   "text": "Who is responsible",
+   "description": "A label of the five lines of the fold How it works, on the tool, result and pricing pages: who answers for it.",
+   "max_length": 36
+  },
+  "a.tool.get": {
+   "text": "One sentence that names the first row breaking your limit, or says every row passed, with a chart and a link to it.",
+   "description": "An answer line of the fold How it works: what the tool gives.",
+   "max_length": 150
+  },
+  "a.tool.next": {
+   "text": "Press Try it to check the sample. For your own file, press Use my data and fill in its three boxes.",
+   "description": "An answer line of the fold How it works: what to do on the tool.",
+   "max_length": 129
+  },
+  "a.res.get": {
+   "text": "This result: the sentence and chart above, kept at this page's link. A sample result is public; one from your own file is not listed.",
+   "description": "An answer line of the fold How it works: what this result page holds.",
+   "max_length": 173
+  },
+  "a.res.next": {
+   "text": "Press Copy link to share this result, or Use my data to check your own file.",
+   "description": "An answer line of the fold How it works: what to do with a result.",
+   "max_length": 99
+  },
   "a.pay": {
    "one": "Sample runs are free. Own files: {free} free runs a day, then {price} in test money for {n} more, paid by you after you confirm.",
-   "other": "Sample runs are free. Own files: {free} free runs a day, then {price} in test money for {n} more, paid by you after you confirm."
+   "other": "Sample runs are free. Own files: {free} free runs a day, then {price} in test money for {n} more, paid by you after you confirm.",
+   "description": "An answer line of the fold How it works: what the tool costs. Keep {free}, {n}, {price} as written; they are filled in. One form per plural category of the language, chosen by {n}.",
+   "max_length": 167
   },
   "a.why_released": {
    "one": "A public test of 7 files with known answers passed before release; Knos's checker ran it. Not tested: files over {n} row.",
-   "other": "A public test of 7 files with known answers passed before release; Knos's checker ran it. Not tested: files over {n} rows."
+   "other": "A public test of 7 files with known answers passed before release; Knos's checker ran it. Not tested: files over {n} rows.",
+   "description": "An answer line of the fold How it works: why to believe a released tool. Keep {n} as written; it is filled in. One form per plural category of the language, chosen by {n}.",
+   "max_length": 159
   },
   "a.why_unreleased": {
    "one": "A public test of 7 files with known answers must pass before release; Knos's checker runs it. Not tested: files over {n} row.",
-   "other": "A public test of 7 files with known answers must pass before release; Knos's checker runs it. Not tested: files over {n} rows."
+   "other": "A public test of 7 files with known answers must pass before release; Knos's checker runs it. Not tested: files over {n} rows.",
+   "description": "An answer line of the fold How it works: why the tool is not released yet. Keep {n} as written; it is filled in. One form per plural category of the language, chosen by {n}.",
+   "max_length": 164
   },
-  "a.tool.who": "Knos runs this tool and its test. No date is set for the next update. To challenge a result, <a href=\"{issues}\">open an issue on GitHub</a>.",
+  "a.tool.who": {
+   "text": "Knos runs this tool and its test. No date is set for the next update. To challenge a result, <a href=\"{issues}\">open an issue on GitHub</a>.",
+   "description": "An answer line of the fold How it works: who answers for the tool. Keep {issues} as written; it is filled in. Keep the link markup.",
+   "max_length": 182
+  },
   "a.price.get": {
    "one": "{n} more run of the tool on your own files, once your {free} free runs of the day are used.",
-   "other": "{n} more runs of the tool on your own files, once your {free} free runs of the day are used."
+   "other": "{n} more runs of the tool on your own files, once your {free} free runs of the day are used.",
+   "description": "An answer line of the fold How it works: what a pack of runs gives. Keep {free}, {n} as written; they are filled in. One form per plural category of the language, chosen by {n}.",
+   "max_length": 120
   },
-  "a.price.next": "Use the tool. When your free runs end, it shows Pay with test money; press it, then confirm.",
+  "a.price.next": {
+   "text": "Use the tool. When your free runs end, it shows Pay with test money; press it, then confirm.",
+   "description": "An answer line of the fold How it works: how to buy runs.",
+   "max_length": 120
+  },
   "a.price.pay": {
    "one": "{price} in test money for {n} run, paid by you, once, after you confirm. Nothing is charged today; no card or account is asked.",
-   "other": "{price} in test money for {n} runs, paid by you, once, after you confirm. Nothing is charged today; no card or account is asked."
+   "other": "{price} in test money for {n} runs, paid by you, once, after you confirm. Nothing is charged today; no card or account is asked.",
+   "description": "An answer line of the fold How it works: what a pack costs. Keep {n}, {price} as written; they are filled in. One form per plural category of the language, chosen by {n}.",
+   "max_length": 167
   },
-  "a.price.why": "Prices: untested starting values, marked so in the <a href=\"{url}\">pricing file</a>. The tool passed its <a href=\"{test}\">public test</a> before release; Knos's checker ran it.",
-  "a.price.who": "Knos delivers the runs; its checker ran the tool's test. No date is set for the next update. To challenge, <a href=\"{issues}\">open an issue on GitHub</a>.",
+  "a.price.why": {
+   "text": "Prices: untested starting values, marked so in the <a href=\"{url}\">pricing file</a>. The tool passed its <a href=\"{test}\">public test</a> before release; Knos's checker ran it.",
+   "description": "An answer line of the fold How it works: why to believe the prices. Keep {test}, {url} as written; they are filled in. Keep the link markup.",
+   "max_length": 229
+  },
+  "a.price.who": {
+   "text": "Knos delivers the runs; its checker ran the tool's test. No date is set for the next update. To challenge, <a href=\"{issues}\">open an issue on GitHub</a>.",
+   "description": "An answer line of the fold How it works: who answers for the runs. Keep {issues} as written; it is filled in. Keep the link markup.",
+   "max_length": 201
+  },
   "fold.sample_made_up": {
    "one": "The sample is made up: a straight line from {first} to {last} over {n} cycle, because NASA's page offers no download from a nasa.gov address. Its limit, {limit}, is the end-of-life rule on <a href=\"{url}\">NASA's battery data page</a>.",
-   "other": "The sample is made up: a straight line from {first} to {last} over {n} cycles, because NASA's page offers no download from a nasa.gov address. Its limit, {limit}, is the end-of-life rule on <a href=\"{url}\">NASA's battery data page</a>."
+   "other": "The sample is made up: a straight line from {first} to {last} over {n} cycles, because NASA's page offers no download from a nasa.gov address. Its limit, {limit}, is the end-of-life rule on <a href=\"{url}\">NASA's battery data page</a>.",
+   "description": "A line inside the fold How it works: where the made-up sample comes from. Keep {first}, {last}, {limit}, {n}, {url} as written; they are filled in. Keep the link markup. One form per plural category of the language, chosen by {n}.",
+   "max_length": 306
   },
-  "fold.sample_nasa": "Sample data: <a href=\"{url}\">NASA Prognostics Center of Excellence</a>.",
-  "fold.not_do": "It checks one column against one limit. It does not judge whether the limit is the right one. A row whose value is not a number is skipped and counted.",
-  "fold.file": "Your file goes to Knos's server, which checks it and keeps it with its result page, so the link works. A sample result can be opened by anyone. Your own file can be opened only by people who have its link, and it is never listed. The server keeps results only until it is next rebuilt, so a link can stop working.",
+  "fold.sample_nasa": {
+   "text": "Sample data: <a href=\"{url}\">NASA Prognostics Center of Excellence</a>.",
+   "description": "A line inside the fold How it works: the credit for NASA's sample data. Keep {url} as written; it is filled in. Keep the link markup.",
+   "max_length": 93
+  },
+  "fold.not_do": {
+   "text": "It checks one column against one limit. It does not judge whether the limit is the right one. A row whose value is not a number is skipped and counted.",
+   "description": "A line inside the fold How it works: what the tool does not do.",
+   "max_length": 197
+  },
+  "fold.file": {
+   "text": "Your file goes to Knos's server, which checks it and keeps it with its result page, so the link works. A sample result can be opened by anyone. Your own file can be opened only by people who have its link, and it is never listed. The server keeps results only until it is next rebuilt, so a link can stop working.",
+   "description": "A line inside the fold How it works: what happens to the person's file.",
+   "max_length": 407
+  },
   "fold.test": {
    "one": "The test that showed it works checks six made-up files with known answers and the sample. It did not cover files longer than {n} row, or files separated by anything other than commas. <a href=\"{url}\">The test</a> is public.",
-   "other": "The test that showed it works checks six made-up files with known answers and the sample. It did not cover files longer than {n} rows, or files separated by anything other than commas. <a href=\"{url}\">The test</a> is public."
+   "other": "The test that showed it works checks six made-up files with known answers and the sample. It did not cover files longer than {n} rows, or files separated by anything other than commas. <a href=\"{url}\">The test</a> is public.",
+   "description": "A line inside the fold How it works: what the tool's test covered. Keep {n}, {url} as written; they are filled in. Keep the link markup. One form per plural category of the language, chosen by {n}.",
+   "max_length": 292
   },
   "fold.price": {
    "one": "Runs on the sample are free. Runs on your own file: {free} free a day, then {n} more run for {price} in test money. Today nothing is charged.",
-   "other": "Runs on the sample are free. Runs on your own file: {free} free a day, then {n} more runs for {price} in test money. Today nothing is charged."
+   "other": "Runs on the sample are free. Runs on your own file: {free} free a day, then {n} more runs for {price} in test money. Today nothing is charged.",
+   "description": "A line inside the fold How it works: the prices in one line. Keep {free}, {n}, {price} as written; they are filled in. One form per plural category of the language, chosen by {n}.",
+   "max_length": 185
   },
-  "fold.built_released": "Who built it: AI helpers wrote the program through Knos, and it was released only when that test passed. <a href=\"{url}\">The public record</a>.",
-  "fold.built_unreleased": "Who built it: AI helpers write the program through Knos, and it is released only when that test passes. It has not been released yet.",
-  "fold.listen": "Listen",
-  "fold.embed": "Show this on your site",
-  "fold.embed_label": "One line of HTML to copy onto your site",
-  "fold.print": "Print",
-  "fold.mt": "This page was machine translated and has not been reviewed by a native speaker.",
-  "fold.original": "The program's own words, in English: {text}",
-  "embed.title": "A Knos result",
-  "ask.h": "Ask anything about research",
-  "ask.label": "Your question",
-  "ask.ph": "A question or a paper's link",
-  "ask.go": "Ask",
-  "ask.speak": "Speak",
-  "ask.listening": "Listening",
-  "ask.sample": "Sample question",
-  "ask.cost": "Checking one paper by hand: {low} to {high} (<a href=\"{url}\">Perignon, citing Colliard</a>).",
-  "ask.reading_near": "Reading NEAR testnet...",
-  "ask.closest": "Closest proved claim (not your exact question):",
-  "ask.holds_near": "It holds",
-  "ask.holds": "Yes, the claim holds",
-  "ask.fails": "No, the claim fails",
-  "ask.not_yet": "Not proved yet",
-  "ask.proved": "Proved by a test locked before any work started.",
-  "ask.locked": "Its test is locked before any work starts.",
-  "ask.behind": "{amount} test USDC from people outside Knos this week",
-  "ask.prove": "Prove it yourself",
-  "ask.claim": "The claim",
-  "ask.none": "Nothing proved matches yet",
+  "fold.built_released": {
+   "text": "Who built it: AI helpers wrote the program through Knos, and it was released only when that test passed. <a href=\"{url}\">The public record</a>.",
+   "description": "A line inside the fold How it works: who built the program, once released. Keep {url} as written; it is filled in. Keep the link markup.",
+   "max_length": 186
+  },
+  "fold.built_unreleased": {
+   "text": "Who built it: AI helpers write the program through Knos, and it is released only when that test passes. It has not been released yet.",
+   "description": "A line inside the fold How it works: who builds the program, before release.",
+   "max_length": 173
+  },
+  "fold.listen": {
+   "text": "Listen",
+   "description": "A line inside the fold How it works: the button that reads the result aloud.",
+   "max_length": 18
+  },
+  "fold.embed": {
+   "text": "Show this on your site",
+   "description": "A line inside the fold How it works: the button that shows the line to put the result on another site.",
+   "max_length": 40
+  },
+  "fold.embed_label": {
+   "text": "One line of HTML to copy onto your site",
+   "description": "A line inside the fold How it works: the name of the field with that line.",
+   "max_length": 63
+  },
+  "fold.print": {
+   "text": "Print",
+   "description": "A line inside the fold How it works: the button that prints the result.",
+   "max_length": 15
+  },
+  "fold.mt": {
+   "text": "This page was machine translated and has not been reviewed by a native speaker.",
+   "description": "A line inside the fold How it works: the note that the page is machine translated.",
+   "max_length": 103
+  },
+  "fold.original": {
+   "text": "The program's own words, in English: {text}",
+   "description": "A line inside the fold How it works: the program's own English sentence, quoted. Keep {text} as written; it is filled in.",
+   "max_length": 69
+  },
+  "embed.title": {
+   "text": "A Knos result",
+   "description": "The result as shown on another site: its title.",
+   "max_length": 26
+  },
+  "ask.h": {
+   "text": "Ask anything about research",
+   "description": "The question box below the tool on the front door, which answers from the proved claims: the box's heading.",
+   "max_length": 49
+  },
+  "ask.label": {
+   "text": "Your question",
+   "description": "The question box below the tool on the front door, which answers from the proved claims: the name of the question field.",
+   "max_length": 26
+  },
+  "ask.ph": {
+   "text": "A question or a paper's link",
+   "description": "The question box below the tool on the front door, which answers from the proved claims: the hint inside the empty field.",
+   "max_length": 51
+  },
+  "ask.go": {
+   "text": "Ask",
+   "description": "The question box below the tool on the front door, which answers from the proved claims: the button that sends the question.",
+   "max_length": 9
+  },
+  "ask.speak": {
+   "text": "Speak",
+   "description": "The question box below the tool on the front door, which answers from the proved claims: the button that takes the question by voice.",
+   "max_length": 15
+  },
+  "ask.listening": {
+   "text": "Listening",
+   "description": "The question box below the tool on the front door, which answers from the proved claims: that button's text while it listens.",
+   "max_length": 27
+  },
+  "ask.sample": {
+   "text": "Sample question",
+   "description": "The question box below the tool on the front door, which answers from the proved claims: the button that fills in a sample question.",
+   "max_length": 30
+  },
+  "ask.cost": {
+   "text": "Checking one paper by hand: {low} to {high} (<a href=\"{url}\">Perignon, citing Colliard</a>).",
+   "description": "The question box below the tool on the front door, which answers from the proved claims: the cost of checking a paper by hand, with its source. Keep {high}, {low}, {url} as written; they are filled in. Keep the link markup.",
+   "max_length": 120
+  },
+  "ask.reading_near": {
+   "text": "Reading NEAR testnet...",
+   "description": "The question box below the tool on the front door, which answers from the proved claims: while the proved claims are read.",
+   "max_length": 42
+  },
+  "ask.closest": {
+   "text": "Closest proved claim (not your exact question):",
+   "description": "The question box below the tool on the front door, which answers from the proved claims: before the closest proved claim.",
+   "max_length": 76
+  },
+  "ask.holds_near": {
+   "text": "It holds",
+   "description": "The question box below the tool on the front door, which answers from the proved claims: the claim holds, a short answer.",
+   "max_length": 24
+  },
+  "ask.holds": {
+   "text": "Yes, the claim holds",
+   "description": "The question box below the tool on the front door, which answers from the proved claims: the claim holds.",
+   "max_length": 40
+  },
+  "ask.fails": {
+   "text": "No, the claim fails",
+   "description": "The question box below the tool on the front door, which answers from the proved claims: the claim fails.",
+   "max_length": 38
+  },
+  "ask.not_yet": {
+   "text": "Not proved yet",
+   "description": "The question box below the tool on the front door, which answers from the proved claims: the claim is not proved yet.",
+   "max_length": 28
+  },
+  "ask.proved": {
+   "text": "Proved by a test locked before any work started.",
+   "description": "The question box below the tool on the front door, which answers from the proved claims: how the claim was proved.",
+   "max_length": 77
+  },
+  "ask.locked": {
+   "text": "Its test is locked before any work starts.",
+   "description": "The question box below the tool on the front door, which answers from the proved claims: when the claim's test was locked.",
+   "max_length": 68
+  },
+  "ask.behind": {
+   "text": "{amount} test USDC from people outside Knos this week",
+   "description": "The question box below the tool on the front door, which answers from the proved claims: test money people outside Knos put behind the claim. Keep {amount} as written; it is filled in.",
+   "max_length": 75
+  },
+  "ask.prove": {
+   "text": "Prove it yourself",
+   "description": "The question box below the tool on the front door, which answers from the proved claims: the link to prove the claim yourself.",
+   "max_length": 34
+  },
+  "ask.claim": {
+   "text": "The claim",
+   "description": "The question box below the tool on the front door, which answers from the proved claims: the label of the claim.",
+   "max_length": 27
+  },
+  "ask.none": {
+   "text": "Nothing proved matches yet",
+   "description": "The question box below the tool on the front door, which answers from the proved claims: no proved claim matches.",
+   "max_length": 47
+  },
   "ask.none_line": {
    "one": "Knos has proved {n} claim on NEAR testnet; none is about \"{q}\". Ask about one of them, or enter a paper's link.",
-   "other": "Knos has proved {n} claims on NEAR testnet; none is about \"{q}\". Ask about one of them, or enter a paper's link."
+   "other": "Knos has proved {n} claims on NEAR testnet; none is about \"{q}\". Ask about one of them, or enter a paper's link.",
+   "description": "The question box below the tool on the front door, which answers from the proved claims: no proved claim matches, with what to do. Keep {n}, {q} as written; they are filled in. One form per plural category of the language, chosen by {n}.",
+   "max_length": 146
   },
-  "ask.notwhat": "Not what I need",
-  "ask.why": "Why, in a word? (optional)",
-  "ask.why_label": "Why, in a word",
-  "ask.thanks": "Thanks.",
-  "ask.noted": "Noted.",
-  "ask.reading_paper": "Reading the paper... {s} s",
-  "ask.not_read": "Not read",
-  "ask.no_answer": "Knos's server did not answer, so the paper was not read. It may be waking up.",
-  "ask.cannot": "Knos cannot prove this paper yet",
-  "ask.person": "Today a person checks it: {checker}. Price: {price_text}. Time: {time}.",
-  "ask.someone": "someone who reruns it",
-  "ask.unpublished": "not published",
-  "ask.source": "Source",
-  "price.title": "Knos pricing",
-  "price.h": "Pricing",
-  "price.sample_free": "Runs on the sample are free.",
-  "price.own": "Your own file",
+  "ask.notwhat": {
+   "text": "Not what I need",
+   "description": "The question box below the tool on the front door, which answers from the proved claims: the button to say the answer is not what was needed.",
+   "max_length": 30
+  },
+  "ask.why": {
+   "text": "Why, in a word? (optional)",
+   "description": "The question box below the tool on the front door, which answers from the proved claims: the hint of the field for a one-word reason.",
+   "max_length": 47
+  },
+  "ask.why_label": {
+   "text": "Why, in a word",
+   "description": "The question box below the tool on the front door, which answers from the proved claims: the name of that field.",
+   "max_length": 28
+  },
+  "ask.thanks": {
+   "text": "Thanks.",
+   "description": "The question box below the tool on the front door, which answers from the proved claims: after the reason is sent.",
+   "max_length": 21
+  },
+  "ask.noted": {
+   "text": "Noted.",
+   "description": "The question box below the tool on the front door, which answers from the proved claims: after the button is pressed.",
+   "max_length": 18
+  },
+  "ask.reading_paper": {
+   "text": "Reading the paper... {s} s",
+   "description": "The question box below the tool on the front door, which answers from the proved claims: while a paper is read. Keep {s} as written; it is filled in.",
+   "max_length": 47
+  },
+  "ask.not_read": {
+   "text": "Not read",
+   "description": "The question box below the tool on the front door, which answers from the proved claims: the paper was not read.",
+   "max_length": 24
+  },
+  "ask.no_answer": {
+   "text": "Knos's server did not answer, so the paper was not read. It may be waking up.",
+   "description": "The question box below the tool on the front door, which answers from the proved claims: the server did not answer.",
+   "max_length": 101
+  },
+  "ask.cannot": {
+   "text": "Knos cannot prove this paper yet",
+   "description": "The question box below the tool on the front door, which answers from the proved claims: the paper cannot be proved yet.",
+   "max_length": 52
+  },
+  "ask.person": {
+   "text": "Today a person checks it: {checker}. Price: {price_text}. Time: {time}.",
+   "description": "The question box below the tool on the front door, which answers from the proved claims: who checks the paper today, the price and the time. Keep {checker}, {price_text}, {time} as written; they are filled in.",
+   "max_length": 93
+  },
+  "ask.someone": {
+   "text": "someone who reruns it",
+   "description": "The question box below the tool on the front door, which answers from the proved claims: the checker when no name is known.",
+   "max_length": 38
+  },
+  "ask.unpublished": {
+   "text": "not published",
+   "description": "The question box below the tool on the front door, which answers from the proved claims: a price or time that is not published.",
+   "max_length": 26
+  },
+  "ask.source": {
+   "text": "Source",
+   "description": "The question box below the tool on the front door, which answers from the proved claims: the link to the paper.",
+   "max_length": 18
+  },
+  "price.title": {
+   "text": "Knos pricing",
+   "description": "The pricing page: the browser tab's title.",
+   "max_length": 24
+  },
+  "price.h": {
+   "text": "Pricing",
+   "description": "The pricing page: the page's heading.",
+   "max_length": 21
+  },
+  "price.sample_free": {
+   "text": "Runs on the sample are free.",
+   "description": "The pricing page: a line saying sample runs cost nothing.",
+   "max_length": 51
+  },
+  "price.own": {
+   "text": "Your own file",
+   "description": "The pricing page: a row of the price table: the person's own file.",
+   "max_length": 26
+  },
   "price.free_day": {
    "one": "{n} free a day, in each browser",
-   "other": "{n} free a day, in each browser"
+   "other": "{n} free a day, in each browser",
+   "description": "The pricing page: the free runs a day. Keep {n} as written; it is filled in. One form per plural category of the language, chosen by {n}.",
+   "max_length": 50
   },
-  "price.after": "After those",
-  "price.f1": "No study gave these prices. They are starting values to be tested, and each one is in <a href=\"{url}\">the pricing file</a> with that mark.",
-  "price.f2": "When your free runs are used up, the tool shows one screen with the price. Pressing Pay with test money records a test payment on Knos's own server. No card and no account are needed.",
-  "price.f3": "The fees for checking a paper's claim are on <a href=\"{url}\">a page of their own</a>.",
-  "nf.title": "Not found",
-  "nf.h": "I cannot find this page",
-  "nf.p": "I have nothing at this address. A result may have been cleared when the Knos server was updated.",
-  "nf.link": "Open the Knos tool and check a file",
+  "price.after": {
+   "text": "After those",
+   "description": "The pricing page: the row after the free runs.",
+   "max_length": 22
+  },
+  "price.f1": {
+   "text": "No study gave these prices. They are starting values to be tested, and each one is in <a href=\"{url}\">the pricing file</a> with that mark.",
+   "description": "The pricing page: where the prices come from. Keep {url} as written; it is filled in. Keep the link markup.",
+   "max_length": 180
+  },
+  "price.f2": {
+   "text": "When your free runs are used up, the tool shows one screen with the price. Pressing Pay with test money records a test payment on Knos's own server. No card and no account are needed.",
+   "description": "The pricing page: how the pay screen works.",
+   "max_length": 238
+  },
+  "price.f3": {
+   "text": "The fees for checking a paper's claim are on <a href=\"{url}\">a page of their own</a>.",
+   "description": "The pricing page: where the fees for checking a claim are. Keep {url} as written; it is filled in. Keep the link markup.",
+   "max_length": 111
+  },
+  "nf.title": {
+   "text": "Not found",
+   "description": "The page shown for an address that does not exist: the browser tab's title.",
+   "max_length": 27
+  },
+  "nf.h": {
+   "text": "I cannot find this page",
+   "description": "The page shown for an address that does not exist: the page's heading.",
+   "max_length": 42
+  },
+  "nf.p": {
+   "text": "I have nothing at this address. A result may have been cleared when the Knos server was updated.",
+   "description": "The page shown for an address that does not exist: why the page is missing.",
+   "max_length": 125
+  },
+  "nf.link": {
+   "text": "Open the Knos tool and check a file",
+   "description": "The page shown for an address that does not exist: the link back to the tool.",
+   "max_length": 56
+  },
   "res.cut": {
    "one": "Showing the first {shown} of {n} line.",
-   "other": "Showing the first {shown} of {n} lines."
+   "other": "Showing the first {shown} of {n} lines.",
+   "description": "The result area, after a run: when a long file is shown cut short. Keep {n}, {shown} as written; they are filled in. One form per plural category of the language, chosen by {n}.",
+   "max_length": 63
   },
-  "v.pass": "Passed",
-  "v.fail": "Failed",
-  "v.unknown": "Cannot tell",
-  "rs.unknown": "I cannot tell: no row held a number.",
+  "v.pass": {
+   "text": "Passed",
+   "description": "The verdict word beside the result's icon: every row passed.",
+   "max_length": 18
+  },
+  "v.fail": {
+   "text": "Failed",
+   "description": "The verdict word beside the result's icon: a row failed.",
+   "max_length": 18
+  },
+  "v.unknown": {
+   "text": "Cannot tell",
+   "description": "The verdict word beside the result's icon: Knos cannot tell.",
+   "max_length": 22
+  },
+  "rs.unknown": {
+   "text": "I cannot tell: no row held a number.",
+   "description": "Part of the result sentence, built from the program's English sentence: no row held a number.",
+   "max_length": 58
+  },
   "ev.pass": {
    "one": "{n} row of {column}, compared with {limit}.",
-   "other": "{n} rows of {column}, each compared with {limit}."
+   "other": "{n} rows of {column}, each compared with {limit}.",
+   "description": "The evidence line under the verdict: the rows compared. Keep {column}, {limit}, {n} as written; they are filled in. One form per plural category of the language, chosen by {n}.",
+   "max_length": 79
   },
-  "ev.fail": "Row {r} of {column} holds {value}, compared with {limit}.",
-  "why.unknown": "I could not compare any row with the limit, because no value in {column} is a number.",
-  "next.pass": "Every row passed: check your own file with Use my data.",
-  "next.fail": "Open your file at row {r}, the first row that failed.",
-  "next.unknown": "Pick a column where each row holds a number, then press Try it.",
+  "ev.fail": {
+   "text": "Row {r} of {column} holds {value}, compared with {limit}.",
+   "description": "The evidence line under the verdict: the row that failed. Keep {column}, {limit}, {r}, {value} as written; they are filled in.",
+   "max_length": 80
+  },
+  "why.unknown": {
+   "text": "I could not compare any row with the limit, because no value in {column} is a number.",
+   "description": "The reason line of a result Knos cannot tell: no value in the column is a number. Keep {column} as written; it is filled in.",
+   "max_length": 111
+  },
+  "next.pass": {
+   "text": "Every row passed: check your own file with Use my data.",
+   "description": "The next step line under a verdict: after a pass.",
+   "max_length": 77
+  },
+  "next.fail": {
+   "text": "Open your file at row {r}, the first row that failed.",
+   "description": "The next step line under a verdict: after a fail. Keep {r} as written; it is filled in.",
+   "max_length": 75
+  },
+  "next.unknown": {
+   "text": "Pick a column where each row holds a number, then press Try it.",
+   "description": "The next step line under a verdict: after a result Knos cannot tell.",
+   "max_length": 89
+  },
   "work.rows": {
    "one": "{n} row to check",
-   "other": "{n} rows to check"
+   "other": "{n} rows to check",
+   "description": "The waiting line while the server checks a file: the rows the run will check, shown at once. Keep {n} as written; it is filled in. One form per plural category of the language, chosen by {n}.",
+   "max_length": 34
   },
-  "err.column": "I could not find a column called {column} in your file. The columns I found are {names}. Pick one, then press Try it.",
-  "btn.column": "Choose the column",
-  "act.why": "Recorded because you pressed Yes, record it. Nothing was charged.",
-  "act.undo": "Undo",
-  "act.undone": "The test payment is undone. Nothing was charged.",
-  "act.undo_error": "I could not undo the test payment, because some of its runs are already used. Nothing was charged."
+  "err.column": {
+   "text": "I could not find a column called {column} in your file. The columns I found are {names}. Pick one, then press Try it.",
+   "description": "An error shown in place of a result; it speaks as Knos, in the first person, and keeps the person's file: the column asked for is not in the file. Keep {column}, {names} as written; they are filled in.",
+   "max_length": 153
+  },
+  "btn.column": {
+   "text": "Choose the column",
+   "description": "A next-step button under an error: goes to the column field.",
+   "max_length": 34
+  },
+  "act.why": {
+   "text": "Recorded because you pressed Yes, record it. Nothing was charged.",
+   "description": "The line after a test payment: why it was recorded.",
+   "max_length": 91
+  },
+  "act.undo": {
+   "text": "Undo",
+   "description": "The line after a test payment: the button that takes the payment back.",
+   "max_length": 12
+  },
+  "act.undone": {
+   "text": "The test payment is undone. Nothing was charged.",
+   "description": "The line after a test payment: after it is taken back.",
+   "max_length": 77
+  },
+  "act.undo_error": {
+   "text": "I could not undo the test payment, because some of its runs are already used. Nothing was charged.",
+   "description": "The line after a test payment: when it cannot be taken back.",
+   "max_length": 128
+  },
+  "offline.line": {
+   "text": "You are offline. This page was kept from your last visit.",
+   "description": "A line under the tool's name, shown only when the page was opened with no network and is the copy kept from the last visit.",
+   "max_length": 80
+  }
  }
 }

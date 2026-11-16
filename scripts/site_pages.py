@@ -183,6 +183,9 @@ SCREEN_CSS = (".kh .logo { cursor: default; }\n"
               "a.k-going { opacity: .6; cursor: progress; }\n"
               ".klang-list.kwarm { display: block; position: absolute; visibility: hidden; inline-size: 1px; block-size: 1px; overflow: hidden; padding: 0; border: 0; }\n"
               ".klang-list.kwarm > span { position: absolute; inset-inline-start: 0; inset-block-start: 0; }\n"
+              # below the first screen, laid out only when it comes near the screen (U1 R5, U7 R22: on a cheap phone the first
+              # paint waits for the layout of the whole page, and in Hindi and Arabic shaping that text is most of it)
+              "#ask-box, body > footer { content-visibility: auto; contain-intrinsic-size: auto 480px; }\n"
               ":root:lang(hi) p, :root:lang(hi) li, :root:lang(hi) dd { line-height: 1.85; }\n"
               ":root:lang(ar) p, :root:lang(ar) li, :root:lang(ar) dd { line-height: 1.6; }\n")
 
@@ -252,8 +255,8 @@ BEACON = """<script>
     for (const [k, re] of kinds)
       if (!seenText.has(k) && re.test(t)) { seenText.add(k); send(k); } }, 1500);   // a light check, off the press path
   // real visitors' timings (U1 R22): the largest paint, each press's event time and layout shifts, and in-page screen
-  // changes where the browser reports them; kept in this page only (window.knosVitals): nothing is sent until the privacy
-  // page names it and the server's speed record (POST /api/vitals) takes these screens
+  // changes where the browser reports them (window.knosVitals); on the front door, the price and the status page, sent once
+  // when the page is left (POST /api/vitals), only from a browser whose person said yes to being counted
   const vit = { lcp: 0, inp: 0, cls: 0, soft: 0, icp: 0 };
   const watch = (type, f, o) => { try { if ((PerformanceObserver.supportedEntryTypes || []).includes(type)) new PerformanceObserver((l) => l.getEntries().forEach(f)).observe({ type, buffered: true, ...(o || {}) }); } catch { /* not measured here */ } };
   watch("largest-contentful-paint", (e) => { vit.lcp = Math.round(e.startTime); });
@@ -262,7 +265,13 @@ BEACON = """<script>
   watch("soft-navigation", () => { vit.soft++; });
   watch("interaction-contentful-paint", (e) => { vit.icp = Math.max(vit.icp, Math.round(e.startTime)); });
   window.knosVitals = vit;
-  addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") send("leave", { s: Math.round((Date.now() - t0) / 1000) }); });
+  const screen = { "/": "door", "/index.html": "door", "/pricing/": "price", "/status/": "status" }[page];
+  let measured = false;
+  addEventListener("visibilitychange", () => { if (document.visibilityState !== "hidden") return; send("leave", { s: Math.round((Date.now() - t0) / 1000) });
+    let yes = false, id = ""; try { yes = localStorage.getItem("knos.count") === "yes"; id = localStorage.getItem("knos.browser") || ""; } catch { /* no storage */ }
+    if (measured || !screen || !yes || !id || !navigator.sendBeacon) return; measured = true;
+    const test = navigator.webdriver === true || new URLSearchParams(location.search).has("knos_test");
+    navigator.sendBeacon(H + "/api/vitals", new Blob([JSON.stringify({ screen, lcp: vit.lcp, inp: vit.inp, cls: vit.cls, browser: id, test })], { type: "text/plain" })); });
 })();
 </script>
 """

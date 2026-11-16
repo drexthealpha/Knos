@@ -97,7 +97,6 @@
   "chart.label": "Chati ya thamani pamoja na kikomo",
   "chart.label_fail": "Chati ya thamani pamoja na kikomo, safu ya kwanza iliyoshindwa imewekwa alama",
   "chart.row": "Safu {r}",
-  "rs.sep": " ",
   "rs.fail_above": "Imeshindwa kwenye safu {r}: {value} si juu ya {limit}.",
   "rs.fail_below": "Imeshindwa kwenye safu {r}: {value} si chini ya {limit}.",
   "rs.before": {
@@ -287,6 +286,7 @@
   "act.why": "Imerekodiwa kwa sababu ulibonyeza Ndiyo, rekodi. Hakuna kilichotozwa.",
   "act.undo": "Tendua",
   "act.undone": "Malipo ya majaribio yametenduliwa. Hakuna kilichotozwa.",
-  "act.undo_error": "Sikuweza kutendua malipo ya majaribio, kwa sababu baadhi ya matumizi yake yameshatumika. Hakuna kilichotozwa."
+  "act.undo_error": "Sikuweza kutendua malipo ya majaribio, kwa sababu baadhi ya matumizi yake yameshatumika. Hakuna kilichotozwa.",
+  "offline.line": "Huna mtandao. Ukurasa huu ulihifadhiwa kutoka ziara yako ya mwisho."
  }
 }

@@ -23,6 +23,10 @@
 <meta property="og:image" content="https://drexthealpha.github.io/Knos/brand/card.png">
 <meta name="twitter:card" content="summary_large_image">
 <script>
+// the front door kept for a visit with no network (web/sw.js, U7 R24); it keeps this page and its own files, nothing else
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => { /* no worker: the page still works online */ });
+</script>
+<script>
 // an old address: the one page's NEAR section is prove/, its IRIS section labs/; the check of a pull request has its
 // own page, and every other old page is in app.html
 (() => { const go = () => { const h = location.hash, name = h.slice(1).split("=")[0];
@@ -132,8 +136,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
 <main>
   <section class="door" id="tool" data-tool="limit-check" aria-labelledby="t-title">
     <h1>{{door.headline}}</h1>
-    <h2 id="t-title">{{tool.title}}</h2>
-    <p class="who" id="who">{{tool.line}}</p>
+    <p class="who" id="k-offline" role="status" hidden>{{offline.line}}</p>
     <!-- with no script the box is a plain form the server runs (POST /t/limit-check/run answers with the result page) -->
     <form id="form" method="post" action="https://knos.onrender.com/t/limit-check/run"><input type="hidden" name="column" value="capacity_ah" dir="auto">
       <div class="field" id="own" hidden><label for="file">{{tool.choose_file}}</label><input id="file" type="file" dir="auto" accept=".csv,text/csv,text/plain"></div>
@@ -141,9 +144,13 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
       <label for="list" id="list-label">{{@tool.sample_label}}</label>
       <textarea id="list" name="table" rows="4" dir="auto" wrap="off" spellcheck="false" autocomplete="off" data-sample></textarea>
       <div class="field" id="which" hidden><label for="col">{{tool.which}}</label><select id="col" dir="auto"></select></div>
-      <p class="rule"><span id="colname">capacity_ah</span> <span id="rule-shown"><span>{{rule.above}}</span> <bdi data-no-mirror>1.4</bdi></span><span class="rule" id="rule-edit" hidden><select id="rule" name="rule" aria-label="{{tool.rule_label}}"><option value="above" selected>{{rule.above}}</option><option value="below">{{rule.below}}</option></select> <input id="limit" name="limit" dir="auto" inputmode="decimal" autocomplete="off" aria-label="{{tool.limit_label}}" value="1.4"></span></p>
+      <p class="rule"><span id="colname" data-user-content>capacity_ah</span> <span id="rule-shown"><span>{{rule.above}}</span> <bdi data-no-mirror>1.4</bdi></span><span class="rule" id="rule-edit" hidden><label for="rule">{{tool.rule_label}}</label> <select id="rule" name="rule" aria-label="{{tool.rule_label}}"><option value="above" selected>{{rule.above}}</option><option value="below">{{rule.below}}</option></select> <label for="limit">{{tool.limit_label}}</label> <input id="limit" name="limit" dir="auto" inputmode="decimal" autocomplete="off" aria-label="{{tool.limit_label}}" value="1.4"></span></p>
       <p class="who" id="limits" hidden></p>
     </form>
+    <!-- the tool's name and who it is for, under the box and Try it: above the box stands only the headline
+         (U4.md line 76: at most one text block above the main input) -->
+    <h2 id="t-title">{{tool.title}}</h2>
+    <p class="who" id="who">{{tool.line}}</p>
     <p class="state" id="state" role="status" aria-live="polite" data-state="idle" data-status hidden><span class="spin" id="spin" aria-hidden="true" hidden></span><span id="step"></span> <span id="rows" hidden></span><span class="bar" id="bar" role="progressbar" aria-label="{{work.bar}}" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0" hidden><span id="bar-fill"></span></span><button id="stop" type="button" hidden>{{stop}}</button></p>
     <div class="err" id="err" role="alert" hidden><p id="err-text"></p><button id="err-next" type="button"></button></div>
     <div class="result" id="result" aria-live="polite" hidden>
@@ -189,7 +196,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
     <button class="sample" id="sample" type="button">{{ask.sample}}</button>
     <div class="chips" id="mine-q" hidden></div>
     <div class="out" id="ask-out" aria-live="polite"></div>
-    <p class="cost">{{ask.cost low=$330 high=$763}}</p>
+    <p class="cost">{{ask.cost low=330 high=763}}</p>
   </section>
 </main>
 <footer>
@@ -210,6 +217,9 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
   const box = $("list"), tryBtn = $("try"), state = $("state"), step = $("step"), stopBtn = $("stop"), res = $("result"), err = $("err"), pay = $("pay"), bar = $("bar");
   const r1 = (x) => String(Math.round(x * 10) / 10);   // a chart coordinate, one decimal
   const SAMPLE = box.defaultValue, SAMPLE_COLUMN = $("colname").textContent;
+  // with no network the page is the copy kept by web/sw.js: one line says so, in the page's language
+  const offline = () => { $("k-offline").hidden = navigator.onLine !== false; };
+  offline(); addEventListener("online", offline); addEventListener("offline", offline);
   // Knos's own tests and the WALK runs carry a marker and are counted apart (D2): a driven browser, or ?knos_test
   const TEST = navigator.webdriver === true || new URLSearchParams(location.search).has("knos_test");
   const store = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* no storage */ } } };
@@ -218,6 +228,14 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
   // until then every run and the test payment send an empty id
   const browserId = (make) => { let id = store.get("knos.browser"); if (!id && make) { id = newId(); store.set("knos.browser", id); } return id || ""; };
   const counted = () => store.get("knos.count") === "yes";
+  // the first action's source (U3 Rule 11): how the table got into the box when Try it is first pressed (the sample as it
+  // stood, typed, or pasted or chosen from a file); kept in this browser, sent once as the event first_action, only after
+  // the person says yes to being counted
+  let how = "starter";
+  box.addEventListener("input", (e) => { if (how !== "pasted") how = e.inputType === "insertFromPaste" || e.inputType === "insertFromDrop" ? "pasted" : "typed"; });
+  const sendFirst = () => { const s = store.get("knos.first"); if (!s || store.get("knos.first-sent") || !counted()) return; store.set("knos.first-sent", "1");
+    fetch(HOSTED + "/api/first_action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ event: "first_action", source: s, browser: browserId(true), test: TEST }), credentials: "omit", keepalive: true }).catch(() => { /* not counted */ }); };
+  const firstAction = () => { if (!store.get("knos.first")) store.set("knos.first", how); sendFirst(); };
   let ctl = null, last = null, limits = null, pressId = null, mineOn = false, offer = null;
   const show = (el, on) => { el.hidden = !on; };
   const num = (s) => { const t = String(s).trim(); return t !== "" && Number.isFinite(Number(t)); };
@@ -291,7 +309,8 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
     tryBtn.setAttribute("aria-disabled", "true"); tryBtn.setAttribute("aria-busy", "true");
     const max = Number(limits && limits.max_seconds) || Number(bar.getAttribute("aria-valuemax")) || 20;
     bar.setAttribute("aria-valuemax", String(max)); bar.setAttribute("aria-valuenow", "0"); bar.style.setProperty("--done", "0");
-    stopWorking.later = setTimeout(() => { show($("spin"), true); show(stopBtn, true); show(bar, true); }, 1000);
+    // the moving bar from 0.6 s (none before 0.5 s, U1 R10; the screen never the same for a second, U1 R8)
+    stopWorking.later = setTimeout(() => { show($("spin"), true); show(stopBtn, true); show(bar, true); }, 600);
     stopWorking.tick = setInterval(() => {
       const ms = performance.now() - t0, s = Math.floor(ms / 1000);
       bar.style.setProperty("--done", String(Math.min(1, ms / 1000 / max)));
@@ -317,6 +336,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
     if (!table.trim()) { fail(T("err.empty"), "back"); return; }
     if (!num(limit)) { fail(T("err.limit"), "limit"); return; }
     const mode = table === SAMPLE ? "sample" : "own";
+    firstAction();
     const t0 = performance.now(), mine = new AbortController(); ctl = mine;
     working(t0, table);
     const body = { id: TOOL, table, column, rule, limit: Number(limit), mode, browser: counted() ? browserId(true) : "", test: TEST };
@@ -420,6 +440,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
   $("change").addEventListener("click", () => { editOn(); $("limit").focus(); $("limit").select(); });
   $("file").addEventListener("change", () => {
     const f = $("file").files[0]; if (!f) return;
+    if (how !== "pasted") how = "pasted";   // a file put in whole, as a paste is
     const r = new FileReader(); r.onload = () => { box.value = String(r.result); fillColumns(); draftSave(); }; r.readAsText(f);
   });
   box.addEventListener("input", () => { if (mineOn) fillColumns(); });
@@ -461,7 +482,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
       if (navigator.share) navigator.share({ url, title: $("t-title").textContent }).catch(() => {});   // the phone's own share sheet, after the copy
     } else { b.textContent = T("res.copy"); $("link-text").value = url; show($("copied-by-hand"), true); $("link-text").select(); }
   });
-  const answer = (yes) => { store.set("knos.count", yes ? "yes" : "no"); if (yes) browserId(true); show($("optin"), false); };
+  const answer = (yes) => { store.set("knos.count", yes ? "yes" : "no"); if (yes) { browserId(true); sendFirst(); } show($("optin"), false); };
   $("optin-yes").addEventListener("click", () => answer(true));
   $("optin-no").addEventListener("click", () => answer(false));
   // Listen (H3 b): the result sentence read aloud in the screen's language by the browser's own speech, never an outside

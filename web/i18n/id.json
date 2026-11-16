@@ -92,7 +92,6 @@
   "chart.label": "Grafik nilai dengan batasnya",
   "chart.label_fail": "Grafik nilai dengan batasnya, baris gagal pertama ditandai",
   "chart.row": "Baris {r}",
-  "rs.sep": " ",
   "rs.fail_above": "Gagal di baris {r}: {value} tidak di atas {limit}.",
   "rs.fail_below": "Gagal di baris {r}: {value} tidak di bawah {limit}.",
   "rs.before": {
@@ -114,7 +113,7 @@
   "pay.go": "Bayar dengan uang uji coba",
   "pay.not_now": "Nanti saja",
   "pay.confirm": {
-   "other": "Ini mencatat pembayaran uji coba sebesar {price} untuk {n} pemeriksaan lagi. Tidak ada yang ditagih."
+   "other": "Ini mencatat pembayaran uji sebesar {price} untuk {n} pemeriksaan lagi. Tidak ada yang ditagih."
   },
   "pay.yes": "Ya, catat",
   "pay.recording": "Mencatat pembayaran uji coba",
@@ -246,10 +245,10 @@
   "v.pass": "Lolos",
   "v.fail": "Gagal",
   "v.unknown": "Tidak bisa dipastikan",
-  "rs.unknown": "Saya tidak bisa memastikan: tidak ada baris yang berisi angka.",
+  "rs.unknown": "Saya tidak bisa memastikan: tak ada baris berisi angka.",
   "ev.pass": "{n} baris dari {column}, masing-masing dibandingkan dengan {limit}.",
   "ev.fail": "Baris {r} dari {column} berisi {value}, dibandingkan dengan {limit}.",
-  "why.unknown": "Saya tidak bisa membandingkan satu baris pun dengan batasnya, karena tidak ada nilai di {column} yang berupa angka.",
+  "why.unknown": "Saya tidak bisa membandingkan baris mana pun dengan batas, karena tak ada nilai di {column} yang berupa angka.",
   "next.pass": "Semua baris lolos: periksa berkas Anda sendiri dengan Pakai data saya.",
   "next.fail": "Buka berkas Anda di baris {r}, baris pertama yang gagal.",
   "next.unknown": "Pilih kolom yang setiap barisnya berisi angka, lalu tekan Coba.",
@@ -259,6 +258,7 @@
   "act.why": "Dicatat karena Anda menekan Ya, catat. Tidak ada yang ditagih.",
   "act.undo": "Batalkan",
   "act.undone": "Pembayaran uji coba dibatalkan. Tidak ada yang ditagih.",
-  "act.undo_error": "Saya tidak bisa membatalkan pembayaran uji coba, karena sebagian jatahnya sudah terpakai. Tidak ada yang ditagih."
+  "act.undo_error": "Saya tidak bisa membatalkan pembayaran uji coba, karena sebagian jatahnya sudah terpakai. Tidak ada yang ditagih.",
+  "offline.line": "Anda sedang offline. Halaman ini disimpan dari kunjungan terakhir Anda."
  }
 }

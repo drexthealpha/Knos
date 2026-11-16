@@ -190,10 +190,29 @@ def i18n_dir() -> Path:
     return ROOT / "web" / "i18n"
 
 
+CATS = ("zero", "one", "two", "few", "many", "other")
+
+
+def message(v):
+    """A message as the pages use it: its text, or its plural forms. In en.json each message also carries, for the
+    translator, a description and a max_length (U7 R31): {"text", "description", "max_length"}, or the plural forms beside
+    the two fields; the other files hold the text or the forms alone."""
+    if isinstance(v, dict):
+        return v["text"] if "text" in v else {c: v[c] for c in CATS if c in v}
+    return v
+
+
+def read_file(path: Path) -> dict:
+    """A locale file with every message as message() gives it."""
+    d = json.loads(path.read_text(encoding="utf-8"))
+    d["strings"] = {k: message(v) for k, v in d["strings"].items()}
+    return d
+
+
 def table(lang: str) -> dict:
-    """One language's file: {"_meta": {...}, "strings": {...}}, read once."""
+    """One language's file: {"_meta": {...}, "strings": {...}}, read once, each message as message() gives it."""
     if lang not in _tables:
-        _tables[lang] = json.loads((i18n_dir() / f"{lang}.json").read_text(encoding="utf-8"))
+        _tables[lang] = read_file(i18n_dir() / f"{lang}.json")
     return _tables[lang]
 
 
@@ -352,6 +371,11 @@ RS = re.compile(r"^(?:Failed at row (\d+): (.+?) is not (above|below) (.+?)\. It
                 r"|Passed: all (\d+) rows stay (above|below) (.+?)\.)(?: (\d+) rows were skipped because they are not numbers\.)?$")
 
 
+# what sets two sentences of the result apart: a space, except in Chinese, which writes them side by side (a rule of the
+# script, not a message to translate, so it is not in the locale files)
+SEP = {"zh-Hans": ""}
+
+
 def sentence(lang: str, text: str, as_html: bool = True) -> str:
     """The program's result sentence in this language: English as the program wrote it; any other language from the
     fixed template, every count in the language's digits, every value from the file as written there."""
@@ -367,7 +391,7 @@ def sentence(lang: str, text: str, as_html: bool = True) -> str:
         parts = [f(lang, f"rs.pass_{m[7]}", n=int(m[6]), limit=Bdi(m[8]))]
     if m[9]:
         parts.append(f(lang, "rs.skipped", n=int(m[9])))
-    return raw(lang, "rs.sep").join(parts)
+    return SEP.get(lang, " ").join(parts)
 
 
 # The verdict (U6 Rules 5 to 7, 10, 15 and 20): one of three states, each with its own icon and word; the result
@@ -441,7 +465,15 @@ def switcher(lang: str) -> str:
             f'<span lang="{lang}">{_e(meta(lang)["name"])}</span></summary><div class="klang-list">{links}</div></details></div>')
 
 
-SWITCH_CSS = (".klang{position:relative}.klang details{margin:0;padding:0;border:0}"
+def warm_names() -> str:
+    """Every language's own name, laid out unseen, so the scripts' fonts are ready before the language control opens
+    (U1 R3: drawing ten scripts for the first time took 170 to 190 ms at 4x CPU when the list opened on the tool page)."""
+    return '<span class="klang-list kwarm" aria-hidden="true">' + "".join(f'<span lang="{c}">{_e(meta(c)["name"])}</span>' for c in LANGS) + "</span>"
+
+
+SWITCH_CSS = (".klang-list.kwarm{display:block;position:absolute;visibility:hidden;inline-size:1px;block-size:1px;overflow:hidden;padding:0;border:0}"
+              ".klang-list.kwarm>span{position:absolute;inset-inline-start:0;inset-block-start:0}"
+              ".klang{position:relative}.klang details{margin:0;padding:0;border:0}"
               ".klang summary{display:inline-flex;align-items:center;gap:6px;min-height:48px;min-width:48px;padding:0 10px;cursor:pointer;"
               "list-style:none;border:2px solid var(--line);border-radius:10px;font-size:1rem;font-weight:400}"
               ".klang details summary::before{content:none}.klang summary::-webkit-details-marker{display:none}"
@@ -508,15 +540,20 @@ def speech_lang(lang: str) -> str:
 # in that language's own writing, and the result sentence from its fixed template (the same rules as the Python above)
 I18N_JS = r"""window.KI = window.KI || (() => {
   let L = "en", S = {};
-  const plural = (n) => { try { return new Intl.PluralRules(L).select(n); } catch (e) { return "other"; } };
-  const nf = (n) => { try { return new Intl.NumberFormat(L).format(n); } catch (e) { return String(n); } };
-  const money = (x) => { try { return new Intl.NumberFormat(L, { style: "currency", currency: "USD", currencyDisplay: "narrowSymbol", minimumFractionDigits: x % 1 ? 2 : 0, maximumFractionDigits: x % 1 ? 2 : 0 }).format(x); } catch (e) { return String(x) + " USD"; } };
+  // one formatter of each kind per language, made once (making one costs far more than using it: over 100 ms at 4x CPU
+  // on the first press), and made ahead when the page is idle
+  const made = new Map(), once = (k, f) => { const key = L + " " + k; if (!made.has(key)) made.set(key, f()); return made.get(key); };
+  const plural = (n) => { try { return once("p", () => new Intl.PluralRules(L)).select(n); } catch (e) { return "other"; } };
+  const nf = (n) => { try { return once("n", () => new Intl.NumberFormat(L)).format(n); } catch (e) { return String(n); } };
+  const money = (x) => { try { const d = x % 1 ? 2 : 0; return once("m" + d, () => new Intl.NumberFormat(L, { style: "currency", currency: "USD", currencyDisplay: "narrowSymbol", minimumFractionDigits: d, maximumFractionDigits: d })).format(x); } catch (e) { return String(x) + " USD"; } };
+  const warm = () => { plural(1); nf(1); money(1); }, idle = (f) => (window.requestIdleCallback || ((g) => setTimeout(g, 200)))(f);
   const raw = (k, v) => { let s = S[k]; if (s == null) return k; if (typeof s === "object") s = s[plural(v && v.n != null ? +v.n : 0)] || s.other; return s; };
   const val = (name, x) => /^(price|low|high)$/.test(name) ? money(+x) : /^(n|free|r)$/.test(name) && typeof x === "number" ? nf(x) : String(x);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   const bdi = new Set(["value", "limit", "first", "last", "column", "names"]);
   const t = (k, v) => raw(k, v).replace(/\{(\w+)\}/g, (m, n) => v && v[n] != null ? val(n, v[n]) : m);
   const html = (k, v) => raw(k, v).replace(/\{(\w+)\}/g, (m, n) => v && v[n] != null ? (bdi.has(n) ? "<bdi>" + esc(val(n, v[n])) + "</bdi>" : esc(val(n, v[n]))) : m);
+  const sep = () => L === "zh-Hans" ? "" : " ";   // Chinese sets sentences side by side, with no space (SEP)
   const RS = /^(?:Failed at row (\d+): (.+?) is not (above|below) (.+?)\. It passed for the (\d+) rows before that\.|Passed: all (\d+) rows stay (above|below) (.+?)\.)(?: (\d+) rows were skipped because they are not numbers\.)?$/;
   function sentence(text, plain) {
     if (text === "I cannot tell: no row held a number." && S["rs.unknown"] != null) return plain ? t("rs.unknown") : esc(t("rs.unknown"));
@@ -524,7 +561,7 @@ I18N_JS = r"""window.KI = window.KI || (() => {
     if (L === "en" || !m) return plain ? String(text || "") : esc(text || "");
     const parts = m[1] ? [f("rs.fail_" + m[3], { r: +m[1], value: m[2], limit: m[4] }), f("rs.before", { n: +m[5] })] : [f("rs.pass_" + m[7], { n: +m[6], limit: m[8] })];
     if (m[9]) parts.push(f("rs.skipped", { n: +m[9] }));
-    return parts.join(raw("rs.sep"));
+    return parts.join(sep());
   }
   // a number typed in any of the digit sets people use (U7 R13): Arabic-Indic, Persian, Devanagari and Bengali digits,
   // the Arabic decimal mark, or a decimal comma, read as the same number
@@ -536,7 +573,8 @@ I18N_JS = r"""window.KI = window.KI || (() => {
   }
   const speech = () => L === "zh-Hans" ? "zh-CN" : L;
   const on = [];
-  return { set(l, s) { L = l; S = s || S; on.forEach((f) => f()); }, lang: () => L, has: (k) => S[k] != null, t, html, esc, nf, money, plural, sentence, num, speech, changed: (f) => on.push(f) };
+  idle(warm);
+  return { set(l, s) { L = l; S = s || S; idle(warm); on.forEach((f) => f()); }, lang: () => L, has: (k) => S[k] != null, t, html, esc, nf, money, plural, sentence, num, speech, changed: (f) => on.push(f) };
 })();"""
 
 # the static pages' runtime (the front door and the pricing page on GitHub Pages, written by scripts/site_pages.py): the
@@ -593,7 +631,7 @@ def static_runtime(base: str, used: list[str] | None = None) -> str:
 
 
 CSS = """:root{--bg:#f4f4f0;--card:#fff;--fg:#15171c;--muted:#4a505c;--line:#767b85;--accent:#2b3bb5;--accent-fg:#fff;--bad:#b3261e;--ok:#1b6e2e;color-scheme:light dark}
-@media (prefers-color-scheme:dark){:root{--bg:#07080c;--card:#0f1118;--fg:#e9ebef;--muted:#b4bac8;--line:#6b7080;--accent:#93a5ff;--accent-fg:#07080c;--bad:#ff8a80;--ok:#7fd18f}}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#07080c;--card:#0f1118;--fg:#e9ebef;--muted:#b4bac8;--line:#6b7080;--accent:#93a5ff;--accent-fg:#07080c;--bad:#ff8a80;--ok:#7fd18f}}:root[data-theme=dark]{--bg:#07080c;--card:#0f1118;--fg:#e9ebef;--muted:#b4bac8;--line:#6b7080;--accent:#93a5ff;--accent-fg:#07080c;--bad:#ff8a80;--ok:#7fd18f;color-scheme:dark}:root[data-theme=light]{color-scheme:light}
 *{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--fg);font:1.125rem/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow-wrap:anywhere}
 main{max-width:640px;margin:0 auto;padding:4px 16px 48px}
@@ -609,10 +647,10 @@ input[type=file]{width:100%;padding:8px}
 .rule{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:10px 0 0}.rule input{width:7em}
 .field{margin:10px 0 0}
 button{font:inherit;min-height:48px;min-width:48px;padding:8px 16px;border-radius:8px;border:2px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;margin-block:8px 0;margin-inline:0 8px}
-button.primary{width:100%;margin-block:10px 0;margin-inline:0;background:var(--accent);color:var(--accent-fg);font-weight:700}
+button.primary{width:100%;margin-block:10px 0;margin-inline:0;background:var(--accent);color:var(--accent-fg);font-weight:700}#go{display:flex;align-items:center;justify-content:center;gap:8px}#tool{display:flex;flex-direction:column}#go{order:1}#tool>label{align-self:flex-start}
 button:disabled,button[aria-disabled=true]{opacity:.75;cursor:default}
 button:focus-visible,textarea:focus-visible,summary:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
-.big{font-size:1.375rem;font-weight:700;margin:14px 0 0}.big+p{margin:2px 0 0}
+.big{font-size:1.375rem;font-weight:700;margin:14px 0 0}#out .big{scroll-margin-top:8px}.big+p{margin:2px 0 0}
 .answer{display:grid;grid-template-columns:auto 1fr;column-gap:8px;align-items:start;margin:14px 0 0}
 .answer>*{grid-column:1/-1}.answer>svg{grid-column:1;width:1.75rem;height:1.75rem;margin-block-start:2px}.answer>svg+*{grid-column:2;margin:0}
 .answer p{margin-block:6px 0;margin-inline:0}.answer[data-state=pass]>svg{color:var(--ok)}.answer[data-state=fail]>svg{color:var(--bad)}.answer[data-state=unknown]>svg{color:var(--muted)}
@@ -627,6 +665,7 @@ summary{min-height:48px;display:flex;align-items:center;cursor:pointer;font-weig
 main>details>summary::before{content:"+";display:inline-block;width:1.2em;color:var(--accent)}main>details[open]>summary::before{content:"\\2212"}
 details li{margin:6px 0}.fold-links a{display:inline-flex;align-items:center;min-height:48px;margin-inline-end:16px}
 .tgt input{width:100%;font:1rem ui-monospace,Consolas,monospace}
+.home a{display:inline-flex;align-items:center;min-height:48px;min-width:48px}#theme{display:inline-flex;align-items:center;gap:8px;min-height:48px;min-width:48px;padding:0 16px;margin-inline-start:12px;border:2px solid var(--line);border-radius:10px;background:transparent;color:var(--fg);font:inherit;cursor:pointer}
 [hidden]{display:none!important}""" + "\n" + SWITCH_CSS
 
 # The table reader and the chart, the same code on the front door (web/door.html): the column names by the program's rule
@@ -686,6 +725,14 @@ const store = (() => { try { return window.localStorage; } catch (e) { return nu
 const get = (k) => { try { return store && store.getItem(k); } catch (e) { return null; } };
 const put = (k, v) => { try { store && store.setItem(k, v); } catch (e) { /* private window */ } };
 const browser = () => get("knos-count") === "yes" ? (get("knos-browser") || "") : "";
+// the first action's source (U3 Rule 11): how the table got into the box when Try it is first pressed (the sample as it
+// stood, typed, or pasted or chosen from a file); kept in this browser, sent once as the event first_action, only after
+// the person says yes to being counted
+let how = "starter";
+box.addEventListener("input", (e) => { if (how !== "pasted") how = e.inputType === "insertFromPaste" || e.inputType === "insertFromDrop" ? "pasted" : "typed"; });
+const sendFirst = () => { const s = get("knos-first"); if (!s || get("knos-first-sent") || !browser()) return; put("knos-first-sent", "1");
+  fetch(D.api + "/api/first_action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ event: "first_action", source: s, browser: browser(), test }), keepalive: true }).catch(() => { /* not counted */ }); };
+const firstAction = () => { if (!get("knos-first")) put("knos-first", how); sendFirst(); };
 let xhr = null, tick = null, link = D.result ? D.result.link : "", mineOn = false, said = D.result ? D.result.result : "";
 const make = (tag, text, cls) => { const e = document.createElement(tag); if (text != null) e.textContent = text; if (cls) e.className = cls; return e; };
 const btn = (text, on, primary) => { const b = make("button", text, primary ? "primary" : ""); b.type = "button"; b.addEventListener("click", on); return b; };
@@ -696,7 +743,7 @@ function fillColumns(keep) {
   sel.replaceChildren(...names.map((c) => { const o = make("option", c); o.value = c; return o; }));
   if (names.includes(was)) sel.value = was; else if (names.length) sel.value = names[names.length - 1];
 }
-function idle() { clearInterval(tick); tick = null; xhr = null; go.removeAttribute("aria-disabled"); go.textContent = T("tool.try"); out.removeAttribute("aria-busy"); out.dataset.state = "done"; }
+function idle() { clearInterval(tick); tick = null; xhr = null; go.removeAttribute("aria-disabled"); $("go-label").textContent = T("tool.try"); out.removeAttribute("aria-busy"); out.dataset.state = "done"; }
 function left(r) {
   if (r.mode !== "own" || r.runs_left == null) return null;
   if (r.paid_left > 0) return make("p", T("res.runs_left", { n: r.runs_left }));
@@ -718,7 +765,7 @@ function ask() {
   if (get("knos-count") || ask.shown) return null;
   ask.shown = true;
   const p = make("p", T("res.count_q") + " ");
-  const answer = (yes) => { put("knos-count", yes ? "yes" : "no"); if (yes && !get("knos-browser")) { const a = new Uint8Array(12); crypto.getRandomValues(a); put("knos-browser", Array.from(a, (x) => x.toString(16).padStart(2, "0")).join("")); } p.remove(); };
+  const answer = (yes) => { put("knos-count", yes ? "yes" : "no"); if (yes && !get("knos-browser")) { const a = new Uint8Array(12); crypto.getRandomValues(a); put("knos-browser", Array.from(a, (x) => x.toString(16).padStart(2, "0")).join("")); } if (yes) sendFirst(); p.remove(); };
   p.append(btn(T("yes"), () => answer(true)), btn(T("no"), () => answer(false)));
   return p;
 }
@@ -751,8 +798,10 @@ function result(r) {
   const l = left(r); if (l) nodes.push(l);
   if (r.mode === "own") nodes.push(make("p", T("res.private")));
   const row = make("div");
-  const more = [btn(T("res.mine"), mine), btn(T("res.copy"), (e) => copy(e.currentTarget))];
-  more.forEach((b) => { b.dataset.followup = ""; });
+  const more = [btn(T("res.mine"), mine), btn(T("res.change_limit"), changeLimit), btn(T("res.copy"), (e) => copy(e.currentTarget))];
+  // each choice carries a picture and its word (U7 R26): a file, a dial, a link
+  const PICS = ['<path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6"/>', '<circle cx="12" cy="12" r="8"/><path d="M12 12l4-4"/>', '<path d="M10 14a4 4 0 0 0 6 0l3-3a4 4 0 0 0-6-6l-1 1"/><path d="M14 10a4 4 0 0 0-6 0l-3 3a4 4 0 0 0 6 6l1-1"/>'];
+  more.forEach((b, i) => { b.dataset.followup = ""; const s = document.createElementNS("http://www.w3.org/2000/svg", "svg"); s.setAttribute("aria-hidden", "true"); s.setAttribute("width", "18"); s.setAttribute("height", "18"); s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("fill", "none"); s.setAttribute("stroke", "currentColor"); s.setAttribute("stroke-width", "2"); s.innerHTML = PICS[i]; b.prepend(s); });
   row.append(...more);
   nodes.push(row);
   const q = ask(); if (q) nodes.push(q);
@@ -760,11 +809,13 @@ function result(r) {
   try { if (location.origin === new URL(r.link).origin && location.pathname !== new URL(r.link).pathname) history.replaceState(null, "", new URL(r.link).pathname + location.search); } catch (e) { /* another site */ }
 }
 function ownMode() {
-  mineOn = true; $("own").hidden = false; $("which").hidden = false; $("colname").hidden = true;
+  mineOn = true; $("own").hidden = false; $("which").hidden = false; $("colname").hidden = true; editOn();
   lab.textContent = T("tool.paste");
   $("lims").textContent = T("tool.lim_rows", { n: D.limits.max_rows }) + " " + T("tool.lim_secs", { n: D.limits.max_seconds }); $("lims").hidden = false;
 }
 function mine() { box.value = ""; $("limit").value = ""; ownMode(); fillColumns(); show(); $("file").focus(); }
+function editOn() { $("rule-shown").hidden = true; $("rule-edit").hidden = false; }
+function changeLimit() { editOn(); $("limit").focus(); $("limit").select(); }
 // an error is a "cannot tell" answer (U6 Rules 15 and 17): the reason in the first person, the person's file kept in
 // the box, and a next step that leaves the error; Try again beside it where the server may answer next time
 function trouble(text, label, then, retry) {
@@ -781,12 +832,13 @@ function working(rows) {
   const t0 = Date.now(), max = D.limits.max_seconds;
   let step = T("work.sending"), built = false, status, bar;
   out.dataset.state = "working"; out.setAttribute("aria-busy", "true");
-  go.setAttribute("aria-disabled", "true"); go.textContent = T("tool.checking");
+  go.setAttribute("aria-disabled", "true"); $("go-label").textContent = T("tool.checking");
   const got = make("p", T("work.rows", { n: rows })); got.dataset.partial = "";
   show(make("p", T("tool.checking")), got);
   tick = setInterval(() => {
-    const s = Math.floor((Date.now() - t0) / 1000);
-    if (s < 1) return;
+    const ms = Date.now() - t0, s = Math.floor(ms / 1000);
+    // the moving bar from 0.6 s (none before 0.5 s, U1 R10; the screen never the same for a second, U1 R8)
+    if (ms < 600) return;
     if (!built) {
       built = true;
       // the bar's value is the run's time against its time limit, both in seconds (U1 R11): a number, never a guess
@@ -810,9 +862,10 @@ function run() {
   if (xhr) return;
   const table = box.value, column = mineOn ? $("col").value : D.column, rule = $("rule").value, limit = KI.num($("limit").value);
   if (!table.trim()) return trouble(T("err.empty"), T("btn.back"), edit);
-  if (!num(limit)) return trouble(T("err.limit"), T("btn.type_limit"), () => { show(); $("limit").focus(); });
+  if (!num(limit)) return trouble(T("err.limit"), T("btn.type_limit"), () => { show(); changeLimit(); });
   const names = columnsOf(table);
   if (!names.includes(column)) return trouble(T("err.column", { column, names: names.slice(0, 12).join(", ") }), T("btn.column"), chooseColumn);
+  firstAction();
   const w = working(Math.max(0, rowsOf(table).length - (rowsOf(table)[0].some((c) => !num(c)) ? 1 : 0)));
   xhr = new XMLHttpRequest();
   xhr.open("POST", D.api + "/api/run");
@@ -909,6 +962,7 @@ if (listen && "speechSynthesis" in window && window.SpeechSynthesisUtterance) {
 }
 $("file").addEventListener("change", () => {
   const f = $("file").files[0]; if (!f) return;
+  if (how !== "pasted") how = "pasted";   // a file put in whole, as a paste is
   const r = new FileReader(); r.onload = () => { box.value = String(r.result); fillColumns(); draftSave(); }; r.readAsText(f);
 });
 box.addEventListener("input", () => { if (mineOn) fillColumns(); });
@@ -932,6 +986,7 @@ function draftLoad() {
   if (mineOn) fillColumns(String(d.col || ""));
   if ([...$("rule").options].some((o) => o.value === d.rule)) $("rule").value = d.rule;
   $("limit").value = String(d.limit == null ? "" : d.limit);
+  if ($("rule").value !== $("rule").defaultValue || $("limit").value !== $("limit").defaultValue || [...$("rule").options].some((o) => o.selected !== o.defaultSelected)) editOn();
 }
 draftLoad();
 for (const [el, ev] of [[box, "input"], [$("col"), "change"], [$("rule"), "change"], [$("limit"), "input"]]) el.addEventListener(ev, draftSave);
@@ -956,9 +1011,9 @@ window.addEventListener("pagehide", draftSave);
 })();""".replace("/*TABLE*/", TABLE_JS)
 
 
-SCRIPT_KEYS = sorted(set(keys_in(SCRIPT)) | {"rs.sep", "rs.fail_above", "rs.fail_below", "rs.before", "rs.pass_above", "rs.pass_below",
+SCRIPT_KEYS = sorted(set(keys_in(SCRIPT)) | {"rs.fail_above", "rs.fail_below", "rs.before", "rs.pass_above", "rs.pass_below",
                                                 "rs.skipped", "chart.label", "chart.label_fail", "chart.row", "fold.listen", "stop", "rs.unknown",
-                                                "next.pass", "next.fail", "next.unknown", "ev.pass", "ev.fail", "why.unknown"}) if (ROOT / "web" / "i18n" / "en.json").is_file() else []
+                                                "next.pass", "next.fail", "next.unknown", "ev.pass", "ev.fail", "why.unknown", "theme.dark", "theme.light"}) if (ROOT / "web" / "i18n" / "en.json").is_file() else []
 
 
 def _e(s) -> str:
@@ -969,6 +1024,18 @@ def shown_limit(v) -> str:
     """The limit as a person typed it: 1.4, not 1.40; a whole number with no point."""
     f = float(v)
     return str(int(f)) if f.is_integer() else repr(f)
+
+
+# the light or dark choice kept in this browser, set before the first paint; the switch at the page's end (U5 R12)
+THEME_HEAD = r"""try { const k = localStorage.getItem("knos-theme"); if (k === "light" || k === "dark") document.documentElement.dataset.theme = k; } catch (e) { /* no storage */ }"""
+THEME_JS = r"""(() => { const b = document.getElementById("theme"), de = document.documentElement; if (!b) return;
+  const now = () => de.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  const label = () => { document.getElementById("theme-label").textContent = KI.t(now() === "light" ? "theme.dark" : "theme.light"); };
+  b.hidden = false; label();
+  b.addEventListener("click", () => { de.dataset.theme = now() === "light" ? "dark" : "light"; try { localStorage.setItem("knos-theme", de.dataset.theme); } catch (e) { /* no storage */ } label(); });
+})();"""
+OFFLINE_JS = r"""if ("serviceWorker" in navigator) navigator.serviceWorker.register("/tool-sw.js", { scope: location.pathname.startsWith("/r/") ? "/r/" : "/t/" }).catch(() => { /* no worker: the page still works online */ });
+addEventListener("DOMContentLoaded", () => { const o = document.getElementById("k-offline"), f = () => { o.hidden = navigator.onLine !== false; }; f(); addEventListener("online", f); addEventListener("offline", f); });"""
 
 
 def page(tool: dict, base: str, result: dict | None = None, front: str = "https://drexthealpha.github.io/Knos/", lang: str = "en",
@@ -990,6 +1057,9 @@ def page(tool: dict, base: str, result: dict | None = None, front: str = "https:
     column = sent.get("column") or (result["column"] if result else tool["column"])
     rule = sent.get("rule") or (result["rule"] if result else tool["rule"])
     limit = sent["limit"] if "limit" in sent else shown_limit(result["limit"] if result else tool["limit"])
+    # U3 Rule 1a (UX/U3.md:21): the first screen holds the box, Try it and the language control; the rule and the limit
+    # show as words, and their fields open with Use my data or Change the limit (open at once for a person's own file)
+    edit = own or bool(sent)
     f = facts()
     label = t(L, "tool.sample_made_up" if f["made_up"] else "tool.sample_nasa")
     data = {"id": tool["id"], "sample": tool["sample"], "api": base, "limits": tool["limits"], "column": tool["column"],
@@ -1017,11 +1087,15 @@ def page(tool: dict, base: str, result: dict | None = None, front: str = "https:
         extra += f'<p class="muted">{_e(t(L, "fold.mt"))}</p>'
     opts = "".join(f'<option value="{r}"{" selected" if r == rule else ""}>{_e(t(L, "rule." + r))}</option>' for r in ("above", "below"))
     alt = "".join(f'<link rel="alternate" hreflang="{c}" href="{_e(url)}?lang={c}">' for c in LANGS)
+    # a tool page or a sample's result is kept for a visit with no network (tool_run.OFFLINE_SW); a result from a person's
+    # own file registers nothing and is never kept
+    worker = "" if own else f"<script>{OFFLINE_JS}</script>\n"
     return f"""<!doctype html>
 <html lang="{L}" dir="{meta(L)['dir']}">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>{THEME_HEAD}</script>
+{worker}<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{_e(title)} | Knos</title>
 <meta name="description" content="{_e(desc)}">
 <meta property="og:type" content="website">
@@ -1039,31 +1113,34 @@ def page(tool: dict, base: str, result: dict | None = None, front: str = "https:
 </head>
 <body>
 <main>
-<div class="top"><a class="brand" href="{_e(front)}" data-no-mirror>Knos</a>{switcher(L)}</div>
+<div class="top"><span class="brand" data-no-mirror>Knos</span>{switcher(L)}{warm_names()}</div>
 <h1>{_e(title)}</h1>
-<p class="who">{_e(t(L, "tool.line"))}</p>
+<p class="who" id="k-offline" role="status" hidden>{_e(t(L, "offline.line"))}</p>
 <form id="tool" method="post" action="{_e(base)}/t/{_e(tool['id'])}/run">
 <input type="hidden" dir="auto" name="lang" value="{L}"><input type="hidden" dir="auto" name="column" value="{_e(column)}">{'<input type="hidden" dir="auto" name="test" value="1">' if test else ""}
+<button id="go" class="primary" type="submit" data-primary><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg><span id="go-label">{_e(t(L, "tool.try"))}</span></button>
 <div id="own" class="field" hidden><label for="file">{_e(t(L, "tool.choose_file"))}</label><input id="file" type="file" dir="auto" accept=".csv,text/csv,text/plain"></div>
 <label id="lab" for="list">{_e(t(L, "tool.paste")) if own else _e(label)}</label>
 <textarea id="list" dir="auto" name="table" spellcheck="false" autocomplete="off" wrap="off">{_e(text)}</textarea>
 <div id="which" class="field" hidden><label for="col">{_e(t(L, "tool.which"))}</label><select id="col" dir="auto"></select></div>
-<p class="rule"><span id="colname"><bdi>{_e(column)}</bdi></span> <select id="rule" name="rule" aria-label="{_e(t(L, "tool.rule_label"))}">{opts}</select> <input id="limit" dir="auto" name="limit" inputmode="decimal" autocomplete="off" aria-label="{_e(t(L, "tool.limit_label"))}" value="{_e(limit)}"></p>
+<p class="rule"><span id="colname" data-user-content><bdi>{_e(column)}</bdi></span> <span id="rule-shown"{" hidden" if edit else ""}>{_e(t(L, "rule." + rule))} <bdi data-no-mirror>{_e(limit)}</bdi></span><span id="rule-edit"{"" if edit else " hidden"}><label for="rule">{_e(t(L, "tool.rule_label"))}</label> <select id="rule" name="rule" aria-label="{_e(t(L, "tool.rule_label"))}">{opts}</select> <label for="limit">{_e(t(L, "tool.limit_label"))}</label> <input id="limit" dir="auto" name="limit" inputmode="decimal" autocomplete="off" aria-label="{_e(t(L, "tool.limit_label"))}" value="{_e(limit)}"></span></p>
 <p id="lims" class="muted" hidden></p>
-<button id="go" class="primary" type="submit" data-primary>{_e(t(L, "tool.try"))}</button>
 </form>
 <section id="pay" hidden></section>
 <div id="out" aria-live="polite" data-state="{'done' if result else 'ready'}">{ssr}</div>
+<p class="who" id="who">{_e(t(L, "tool.line"))}</p>
 <details>
 <summary>{_e(t(L, "how"))}</summary>
 {five(L, answers(L, "result" if result else "tool", f))}
 <ol>{items}</ol>
 {extra}
 </details>
+<div class="home"><a href="{_e(front)}" data-no-mirror>Knos</a> <button type="button" id="theme" hidden><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg><span id="theme-label"></span></button></div>
 </main>
 <script type="application/json" id="k-tool">{blob}</script>
 <script>{I18N_JS}
-{SCRIPT}</script>
+{SCRIPT}
+{THEME_JS}</script>
 </body>
 </html>"""
 
@@ -1078,7 +1155,7 @@ def missing(front: str = "https://drexthealpha.github.io/Knos/", lang: str = "en
     return f"""<!doctype html>
 <html lang="{L}" dir="{meta(L)['dir']}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{_e(t(L, "nf.title"))} | Knos</title><meta name="robots" content="noindex"><style>{CSS}</style></head>
-<body><main><div class="top"><a class="brand" href="{_e(front)}" data-no-mirror>Knos</a>{switcher(L)}</div>
+<body><main><div class="top"><a class="brand" href="{_e(front)}" data-no-mirror>Knos</a>{switcher(L)}{warm_names()}</div>
 <h1>{_e(t(L, "nf.h"))}</h1>
 <p data-answer>{_e(t(L, "nf.p"))}</p>
 <p><a href="{_e(front)}">{_e(t(L, "nf.link"))}</a></p>

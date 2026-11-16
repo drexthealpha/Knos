@@ -17,7 +17,7 @@
  "strings": {
   "lang.label": "Idioma",
   "menu": "Menú",
-  "goal": "El objetivo: que Knos convierta cualquier investigación en un producto que usen miles de millones de personas, en días, no en años.",
+  "goal": "El objetivo: que Knos convierta cualquier investigación en un producto que usen miles de millones, en días, no en años.",
   "nav.claims": "Afirmaciones",
   "nav.papers": "Artículos",
   "nav.builders": "Constructores",
@@ -93,9 +93,9 @@
   "yes": "Sí",
   "no": "No",
   "res.runs_left": {
-   "one": "Te queda {n} ejecución",
-   "many": "Te quedan {n} de ejecuciones",
-   "other": "Te quedan {n} ejecuciones"
+   "one": "Queda {n} ejecución",
+   "many": "Quedan {n} de ejecuciones",
+   "other": "Quedan {n} ejecuciones"
   },
   "res.free_left": {
    "one": "Hoy te queda {n} ejecución gratis",
@@ -105,7 +105,6 @@
   "chart.label": "Gráfico de los valores con el límite",
   "chart.label_fail": "Gráfico de los valores con el límite, con la primera fila que falla marcada",
   "chart.row": "Fila {r}",
-  "rs.sep": " ",
   "rs.fail_above": "Falló en la fila {r}: {value} no está por encima de {limit}.",
   "rs.fail_below": "Falló en la fila {r}: {value} no está por debajo de {limit}.",
   "rs.before": {
@@ -153,8 +152,8 @@
   "work.bar": "Segundos de espera",
   "status.title": "Estado de Knos",
   "status.tools_opened": "Herramienta abierta",
-  "status.sample_runs": "Ejecuciones de la muestra",
-  "status.own_runs": "Ejecuciones con archivo propio",
+  "status.sample_runs": "Ejecuciones de muestra",
+  "status.own_runs": "Ejecuciones con tu archivo",
   "status.results_opened_elsewhere": "Resultados abiertos en otro sitio",
   "status.test_payments": "Pagos de prueba",
   "status.connector_runs": "Ejecuciones por el conector",
@@ -180,14 +179,14 @@
    "other": "El ejemplo es gratis. Tus archivos: {free} ejecuciones gratis al día, luego {price} en dinero de prueba por {n} más, que pagas tú al confirmar."
   },
   "a.why_released": {
-   "one": "Una prueba pública de 7 archivos de respuesta conocida pasó antes del lanzamiento; la ejecutó el verificador de Knos. Sin probar: archivos de más de {n} fila.",
-   "many": "Una prueba pública de 7 archivos de respuesta conocida pasó antes del lanzamiento; la ejecutó el verificador de Knos. Sin probar: archivos de más de {n} de filas.",
-   "other": "Una prueba pública de 7 archivos de respuesta conocida pasó antes del lanzamiento; la ejecutó el verificador de Knos. Sin probar: archivos de más de {n} filas."
+   "one": "Una prueba pública de 7 archivos de respuesta conocida pasó antes de publicarse; la ejecutó el verificador de Knos. Sin probar: archivos de más de {n} fila.",
+   "many": "Una prueba pública de 7 archivos de respuesta conocida pasó antes de publicarse; la ejecutó el verificador de Knos. Sin probar: más de {n} de filas.",
+   "other": "Una prueba pública de 7 archivos de respuesta conocida pasó antes de publicarse; la ejecutó el verificador de Knos. Sin probar: archivos de más de {n} filas."
   },
   "a.why_unreleased": {
-   "one": "Una prueba pública de 7 archivos de respuesta conocida debe pasar antes del lanzamiento; la ejecuta el verificador de Knos. Sin probar: archivos de más de {n} fila.",
-   "many": "Una prueba pública de 7 archivos de respuesta conocida debe pasar antes del lanzamiento; la ejecuta el verificador de Knos. Sin probar: archivos de más de {n} de filas.",
-   "other": "Una prueba pública de 7 archivos de respuesta conocida debe pasar antes del lanzamiento; la ejecuta el verificador de Knos. Sin probar: archivos de más de {n} filas."
+   "one": "Una prueba pública de 7 archivos de respuesta conocida debe pasar antes de publicarse; la ejecuta el verificador de Knos. Sin probar: archivos de más de {n} fila.",
+   "many": "Una prueba pública de 7 archivos de respuesta conocida debe pasar antes de publicarse; la ejecuta el verificador de Knos. Sin probar: más de {n} de filas.",
+   "other": "Una prueba pública de 7 archivos de respuesta conocida debe pasar antes de publicarse; la ejecuta el verificador de Knos. Sin probar: archivos de más de {n} filas."
   },
   "a.tool.who": "Knos opera esta herramienta y su prueba. No hay fecha fijada para la próxima actualización. Para impugnar un resultado, <a href=\"{issues}\">abre una incidencia en GitHub</a>.",
   "a.price.get": {
@@ -195,7 +194,7 @@
    "many": "{n} de ejecuciones más de la herramienta con tus archivos, cuando hayas usado tus {free} ejecuciones gratis del día.",
    "other": "{n} ejecuciones más de la herramienta con tus archivos, cuando hayas usado tus {free} ejecuciones gratis del día."
   },
-  "a.price.next": "Usa la herramienta. Cuando se acaben tus ejecuciones gratis, mostrará Pagar con dinero de prueba; púlsalo y luego confirma.",
+  "a.price.next": "Usa la herramienta. Al acabarse tus ejecuciones gratis, mostrará Pagar con dinero de prueba; púlsalo y confirma.",
   "a.price.pay": {
    "one": "{price} en dinero de prueba por {n} ejecución, que pagas tú una vez, al confirmar. Hoy no se cobra nada; no se pide tarjeta ni cuenta.",
    "many": "{price} en dinero de prueba por {n} de ejecuciones, que pagas tú una vez, al confirmar. Hoy no se cobra nada; no se pide tarjeta ni cuenta.",
@@ -314,6 +313,7 @@
   "act.why": "Registrado porque pulsaste Sí, regístralo. No se cobró nada.",
   "act.undo": "Deshacer",
   "act.undone": "El pago de prueba se deshizo. No se cobró nada.",
-  "act.undo_error": "No pude deshacer el pago de prueba, porque ya se usaron algunas de sus ejecuciones. No se cobró nada."
+  "act.undo_error": "No pude deshacer el pago de prueba, porque ya se usaron algunas de sus ejecuciones. No se cobró nada.",
+  "offline.line": "No tienes conexión. Esta página se guardó en tu última visita."
  }
 }

@@ -105,7 +105,6 @@
   "chart.label": "Gráfico dos valores com o limite",
   "chart.label_fail": "Gráfico dos valores com o limite, com a primeira linha que falhou marcada",
   "chart.row": "Linha {r}",
-  "rs.sep": " ",
   "rs.fail_above": "Falhou na linha {r}: {value} não está acima de {limit}.",
   "rs.fail_below": "Falhou na linha {r}: {value} não está abaixo de {limit}.",
   "rs.before": {
@@ -154,7 +153,7 @@
   "status.title": "Situação do Knos",
   "status.tools_opened": "Ferramenta aberta",
   "status.sample_runs": "Execuções da amostra",
-  "status.own_runs": "Execuções com arquivo próprio",
+  "status.own_runs": "Execuções com seu arquivo",
   "status.results_opened_elsewhere": "Resultados abertos em outro lugar",
   "status.test_payments": "Pagamentos de teste",
   "status.connector_runs": "Execuções pelo conector",
@@ -173,21 +172,21 @@
   "a.tool.get": "Uma frase que nomeia a primeira linha que quebra seu limite, ou diz que todas passaram, com um gráfico e um link para ela.",
   "a.tool.next": "Toque em Experimente para verificar o exemplo. Para seu próprio arquivo, toque em Usar meus dados e preencha as três caixas.",
   "a.res.get": "Este resultado: a frase e o gráfico acima, guardados no link desta página. Um resultado de exemplo é público; o do seu arquivo não é listado.",
-  "a.res.next": "Toque em Copiar link para compartilhar este resultado, ou em Usar meus dados para verificar seu arquivo.",
+  "a.res.next": "Toque em Copiar link para compartilhar, ou em Usar meus dados para verificar seu arquivo.",
   "a.pay": {
    "one": "O exemplo é grátis. Seus arquivos: {free} verificações grátis por dia, depois {price} em dinheiro de teste por mais {n}, pago por você após confirmar.",
    "many": "O exemplo é grátis. Seus arquivos: {free} verificações grátis por dia, depois {price} em dinheiro de teste por mais {n}, pago por você após confirmar.",
    "other": "O exemplo é grátis. Seus arquivos: {free} verificações grátis por dia, depois {price} em dinheiro de teste por mais {n}, pago por você após confirmar."
   },
   "a.why_released": {
-   "one": "Um teste público de 7 arquivos com respostas conhecidas passou antes do lançamento; o verificador do Knos o executou. Não testado: arquivos com mais de {n} linha.",
-   "many": "Um teste público de 7 arquivos com respostas conhecidas passou antes do lançamento; o verificador do Knos o executou. Não testado: arquivos com mais de {n} de linhas.",
-   "other": "Um teste público de 7 arquivos com respostas conhecidas passou antes do lançamento; o verificador do Knos o executou. Não testado: arquivos com mais de {n} linhas."
+   "one": "Um teste público de 7 arquivos com respostas conhecidas passou antes do lançamento; o verificador do Knos o executou. Não testado: mais de {n} linha.",
+   "many": "Um teste público de 7 arquivos com respostas conhecidas passou antes do lançamento; o verificador do Knos o executou. Não testado: mais de {n} de linhas.",
+   "other": "Um teste público de 7 arquivos com respostas conhecidas passou antes do lançamento; o verificador do Knos o executou. Não testado: mais de {n} linhas."
   },
   "a.why_unreleased": {
-   "one": "Um teste público de 7 arquivos com respostas conhecidas precisa passar antes do lançamento; o verificador do Knos o executa. Não testado: arquivos com mais de {n} linha.",
-   "many": "Um teste público de 7 arquivos com respostas conhecidas precisa passar antes do lançamento; o verificador do Knos o executa. Não testado: arquivos com mais de {n} de linhas.",
-   "other": "Um teste público de 7 arquivos com respostas conhecidas precisa passar antes do lançamento; o verificador do Knos o executa. Não testado: arquivos com mais de {n} linhas."
+   "one": "Um teste público de 7 arquivos com respostas conhecidas precisa passar antes do lançamento; o verificador do Knos o executa. Não testado: mais de {n} linha.",
+   "many": "Um teste público de 7 arquivos com respostas conhecidas precisa passar antes do lançamento; o verificador do Knos o executa. Não testado: mais de {n} de linhas.",
+   "other": "Um teste público de 7 arquivos com respostas conhecidas precisa passar antes do lançamento; o verificador do Knos o executa. Não testado: mais de {n} linhas."
   },
   "a.tool.who": "O Knos opera esta ferramenta e seu teste. Não há data marcada para a próxima atualização. Para contestar um resultado, <a href=\"{issues}\">abra um chamado no GitHub</a>.",
   "a.price.get": {
@@ -195,7 +194,7 @@
    "many": "Mais {n} de verificações da ferramenta com seus arquivos, depois de usar suas {free} verificações grátis do dia.",
    "other": "Mais {n} verificações da ferramenta com seus arquivos, depois de usar suas {free} verificações grátis do dia."
   },
-  "a.price.next": "Use a ferramenta. Quando suas verificações grátis acabarem, ela mostra Pagar com dinheiro de teste; toque e depois confirme.",
+  "a.price.next": "Use a ferramenta. Ao acabarem suas verificações grátis, ela mostra Pagar com dinheiro de teste; toque e confirme.",
   "a.price.pay": {
    "one": "{price} em dinheiro de teste por {n} verificação, pago por você, uma vez, após confirmar. Nada é cobrado hoje; não pedimos cartão nem conta.",
    "many": "{price} em dinheiro de teste por {n} de verificações, pago por você, uma vez, após confirmar. Nada é cobrado hoje; não pedimos cartão nem conta.",
@@ -314,6 +313,7 @@
   "act.why": "Registrado porque você tocou em Sim, registrar. Nada foi cobrado.",
   "act.undo": "Desfazer",
   "act.undone": "O pagamento de teste foi desfeito. Nada foi cobrado.",
-  "act.undo_error": "Não consegui desfazer o pagamento de teste, porque algumas das suas execuções já foram usadas. Nada foi cobrado."
+  "act.undo_error": "Não consegui desfazer o pagamento de teste, porque algumas das suas execuções já foram usadas. Nada foi cobrado.",
+  "offline.line": "Você está sem conexão. Esta página foi guardada da sua última visita."
  }
 }

@@ -1,0 +1,7 @@
+# Knos's browser floor (LAWS\UX\U7.md R21): Chrome 138 on Android 8.1, Safari on iOS 15.6, Samsung Internet 15,
+# UC Browser 15.5, and Opera Mini, for which the first screen works as a plain form.
+chrome 138
+ios_saf 15.6
+samsung 15
+and_uc 15.5
+op_mini all

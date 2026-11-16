@@ -7,5 +7,13 @@
  "UX/U4.md:109": {"reason": "38 to 70 elements, 3 text colours per screen; no approved busyness baseline; a person must approve one", "needs": "person"},
  "UX/U7.md:37": {"reason": "no stored correct bidi screenshot tests/web/approved/bidi-ar.png; a reader of Arabic must approve one", "needs": "person"},
  "UX/U7.md:345": {"reason": "reviewed_by empty in 9 of 9 locale files; needs a native-speaker reviewer named in each", "needs": "person"},
- "UX/U7.md:355": {"reason": "ar, id and sw are tier B with no named human reviewer; needs native-speaker reviewers", "needs": "person"}
+ "UX/U7.md:355": {"reason": "ar, id and sw are tier B with no named human reviewer; needs native-speaker reviewers", "needs": "person"},
+ "UX/U6.md:22": {"reason": "two or three starters under the box would add first-screen controls past the three that U3 allows", "needs": "law conflict", "won_by": "UX/U3.md:21"},
+ "UX/U6.md:337": {"reason": "a microphone beside the box and Listen beside the verdict add first-screen controls past the three U3 allows", "needs": "law conflict", "won_by": "UX/U3.md:21"},
+ "UX/U6.md:348": {"reason": "it tests the voice input of U6.md:337, which the three controls of U3's first screen leave out", "needs": "law conflict", "won_by": "UX/U3.md:21"},
+ "UX/U6.md:359": {"reason": "a microphone on the first screen would be a fourth control there; U3 allows three", "needs": "law conflict", "won_by": "UX/U3.md:21"},
+ "UX/U7.md:195": {"reason": "the language parts pass on every screen; the static pages get no Vary: Accept-Language header", "needs": "host limit", "why": "GitHub Pages sends its own response headers for every file; a site cannot add Vary to them"},
+ "UX/U7.md:279": {"reason": "the static pages are the same files with and without Save-Data; the app pages answer it", "needs": "host limit", "why": "GitHub Pages answers every request for a file alike; it cannot drop fonts or add Vary when Save-Data is on"},
+ "UX/U7.md:291": {"reason": "pictures on the first-screen controls pass; recorded listen files per language need a speech service account", "needs": "outside account"},
+ "UX/U7.md:311": {"reason": "the journey by taps passes; audio that plays without browser speech needs recorded files from a speech service", "needs": "outside account"}
 }

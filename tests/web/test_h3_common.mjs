@@ -13,6 +13,13 @@ import { gzipSync } from "node:zlib";
 import { fileURLToPath } from "node:url";
 import { TYPES } from "./overflow.mjs";
 
+// a locale file with each message as the pages use it: its text, or its plural forms (en.json also holds, for the
+// translator, a description and a max_length per message, U7 R31)
+const CATS = ["zero", "one", "two", "few", "many", "other"];
+const localeFile = (lang) => { const d = JSON.parse(readFileSync(join(ROOT, "web", "i18n", `${lang}.json`), "utf8"));
+  d.strings = Object.fromEntries(Object.entries(d.strings).map(([k, v]) => [k, v && typeof v === "object" ? ("text" in v ? v.text : Object.fromEntries(Object.entries(v).filter(([c]) => CATS.includes(c)))) : v]));
+  return d; };
+
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 export const LANGS = ["en", "ar", "hi", "es", "fr", "pt", "zh-Hans", "id", "sw", "ru"];
 export const RID = "H3resultAAAA";
@@ -91,8 +98,8 @@ export async function serveScreens(given) {
   return {
     base,
     screens: { door: `${base}/Knos/`, tool: `${base}/t/limit-check/`, result: `${base}/r/${RID}/`, price: `${base}/Knos/pricing/` },
-    en: JSON.parse(readFileSync(join(ROOT, "web", "i18n", "en.json"), "utf8")).strings,
-    file: (lang) => JSON.parse(readFileSync(join(ROOT, "web", "i18n", `${lang}.json`), "utf8")),
+    en: localeFile("en").strings,
+    file: localeFile,
     // the front door's own calls to the hosted server go to this stand-in instead
     route: async (ctx) => {
       await ctx.route(/^https:\/\/knos\.onrender\.com\/api\/(tools|run|pay)/, async (r) => {

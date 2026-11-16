@@ -217,6 +217,6 @@ def test_the_front_door_has_one_h1_and_keeps_the_question_box_below_the_tool(sit
     assert html.unescape(box) == sample                                               # the job's sample, written in at build time
     conf = ast.literal_eval(re.search(r"CONF = (\{.*\})", (ROOT / "apps" / "wanted" / "knos_wanted" / "runner_conf.py").read_text(encoding="utf-8"), re.S).group(1))
     assert f'<label for="list" id="list-label">{conf["sample_label"]}</label>' in door      # the same label as the server's tool page
-    assert '<span id="colname">capacity_ah</span>' in door and 'value="1.4"' in door
+    assert '<span id="colname" data-user-content>capacity_ah</span>' in door and 'value="1.4"' in door
     for gone in ("count-distinct", "different items", "Exact count"):                    # the list counter is shown to nobody here
         assert gone not in door, gone

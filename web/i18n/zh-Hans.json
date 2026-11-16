@@ -89,7 +89,6 @@
   "chart.label": "数值与限值的图表",
   "chart.label_fail": "数值与限值的图表，已标出第一个失败的行",
   "chart.row": "第 {r} 行",
-  "rs.sep": "",
   "rs.fail_above": "在第 {r} 行失败：{value} 不高于 {limit}。",
   "rs.fail_below": "在第 {r} 行失败：{value} 不低于 {limit}。",
   "rs.before": {
@@ -256,6 +255,7 @@
   "act.why": "已记录，因为你按了“是的，记录”。没有收取任何费用。",
   "act.undo": "撤销",
   "act.undone": "测试付款已撤销。没有收取任何费用。",
-  "act.undo_error": "我无法撤销这笔测试付款，因为它的部分运行次数已被使用。没有收取任何费用。"
+  "act.undo_error": "我无法撤销这笔测试付款，因为它的部分运行次数已被使用。没有收取任何费用。",
+  "offline.line": "你已离线。此页面保存自你上次访问。"
  }
 }
