@@ -1,18 +1,18 @@
-"""Tools a stranger can run (Round 13, parts A to D): the first is "Count the different items in a list".
+"""Tools a stranger can run (Round 13, parts A to D): the first is "Check a test file against a limit".
 
-The program is near/agents/pass_agent.py's SOLUTION, unchanged: the HyperLogLog Counter that passed the locked test
-near/agents/job/test_hll.py on NEAR testnet. It counts a stream given to Counter.add, so a small reader (READER, below)
-sits in front of it: one item per line in, Counter.count() out, and the exact count of different lines when the list has
-100,000 lines or fewer.
+The program is the one Knos's own job flow released for the claim whose locked test is near/agents/job/test_limit.py,
+copied byte for byte to near/agents/job/data/limit/released_solution.py (released.json beside it names the job). Its
+interface is fixed by that test: check(table, column, rule, limit) -> {result, first_failing_row, rows, skipped, values}.
+Until that file exists the tool answers that it is not ready; nothing else stands in for it here.
 
 It runs as the checker runs a locked test (near/agents/checker.py run_test): a temporary folder of its own,
 `python -E -s -B`, a time limit. The two limits come from one place, runner_conf.py: the time limit is the one the
-checker uses for this claim (near/claims/claims.json timeout_s, else the checker's default), the line limit is set there
-because that sandbox had no input-size setting.
+checker uses for this claim (near/claims/claims.json timeout_s, else the checker's default), the row limit is set there
+because that sandbox has no input-size setting.
 
 Routes (server.py calls handle_get and handle_post first):
     GET  /api/tools                      {"tools": [{"id", "title", "sample"}]}
-    POST /api/run   {id, input, mode, browser, test}   the result, its link, runs left and the limits; 402 / 413 / 408
+    POST /api/run   {id, table, column, rule, limit, browser, test}   the result, its link, runs left and the limits
     POST /api/pay   {browser, press, test}             a test payment: 20 more runs, recorded once per press
     GET  /t/<id>/, /r/<result-id>/      server-written pages with their og tags; GET /og/<t|r>/<id>.png, their image
 The usage counts (D2) and the three measures (D1) join GET /api/usage (usage()).
@@ -23,10 +23,12 @@ A browser is known only by a random id its page makes after the person says yes 
 allowance is held in this process's memory under a keyed hash of its address, never written."""
 from __future__ import annotations
 
-import ast
+import csv
 import datetime as dt
 import hashlib
+import io
 import json
+import math
 import os
 import re
 import secrets
@@ -38,18 +40,14 @@ import time
 from pathlib import Path
 
 from . import tool_page, valley
+from .runner_conf import CONF
 
 HERE = Path(__file__).parent
-from .runner_conf import CONF
 TOOL_ID = CONF["tool"]
-TITLE = "Count the different items in a list"
-LINE = "For anyone with a long list who wants one quick count."
-# 20 lines, 12 different items: the program's estimate on them is 12 (tests/test_tool_run.py runs it)
-SAMPLE = "\n".join(["apple", "banana", "cherry", "apple", "grape", "lemon", "banana", "mango", "orange", "apple",
-                    "peach", "pear", "mango", "plum", "kiwi", "pear", "lime", "kiwi", "lemon", "apple"])
-SHOWN_BY = "Checked by a test that counted 30,000 different visitors to within 10%."
-PAPER = "https://doi.org/10.46298/dmtcs.3545"
-EXACT_UP_TO = 100_000
+TITLE = "Check a test file against a limit"
+LINE = "For anyone who tests batteries, motors, parts or machines."
+SHOWN_BY = "Checked by a test of 7 files with known answers."
+TEST_URL = "https://github.com/drexthealpha/Knos/blob/main/near/agents/job/test_limit.py"
 PUBLIC = "https://knos.onrender.com"
 FRONT = "https://drexthealpha.github.io/Knos/"
 OWN_HOSTS = ("knos.onrender.com", "drexthealpha.github.io")
@@ -59,19 +57,16 @@ ID = re.compile(r"[A-Za-z0-9_-]{8,64}")
 RID = re.compile(r"[A-Za-z0-9_-]{12}")
 RESULTS, BROWSERS, PRESSES, USAGE = "tool-results", "tool-browsers", "tool-presses", "tool-usage"
 FIELDS = ("tools_opened", "sample_runs", "own_runs", "results_opened_elsewhere", "test_payments", "link_previews", "connector_runs")
+RULES = ("above", "below")
 
-READER = f'''"""The reader in front of the program that passed the locked test: one item per line in, its count out."""
+READER = '''"""The reader in front of the released program: the run's four inputs in as JSON, its answer out."""
 import json
 import sys
 
-from solution import Counter
+from solution import check
 
-lines = [x.strip() for x in sys.stdin.buffer.read().decode("utf-8", "replace").splitlines()]
-lines = [x for x in lines if x]
-c = Counter()
-for x in lines:
-    c.add(x)
-print(json.dumps({{"estimate": c.count(), "lines": len(lines), "exact": len(set(lines)) if len(lines) <= {EXACT_UP_TO} else None}}))
+a = json.loads(sys.stdin.buffer.read().decode("utf-8"))
+print(json.dumps(check(a["table"], a["column"], a["rule"], a["limit"])))
 '''
 
 
@@ -85,20 +80,45 @@ def root() -> Path:
     return Path(os.environ.get("KNOS_NEAR_ROOT") or Path(__file__).resolve().parents[3])   # /app in the image
 
 
-_sol: dict = {}
+def program_path() -> Path:
+    """The released program, byte for byte as the job released it (near/agents/job/data/limit/released_solution.py)."""
+    return root() / CONF["program"]
 
 
-def solution() -> str:
-    """pass_agent.py's SOLUTION string, read from its source (importing it would import the agent's runner)."""
-    if "src" not in _sol:
-        tree = ast.parse((root() / "near" / "agents" / "pass_agent.py").read_text(encoding="utf-8"))
-        _sol["src"] = next(ast.literal_eval(n.value) for n in tree.body if isinstance(n, ast.Assign)
-                           and any(getattr(t, "id", "") == "SOLUTION" for t in n.targets))
-    return _sol["src"]
+def released() -> dict:
+    """released.json beside the program: the job that built it. {} until the job is released."""
+    try:
+        got = json.loads((root() / CONF["released"]).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return got if isinstance(got, dict) else {}
 
 
-def solution_sha256() -> str:
-    return hashlib.sha256(solution().encode("utf-8")).hexdigest()
+def ready() -> bool:
+    return program_path().is_file()
+
+
+def program() -> str:
+    return program_path().read_text(encoding="utf-8")
+
+
+def program_sha256() -> str:
+    return hashlib.sha256(program_path().read_bytes()).hexdigest()
+
+
+_sample: dict = {}
+
+
+def sample() -> str:
+    """The sample file the front door and the tool page open with (near/agents/job/data/limit/sample.csv), as text."""
+    f = root() / CONF["sample"]
+    try:
+        key = (str(f), f.stat().st_mtime)
+    except OSError:
+        return ""
+    if _sample.get("key") != key:
+        _sample.update(key=key, text=f.read_text(encoding="utf-8").replace("\r\n", "\n").strip("\n"))
+    return _sample["text"]
 
 
 def max_seconds() -> int:
@@ -112,89 +132,178 @@ def max_seconds() -> int:
 
 
 def limits() -> dict:
-    return {"max_lines": int(CONF["max_lines"]), "max_seconds": max_seconds()}
+    return {"max_rows": int(CONF["max_rows"]), "max_seconds": max_seconds()}
+
+
+def longest_test_file() -> int:
+    """The most data rows in any file the locked test checks (near/agents/job/data/limit/*.csv)."""
+    return max((columns(f.read_text(encoding="utf-8"))[1] for f in (root() / CONF["sample"]).parent.glob("*.csv")), default=0)
+
+
+def job_link() -> str:
+    r = released()
+    return str(r.get("release_url") or r.get("url") or r.get("link") or "")
 
 
 def fold() -> list[str]:
-    """The "How it works" fold, in the item's order (A5), plus what it depends on (Daily design)."""
+    """The "How it works" fold, in the item's order (A5): the sample's credit first, then what it does not do, what
+    happens to your file, the test that showed it works, the price, and the job that built it."""
     lim = limits()
-    return [
-        "What it does not do: it does not say which items repeat, and it does not fix spelling, so \"Apple\" and "
-        "\"apple\" count as two. Blank lines and spaces at the ends of a line are left out. On a long list the "
-        "\"About\" number can be a few percent off; the exact count is the true one.",
-        f"What happens to your list: it is sent to the Knos server at knos.onrender.com and counted there. It is kept so "
-        f"that its result link works, until the server is next updated or {CONF['results_kept']:,} newer results replace it. "
-        "A sample result can be seen by anyone with its link. A result from your own list is shown only to people who "
-        "have its link and is never listed anywhere. Knos keeps no name, email or network address.",
-        f"The test that showed it works: the same program counted two streams of 30,000 different visitors, each seen "
-        f"twice, to within 10%, using at most 1.5 kilobytes. That test did not cover lists of more than 30,000 different "
-        f"items, or the paper's figure of 2% for very large lists. <a href=\"{PUBLIC}/api/near/claim/code\">The program</a> "
-        f"and <a href=\"https://github.com/drexthealpha/Knos/blob/main/near/agents/job/test_hll.py\">its test</a> are public.",
-        f"The price: runs on the sample are free. {CONF['free_runs_a_day']} runs on your own lists are free each day. "
+    out = []
+    _, n = columns(sample())
+    if CONF.get("sample_made_up") and n:
+        vals = [r[1] for r in csv.reader(io.StringIO(sample()))][1:]
+        out.append(f"The sample is made up: a straight line from {vals[0]} to {vals[-1]} over {n} cycles, because NASA's page "
+                   f"offers no download from a nasa.gov address. Its limit, {tool_page.shown_limit(CONF['sample_limit'])}, is the "
+                   f"end-of-life rule on <a href=\"{CONF['limit_rule_url']}\">NASA's battery data page</a>.")
+    out += [
+        "What it does not do: it checks one column against one limit. It does not judge whether the limit is the right "
+        "one. A row whose value is not a number is skipped and counted.",
+        f"What happens to your file: it is sent to the Knos server at knos.onrender.com and checked there. It is kept, up "
+        f"to its first {CONF['input_kept_chars']:,} characters, so that its result link works, until the server is next "
+        f"updated or {CONF['results_kept']:,} newer results replace it. A sample result can be seen by anyone with its link. "
+        "A result from your own file is shown only to people who have its link and is never listed anywhere. Knos keeps "
+        "nothing that says who you are.",
+        f"The test that showed it works: six made-up files with known answers and the sample, each checked against a "
+        f"limit. It did not cover files longer than {longest_test_file()} rows, or files separated by anything other than "
+        f"commas. <a href=\"{TEST_URL}\">The test</a> is public.",
+        f"The price: runs on the sample are free. {CONF['free_runs_a_day']} runs on your own files are free each day. "
         f"After that, {CONF['pack_runs']} more runs cost {CONF['pack_price']} in test money. Today nothing is charged.",
-        f"Limits: up to {lim['max_lines']:,} lines, and a run is stopped after {lim['max_seconds']} seconds.",
-        "What it depends on: the Knos server being up. After a quiet spell it can take a while to wake.",
-        f"The paper it came from: <a href=\"{PAPER}\">HyperLogLog (2007), by Flajolet, Fusy, Gandouet and Meunier</a>.",
+        f"Limits: up to {lim['max_rows']:,} rows, and a run is stopped after {lim['max_seconds']} seconds.",
     ]
+    link = job_link()
+    out.append(f'Who built it: AI helpers wrote the program through Knos, and it was released only when that test passed. '
+               f'<a href="{link}">The public record</a>.' if link else
+               "Who built it: AI helpers write the program through Knos, and it is released only when that test passes. "
+               "It has not been released yet.")
+    return out
 
 
 def tool(tid: str) -> dict | None:
     if tid != TOOL_ID:
         return None
-    return {"id": TOOL_ID, "title": TITLE, "line": LINE, "sample": SAMPLE, "limits": limits(), "fold": fold()}
+    return {"id": TOOL_ID, "title": TITLE, "line": LINE, "sample": sample(), "sample_label": CONF["sample_label"],
+            "column": CONF["sample_column"], "rule": CONF["sample_rule"], "limit": CONF["sample_limit"],
+            "limits": limits(), "fold": fold()}
 
 
 def tools_doc() -> dict:
-    return {"tools": [{"id": TOOL_ID, "title": TITLE, "sample": SAMPLE}]}
+    return {"tools": [{"id": TOOL_ID, "title": TITLE, "sample": sample()}]}
 
 
-def result_line(n: int) -> str:
-    return f"About {n:,} different item{'' if n == 1 else 's'}"
+first_sentence = tool_page.first_sentence    # "Failed at row 37: 1.38 is not above 1.4.": og:description and the link image
 
 
 def lines_of(text: str) -> list[str]:
-    return [x for x in (y.strip() for y in str(text).splitlines()) if x]
+    return [x for x in (y.strip() for y in str(text).replace("\r\n", "\n").split("\n")) if x]
 
 
 def is_sample(text: str) -> bool:
-    return lines_of(text) == lines_of(SAMPLE)
+    s = sample()
+    return bool(s) and lines_of(text) == lines_of(s)
+
+
+def _num(cell: str) -> float | None:
+    try:
+        v = float(str(cell).strip())
+    except ValueError:
+        return None
+    return v if math.isfinite(v) else None
+
+
+def columns(table: str) -> tuple[list[str], int]:
+    """The file's column names and its number of data rows, by the program's own rule (SPEC2): a first row with any
+    cell that is not a number is the header; otherwise the columns are "column 1", "column 2" and so on."""
+    rows = [r for r in csv.reader(io.StringIO(table)) if any(c.strip() for c in r)]
+    if not rows:
+        return [], 0
+    if any(_num(c) is None for c in rows[0]):
+        return [c.strip() for c in rows[0]], len(rows) - 1
+    return [f"column {i + 1}" for i in range(max(len(r) for r in rows))], len(rows)
 
 
 # ---- the run -----------------------------------------------------------------------------------------------------------
 _slots = threading.BoundedSemaphore(int(CONF["runs_at_once"]))
+KEPT = "I kept your file in the box; try a shorter one."
 
 
-def too_long(n: int | None = None) -> dict:
-    return {"error": f"Your list is too long for me to count here. The limit is {CONF['max_lines']:,} lines. Try a shorter list."}
+def too_big() -> dict:
+    return {"error": f"Your file is too big. The limit is {int(CONF['max_rows']):,} rows. {KEPT}"}
 
 
-def run_program(text: str) -> dict:
-    """The reader and the program in a folder of their own, as the checker runs a test: {estimate, lines, exact}."""
-    n = len(lines_of(text))
+def not_ready() -> dict:
+    return {"error": "I cannot check files yet, because the program for this tool has not passed the test that decides "
+                     "it works. Please try again later."}
+
+
+def inputs(body: dict) -> tuple[str, str, str, float]:
+    """The four inputs, read and checked before anything runs: (table, column, rule, limit). Raises Refusal 400 or 413."""
+    table, column, rule, limit = body.get("table"), body.get("column"), body.get("rule"), body.get("limit")
+    if not isinstance(table, str) or not table.strip():
+        raise Refusal(400, {"error": "Your file is empty, so I have nothing to check yet. Choose a file or paste a table, then press Try it."})
+    if rule not in RULES:
+        raise Refusal(400, {"error": "I need to know whether the values must stay above or below the limit. Please choose one, then press Try it."})
+    try:
+        lim = float(limit) if not isinstance(limit, bool) else math.nan
+    except (TypeError, ValueError):
+        lim = math.nan
+    if not math.isfinite(lim):
+        raise Refusal(400, {"error": "I need the limit as a number, such as 1.4, before I can check your file. Please type it, then press Try it."})
+    names, n = columns(table)
+    if n > int(CONF["max_rows"]):
+        raise Refusal(413, too_big())
+    if not isinstance(column, str) or column not in names:
+        shown = ", ".join(names[:12])
+        raise Refusal(400, {"error": f"I could not find a column called \"{str(column)[:40]}\" in your file. The columns I found are: {shown}. Please pick one."})
     if n == 0:
-        raise Refusal(400, {"error": "Your list is empty, so I have nothing to count yet. Type one item on each line, then press Try it."})
+        raise Refusal(400, {"error": "Your file has a header but no rows under it, so I have nothing to check. Please add rows, then press Try it."})
+    return table, column, rule, lim
+
+
+def run_program(table: str, column: str, rule: str, limit: float) -> dict:
+    """The reader and the released program in a folder of their own, as the checker runs a test: the program's answer."""
+    if not ready():
+        raise Refusal(503, not_ready())
     lim = limits()
-    if n > lim["max_lines"]:
-        raise Refusal(413, too_long(n))
     if not _slots.acquire(timeout=lim["max_seconds"]):
-        raise Refusal(503, {"error": "I am counting other lists right now and could not start yours. Your list is still in the box. Please try again in a moment."})
+        raise Refusal(503, {"error": "I am checking other files right now and could not start yours. Your file is still in the box. Please try again in a moment."})
     try:
         with tempfile.TemporaryDirectory(prefix="knos-tool-") as d:
-            (Path(d) / "solution.py").write_text(solution(), encoding="utf-8")
+            (Path(d) / "solution.py").write_bytes(program_path().read_bytes())
             (Path(d) / "reader.py").write_text(READER, encoding="utf-8")
+            args = json.dumps({"table": table, "column": column, "rule": rule, "limit": limit}).encode("utf-8")
             try:
-                p = subprocess.run([sys.executable, "-E", "-s", "-B", "reader.py"], cwd=d, input=text.encode("utf-8"),
+                p = subprocess.run([sys.executable, "-E", "-s", "-B", "reader.py"], cwd=d, input=args,
                                    capture_output=True, timeout=lim["max_seconds"])
             except subprocess.TimeoutExpired:
-                raise Refusal(408, {"error": f"This took too long, so I stopped it after {lim['max_seconds']} seconds. "
-                                             "Your list is still in the box. Try a shorter list."}) from None
+                raise Refusal(408, {"error": f"This took too long and was stopped. Try a smaller file. I stopped it after "
+                                             f"{lim['max_seconds']} seconds and kept your file in the box."}) from None
     finally:
         _slots.release()
     said = p.stdout.decode("utf-8", "replace").strip().splitlines()
-    if p.returncode != 0 or not said:
+    try:
+        got = json.loads(said[-1]) if p.returncode == 0 and said else None
+    except ValueError:
+        got = None
+    if not isinstance(got, dict) or not isinstance(got.get("result"), str):
         print(f"knos tool run failed: {p.stderr.decode('utf-8', 'replace')[-300:]}", file=sys.stderr, flush=True)
-        raise Refusal(500, {"error": "The counting program stopped with an error, so I have no count for this list. Your list is still in the box. Please try again."})
-    return json.loads(said[-1])
+        raise Refusal(500, {"error": "The checking program stopped with an error, so I have no result for this file. Your file is still in the box. Please try again."})
+    return got
+
+
+def fails(v: float, rule: str, limit: float) -> bool:
+    return v <= limit if rule == "above" else v >= limit
+
+
+def chart(values: list, rule: str, limit: float) -> dict:
+    """What the chart draws: the values as points (at most chart_points of them, the first failing one always kept),
+    the limit, and the first failing point. x is the value's place among the numbers the program read."""
+    vals = [float(v) for v in values if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)]
+    bad = next((i for i, v in enumerate(vals) if fails(v, rule, limit)), None)
+    step = max(1, math.ceil(len(vals) / int(CONF["chart_points"])))
+    keep = sorted(set(range(0, len(vals), step)) | ({bad} if bad is not None else set()) | ({len(vals) - 1} if vals else set()))
+    return {"points": [[i + 1, vals[i]] for i in keep], "fail": [bad + 1, vals[bad]] if bad is not None else None,
+            "limit": limit, "rule": rule, "n": len(vals)}
 
 
 # ---- the store ---------------------------------------------------------------------------------------------------------
@@ -270,20 +379,25 @@ def bump(field: str, test: bool = False) -> None:
         print(f"knos tool usage: not counted: {type(why).__name__}: {str(why)[:120]}", flush=True)
 
 
-def save_result(text: str, got: dict, sample: bool) -> dict:
+def save_result(table: str, column: str, rule: str, limit: float, got: dict, sample_run: bool) -> dict:
     rid = secrets.token_urlsafe(9)                     # 12 characters: never a 16-hex demand result's id
     while re.fullmatch(r"[0-9a-f]{12}", rid):          # nor a referral code (/r/<12 hex>, valley.make_referral)
         rid = secrets.token_urlsafe(9)
-    rec = {"id": rid, "tool": TOOL_ID, "mode": "sample" if sample else "own", "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-           "estimate": int(got["estimate"]), "exact": got.get("exact"), "lines": int(got["lines"])}
-    if not sample:                                     # a sample result keeps no input: the sample is the tool's
+    ffr = got.get("first_failing_row")
+    rec = {"id": rid, "tool": TOOL_ID, "mode": "sample" if sample_run else "own", "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+           "column": column, "rule": rule, "limit": limit, "result": str(got["result"]),
+           "first_failing_row": int(ffr) if isinstance(ffr, int) and not isinstance(ffr, bool) else None,
+           "rows": int(got.get("rows") or 0), "skipped": int(got.get("skipped") or 0),
+           "chart": chart(got.get("values") or [], rule, limit)}
+    if not sample_run:                                 # a sample result keeps no input: the sample is the tool's
+        lines = table.replace("\r\n", "\n").split("\n")
         kept, size = [], 0
-        for x in lines_of(text):
+        for x in lines:
             size += len(x) + 1
             if size > int(CONF["input_kept_chars"]):
                 break
             kept.append(x)
-        rec.update(input="\n".join(kept), cut=len(kept) < rec["lines"], shown_lines=len(kept))
+        rec.update(input="\n".join(kept), cut=len(kept) < len(lines), shown_lines=len(kept), lines=len(lines))
     with _lock:
         valley._save(RESULTS, rid, rec, chain=False)
         _prune(RESULTS, int(CONF["results_kept"]))
@@ -293,29 +407,32 @@ def save_result(text: str, got: dict, sample: bool) -> dict:
 def load_result(rid: str) -> dict | None:
     if not RID.fullmatch(rid or "") or re.fullmatch(r"[0-9a-f]{12}", rid):
         return None
-    return valley._safe_load(RESULTS, rid)
+    got = valley._safe_load(RESULTS, rid)
+    return got if got and got.get("tool") == TOOL_ID else None
 
 
 def shape(rec: dict, base: str = PUBLIC) -> dict:
     """A stored result as the pages and the run answer show it."""
-    return {"id": rec["id"], "mode": rec["mode"], "result": result_line(rec["estimate"]), "exact": rec.get("exact"),
-            "shown_by": SHOWN_BY, "link": f"{base}/r/{rec['id']}/", "input": SAMPLE if rec["mode"] == "sample" else rec.get("input", ""),
+    return {"id": rec["id"], "mode": rec["mode"], "result": rec["result"], "first_failing_row": rec.get("first_failing_row"),
+            "rows": rec.get("rows"), "skipped": rec.get("skipped"), "shown_by": SHOWN_BY, "link": f"{base}/r/{rec['id']}/",
+            "column": rec["column"], "rule": rec["rule"], "limit": rec["limit"], "chart": rec.get("chart"),
+            "input": sample() if rec["mode"] == "sample" else rec.get("input", ""),
             "lines": rec.get("lines"), "cut": rec.get("cut", False), "shown_lines": rec.get("shown_lines")}
+
+
+ANSWER = ("result", "first_failing_row", "rows", "skipped", "shown_by", "link")
 
 
 def run(body: dict, address: str, base: str = PUBLIC, test: bool = False, connector: bool = False) -> dict:
     """One run of a tool: the answer /api/run and the connector's run give. Raises Refusal (400, 402, 408, 413, 500, 503)."""
     if str(body.get("id") or "") != TOOL_ID:
         raise Refusal(404, {"error": f"I do not have a tool called \"{str(body.get('id'))[:40]}\". The tool I have is {TOOL_ID}: ask for it by that name."})
-    text = body.get("input")
-    if not isinstance(text, str):
-        raise Refusal(400, {"error": "I need your list as text, with one item on each line, before I can count anything."})
-    sample = is_sample(text)
+    table, column, rule, limit = inputs(body)
+    if not ready():
+        raise Refusal(503, not_ready())
+    sample_run = is_sample(table)
     key, rec, took = None, None, None
-    if not sample:
-        n = len(lines_of(text))
-        if n == 0 or n > int(CONF["max_lines"]):
-            run_program(text)                            # the same refusal the program's runner gives (400 or 413)
+    if not sample_run:
         key = _key(body.get("browser"), address)
         with _lock:
             rec = _fresh(_rec(key))
@@ -331,9 +448,9 @@ def run(body: dict, address: str, base: str = PUBLIC, test: bool = False, connec
                 rec["paid_left"] = paid - 1
             _keep(key, rec)
     try:
-        got = run_program(text)
+        got = run_program(table, column, rule, limit)
     except Refusal:
-        if key:                                          # nothing was counted: the run goes back
+        if key:                                          # nothing was checked: the run goes back
             with _lock:
                 rec = _fresh(_rec(key))
                 if took == "free":
@@ -342,10 +459,10 @@ def run(body: dict, address: str, base: str = PUBLIC, test: bool = False, connec
                     rec["paid_left"] = int(rec.get("paid_left") or 0) + 1
                 _keep(key, rec)
         raise
-    saved = save_result(text, got, sample)
-    out = {k: v for k, v in shape(saved, base).items() if k in ("id", "mode", "result", "exact", "shown_by", "link", "lines")}
+    saved = save_result(table, column, rule, limit, got, sample_run)
+    out = {k: v for k, v in shape(saved, base).items() if k in ANSWER + ("id", "mode", "chart", "column", "rule", "limit")}
     out["limits"] = limits()
-    if sample:
+    if sample_run:
         out.update(runs_left=None, free_left=None, paid_left=None)
     else:
         with _lock:
@@ -362,7 +479,7 @@ def run(body: dict, address: str, base: str = PUBLIC, test: bool = False, connec
                     rec["exhausted"] = True
             _keep(key, rec)
         out.update(runs_left=free + paid, free_left=free, paid_left=paid)
-    bump("sample_runs" if sample else "own_runs", test)
+    bump("sample_runs" if sample_run else "own_runs", test)
     if connector:
         bump("connector_runs", test)
     return out
@@ -396,7 +513,7 @@ _measured: dict = {"at": 0.0, "v": None}
 
 
 def measures(today: dt.date | None = None) -> dict:
-    """The three D1 measures over browsers that said yes to being counted, own-list runs only (sample runs are a separate
+    """The three D1 measures over browsers that said yes to being counted, own-data runs only (sample runs are a separate
     demo count), Knos's own test browsers left out."""
     if today is None and _measured["v"] is not None and time.time() - _measured["at"] < 60:
         return _measured["v"]
@@ -427,7 +544,7 @@ def usage() -> dict:
                             "site; link_previews: the same from a link-preview robot or a command-line client; test_payments: "
                             "test payments recorded; connector_runs: runs through /mcp (also in sample_runs or own_runs). "
                             "test_days: the same counts for requests marked as Knos's own tests or WALK runs. measures: "
-                            "own-list runs of browsers that said yes to being counted, test browsers left out",
+                            "own-data runs of browsers that said yes to being counted, test browsers left out",
             "tool_store": "the server's disk, which Render empties on every deploy: counts restart from that day"}
 
 
@@ -489,7 +606,7 @@ def handle_get(h, state, u, qs) -> bool:
             img = tool_page.og_png(t["title"]) if t else None
         else:
             rec = load_result(m.group(2))
-            img = tool_page.og_png(TITLE, result_line(rec["estimate"])) if rec else None
+            img = tool_page.og_png(TITLE, first_sentence(rec["result"])) if rec else None
         if img is None:
             return h._send(404, {"error": "I have no image at this address."}) or True
         return h._send(200, img, "image/png", {"Cache-Control": "public, max-age=86400"}) or True
@@ -499,13 +616,13 @@ def handle_get(h, state, u, qs) -> bool:
 def _body(h) -> dict:
     n = int(h.headers.get("Content-Length") or 0)
     if n > int(CONF["max_body_bytes"]):
-        raise Refusal(413, {"error": f"Your list is too large for me to read here. The limit is {int(CONF['max_body_bytes']) // 1_000_000} megabytes of text. Try a shorter list."})
+        raise Refusal(413, {"error": f"Your file is too big for me to read here. The limit is {int(CONF['max_body_bytes']) // 1_000_000} megabytes of text. {KEPT}"})
     try:
         got = json.loads(h.rfile.read(n) or b"{}")
     except ValueError:
-        raise Refusal(400, {"error": "I could not read what was sent, so nothing was counted. Please send your list again as text."}) from None
+        raise Refusal(400, {"error": "I could not read what was sent, so nothing was checked. Please send your file again as text."}) from None
     if not isinstance(got, dict):
-        raise Refusal(400, {"error": "I could not read what was sent, so nothing was counted. Please send your list again as text."})
+        raise Refusal(400, {"error": "I could not read what was sent, so nothing was checked. Please send your file again as text."})
     return got
 
 
@@ -527,16 +644,20 @@ def handle_post(h, state, path: str) -> bool:
 # ---- the connector (/mcp): the same two answers as /api/tools and /api/run -----------------------------------------------
 MCP_TOOLS = [
     {"name": "tools", "title": "Knos tools",
-     "description": "Lists the tools a person can run on Knos: each one's id, title and sample input. No key and no account.",
+     "description": "Lists the tools a person can run on Knos: each one's id, title and sample file. No key and no account.",
      "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}},
     {"name": "run", "title": "Run a Knos tool",
-     "description": "Runs one Knos tool on an input, as the Knos site does, with the same limits and the same free runs a day: "
-                    "for count-distinct, a list with one item per line. Returns the result line, the exact count, the "
-                    "test that showed the program works, and the result's link.",
-     "inputSchema": {"type": "object", "properties": {"id": {"type": "string", "enum": [TOOL_ID], "description": "the tool's id"},
-                                                      "input": {"type": "string", "maxLength": int(CONF["max_body_bytes"]),
-                                                                "description": "one item per line"}},
-                     "required": ["id", "input"], "additionalProperties": False}},
+     "description": "Runs one Knos tool on a file, as the Knos site does, with the same limits and the same free runs a day: "
+                    "for limit-check, a comma separated table, the column to check, the rule (above or below) and the limit. "
+                    "Returns the result sentence, the first failing row, the rows checked, the rows skipped, the test that "
+                    "showed the program works, and the result's link.",
+     "inputSchema": {"type": "object", "properties": {
+         "id": {"type": "string", "enum": [TOOL_ID], "description": "the tool's id"},
+         "table": {"type": "string", "maxLength": int(CONF["max_body_bytes"]), "description": "the file as text, comma separated"},
+         "column": {"type": "string", "description": "a column name from the file's header, or \"column 1\", \"column 2\" and so on when it has none"},
+         "rule": {"type": "string", "enum": list(RULES), "description": "whether the values must stay above or below the limit"},
+         "limit": {"type": "number", "description": "the limit; a value equal to it fails"}},
+         "required": ["id", "table", "column", "rule", "limit"], "additionalProperties": False}},
 ]
 
 
@@ -549,11 +670,11 @@ def mcp_call(name: str, args: dict) -> dict:
     test = bool(headers is not None and headers.get("X-Knos-Test") == "1")
     who = qloo_rest.current_visitor() or "connector"
     try:
-        got = run({"id": args.get("id"), "input": args.get("input")}, "mcp:" + who, PUBLIC, test, connector=True)
+        got = run({k: args.get(k) for k in ("id", "table", "column", "rule", "limit")}, "mcp:" + who, PUBLIC, test, connector=True)
     except Refusal as r:
         if r.code == 402:
             o = r.body["pay"]
-            raise ValueError(f"Today's {CONF['free_runs_a_day']} free runs on your own lists are used. {o['headline']}: "
+            raise ValueError(f"Today's {CONF['free_runs_a_day']} free runs on your own files are used. {o['headline']}: "
                              f"{o['line']} Pay on the Knos site: {PUBLIC}/t/{TOOL_ID}/") from None
         raise ValueError(r.body.get("error") or "the run did not finish") from None
-    return {k: got[k] for k in ("result", "exact", "shown_by", "link")}
+    return {k: got[k] for k in ANSWER}

@@ -1,0 +1,31 @@
+"""The tool runner's settings (knos_wanted.tool_run), the one place its limits and prices live. The program runs as the checker runs a locked test (near/agents/checker.py run_test): a folder of its own, python -E -s -B, a time limit. That sandbox has a time setting (near/claims/claims.json timeout_s of the claim, else the checker's default) and no input-size setting, so max_rows is set here. (Kept as Python: the monorepo keeps no JSON under apps/wanted, tests/test_fold_wanted.py.)"""
+
+CONF = {'tool': 'limit-check',
+ 'program': 'near/agents/job/data/limit/released_solution.py',
+ 'released': 'near/agents/job/data/limit/released.json',
+ 'sample': 'near/agents/job/data/limit/sample.csv',
+ 'sample_label': 'Sample: made-up battery test',
+ 'sample_made_up': True,
+ 'limit_rule_url': 'https://data.nasa.gov/dataset/li-ion-battery-aging-datasets',
+ 'sample_column': 'capacity_ah',
+ 'sample_rule': 'above',
+ 'sample_limit': 1.4,
+ 'claim_test': 'test_limit.py',
+ 'max_seconds_source': 'near/claims/claims.json timeout_s of the claim whose test is test_limit.py; without '
+                       "one, near/agents/checker.py run_test's default: checker_default_seconds",
+ 'checker_default_seconds': 20,
+ 'max_rows': 100000,
+ 'max_rows_source': 'set here, Round 13: no sandbox setting exists for the largest input; kept at the value '
+                    'the first build of the runner used (100,000), a starting value',
+ 'max_body_bytes': 6000000,
+ 'runs_at_once': 2,
+ 'free_runs_a_day': 5,
+ 'free_runs_a_day_source': 'not from a law: a starting value to be tested',
+ 'pack_runs': 20,
+ 'pack_runs_source': 'not from a law: a starting value to be tested',
+ 'pack_price': '$1',
+ 'pack_price_source': 'not from a law: a starting value to be tested',
+ 'results_kept': 2000,
+ 'browsers_kept': 20000,
+ 'input_kept_chars': 32000,
+ 'chart_points': 2000}

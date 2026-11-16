@@ -15,7 +15,10 @@ Every page carries one header: the logo (the front door) and the product's pages
 
     python3 scripts/site_pages.py <site dir>
 """
+import csv
+import io
 import json
+import math
 import re
 import sys
 from pathlib import Path
@@ -194,13 +197,57 @@ def company_line() -> str:
     return f"{companies():,} companies are on a first list. No outside company has bought from Knos."
 
 
+LIMIT = ROOT / "near" / "agents" / "job" / "data" / "limit"   # the first tool's sample and the files its locked test checks
+
+
+def sample_text() -> str:
+    """The first tool's sample file (near/agents/job/data/limit/sample.csv), as the front door's box holds it."""
+    return (LIMIT / "sample.csv").read_text(encoding="utf-8").replace("\r\n", "\n").strip("\n")
+
+
+def data_rows(text: str) -> int:
+    rows = [r for r in csv.reader(io.StringIO(text)) if any(c.strip() for c in r)]
+    return len(rows) - 1 if rows and any(not _is_num(c) for c in rows[0]) else len(rows)
+
+
+def _is_num(cell: str) -> bool:
+    try:
+        return math.isfinite(float(cell.strip()))
+    except ValueError:
+        return False
+
+
+def sample_facts() -> dict:
+    """The numbers the front door's fold says about the sample: its first and last capacity_ah, its rows, and the most
+    rows of any file the locked test checks."""
+    rows = list(csv.DictReader(io.StringIO(sample_text())))
+    return {"first": rows[0]["capacity_ah"], "last": rows[-1]["capacity_ah"], "rows": f"{len(rows):,}",
+            "longest": f"{max(data_rows(f.read_text(encoding='utf-8')) for f in LIMIT.glob('*.csv')):,}"}
+
+
+def job_line() -> str:
+    """The job that built the first tool, from released.json beside the released program; until then, that it is not released."""
+    try:
+        r = json.loads((LIMIT / "released.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        r = {}
+    url = str(r.get("release_url") or r.get("url") or r.get("link") or "") if isinstance(r, dict) else ""
+    return f'<a href="{site_product.e(url)}">The public record</a>.' if url else "It has not been released yet."
+
+
 def fill(html: str) -> str:
     """A page's numbers written in from their files: each <span data-n="name"> from docs/data/pricing.json, each
-    <span data-claim="field"> from the HyperLogLog claim of near/claims/claims.json, and the company sentence (F1)."""
+    <span data-claim="field"> from the HyperLogLog claim of near/claims/claims.json, the first tool's sample and its
+    <span data-sample="name"> facts, the <span data-job> line from released.json, and the company sentence (F1)."""
     n = numbers()
     html = re.sub(r'(<span data-n="(\w+)">)[^<]*(</span>)', lambda m: f"{m[1]}{n[m[2]]:,}{m[3]}", html)
     c = next(x for x in json.loads((ROOT / "near" / "claims" / "claims.json").read_text(encoding="utf-8"))["claims"] if x["name"] == "hyperloglog")
     html = re.sub(r'(<span data-claim="(\w+)">)[^<]*(</span>)', lambda m: f"{m[1]}{site_product.e(c[m[2]])}{m[3]}", html)
+    if "data-sample" in html:
+        f = sample_facts()
+        html = re.sub(r'(<span data-sample="(\w+)">)[^<]*(</span>)', lambda m: f"{m[1]}{f[m[2]]}{m[3]}", html)
+        html = re.sub(r'(<textarea id="list"[^>]*data-sample>).*?(</textarea>)', lambda m: m[1] + site_product.html.escape(sample_text(), quote=False) + m[2], html, flags=re.S)
+        html = re.sub(r"(<span data-job>).*?(</span>)", lambda m: m[1] + job_line() + m[2], html, flags=re.S)
     return COMPANY_LINE.sub(company_line(), html)
 
 

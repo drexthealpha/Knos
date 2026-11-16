@@ -19,9 +19,9 @@ import (
 const (
 	StatusFresh    = "fresh"    // the text holds against the true value
 	StatusStale    = "stale"    // the text no longer holds: a notice with the exact replacement
-	StatusBroken   = "broken"   // the claim's text is no longer found: the link is broken, not the claim (SYNC/P4.md where wrong 9)
+	StatusBroken   = "broken"   // the fact's text is no longer found: the link is broken, not the fact (SYNC/P4.md where wrong 9)
 	StatusError    = "error"    // the command gave no value: its source of truth cannot be found (SYNC/P2.md finding 20)
-	StatusRecord   = "record"   // the text was changed to the true value; sync/claims.json still holds the old text
+	StatusRecord   = "record"   // the text was changed to the true value; sync/facts.json still holds the old text
 	StatusSilenced = "silenced" // a person marked this notice "not useful"
 	StatusOff      = "off"      // the kind's notices are off
 )
@@ -192,7 +192,7 @@ func commandString(argv []string) string {
 }
 
 // evaluate checks one entry once.
-func evaluate(fc *fileCache, c *Claims, e Entry, opt checkOptions) EntryResult {
+func evaluate(fc *fileCache, c *Facts, e Entry, opt checkOptions) EntryResult {
 	r := EntryResult{ID: e.ID, Kind: e.Kind, Subject: e.Subject, Command: commandString(e.Command), Volatile: e.volatile(),
 		Confirmed: e.ConfirmedByPerson, Status: StatusFresh}
 	if !c.kindOn(e.Kind) {
@@ -253,7 +253,7 @@ func evaluate(fc *fileCache, c *Claims, e Entry, opt checkOptions) EntryResult {
 }
 
 // runCheck checks every entry (or the ones in opt.only).
-func runCheck(root string, c *Claims, st *State, opt checkOptions) *Report {
+func runCheck(root string, c *Facts, st *State, opt checkOptions) *Report {
 	fc := &fileCache{root: root, data: map[string][]byte{}, hashes: map[string]string{}}
 	rep := &Report{Commit: currentCommit(root), FileHashes: fc.hashes}
 	for _, k := range Kinds {
@@ -346,7 +346,7 @@ func noticeText(r EntryResult) string {
 			case StatusSilenced:
 				fmt.Fprintf(&b, "  %s:%d  marked not useful\n", p.File, p.Line)
 			case StatusBroken:
-				fmt.Fprintf(&b, "  %s:%d  the claim's text is no longer there: %q\n", p.File, p.Line, p.Says)
+				fmt.Fprintf(&b, "  %s:%d  the fact's text is no longer there: %q\n", p.File, p.Line, p.Says)
 			}
 		}
 		fmt.Fprintf(&b, "  fix every place: knos-sync fix %s    not useful: knos-sync silence %s\n", r.ID, r.ID)
@@ -354,7 +354,7 @@ func noticeText(r EntryResult) string {
 		fmt.Fprintf(&b, "LINK BROKEN %s (%s): %s\n", r.ID, r.Kind, r.Subject)
 		for _, p := range r.Places {
 			if p.Status == StatusBroken {
-				fmt.Fprintf(&b, "  %s:%d  the claim's text is no longer found (it said %q); link it again\n", p.File, p.Line, p.Says)
+				fmt.Fprintf(&b, "  %s:%d  the fact's text is no longer found (it said %q); link it again\n", p.File, p.Line, p.Says)
 			}
 		}
 	case StatusError:
@@ -412,7 +412,7 @@ func noticeMarkdown(r EntryResult) string {
 		}
 		fmt.Fprintf(&b, "\nFix every place: %s. Not useful: %s.\n\n", mdCode("knos-sync fix "+r.ID), mdCode("knos-sync silence "+r.ID))
 	case StatusBroken:
-		fmt.Fprintf(&b, "**%s** (%s): the claim's text is no longer found. Link it again.\n\n", r.ID, r.Kind)
+		fmt.Fprintf(&b, "**%s** (%s): the fact's text is no longer found. Link it again.\n\n", r.ID, r.Kind)
 	case StatusError:
 		fmt.Fprintf(&b, "**%s** (%s): %s gave no value: %s\n\n", r.ID, r.Kind, mdCode(r.Command), mdCode(r.Error))
 	}
@@ -446,7 +446,7 @@ func cmdCheck(args []string) (int, error) {
 	if err != nil {
 		return 2, err
 	}
-	c, _, err := loadClaims(root)
+	c, _, err := loadFacts(root)
 	if err != nil {
 		return 2, err
 	}
@@ -459,7 +459,7 @@ func cmdCheck(args []string) (int, error) {
 	opt := checkOptions{network: *network, rereadWait: *wait, only: map[string]bool{}}
 	for _, id := range set.Args() {
 		if e, _ := c.entry(id); e == nil {
-			return 2, fmt.Errorf("no entry %q in %s", id, ClaimsPath)
+			return 2, fmt.Errorf("no entry %q in %s", id, FactsPath)
 		}
 		opt.only[id] = true
 	}

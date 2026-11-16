@@ -199,11 +199,13 @@ def _make_job(claim: str = SAMPLE, visitor: str = "", failed: str = "") -> dict:
             raise ModelCodeFailed(f"agent A's code, written by {writer['model']} in {len(tried)} attempts (calls {ids}), failed the locked test: {tried[-1]['said'] if tried else ''}{cut}"[:300])
     if writer.get("code"):
         sa = writer["code"]
+    if not sa:   # a claim agents must build, with no code from the model: no job is posted
+        raise ModelCodeFailed(f"no code from the model for {claim}, which has no fixed program: {writer.get('note') or 'no answer'}"[:300])
     p = j.post({"bid": ORDER_UNITS, "minutes": 240, "test": CLAIMS[claim]["test"]})
     if not p.get("ok"):
         raise RuntimeError(f"post: {p.get('said') or p.get('why') or p}"[:200])
     ra = j.run_agent("a", sa, p["id"])
-    rb = j.run_agent("b", sb, p["id"])
+    rb = j.run_agent("b", sb, p["id"]) if sb else {}
     c = j.checker.check(p["id"], release=False)
     win = next((x for x in c["attempts"] if x.get("passed")), None)
     if not win and writer.get("code"):
@@ -224,7 +226,7 @@ def _make_job(claim: str = SAMPLE, visitor: str = "", failed: str = "") -> dict:
             "writer": {k: v for k, v in writer.items() if k != "code"},
             "attempts": [{"agent": x["agent"], "passed": x["passed"], "reason": x.get("reason", "")} for x in c["attempts"]],
             "txs": {"post": p.get("tx"), "take_a": ra["take"]["tx"], "submit_a": ra["submit"]["tx"],
-                    "take_b": rb["take"]["tx"], "submit_b": rb["submit"]["tx"]}}
+                    **({"take_b": rb["take"]["tx"], "submit_b": rb["submit"]["tx"]} if rb else {})}}
 
 
 def prepare() -> None:
@@ -670,6 +672,8 @@ def _solutions(claim: str) -> tuple[str, str]:
     if claim == SAMPLE:
         j = _jobs()
         return j.pass_agent.SOLUTION, j.fail_agent.SOLUTION
+    if CLAIMS[claim].get("built_by") == "agents":   # no fixed program: agent A's code comes only from the model, and no agent B runs
+        return "", ""
     d = ROOT / "near" / "agents" / "solutions"
     stem = CLAIMS[claim]["test"][len("test_"):-len(".py")]
     return (d / f"{stem}_a.py").read_text(encoding="utf-8"), (d / f"{stem}_b.py").read_text(encoding="utf-8")

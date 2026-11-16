@@ -1,12 +1,12 @@
 # Knos
 
-> Count the different items in a list. Paste one item on each line, and Knos says how many different items it holds.
+> Check a test file against a limit. Knos names the first row that breaks it, for anyone who tests batteries, motors, parts or machines.
 
 Knos locks a test before any work starts, and test money moves to the agent that did the work only if that test passes. Here the work is code that proves a paper's claim, against a test locked on NEAR testnet. The result is kept on NEAR, so a second check is free. Test money only and no customers yet.
 
 ## Pages
 
-- [Front door](https://drexthealpha.github.io/Knos/): count the different items in a list; below it, ask about research
+- [Front door](https://drexthealpha.github.io/Knos/): check a test file against a limit; below it, ask about research
 - [Claims](https://drexthealpha.github.io/Knos/claims/): every claim, sorted by the test USDC behind it
 - [Prove](https://drexthealpha.github.io/Knos/prove/): run the check of a claim and get the verdict, the verified code and the receipt
 - [For agents](https://drexthealpha.github.io/Knos/agents/): the one-call API and the terminal tool
@@ -22,6 +22,7 @@ Knos locks a test before any work starts, and test money moves to the agent that
 - [The planet Kepler-10b goes around its star once every 0.837495 days, found again in NASA's public Kepler light curve.](https://drexthealpha.github.io/Knos/claim/kepler-10b/): from Batalha and others, 2011; locked test sha256 ce84ea41cf052a82a12d092b17dedf56f91be6271839bdc599221536849464e6
 - [Landsat 8's published orbit, 705 km up and tilted 98.2 degrees, is sun-synchronous: simulated with Earth's equatorial bulge, its orbit plane turns 0.98565 degrees a day.](https://drexthealpha.github.io/Knos/claim/landsat-8-orbit/): from NASA Goddard Space Flight Center, page read 13 Nov 2026; locked test sha256 07f531b478698a5ce3997452cb94d31d96154a1f78260d32b611b7b971a69523
 - [A plain Ridge regression predicts how many cycles NASA's simulated FD001 jet engines have left, off by 16.634 cycles RMS.](https://drexthealpha.github.io/Knos/claim/cmapss-engine-life/): from Galchar, Goel and Kanu, 2026; locked test sha256 6b5933e65e3ad982a8a1790c264526b0f69b58741384c5b1e66b7cb2fd4f1bb7
+- [A test file passes or fails one limit, and the first row that breaks it is named.](https://drexthealpha.github.io/Knos/claim/limit-check/): from NASA Ames Prognostics Center of Excellence, page read 16 Nov 2026; locked test sha256 c75dce94b5fae322e51831de8c840d039e605b8148689d7da6b733970290c9f4
 
 ## For agents
 
@@ -35,13 +36,13 @@ Add Knos to a chat or coding assistant that takes connectors, with one command:
 claude mcp add --transport http knos https://knos.onrender.com/mcp
 ```
 
-It gives two tools: `tools` lists what Knos can do, and `run` runs one. A worked example, the front door's sample list sent without the connector:
+It gives two tools: `tools` lists what Knos can do, and `run` runs one. A worked example, the front door's sample battery test checked against its limit without the connector:
 
 ```
-curl -X POST https://knos.onrender.com/api/run -H "Content-Type: application/json" -d '{"id": "count-distinct", "input": "apple\nbanana\ncherry\napple\ngrape\nlemon\nbanana\nmango\norange\npear\napple\nplum\nkiwi\ncherry\nlime\ngrape\nmango\npeach\nbanana\nlemon", "mode": "sample", "browser": "", "test": false}'
+curl -s https://raw.githubusercontent.com/drexthealpha/Knos/main/near/agents/job/data/limit/sample.csv | jq -Rs '{id: "limit-check", table: ., column: "capacity_ah", rule: "above", limit: 1.4}' | curl -s -X POST https://knos.onrender.com/api/run -H "Content-Type: application/json" -d @-
 ```
 
-The answer's `result` is `About 12 different items`, its `exact` is `12`, and its `link` opens the result. Through the connector, `run` with the same `id` and `input` returns the same answer.
+The answer's `result` is `Failed at row 136: 1.399 is not above 1.4. It passed for the 135 rows before that.` Its `link` opens the result. Through the connector, `run` with the same `id`, `table`, `column`, `rule` and `limit` returns the same answer.
 
 ## Optional
 

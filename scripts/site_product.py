@@ -406,8 +406,8 @@ def pricing_page(header: str) -> str:
     words outside the closed How it works fold (the PLAIN-WORDS rule); prices in dollars, never tokens or credits."""
     n = {k: v["value"] for k, v in pricing()["numbers"].items()}
     num = lambda k: f'<span data-n="{k}">{n[k]:,}</span>'   # noqa: E731
-    body = ("<h1>Pricing</h1>\n<p>Runs on the sample list are free.</p>\n"
-            f'<table id="prices"><tbody><tr><th>Runs on your own list</th><td>{num("free_runs_per_day")} free a day, in each browser</td></tr>'
+    body = ("<h1>Pricing</h1>\n<p>Runs on the sample are free.</p>\n"
+            f'<table id="prices"><tbody><tr><th>Runs on your own file</th><td>{num("free_runs_per_day")} free a day, in each browser</td></tr>'
             f'<tr><th>After those</th><td>{num("pack_runs")} more runs for ${num("pack_price")} in test money</td></tr></tbody></table>\n'
             "<p>Today this is test money. Nothing is charged.</p>\n"
             '<details class="how"><summary>How it works</summary>'
@@ -416,7 +416,7 @@ def pricing_page(header: str) -> str:
             "<p>When your free runs are used up, the tool shows one screen with the price. Pressing Pay with test money "
             "records a test payment on Knos's own server. No card and no account are needed.</p>"
             f'<p>The fees for checking a paper\'s claim are on <a href="{REPO}/blob/main/docs/PRICING.md">a page of their own</a>.</p></details>')
-    return page(header, "../", "Knos pricing", "Sample runs are free; runs on your own list have a free daily allowance, then a pack in test money.", body, "", "pricing/").replace("</style>", HOW_CSS + "</style>", 1)
+    return page(header, "../", "Knos pricing", "Sample runs are free; runs on your own file have a free daily allowance, then a pack in test money.", body, "", "pricing/").replace("</style>", HOW_CSS + "</style>", 1)
 
 
 def status_page(header: str) -> str:
@@ -430,7 +430,7 @@ def status_page(header: str) -> str:
                     + ("not enough browsers yet" if u["measures"].get(k) is None else f'{u["measures"][k]:,}') + "</td></tr>" for k, label in site_usage.MEASURES)
     when = (f'Counted up to {e(u["read_at"].replace("T", " ").replace("Z", " UTC"))}, from the first day of use.' if u.get("read_at")
             else "No count has been read from Knos's server yet.")
-    body = ("<h1>Status</h1>\n<p>How the counting tool is used, all days together.</p>\n"
+    body = ("<h1>Status</h1>\n<p>How the tool is used, all days together.</p>\n"
             f'<table id="use"><tbody>{rows}</tbody></table>\n<p class="fine" id="use-when">{when} Knos\'s own test runs are not in these counts. '
             '<a href="../data/usage.json">The data file</a>.</p>\n'
             '<details class="how"><summary>How it works</summary>\n'
@@ -470,7 +470,7 @@ def status_page(header: str) -> str:
     if (!x.ok) { td.style.color = "#c62828"; td.style.fontWeight = "600"; tr.style.borderBottom = "2px solid #c62828"; }
     tr.append(th, td); return tr; }));
 })();"""
-    return page(header, "../", "Knos status", "How the counting tool is used, each count from the data file, zeros shown as 0.", body, script, "status/").replace("</style>", HOW_CSS + "</style>", 1)
+    return page(header, "../", "Knos status", "How the tool is used, each count from the data file, zeros shown as 0.", body, script, "status/").replace("</style>", HOW_CSS + "</style>", 1)
 
 
 def privacy_page(header: str) -> str:
@@ -492,9 +492,9 @@ def privacy_page(header: str) -> str:
             "What you type goes to the Knos server, which answers.",
             "The server reads a paper's title from its public record, Crossref.",
             "Your browser also reads NEAR testnet's public record.",
-            "The counting tool sends your list to the Knos server.",
-            "The server keeps your list with its result page and link.",
-            "Your own list is shown only to people with its link.",
+            "The tool sends your file to the Knos server.",
+            "The server keeps your file with its result page and link.",
+            "Your own file is shown only to people with its link.",
             "Say yes to counting, and your browser keeps a random id.",
             "Without that yes, the server counts runs only as totals."]
     if usdc_market().get("live"):
@@ -545,26 +545,35 @@ def sitemap_xml(cs: list[dict]) -> str:
                                      + "".join(f"  <url><loc>{base}{p}</loc><lastmod>git:{src}</lastmod></url>\n" for p, src in pages) + "</urlset>\n")
 
 
+SAMPLE_URL = "https://raw.githubusercontent.com/drexthealpha/Knos/main/near/agents/job/data/limit/sample.csv"
+
+
 def sample() -> str:
-    """The first tool's sample list: the text the front door's box (web/door.html, #list) is filled with."""
-    door = (ROOT / "web" / "door.html").read_text(encoding="utf-8")
-    return html.unescape(re.search(r'<textarea id="list"[^>]*>(.*?)</textarea>', door, re.S)[1])
+    """The first tool's sample file: the text the front door's box (web/door.html, #list) is filled with at build time."""
+    return (ROOT / "near" / "agents" / "job" / "data" / "limit" / "sample.csv").read_text(encoding="utf-8").replace("\r\n", "\n").strip("\n")
+
+
+def sample_result() -> str:
+    """The sample's result sentence as the locked test fixes it (near/agents/job/test_limit.py case 7): the first row
+    whose capacity_ah is at or below 1.4, found the way its separate script finds it (limit_check10.py)."""
+    import csv
+    import io
+    r, row = next((n, x) for n, x in enumerate(csv.DictReader(io.StringIO(sample())), 1) if float(x["capacity_ah"]) <= 1.4)
+    return f"Failed at row {r}: {row['capacity_ah']} is not above 1.4. It passed for the {r - 1} rows before that."
 
 
 def where_you_are() -> str:
     """B6: the section README.md and llms.txt both carry: the one command that adds the connector, and one worked
-    example with the sample list and its result. README.md holds this same text (tests/test_site_tool.py)."""
-    lines = sample().split("\n")
-    body = json.dumps({"id": "count-distinct", "input": "\n".join(lines), "mode": "sample", "browser": "", "test": False})
-    n = len(set(lines))
+    example with the sample and its result. README.md holds this same text (tests/test_site_tool.py)."""
+    body = '{id: "limit-check", table: ., column: "capacity_ah", rule: "above", limit: 1.4}'
     return ("## Use Knos where you already are\n\n"
             "Add Knos to a chat or coding assistant that takes connectors, with one command:\n\n"
             f"```\nclaude mcp add --transport http knos {HOSTED}/mcp\n```\n\n"
             "It gives two tools: `tools` lists what Knos can do, and `run` runs one. A worked example, the front door's sample "
-            "list sent without the connector:\n\n"
-            f"```\ncurl -X POST {HOSTED}/api/run -H \"Content-Type: application/json\" -d '{body}'\n```\n\n"
-            f"The answer's `result` is `About {n} different items`, its `exact` is `{n}`, and its `link` opens the result. "
-            "Through the connector, `run` with the same `id` and `input` returns the same answer.\n")
+            "battery test checked against its limit without the connector:\n\n"
+            f"```\ncurl -s {SAMPLE_URL} | jq -Rs '{body}' | curl -s -X POST {HOSTED}/api/run -H \"Content-Type: application/json\" -d @-\n```\n\n"
+            f"The answer's `result` is `{sample_result()}` Its `link` opens the result. Through the connector, `run` with the "
+            "same `id`, `table`, `column`, `rule` and `limit` returns the same answer.\n")
 
 
 def llms_txt(cs: list[dict]) -> str:
@@ -579,7 +588,7 @@ def llms_txt(cs: list[dict]) -> str:
         "Knos locks a test before any work starts, and test money moves to the agent that did the work only if that test passes. Here the "
         "work is code that proves a paper's claim, against a test locked on NEAR testnet. The result is kept on NEAR, so a "
         "second check is free. Test money only and no customers yet.\n\n"
-        f"## Pages\n\n- [Front door]({base}): count the different items in a list; below it, ask about research\n"
+        f"## Pages\n\n- [Front door]({base}): check a test file against a limit; below it, ask about research\n"
         f"- [Claims]({base}claims/): every claim, sorted by the test USDC behind it\n"
         f"- [Prove]({base}prove/): run the check of a claim and get the verdict, the verified code and the receipt\n"
         f"- [For agents]({base}agents/): the one-call API and the terminal tool\n"

@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// sync/claims.json is changed by bytes at a known span, never rewritten from a parsed tree (SYNC/P5.md finding 12),
+// sync/facts.json is changed by bytes at a known span, never rewritten from a parsed tree (SYNC/P5.md finding 12),
 // so a person's layout and every other entry stay as they were.
 
 type member struct {

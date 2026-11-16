@@ -32,6 +32,13 @@ def test_each_locked_test_passes_agent_a_and_fails_agent_b(tmp_path):
     for c in near_live.CLAIMS:
         a, b = near_live._solutions(c)
         test = near_live.CLAIMS[c]["test"]
+        if near_live.CLAIMS[c].get("built_by") == "agents":   # agents build it: no fixed program, and an empty one fails its test
+            assert (a, b) == ("", "")
+            f = tmp_path / f"{c}-empty.py"
+            f.write_text("", encoding="utf-8")
+            ok, said, _secs = checker.run_test(f, test)
+            assert not ok, (c, said)
+            continue
         for code, should_pass in ((a, True), (b, False)):
             f = tmp_path / f"{c}-{should_pass}.py"
             f.write_text(code, encoding="utf-8")

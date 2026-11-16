@@ -1,0 +1,10 @@
+{
+ "label": "Sample: made-up battery test",
+ "file": "sample.csv",
+ "column": "capacity_ah",
+ "rule": "above",
+ "limit": 1.4,
+ "made": "generated: cycle 1 to 168, capacity_ah falling in a straight line from 1.86 at cycle 1 to 1.29 at cycle 168, rounded to 3 decimals",
+ "why_not_nasa": "NASA's dataset page (https://data.nasa.gov/dataset/li-ion-battery-aging-datasets) lists no data file and says \"License not specified\"; the only download NASA links (from https://www.nasa.gov/intelligent-systems-division/discovery-and-systems-health/pcoe/pcoe-data-set-repository/) is on phm-datasets.s3.amazonaws.com, not a nasa.gov address",
+ "limit_from": "https://data.nasa.gov/dataset/li-ion-battery-aging-datasets: end of life at a 30% fade in rated capacity, from 2 Ah to 1.4 Ah"
+}

@@ -1,9 +1,9 @@
-"""Round 13 (v0328 research ROUND13-ITEMS.md, R13 SPEC.md): the front door's first tool and the pages around it, on a
-build of the site (scripts/build_site.sh).
+"""Round 13 (v0328 research ROUND13-ITEMS.md, R13 SPEC.md and SPEC2.md): the front door's first tool, "Check a test file
+against a limit", and the pages around it, on a build of the site (scripts/build_site.sh).
 
   A  tests/web/tool.mjs in headless Chromium at 360 by 800 with no stored state, the hosted server answered by a stand-in
-     that keeps SPEC.md's contract: the first screen's words (40 or fewer, none of the PLAIN-WORDS rule), "Try it" and
-     "About ..." with "Exact count: 12", "Use my data" with 5 lines of 3 items and "Exact count: 3"
+     that keeps SPEC2.md's interface: the first screen's words (40 or fewer, none of the PLAIN-WORDS rule), "Try it" and a
+     sentence that starts "Failed at row " or "Passed: all ", "Use my data" with file 2 of A8 and "Failed at row 37"
   C  the same script runs own-data runs until the free runs end and checks the pay screen's strings against
      docs/data/pricing.json; here, every number on the pricing page and the pay screen equals that file
   D  every PASS and STOP line of docs/NUMBERS.md names a file of LAWS/DISTRIBUTION; the status page's counts equal
@@ -16,6 +16,8 @@ KNOS_LIVE_TOOL=1 also runs tests/web/tool.mjs --live: the published front door a
 
 from __future__ import annotations
 
+import ast
+import html
 import json
 import os
 import re
@@ -104,8 +106,8 @@ def node_run(args: list[str], timeout: int) -> str:
 
 def test_a_stranger_runs_the_sample_then_their_own_list_then_pays_with_test_money(site: Path) -> None:
     out = node_run([str(site)], 170)
-    for line in ("the first screen is 40 words or fewer", "none of the PLAIN-WORDS rule's words", 'starts with "About "', "exact count is 12",
-                 "5 lines with 3 different items read Exact count: 3", "pay screen's headline is the pack", "one more run after the test payment", "all passed"):
+    for line in ("the first screen is 40 words or fewer", "none of the PLAIN-WORDS rule's words", 'starts with "Failed at row " or "Passed: all "',
+                 'file 2 of A8 reads "Failed at row 37"', "pay screen's headline is the pack", "one more run after the test payment", "all passed"):
         assert line in out, line
 
 
@@ -113,7 +115,7 @@ def test_a_stranger_runs_the_sample_then_their_own_list_then_pays_with_test_mone
 if os.environ.get("KNOS_LIVE_TOOL") == "1":
   def test_the_published_front_door_counts_the_sample_on_the_live_server() -> None:
       out = node_run(["--live"], 170)
-      assert "exact count is 12" in out and "all passed" in out
+      assert 'starts with "Failed at row " or "Passed: all "' in out and "all passed" in out
 
 
 def test_every_number_on_the_pricing_page_and_the_pay_screen_is_pricing_json(site: Path) -> None:
@@ -184,8 +186,10 @@ def test_readme_and_llms_txt_carry_one_section_that_adds_the_connector() -> None
     for rel in ("README.md", "web/llms.txt"):
         text = (ROOT / rel).read_text(encoding="utf-8")
         assert section in text and text.count("## Use Knos where you already are") == 1, rel
-    lines = site_product.sample().split("\n")
-    assert len(lines) == 20 and len(set(lines)) == 12 and "claude mcp add --transport http knos https://knos.onrender.com/mcp" in section
+    assert site_product.sample().split("\n")[0] == "cycle,capacity_ah"
+    assert "claude mcp add --transport http knos https://knos.onrender.com/mcp" in section
+    assert f"`{site_product.sample_result()}`" in section and site_product.sample_result().startswith("Failed at row ")
+    assert "count-distinct" not in section and "different items" not in section            # the list counter is no tool
 
 
 def test_the_company_count_on_a_public_page_is_the_scorecard_summary(site: Path) -> None:
@@ -205,6 +209,14 @@ def test_the_front_door_has_one_h1_and_keeps_the_question_box_below_the_tool(sit
     assert door.count("<h1") == 1 and "<h1>What can you do with Knos?</h1>" in door
     assert door.index('id="tool"') < door.index('id="ask-box"') and 'id="paper"' in door and 'id="sample"' in door
     assert '<p class="kgoal">The goal: ' in door                                      # the goal, one press away: the menu
-    assert '<h2 id="t-title">Count the different items in a list</h2>' in door and len("Count the different items in a list".split()) <= 8
+    assert '<h2 id="t-title">Check a test file against a limit</h2>' in door
     who = re.search(r'<p class="who" id="who">([^<]+)</p>', door).group(1)
-    assert len(who.split()) <= 12
+    assert who == "For anyone who tests batteries, motors, parts or machines."
+    sample = (ROOT / "near" / "agents" / "job" / "data" / "limit" / "sample.csv").read_text(encoding="utf-8").replace("\r\n", "\n").strip("\n")
+    box = re.search(r'<textarea id="list"[^>]*>(.*?)</textarea>', door, re.S).group(1)
+    assert html.unescape(box) == sample                                               # the job's sample, written in at build time
+    conf = ast.literal_eval(re.search(r"CONF = (\{.*\})", (ROOT / "apps" / "wanted" / "knos_wanted" / "runner_conf.py").read_text(encoding="utf-8"), re.S).group(1))
+    assert f'<label for="list" id="list-label">{conf["sample_label"]}</label>' in door      # the same label as the server's tool page
+    assert '<span id="colname">capacity_ah</span>' in door and 'value="1.4"' in door
+    for gone in ("count-distinct", "different items", "Exact count"):                    # the list counter is shown to nobody here
+        assert gone not in door, gone

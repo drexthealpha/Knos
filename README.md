@@ -207,13 +207,13 @@ Add Knos to a chat or coding assistant that takes connectors, with one command:
 claude mcp add --transport http knos https://knos.onrender.com/mcp
 ```
 
-It gives two tools: `tools` lists what Knos can do, and `run` runs one. A worked example, the front door's sample list sent without the connector:
+It gives two tools: `tools` lists what Knos can do, and `run` runs one. A worked example, the front door's sample battery test checked against its limit without the connector:
 
 ```
-curl -X POST https://knos.onrender.com/api/run -H "Content-Type: application/json" -d '{"id": "count-distinct", "input": "apple\nbanana\ncherry\napple\ngrape\nlemon\nbanana\nmango\norange\npear\napple\nplum\nkiwi\ncherry\nlime\ngrape\nmango\npeach\nbanana\nlemon", "mode": "sample", "browser": "", "test": false}'
+curl -s https://raw.githubusercontent.com/drexthealpha/Knos/main/near/agents/job/data/limit/sample.csv | jq -Rs '{id: "limit-check", table: ., column: "capacity_ah", rule: "above", limit: 1.4}' | curl -s -X POST https://knos.onrender.com/api/run -H "Content-Type: application/json" -d @-
 ```
 
-The answer's `result` is `About 12 different items`, its `exact` is `12`, and its `link` opens the result. Through the connector, `run` with the same `id` and `input` returns the same answer.
+The answer's `result` is `Failed at row 136: 1.399 is not above 1.4. It passed for the 135 rows before that.` Its `link` opens the result. Through the connector, `run` with the same `id`, `table`, `column`, `rule` and `limit` returns the same answer.
 
 ## More
 

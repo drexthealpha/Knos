@@ -150,6 +150,36 @@
    "outside_test": "None found: the preprint publishes no code.",
    "caveat": "The figure comes from a 2026 preprint that is not peer-reviewed.",
    "data_credit": "NASA Ames Prognostics Center of Excellence, C-MAPSS turbofan data (Saxena and others, 2008)"
+  },
+  {
+   "name": "limit-check",
+   "field": "hardware",
+   "plain": "A test file passes or fails one limit, and the first row that breaks it is named.",
+   "paper": "Li-ion Battery Aging Datasets",
+   "authors": "NASA Ames Prognostics Center of Excellence",
+   "year": "page read 16 Nov 2026",
+   "url": "https://data.nasa.gov/dataset/li-ion-battery-aging-datasets",
+   "quote": "The experiments were stopped when the batteries reached the end-of-life (EOL) criteria of 30% fade in rated capacity (from 2 Ah to 1.4 Ah).",
+   "paper_number": "end of life at 1.4 Ah, a 30% fade from the rated 2 Ah",
+   "locked": "seven test files with known answers: the first row that breaks the limit named, a value equal to the limit failing, rows that are not numbers skipped and counted, and the sample's first row at or below 1.4 found by a separate script",
+   "question": "Does the program name the first row of a test file that breaks its limit?",
+   "code_name": "limit_check.py",
+   "test": "test_limit.py",
+   "data": [
+    "data/limit/case1.csv",
+    "data/limit/case2.csv",
+    "data/limit/case3.csv",
+    "data/limit/case4.csv",
+    "data/limit/case5.csv",
+    "data/limit/case6.csv",
+    "data/limit/sample.csv",
+    "limit_check10.py"
+   ],
+   "built_by": "agents",
+   "not_checked": "whether the limit is the right one, files larger than the sandbox allows, or any column but the one named",
+   "outside_test": "None: Knos wrote this job's test files itself.",
+   "caveat": "The sample is a made-up battery test, a straight line from 1.86 to 1.29 over 168 cycles: NASA's page offers no download from a nasa.gov address.",
+   "data_credit": "End-of-life rule from NASA's Li-ion Battery Aging Datasets page (NASA Ames Prognostics Center of Excellence); the sample data is made up"
   }
  ]
 }

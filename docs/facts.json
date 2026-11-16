@@ -697,29 +697,29 @@
   },
   {
    "say": [
-    "30,000",
-    "10%",
-    "1.5"
+    "1.86",
+    "1.29",
+    "168"
    ],
-   "what": "what the locked test of the HyperLogLog claim checks, on the front door's How it works fold",
-   "file": "near/claims/claims.json",
-   "has": "count 30,000 visitors within 10%, in at most 1.5 kilobytes"
+   "what": "the first tool's made-up sample: capacity_ah from 1.86 at cycle 1 to 1.29 at cycle 168, on the front door's How it works fold",
+   "file": "near/agents/job/data/limit/sample.json",
+   "has": "from 1.86 at cycle 1 to 1.29 at cycle 168"
   },
   {
    "say": [
-    "2%"
+    "1.4"
    ],
-   "what": "the paper's figure the HyperLogLog test did not check, on the front door's How it works fold",
-   "file": "near/claims/claims.json",
-   "has": "the paper's 2% figure at a billion items"
+   "what": "the first tool's sample limit, NASA's end-of-life rule for these batteries, on the front door's How it works fold",
+   "file": "near/agents/job/data/limit/sample.json",
+   "has": "\"limit\": 1.4"
   },
   {
    "say": [
-    "2007"
+    "7"
    ],
-   "what": "the year of the HyperLogLog paper the first tool comes from",
-   "file": "near/claims/claims.json",
-   "has": "\"year\": 2007"
+   "what": "the files the first tool's locked test checks (six made up and the sample), on the front door's test line",
+   "file": "near/agents/job/test_limit.py",
+   "has": "Passed: all 7 cases"
   }
  ]
 }

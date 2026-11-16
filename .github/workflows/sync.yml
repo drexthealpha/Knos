@@ -1,6 +1,6 @@
 name: sync
 
-# knos-sync (sync/, Go): the facts README.md, docs/ and web/ state, each linked in sync/claims.json to the command that
+# knos-sync (sync/, Go): the facts README.md, docs/ and web/ state, each linked in sync/facts.json to the command that
 # gives its true value (Round 13, part E).
 #
 #   build    builds and tests knos-sync on Windows, Linux and Mac (SYNC/P6.md finding 16: "for Windows, Mac and

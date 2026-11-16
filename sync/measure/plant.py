@@ -3,7 +3,7 @@
     python3 -I sync/measure/plant.py --bin PATH/knos-sync --repo . --out sync-measure.json [--markdown sync-measure.md]
 
 (a) In a copy, each kind gets 6 false statements. A statement is planted first by changing the value at a place
-    sync/claims.json links (one plant per line), and the rest as new sentences at the end of a document, where no
+    sync/facts.json links (one plant per line), and the rest as new sentences at the end of a document, where no
     entry links them. `knos-sync check` can report only linked places; `knos-sync scan` should list every plant as a
     candidate of its kind. Both counts are written, per kind.
 (b) On the unchanged copy, every notice `knos-sync check` prints is listed: each is a false alarm unless a person
@@ -82,12 +82,12 @@ def sentence(kind: str, i: int, rng: random.Random) -> str:
     }[kind]
 
 
-def plant(copy: Path, claims: dict, rng: random.Random) -> list[dict]:
+def plant(copy: Path, facts: dict, rng: random.Random) -> list[dict]:
     plants: list[dict] = []
     used_lines: set[tuple[str, int]] = set()
     for kind in KINDS:
         n = 0
-        for e in claims.get("entries", []):
+        for e in facts.get("entries", []):
             if e["kind"] != kind:
                 continue
             for p in e["places"]:
@@ -151,8 +151,8 @@ def main(argv: list[str] | None = None) -> int:
         copy_repo(repo, unchanged)
         copy_repo(repo, planted)
         base = run_json(binary, ["check", "--json", "--reread-wait", "0s", "--root", str(unchanged)])
-        claims = json.loads((planted / "sync" / "claims.json").read_text(encoding="utf-8"))
-        plants = plant(planted, claims, rng)
+        facts = json.loads((planted / "sync" / "facts.json").read_text(encoding="utf-8"))
+        plants = plant(planted, facts, rng)
         after = run_json(binary, ["check", "--json", "--reread-wait", "0s", "--root", str(planted)])
         scan = run_json(binary, ["scan", "--json", "--full", "--root", str(planted)])
     finally:

@@ -4,20 +4,21 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <!-- THE FRONT DOOR of the published site (scripts/site_pages.py writes it as index.html). Round 13, A2 and A7: the first
-     screen is the first tool, "Count the different items in a list", under the headline "What can you do with Knos?".
-     The box is filled with a labelled sample; "Try it" sends the list to the hosted server (POST /api/run, the contract
-     in v0328 research R13 SPEC.md) and the result is shown under the button. Below the first screen: the earlier
-     question box, unchanged. Every number in the How it works fold and the pay screen is written in at build time from
-     docs/data/pricing.json and near/claims/claims.json (the spans marked data-n and data-claim). -->
-<title>Knos: count the different items in a list</title>
-<meta name="description" content="Count the different items in a list. Paste one item on each line, and Knos says how many different items it holds.">
+     screen is the first tool, "Check a test file against a limit", under the headline "What can you do with Knos?".
+     The box holds the labelled sample (near/agents/job/data/limit/sample.csv, written in at build time) with its limit
+     filled in; "Try it" sends the file to the hosted server (POST /api/run, the contract in v0328 research R13 SPEC2.md)
+     and the result sentence and its chart are shown under the button. Below the first screen: the earlier question box,
+     unchanged. Every number in the How it works fold and the pay screen is written in at build time from
+     docs/data/pricing.json, the sample and the job's released.json (the spans marked data-n, data-sample, data-job). -->
+<title>Knos: check a test file against a limit</title>
+<meta name="description" content="Check a test file against a limit. Knos names the first row that breaks it, for anyone who tests batteries, motors, parts or machines.">
 <meta name="author" content="drexthealpha">
 <meta name="color-scheme" content="light dark">
 <link rel="canonical" href="https://drexthealpha.github.io/Knos/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Knos">
-<meta property="og:title" content="Knos: count the different items in a list">
-<meta property="og:description" content="Count the different items in a list. Paste one item on each line, and Knos says how many different items it holds.">
+<meta property="og:title" content="Knos: check a test file against a limit">
+<meta property="og:description" content="Check a test file against a limit. Knos names the first row that breaks it, for anyone who tests batteries, motors, parts or machines.">
 <meta property="og:url" content="https://drexthealpha.github.io/Knos/">
 <meta property="og:image" content="https://drexthealpha.github.io/Knos/brand/card.png">
 <meta name="twitter:card" content="summary_large_image">
@@ -52,11 +53,17 @@ h1 { font: 600 clamp(28px, 6vw, 40px)/1.15 var(--head); letter-spacing: -.02em; 
 h2 { font: 600 22px/1.25 var(--head); margin: 0 0 4px; }
 .who { margin: 0 0 12px; color: var(--ink-2); }
 label { display: block; font-weight: 600; margin: 0 0 6px; }
-textarea { display: block; width: 100%; box-sizing: border-box; min-height: 168px; padding: 10px 12px; font: 400 18px/1.4 var(--text); color: var(--ink); background: var(--paper-2);
-  border: 2px solid var(--ink-2); border-radius: 10px; resize: vertical; }
+textarea { display: block; width: 100%; box-sizing: border-box; height: 7.4em; padding: 8px 12px; font: 400 16px/1.4 ui-monospace, Consolas, monospace; color: var(--ink); background: var(--paper-2);
+  border: 2px solid var(--ink-2); border-radius: 10px; resize: vertical; white-space: pre; overflow: auto; }
+select { min-height: 52px; box-sizing: border-box; padding: 0 10px; font: 400 18px var(--text); color: var(--ink); background: var(--paper-2); border: 2px solid var(--ink-2); border-radius: 10px; }
+input[type=file] { width: 100%; padding: 10px; }
+.field { margin: 0 0 10px; }
+.rule { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0 0; }
+.rule input { width: 6.5em; }
+.chart { display: block; width: 100%; height: auto; max-height: 220px; margin: 8px 0; color: var(--ink); }
 input, textarea, button { font-family: var(--text); }
 input { min-height: 52px; box-sizing: border-box; padding: 0 14px; font-size: 18px; color: var(--ink); background: var(--paper-2); border: 2px solid var(--ink-2); border-radius: 10px; }
-input:focus-visible, textarea:focus-visible, button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 button { min-height: 44px; min-width: 44px; padding: 0 18px; font: 600 18px var(--text); border-radius: 10px; cursor: pointer; color: var(--ink); background: transparent; border: 2px solid var(--line); }
 .go { min-height: 52px; background: var(--accent); color: var(--accent-fg); border: 2px solid var(--accent); }
 #try { display: block; width: 100%; margin-top: 10px; }
@@ -78,6 +85,8 @@ button { min-height: 44px; min-width: 44px; padding: 0 18px; font: 600 18px var(
 .how li { margin: 0 0 8px; }
 .pay p { margin: 0 0 10px; }
 .pay .acts .go { flex: 1 1 260px; }
+/* the tool fills the first screen; the question box starts below it (A7) */
+.door { min-height: calc(100vh - 60px); min-height: calc(100svh - 60px); }
 .below { border-top: 1px solid var(--line); margin-top: 32px; padding: 24px 0 8px; }
 .below h2 { margin-bottom: 12px; }
 .below form { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -106,32 +115,16 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
   <details class="kmenu"><summary>Menu</summary><div class="kmenu-panel"><p class="kgoal">The goal: Knos turns any research into a product billions of people use, in days, not years.</p><nav aria-label="Pages"><a href="prove/">Papers</a><a href="labs/">Labs</a></nav></div></details>
 </header>
 <main>
-  <section class="door" id="tool" data-tool="count-distinct" aria-labelledby="t-title">
+  <section class="door" id="tool" data-tool="limit-check" aria-labelledby="t-title">
     <h1>What can you do with Knos?</h1>
-    <h2 id="t-title">Count the different items in a list</h2>
-    <p class="who" id="who">For anyone with a long list who wants one quick count.</p>
+    <h2 id="t-title">Check a test file against a limit</h2>
+    <p class="who" id="who">For anyone who tests batteries, motors, parts or machines.</p>
     <div id="form">
-      <label for="list" id="list-label">Sample list</label>
-      <textarea id="list" name="input" rows="6" dir="auto" spellcheck="false" autocomplete="off">apple
-banana
-cherry
-apple
-grape
-lemon
-banana
-mango
-orange
-pear
-apple
-plum
-kiwi
-cherry
-lime
-grape
-mango
-peach
-banana
-lemon</textarea>
+      <div class="field" id="own" hidden><label for="file">Choose a file</label><input id="file" type="file" accept=".csv,text/csv,text/plain"></div>
+      <label for="list" id="list-label">Sample: made-up battery test</label>
+      <textarea id="list" name="table" rows="4" dir="ltr" wrap="off" spellcheck="false" autocomplete="off" data-sample></textarea>
+      <div class="field" id="which" hidden><label for="col">Which column?</label><select id="col"></select></div>
+      <p class="rule"><span id="colname">capacity_ah</span> <select id="rule" aria-label="The rule"><option value="above" selected>must stay above</option><option value="below">must stay below</option></select> <input id="limit" inputmode="decimal" autocomplete="off" aria-label="The limit" value="1.4"></p>
       <p class="who" id="limits" hidden></p>
       <button class="go" id="try" type="button" data-primary>Try it</button>
     </div>
@@ -139,20 +132,20 @@ lemon</textarea>
     <div class="err" id="err" role="alert" hidden><p id="err-text"></p><button id="err-next" type="button"></button></div>
     <div class="result" id="result" aria-live="polite" hidden>
       <p class="about" id="about"></p>
-      <p class="exact" id="exact" hidden></p>
+      <div id="chart"></div>
       <p id="left" hidden></p>
-      <p id="shown">Checked by a test that counted 30,000 different visitors to within 10%.</p>
       <p id="private" hidden>Only people with this link can see it.</p>
+      <p id="shown">Checked by a test of 7 files with known answers.</p>
       <div class="acts"><button id="mine" type="button">Use my data</button><button id="copy" type="button">Copy link</button></div>
       <p id="copied-by-hand" hidden>I could not copy the link. Here it is, to copy by hand: <input id="link-text" readonly aria-label="The result's link"></p>
       <p id="optin" hidden>Count my visits to help improve Knos? <button id="optin-yes" type="button">Yes</button> <button id="optin-no" type="button">No</button></p>
       <details class="how" id="how"><summary>How it works</summary><ol>
-        <li>It counts how many different lines your list holds. It does not say which items repeat or how often.</li>
-        <li>Your list goes to Knos's server, which counts it and keeps it with its result page, so the link works. A sample result can be opened by anyone. Your own list can be opened only by people who have its link, and it is never listed. The server keeps results only until it is next rebuilt, so a link can stop working.</li>
-        <li>The test that showed it works had to <span data-claim="locked">count 30,000 visitors within 10%, in at most 1.5 kilobytes</span>. It did not check <span data-claim="not_checked">counts beyond 30,000 visitors, or the paper's 2% figure for very large lists</span>.</li>
-        <li>Runs on the sample are free. Runs on your own list: <span data-n="free_runs_per_day">5</span> free a day, then <span data-n="pack_runs">20</span> more runs for $<span data-n="pack_price">1</span> in test money. Today nothing is charged.</li>
-        <li>It comes from a 2007 paper: <a href="https://doi.org/10.46298/dmtcs.3545" data-claim-link>HyperLogLog, by Flajolet, Fusy, Gandouet and Meunier</a>.</li>
-        <li>It depends on Knos's one server. When nobody has used it for a while it sleeps, and the first run is slow while it wakes.</li>
+        <li>The sample is made up: a straight line from <span data-sample="first">1.86</span> to <span data-sample="last">1.29</span> over <span data-sample="rows">168</span> cycles, because NASA's page offers no download from a nasa.gov address. Its limit, 1.4, is the end-of-life rule on <a href="https://data.nasa.gov/dataset/li-ion-battery-aging-datasets">NASA's battery data page</a>.</li>
+        <li>It checks one column against one limit. It does not judge whether the limit is the right one. A row whose value is not a number is skipped and counted.</li>
+        <li>Your file goes to Knos's server, which checks it and keeps it with its result page, so the link works. A sample result can be opened by anyone. Your own file can be opened only by people who have its link, and it is never listed. The server keeps results only until it is next rebuilt, so a link can stop working.</li>
+        <li>The test that showed it works checks six made-up files with known answers and the sample. It did not cover files longer than <span data-sample="longest">168</span> rows, or files separated by anything other than commas. <a href="https://github.com/drexthealpha/Knos/blob/main/near/agents/job/test_limit.py">The test</a> is public.</li>
+        <li>Runs on the sample are free. Runs on your own file: <span data-n="free_runs_per_day">5</span> free a day, then <span data-n="pack_runs">20</span> more runs for $<span data-n="pack_price">1</span> in test money. Today nothing is charged.</li>
+        <li>Who built it: AI helpers write the program through Knos, and it is released only when that test passes. <span data-job>It has not been released yet.</span></li>
       </ol></details>
     </div>
     <section class="pay" id="pay" aria-labelledby="pay-h" hidden>
@@ -184,12 +177,15 @@ lemon</textarea>
   <a href="https://github.com/drexthealpha/Knos">Source</a><a href="pricing/">Pricing</a><a href="status/">Status</a>
 </footer>
 <script>
-// THE TOOL (Round 13, A2 to A6, B4, C3, C4): the API contract of v0328 research R13 SPEC.md
+// THE TOOL (Round 13, A2 to A6, B4, C3, C4): "Check a test file against a limit". POST /api/run sends the file as text,
+// the column, the rule (above or below) and the limit; the answer is the program's sentence, its first failing row and
+// the chart's points. The table reader and the chart are the same code as the server's own tool page
+// (apps/wanted/knos_wanted/tool_page.py TABLE_JS).
 (() => {
-  const HOSTED = "https://knos.onrender.com", TOOL = "count-distinct";
+  const HOSTED = "https://knos.onrender.com", TOOL = "limit-check";
   const $ = (id) => document.getElementById(id);
   const box = $("list"), tryBtn = $("try"), state = $("state"), step = $("step"), stopBtn = $("stop"), res = $("result"), err = $("err"), pay = $("pay");
-  let SAMPLE = box.defaultValue;
+  const SAMPLE = box.defaultValue, SAMPLE_COLUMN = $("colname").textContent;
   const nf = new Intl.NumberFormat("en-US"), plural = new Intl.PluralRules("en-US");
   // Knos's own tests and the WALK runs carry a marker and are counted apart (D2): a driven browser, or ?knos_test
   const TEST = navigator.webdriver === true || new URLSearchParams(location.search).has("knos_test");
@@ -200,17 +196,56 @@ lemon</textarea>
   const browserId = (make) => { let id = store.get("knos.browser"); if (!id && make) { id = newId(); store.set("knos.browser", id); } return id || ""; };
   const counted = () => store.get("knos.count") === "yes";
   const DEFAULT_SHOWN = $("shown").textContent || "";
-  let ctl = null, last = null, limits = null, pressId = null, touched = false;
-  box.addEventListener("input", () => { touched = true; });
+  let ctl = null, last = null, limits = null, pressId = null, mineOn = false;
   const show = (el, on) => { el.hidden = !on; };
+  const num = (s) => { const t = String(s).trim(); return t !== "" && Number.isFinite(Number(t)); };
+  function rowsOf(text) {
+    const out = []; let row = [], cell = "", q = false;
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (q) { if (ch === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; } else cell += ch; }
+      else if (ch === '"') q = true;
+      else if (ch === ",") { row.push(cell); cell = ""; }
+      else if (ch === "\n" || ch === "\r") { if (ch === "\r" && text[i + 1] === "\n") i++; row.push(cell); out.push(row); row = []; cell = ""; }
+      else cell += ch;
+    }
+    row.push(cell); out.push(row);
+    return out.filter((r) => r.some((c) => c.trim()));
+  }
+  // the column names by the program's rule: a first row with any cell that is not a number is the header
+  function columnsOf(text) {
+    const rows = rowsOf(text);
+    if (!rows.length) return [];
+    if (rows[0].some((c) => !num(c))) return rows[0].map((c) => c.trim());
+    return Array.from({ length: Math.max(...rows.map((r) => r.length)) }, (_, i) => "column " + (i + 1));
+  }
+  // the values as a line, the limit as a straight dashed line, the first failing value ringed with its row number
+  function chartSvg(c, row) {
+    const NS = "http://www.w3.org/2000/svg", W = 320, H = 150, P = 10;
+    const el = (tag, at) => { const e = document.createElementNS(NS, tag); for (const k in at) e.setAttribute(k, at[k]); return e; };
+    const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, class: "chart", role: "img", "aria-label": "Chart of the values with the limit" + (c && c.fail ? ", the first failing row marked" : "") });
+    if (!c || !c.points || !c.points.length) return svg;
+    const vs = c.points.map((p) => p[1]).concat([c.limit]), lo = Math.min(...vs), hi = Math.max(...vs), pad = (hi - lo) * 0.1 || 1;
+    const n = Math.max(2, c.n), X = (x) => P + (x - 1) / (n - 1) * (W - 2 * P), Y = (v) => H - P - (v - lo + pad) / (hi - lo + 2 * pad) * (H - 2 * P);
+    svg.append(el("polyline", { points: c.points.map((p) => X(p[0]).toFixed(1) + "," + Y(p[1]).toFixed(1)).join(" "), fill: "none", stroke: "currentColor", "stroke-width": 2 }));
+    svg.append(el("line", { x1: P, x2: W - P, y1: Y(c.limit).toFixed(1), y2: Y(c.limit).toFixed(1), stroke: "#b3261e", "stroke-width": 2, "stroke-dasharray": "6 4" }));
+    if (c.fail) {
+      const fx = X(c.fail[0]), fy = Y(c.fail[1]);
+      svg.append(el("circle", { cx: fx.toFixed(1), cy: fy.toFixed(1), r: 6, fill: "none", stroke: "#b3261e", "stroke-width": 3 }));
+      const t = el("text", { x: Math.min(W - 60, Math.max(P, fx - 24)).toFixed(1), y: Math.max(14, fy - 10).toFixed(1), fill: "currentColor", "font-size": 13 });
+      t.textContent = "Row " + row; svg.append(t);
+    }
+    return svg;
+  }
+  function fillColumns() {
+    const names = columnsOf(box.value), sel = $("col"), was = sel.value;
+    sel.replaceChildren(...names.map((c) => Object.assign(document.createElement("option"), { value: c, textContent: c })));
+    if (names.includes(was)) sel.value = was; else if (names.length) sel.value = names[names.length - 1];
+  }
   // the server says how many free runs are left today and how many paid ones: after a test payment, the runs left
   const paidText = (n) => `${nf.format(n)} ${plural.select(n) === "one" ? "run" : "runs"} left`;
   const leftText = (j) => j.paid_left > 0 ? paidText(j.runs_left) : `${nf.format(j.free_left ?? j.runs_left)} free ${plural.select(j.free_left ?? j.runs_left) === "one" ? "run" : "runs"} left today`;
-  // the sample the server holds, when it answers and the box is still the page's own sample
-  fetch(HOSTED + "/api/tools" + (TEST ? "?test=1" : ""), { credentials: "omit" }).then((r) => r.ok ? r.json() : null).then((j) => {
-    const t = j && (j.tools || []).find((x) => x.id === TOOL);
-    if (t && t.sample && !touched && box.value === SAMPLE && $("list-label").textContent === "Sample list") { SAMPLE = t.sample; box.value = t.sample; }
-  }).catch(() => {});
+  fetch(HOSTED + "/api/tools" + (TEST ? "?test=1" : ""), { credentials: "omit" }).catch(() => {});   // one "tools opened" count (D2)
   function stopWorking() {
     clearInterval(stopWorking.tick); clearTimeout(stopWorking.later);
     show(state, false); show($("spin"), false); show(stopBtn, false); state.dataset.state = "idle";
@@ -218,57 +253,58 @@ lemon</textarea>
   }
   function working(t0) {
     // a first change at once; from 1 s a moving sign, the step Knos is on, the seconds, and Stop (U6 Rule 6)
-    step.textContent = "Sending your list to Knos";
+    step.textContent = "Sending your file to Knos";
     show(err, false); show(res, false); show(state, true); state.dataset.state = "working";
     tryBtn.disabled = true; tryBtn.setAttribute("aria-busy", "true");
     stopWorking.later = setTimeout(() => { show($("spin"), true); show(stopBtn, true); }, 1000);
     stopWorking.tick = setInterval(() => {
       const s = Math.floor((performance.now() - t0) / 1000);
       if (s < 1) return;
-      const what = s < 5 ? "Sending your list to Knos" : s < 15 ? "Waiting for Knos's server, which may be waking up" : "Still waiting for the count from Knos's server";
+      const what = s < 5 ? "Sending your file to Knos" : s < 15 ? "Waiting for Knos's server, which may be waking up" : "Still waiting for the result from Knos's server";
       step.textContent = `${what}, ${s} s`;
     }, 250);
   }
   function fail(text, next) {
-    // first person, the list stays in the box, and one control for the next step (U6, R2)
+    // first person, the file stays in the box, and one control for the next step (U6, R2)
     $("err-text").textContent = text;
     const b = $("err-next");
-    b.textContent = next === "retry" ? "Try again" : next === "shorter" ? "Try a shorter list" : "Back to my list";
-    b.onclick = () => { show(err, false); if (next === "retry") run(); else { box.focus(); } };
+    b.textContent = next === "retry" ? "Try again" : next === "shorter" ? "Try a smaller file" : next === "limit" ? "Type the limit" : "Back to my file";
+    b.onclick = () => { show(err, false); if (next === "retry") run(); else if (next === "limit") $("limit").focus(); else box.focus(); };
     show(err, true);
   }
   async function run() {
     if (ctl) return;
-    const input = box.value;
-    if (!input.trim()) { fail("Your list is empty. Type or paste one item on each line, then press Try it.", "back"); box.focus(); return; }
-    const mode = input === SAMPLE ? "sample" : "own";
+    const table = box.value, column = mineOn ? $("col").value : SAMPLE_COLUMN, rule = $("rule").value, limit = $("limit").value.trim();
+    if (!table.trim()) { fail("Your file is empty, so I have nothing to check yet. Choose a file or paste a table, then press Try it.", "back"); return; }
+    if (!num(limit)) { fail("I need the limit as a number, such as 1.4, before I can check your file. Please type it, then press Try it.", "limit"); return; }
+    const mode = table === SAMPLE ? "sample" : "own";
     const t0 = performance.now(), mine = new AbortController(); ctl = mine;
     working(t0);
-    const body = { id: TOOL, input, mode, browser: counted() ? browserId(true) : "", test: TEST };
+    const body = { id: TOOL, table, column, rule, limit: Number(limit), mode, browser: counted() ? browserId(true) : "", test: TEST };
     let r = null, j = null;
     try {
       r = await fetch(HOSTED + "/api/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: mine.signal, credentials: "omit" });
       j = await r.json().catch(() => null);
     } catch (e) {
       stopWorking();
-      if (e.name === "AbortError") { fail("I stopped the count. Your list is still in the box, so you can change it or try again.", "back"); return; }
-      fail("I could not reach Knos's server. It may be waking up. Your list is still in the box, so press Try again in a moment.", "retry"); return;
+      if (e.name === "AbortError") { fail("I stopped the check. Your file is still in the box, so you can change it or try again.", "back"); return; }
+      fail("I could not reach Knos's server. It may be waking up. Your file is still in the box, so press Try again in a moment.", "retry"); return;
     }
     stopWorking();
     if (r.status === 402 && j && j.pay) { payScreen(j.pay); return; }
     if ((r.status === 413 || r.status === 408) && j && j.error) { fail(j.error, "shorter"); return; }
-    if (!r.ok && j && j.error) { fail(j.error, "retry"); return; }
-    if (!r.ok || !j || !j.result) { fail("I could not get a count from Knos's server just now. Your list is still in the box, so press Try again in a moment.", "retry"); return; }
-    result(j, mode);
+    if (!r.ok && j && j.error) { fail(j.error, r.status === 400 ? "back" : "retry"); return; }
+    if (!r.ok || !j || !j.result) { fail("I could not get a result from Knos's server just now. Your file is still in the box, so press Try again in a moment.", "retry"); return; }
+    result(j);
   }
-  function result(j, mode) {
+  function result(j) {
     last = j; limits = j.limits || limits;
     $("about").textContent = j.result;
-    show($("exact"), j.exact != null); if (j.exact != null) $("exact").textContent = `Exact count: ${nf.format(j.exact)}`;
-    const left = mode === "own" && j.runs_left != null;
-    show($("left"), left); if (left) $("left").textContent = leftText(j);
+    $("chart").replaceChildren(chartSvg(j.chart, j.first_failing_row));
+    const own = j.mode === "own" && j.runs_left != null;
+    show($("left"), own); if (own) $("left").textContent = leftText(j);
     $("shown").textContent = j.shown_by || DEFAULT_SHOWN;
-    show($("private"), mode === "own");
+    show($("private"), j.mode === "own");
     $("copy").textContent = "Copy link"; show($("copied-by-hand"), false);
     show($("optin"), store.get("knos.count") == null);
     show(res, true);
@@ -309,16 +345,24 @@ lemon</textarea>
   });
   tryBtn.addEventListener("click", run);
   stopBtn.addEventListener("click", () => { if (ctl) ctl.abort(); });
+  // Use my data (A3): three inputs in this order: a file (or a pasted table), which column, and the limit
   $("mine").addEventListener("click", () => {
-    box.value = ""; touched = true;
-    $("list-label").textContent = "Your list, one item on each line";
-    if (limits && limits.max_lines != null && limits.max_seconds != null) {
-      $("limits").textContent = `Up to ${nf.format(limits.max_lines)} lines. A run stops after ${nf.format(limits.max_seconds)} seconds.`;
+    mineOn = true; box.value = ""; $("limit").value = "";
+    show($("own"), true); show($("which"), true); show($("colname"), false);
+    $("list-label").textContent = "Or paste a table";
+    if (limits && limits.max_rows != null && limits.max_seconds != null) {
+      $("limits").textContent = `Up to ${nf.format(limits.max_rows)} rows. A run stops after ${nf.format(limits.max_seconds)} seconds.`;
       show($("limits"), true);
     }
+    fillColumns();
     show(res, false); show(err, false); show(state, false);
-    box.focus();
+    $("file").focus();
   });
+  $("file").addEventListener("change", () => {
+    const f = $("file").files[0]; if (!f) return;
+    const r = new FileReader(); r.onload = () => { box.value = String(r.result); fillColumns(); }; r.readAsText(f);
+  });
+  box.addEventListener("input", () => { if (mineOn) fillColumns(); });
   $("copy").addEventListener("click", async () => {
     if (!last || !last.link) return;
     const url = last.link, b = $("copy");

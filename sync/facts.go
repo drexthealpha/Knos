@@ -13,8 +13,8 @@ import (
 	"strings"
 )
 
-// ClaimsPath is the one committed file of links (E4).
-const ClaimsPath = "sync/claims.json"
+// FactsPath is the one committed file of links (E4).
+const FactsPath = "sync/facts.json"
 
 // The five kinds of E3, in their order. "sentence" is the sixth listing: a factual sentence no kind can check.
 const (
@@ -41,7 +41,7 @@ var stringComparators = map[string]bool{"equal": true, "prefix": true}
 // after a wait before they are reported, and never a reason for exit code 1 (E7; SYNC/P2.md finding 9).
 var sources = map[string]bool{"": true, "repo": true, "chain": true, "clock": true, "network": true}
 
-// Place is one spot where a claim's text appears.
+// Place is one spot where a fact's text appears.
 type Place struct {
 	File string `json:"file"`
 	Line int    `json:"line"`
@@ -117,8 +117,8 @@ type Pointer struct {
 // CheckedOutside marks a pointer whose source is outside the repository.
 const CheckedOutside = "outside"
 
-// Claims is sync/claims.json.
-type Claims struct {
+// Facts is sync/facts.json.
+type Facts struct {
 	Note       string                  `json:"_"`
 	Skip       []string                `json:"skip"`
 	Historical []string                `json:"historical"`
@@ -132,39 +132,39 @@ type Claims struct {
 
 var idPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
 
-// defaultClaims is what a repository without sync/claims.json gets: few kinds on, none blocking (SYNC/P6.md
+// defaultFacts is what a repository without sync/facts.json gets: few kinds on, none blocking (SYNC/P6.md
 // strongest rule 4: "Turn few claim kinds on by default").
-func defaultClaims() *Claims {
-	c := &Claims{Kinds: map[string]*KindSetting{}}
+func defaultFacts() *Facts {
+	c := &Facts{Kinds: map[string]*KindSetting{}}
 	for _, k := range Kinds {
 		c.Kinds[k] = &KindSetting{On: k != KindName}
 	}
 	return c
 }
 
-// loadClaims reads root/sync/claims.json. A missing file is an empty set of links; a file that does not parse or
+// loadFacts reads root/sync/facts.json. A missing file is an empty set of links; a file that does not parse or
 // does not validate is an error.
-func loadClaims(root string) (*Claims, []byte, error) {
-	raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(ClaimsPath)))
+func loadFacts(root string) (*Facts, []byte, error) {
+	raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(FactsPath)))
 	if errors.Is(err, os.ErrNotExist) {
-		return defaultClaims(), nil, nil
+		return defaultFacts(), nil, nil
 	}
 	if err != nil {
 		return nil, nil, err
 	}
-	c, err := parseClaims(raw)
+	c, err := parseFacts(raw)
 	if err != nil {
 		return nil, raw, err
 	}
 	return c, raw, nil
 }
 
-func parseClaims(raw []byte) (*Claims, error) {
-	c := &Claims{}
+func parseFacts(raw []byte) (*Facts, error) {
+	c := &Facts{}
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(c); err != nil {
-		return nil, fmt.Errorf("%s does not parse: %w", ClaimsPath, err)
+		return nil, fmt.Errorf("%s does not parse: %w", FactsPath, err)
 	}
 	if c.Kinds == nil {
 		c.Kinds = map[string]*KindSetting{}
@@ -175,13 +175,13 @@ func parseClaims(raw []byte) (*Claims, error) {
 		}
 	}
 	if problems := c.Validate(); len(problems) > 0 {
-		return nil, fmt.Errorf("%s is not valid:\n  %s", ClaimsPath, strings.Join(problems, "\n  "))
+		return nil, fmt.Errorf("%s is not valid:\n  %s", FactsPath, strings.Join(problems, "\n  "))
 	}
 	return c, nil
 }
 
 // Validate returns every problem with the file, one line each.
-func (c *Claims) Validate() []string {
+func (c *Facts) Validate() []string {
 	var out []string
 	known := map[string]bool{}
 	for _, k := range Kinds {
@@ -243,7 +243,7 @@ func (c *Claims) Validate() []string {
 			out = append(out, where+": "+p)
 		}
 		if len(e.Places) == 0 {
-			out = append(out, where+": an entry lists every place its claim appears, and has none")
+			out = append(out, where+": an entry lists every place its fact appears, and has none")
 		}
 		for j, p := range e.Places {
 			pw := fmt.Sprintf("%s places[%d]", where, j)
@@ -294,7 +294,7 @@ func (c *Claims) Validate() []string {
 	return out
 }
 
-func (c *Claims) pointerAt(file, value string) *Pointer {
+func (c *Facts) pointerAt(file, value string) *Pointer {
 	for i := range c.Pointers {
 		p := &c.Pointers[i]
 		if normValue(p.Value) != normValue(value) {
@@ -350,7 +350,7 @@ func commandProblem(e Entry) string {
 // volatile: the value can change between two runs without any commit.
 func (e Entry) volatile() bool { return e.Source == "chain" || e.Source == "clock" || e.Source == "network" }
 
-func (c *Claims) entry(id string) (*Entry, int) {
+func (c *Facts) entry(id string) (*Entry, int) {
 	for i := range c.Entries {
 		if c.Entries[i].ID == id {
 			return &c.Entries[i], i
@@ -360,7 +360,7 @@ func (c *Claims) entry(id string) (*Entry, int) {
 }
 
 // kindOn: the kind's notices are on, and "not useful" marks have not passed 10% of all marks for it.
-func (c *Claims) kindOn(kind string) bool {
+func (c *Facts) kindOn(kind string) bool {
 	s := c.Kinds[kind]
 	if s == nil || !s.On {
 		return false
@@ -373,7 +373,7 @@ func overNotUseful(s *KindSetting) bool {
 	return s.NotUseful > 0 && s.NotUseful*10 > marks
 }
 
-func (c *Claims) silenced(id, file, says, actual string) bool {
+func (c *Facts) silenced(id, file, says, actual string) bool {
 	for _, s := range c.Silenced {
 		if s.ID == id && s.File == file && s.Says == says && s.Actual == actual {
 			return true
@@ -406,7 +406,7 @@ func inScope(rel string, skip []string) bool {
 	return false
 }
 
-func (c *Claims) historical(rel string, content []byte) bool {
+func (c *Facts) historical(rel string, content []byte) bool {
 	for _, h := range c.Historical {
 		if matched, _ := path.Match(h, rel); matched || (strings.HasSuffix(h, "/") && strings.HasPrefix(rel, h)) {
 			return true

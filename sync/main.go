@@ -2,7 +2,7 @@
 //
 //	knos-sync scan [--list] [--json] [--full]   list every candidate fact of five kinds, and each other factual sentence
 //	knos-sync check [--unconfirmed] [--json] [--markdown] [--network] [--reread-wait 60s]
-//	                                            run every entry of sync/claims.json; print each stale place with its fix
+//	                                            run every entry of sync/facts.json; print each stale place with its fix
 //	knos-sync report --base base.json --head head.json
 //	                                            what a change made stale: the comment a pull request gets
 //	knos-sync link ...                          add an entry, only if its command reproduces the stated value
@@ -11,12 +11,12 @@
 //	knos-sync silence [--file F] [--reason R] <id>
 //	                                            mark a notice "not useful"; counted per kind
 //	knos-sync fix [<id>...]                     write the true value into every stale place
-//	knos-sync accept <id>                       the text was edited to the true value: record it in sync/claims.json
+//	knos-sync accept <id>                       the text was edited to the true value: record it in sync/facts.json
 //	knos-sync value <command...>                print what a command gives, as check reads it
 //
 // No language model is called, and the network is read only by entries whose source says so (and names with
 // --network). Exit code 1 only when a stale entry is of a kind that may block (version, hash or count), its kind
-// has "block": true in sync/claims.json, a person confirmed it, and its value is not read from a chain or a clock.
+// has "block": true in sync/facts.json, a person confirmed it, and its value is not read from a chain or a clock.
 // Exit code 2 on a usage or configuration error.
 package main
 
@@ -91,14 +91,14 @@ func run(args []string) int {
 	return code
 }
 
-// findRoot walks up from dir to the folder that holds sync/claims.json or .git.
+// findRoot walks up from dir to the folder that holds sync/facts.json or .git.
 func findRoot(dir string) (string, error) {
 	abs, err := filepath.Abs(dir)
 	if err != nil {
 		return "", err
 	}
 	for d := abs; ; {
-		if exists(filepath.Join(d, "sync", "claims.json")) || exists(filepath.Join(d, ".git")) {
+		if exists(filepath.Join(d, "sync", "facts.json")) || exists(filepath.Join(d, ".git")) {
 			return d, nil
 		}
 		parent := filepath.Dir(d)

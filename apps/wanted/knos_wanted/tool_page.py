@@ -152,8 +152,9 @@ def og_png(title: str, line: str | None = None) -> bytes:
         c.text(margin, y, t, 8, INK)
         y += 84
     if line:
-        scale = max(3, min(7, width // (6 * max(1, len(line)))))
-        c.text(margin, y + 30, line, scale, ACCENT)
+        for t in _wrap(line, width // 30)[:3]:          # scale 5: 30 px a letter, up to three lines
+            c.text(margin, y + 20, t, 5, ACCENT)
+            y += 52
     c.rect(0, H - 16, W, 16, ACCENT)
     out = png(W, H, c.buf)
     _cache[key] = out
@@ -172,12 +173,17 @@ a{color:var(--accent)}
 h1{font-size:26px;line-height:1.2;margin:2px 0 4px}h2{font-size:22px;line-height:1.25;margin:12px 0 6px}
 .who{margin:0 0 10px;color:var(--muted)}
 label{display:block;font-weight:600;margin-bottom:4px}
-textarea{display:block;width:100%;height:9.2em;font:inherit;padding:8px 10px;border:2px solid var(--line);border-radius:8px;background:var(--card);color:var(--fg);resize:vertical;overflow-wrap:anywhere}
+textarea{display:block;width:100%;height:6.4em;font:16px/1.4 ui-monospace,Consolas,monospace;padding:8px 10px;border:2px solid var(--line);border-radius:8px;background:var(--card);color:var(--fg);resize:vertical;white-space:pre;overflow:auto}
+select,input{font:inherit;min-height:44px;padding:4px 8px;border:2px solid var(--line);border-radius:8px;background:var(--card);color:var(--fg)}
+input[type=file]{width:100%;padding:8px}
+.rule{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:10px 0 0}.rule input{width:7em}
+.field{margin:10px 0 0}
 button{font:inherit;min-height:44px;min-width:44px;padding:8px 16px;border-radius:8px;border:2px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;margin:8px 8px 0 0}
 button.primary{min-height:48px;width:100%;margin:10px 0 0;background:var(--accent);color:var(--accent-fg);font-weight:700}
 button:disabled{opacity:.75;cursor:default}
-button:focus-visible,textarea:focus-visible,summary:focus-visible,a:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
-.big{font-size:24px;font-weight:700;margin:14px 0 0}.big+p{margin:2px 0 0}
+button:focus-visible,textarea:focus-visible,summary:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.big{font-size:22px;font-weight:700;margin:14px 0 0}.big+p{margin:2px 0 0}
+.chart{display:block;width:100%;height:auto;max-height:220px;margin:10px 0 0;color:var(--fg)}
 .muted{color:var(--muted)}.bad{color:var(--bad);font-weight:600}
 .bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin:12px 0 4px}
 .bar i{display:block;height:100%;width:30%;background:var(--accent);animation:k-move 1.2s ease-in-out infinite alternate}
@@ -186,7 +192,49 @@ button:focus-visible,textarea:focus-visible,summary:focus-visible,a:focus-visibl
 details{margin-top:24px;border-top:1px solid var(--line);padding-top:4px}
 summary{min-height:44px;display:flex;align-items:center;cursor:pointer;font-weight:600}
 summary::before{content:"+";display:inline-block;width:1.2em;color:var(--accent)}details[open] summary::before{content:"\\2212"}
-details li{margin:6px 0}"""
+details li{margin:6px 0}
+[hidden]{display:none!important}"""
+
+# The table reader and the chart, the same code on the front door (web/door.html): the column names by the program's rule
+# (a first row with any cell that is not a number is the header), and the values as a line, the limit as a straight
+# dashed line, the first failing value marked with a ring and its row number.
+TABLE_JS = r"""const num = (s) => { const t = String(s).trim(); return t !== "" && Number.isFinite(Number(t)); };
+function rowsOf(text) {
+  const out = []; let row = [], cell = "", q = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (q) { if (ch === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; } else cell += ch; }
+    else if (ch === '"') q = true;
+    else if (ch === ",") { row.push(cell); cell = ""; }
+    else if (ch === "\n" || ch === "\r") { if (ch === "\r" && text[i + 1] === "\n") i++; row.push(cell); out.push(row); row = []; cell = ""; }
+    else cell += ch;
+  }
+  row.push(cell); out.push(row);
+  return out.filter((r) => r.some((c) => c.trim()));
+}
+function columnsOf(text) {
+  const rows = rowsOf(text);
+  if (!rows.length) return [];
+  if (rows[0].some((c) => !num(c))) return rows[0].map((c) => c.trim());
+  return Array.from({ length: Math.max(...rows.map((r) => r.length)) }, (_, i) => "column " + (i + 1));
+}
+function chartSvg(c, row) {
+  const NS = "http://www.w3.org/2000/svg", W = 320, H = 150, P = 10;
+  const el = (tag, at) => { const e = document.createElementNS(NS, tag); for (const k in at) e.setAttribute(k, at[k]); return e; };
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, class: "chart", role: "img", "aria-label": "Chart of the values with the limit" + (c.fail ? ", the first failing row marked" : "") });
+  if (!c || !c.points || !c.points.length) return svg;
+  const vs = c.points.map((p) => p[1]).concat([c.limit]), lo = Math.min(...vs), hi = Math.max(...vs), pad = (hi - lo) * 0.1 || 1;
+  const n = Math.max(2, c.n), X = (x) => P + (x - 1) / (n - 1) * (W - 2 * P), Y = (v) => H - P - (v - lo + pad) / (hi - lo + 2 * pad) * (H - 2 * P);
+  svg.append(el("polyline", { points: c.points.map((p) => X(p[0]).toFixed(1) + "," + Y(p[1]).toFixed(1)).join(" "), fill: "none", stroke: "currentColor", "stroke-width": 2 }));
+  svg.append(el("line", { x1: P, x2: W - P, y1: Y(c.limit).toFixed(1), y2: Y(c.limit).toFixed(1), stroke: "#b3261e", "stroke-width": 2, "stroke-dasharray": "6 4" }));
+  if (c.fail) {
+    const fx = X(c.fail[0]), fy = Y(c.fail[1]);
+    svg.append(el("circle", { cx: fx.toFixed(1), cy: fy.toFixed(1), r: 6, fill: "none", stroke: "#b3261e", "stroke-width": 3 }));
+    const t = el("text", { x: Math.min(W - 60, Math.max(P, fx - 24)).toFixed(1), y: Math.max(14, fy - 10).toFixed(1), fill: "currentColor", "font-size": 13 });
+    t.textContent = "Row " + row; svg.append(t);
+  }
+  return svg;
+}"""
 
 SCRIPT = r"""(() => {
 const D = JSON.parse(document.getElementById("k-tool").textContent);
@@ -198,10 +246,16 @@ const get = (k) => { try { return store && store.getItem(k); } catch (e) { retur
 const put = (k, v) => { try { store && store.setItem(k, v); } catch (e) { /* private window */ } };
 const browser = () => get("knos-count") === "yes" ? (get("knos-browser") || "") : "";
 const n = (x) => Number(x).toLocaleString("en-US");
-let xhr = null, tick = null, link = D.result ? D.result.link : "";
+let xhr = null, tick = null, link = D.result ? D.result.link : "", mineOn = false;
 const make = (tag, text, cls) => { const e = document.createElement(tag); if (text != null) e.textContent = text; if (cls) e.className = cls; return e; };
 const btn = (text, on, primary) => { const b = make("button", text, primary ? "primary" : ""); b.type = "button"; b.addEventListener("click", on); return b; };
 const show = (...nodes) => out.replaceChildren(...nodes);
+/*TABLE*/
+function fillColumns(keep) {
+  const names = columnsOf(box.value), sel = $("col"), was = keep || sel.value;
+  sel.replaceChildren(...names.map((c) => { const o = make("option", c); o.value = c; return o; }));
+  if (names.includes(was)) sel.value = was; else if (names.length) sel.value = names[names.length - 1];
+}
 function idle() { clearInterval(tick); tick = null; xhr = null; go.disabled = false; go.textContent = "Try it"; out.removeAttribute("aria-busy"); out.dataset.state = "done"; }
 function left(r) {
   if (r.mode !== "own" || r.runs_left == null) return null;
@@ -231,10 +285,10 @@ function ask() {
 function result(r) {
   link = r.link;
   const nodes = [make("p", r.result, "big")];
-  if (r.exact != null) nodes.push(make("p", "Exact count: " + n(r.exact)));
-  nodes.push(make("p", r.shown_by, "muted"));
-  if (r.mode === "own") nodes.push(make("p", "Only people with this link can see it."));
+  if (r.chart) nodes.push(chartSvg(r.chart, r.first_failing_row));
   const l = left(r); if (l) nodes.push(l);
+  if (r.mode === "own") nodes.push(make("p", "Only people with this link can see it."));
+  nodes.push(make("p", r.shown_by, "muted"));
   const row = make("div");
   row.append(btn("Use my data", mine), btn("Copy link", (e) => copy(e.currentTarget)));
   nodes.push(row);
@@ -242,7 +296,12 @@ function result(r) {
   show(...nodes);
   try { if (location.origin === new URL(r.link).origin && location.pathname !== new URL(r.link).pathname) history.replaceState(null, "", new URL(r.link).pathname + location.search); } catch (e) { /* another site */ }
 }
-function mine() { box.value = ""; lab.textContent = "Your list"; show(); box.focus(); }
+function ownMode() {
+  mineOn = true; $("own").hidden = false; $("which").hidden = false; $("colname").hidden = true;
+  lab.textContent = "Or paste a table";
+  $("lims").textContent = "Up to " + n(D.limits.max_rows) + " rows. A run stops after " + n(D.limits.max_seconds) + " seconds."; $("lims").hidden = false;
+}
+function mine() { box.value = ""; $("limit").value = ""; ownMode(); fillColumns(); show(); $("file").focus(); }
 function trouble(text, label, then) {
   const p = make("p", text, "bad"); p.setAttribute("role", "alert"); p.dataset.answer = "";
   show(p, btn(label, then));
@@ -250,16 +309,16 @@ function trouble(text, label, then) {
 function edit() { box.focus(); }
 function working() {
   const t0 = Date.now();
-  let step = "Sending your list to Knos", built = false, status, secs;
+  let step = "Sending your file to Knos", built = false, status, secs;
   out.dataset.state = "working"; out.setAttribute("aria-busy", "true");
-  go.disabled = true; go.textContent = "Counting";
-  show(make("p", "Counting your list"));
+  go.disabled = true; go.textContent = "Checking";
+  show(make("p", "Checking your file"));
   tick = setInterval(() => {
     const s = Math.floor((Date.now() - t0) / 1000);
     if (s < 1) return;
     if (!built) {
       built = true;
-      const bar = make("div", null, "bar"); bar.setAttribute("role", "progressbar"); bar.setAttribute("aria-label", "Counting"); bar.append(make("i"));
+      const bar = make("div", null, "bar"); bar.setAttribute("role", "progressbar"); bar.setAttribute("aria-label", "Checking"); bar.append(make("i"));
       status = make("p"); status.dataset.status = ""; status.setAttribute("aria-live", "polite");
       secs = make("p", "", "muted");
       show(bar, status, secs, btn("Stop", stop));
@@ -272,29 +331,30 @@ function working() {
 function stop() {
   if (xhr) xhr.abort();
   idle();
-  show(make("p", "I stopped counting, as you asked. Your list is still in the box."));
+  show(make("p", "I stopped checking, as you asked. Your file is still in the box."));
 }
 function run() {
   if (xhr) return;
-  const text = box.value;
-  if (!text.trim()) return trouble("Your list is empty, so I have nothing to count yet. Type one item on each line, then press Try it.", "Edit my list", edit);
+  const table = box.value, column = mineOn ? $("col").value : D.column, rule = $("rule").value, limit = $("limit").value.trim();
+  if (!table.trim()) return trouble("Your file is empty, so I have nothing to check yet. Choose a file or paste a table, then press Try it.", "Edit my file", edit);
+  if (!num(limit)) return trouble("I need the limit as a number, such as 1.4, before I can check your file. Please type it, then press Try it.", "Type the limit", () => $("limit").focus());
   const w = working();
   xhr = new XMLHttpRequest();
   xhr.open("POST", D.api + "/api/run");
   xhr.setRequestHeader("Content-Type", "application/json");
   xhr.timeout = (D.limits.max_seconds + 90) * 1000;
-  xhr.upload.onprogress = (e) => { if (e.lengthComputable && e.total > 50000) w.step("Sending your list to Knos: " + Math.round(100 * e.loaded / e.total) + "%"); };
-  xhr.upload.onload = () => w.step("Counting your list on the Knos server");
+  xhr.upload.onprogress = (e) => { if (e.lengthComputable && e.total > 50000) w.step("Sending your file to Knos: " + Math.round(100 * e.loaded / e.total) + "%"); };
+  xhr.upload.onload = () => w.step("Checking your file on the Knos server");
   const x = xhr;
   x.onload = () => {
     idle();
     let body = {}; try { body = JSON.parse(x.responseText); } catch (e) { body = {}; }
     if (x.status === 200) return result(body);
     if (x.status === 402 && body.pay) return payScreen(body.pay);
-    trouble(body.error || "Something went wrong on the Knos server, so I have no count. Your list is still in the box. Please try again.", "Edit my list", edit);
+    trouble(body.error || "Something went wrong on the Knos server, so I have no result. Your file is still in the box. Please try again.", x.status === 503 ? "Try again" : "Edit my file", x.status === 503 ? run : edit);
   };
-  x.onerror = x.ontimeout = () => { idle(); trouble("I could not reach Knos just now, so nothing was counted. Your list is still in the box. Press Try again.", "Try again", run); };
-  x.send(JSON.stringify({ id: D.id, input: text, mode: text === D.sample ? "sample" : "own", browser: browser(), test }));
+  x.onerror = x.ontimeout = () => { idle(); trouble("I could not reach Knos just now, so nothing was checked. Your file is still in the box. Press Try again.", "Try again", run); };
+  x.send(JSON.stringify({ id: D.id, table, column, rule, limit: Number(limit), mode: table === D.sample ? "sample" : "own", browser: browser(), test }));
 }
 function back(line) { pay.hidden = true; pay.replaceChildren(); form.hidden = false; show(...(line ? [make("p", line)] : [])); go.focus(); }
 function payScreen(p) {
@@ -326,13 +386,25 @@ function record(b, press) {
   x.onerror = () => { b.disabled = false; b.textContent = "Try again"; };
   x.send(JSON.stringify({ browser: browser(), press, test }));
 }
+$("file").addEventListener("change", () => {
+  const f = $("file").files[0]; if (!f) return;
+  const r = new FileReader(); r.onload = () => { box.value = String(r.result); fillColumns(); }; r.readAsText(f);
+});
+box.addEventListener("input", () => { if (mineOn) fillColumns(); });
 go.addEventListener("click", run);
+if (D.result && D.result.mode === "own") { ownMode(); fillColumns(D.result.column); }
 if (D.result) result(D.result);
-})();"""
+})();""".replace("/*TABLE*/", TABLE_JS)
 
 
 def _e(s) -> str:
     return html.escape(str(s), quote=True)
+
+
+def shown_limit(v) -> str:
+    """The limit as a person typed it: 1.4, not 1.40; a whole number with no point."""
+    f = float(v)
+    return str(int(f)) if f.is_integer() else repr(f)
 
 
 def page(tool: dict, base: str, result: dict | None = None, front: str = "https://drexthealpha.github.io/Knos/") -> str:
@@ -340,21 +412,25 @@ def page(tool: dict, base: str, result: dict | None = None, front: str = "https:
     rid = (result or {}).get("id")
     url = f"{base}/r/{rid}/" if rid else f"{base}/t/{tool['id']}/"
     image = f"{base}/og/r/{rid}.png" if rid else f"{base}/og/t/{tool['id']}.png"
-    desc = result["result"] if result else tool["line"]
+    desc = first_sentence(result["result"]) if result else tool["line"]
     text = result["input"] if result else tool["sample"]
     own = bool(result and result.get("mode") == "own")
+    column = result["column"] if result else tool["column"]
+    rule = result["rule"] if result else tool["rule"]
+    limit = shown_limit(result["limit"] if result else tool["limit"])
     data = {"id": tool["id"], "title": tool["title"], "sample": tool["sample"], "api": base, "limits": tool["limits"],
-            "result": result and {k: result.get(k) for k in ("result", "exact", "shown_by", "link", "mode")}}
+            "column": tool["column"],
+            "result": result and {k: result.get(k) for k in ("result", "first_failing_row", "rows", "skipped", "shown_by", "link",
+                                                             "mode", "chart", "column")}}
     ssr = ""
     if result:
         ssr = (f'<p class="big">{_e(result["result"])}</p>'
-               + (f'<p>Exact count: {result["exact"]:,}</p>' if result.get("exact") is not None else "")
-               + f'<p class="muted">{_e(result["shown_by"])}</p>'
                + ('<p>Only people with this link can see it.</p>' if own else "")
+               + f'<p class="muted">{_e(result["shown_by"])}</p>'
                + (f'<p class="muted">Showing the first {result["shown_lines"]:,} of {result["lines"]:,} lines.</p>' if result.get("cut") else ""))
     blob = json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
-    fold = tool["fold"]
-    items = "".join(f"<li>{x}</li>" for x in fold)
+    items = "".join(f"<li>{x}</li>" for x in tool["fold"])
+    opts = "".join(f'<option value="{r}"{" selected" if r == rule else ""}>must stay {r}</option>' for r in ("above", "below"))
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -381,8 +457,12 @@ def page(tool: dict, base: str, result: dict | None = None, front: str = "https:
 <h1>{_e(tool['title'])}</h1>
 <p class="who">{_e(tool['line'])}</p>
 <div id="tool">
-<label id="lab" for="list">{'Your list' if own else 'Sample list'}</label>
-<textarea id="list" dir="auto" spellcheck="false" autocomplete="off">{_e(text)}</textarea>
+<div id="own" class="field" hidden><label for="file">Choose a file</label><input id="file" type="file" accept=".csv,text/csv,text/plain"></div>
+<label id="lab" for="list">{'Or paste a table' if own else _e(tool['sample_label'])}</label>
+<textarea id="list" dir="ltr" spellcheck="false" autocomplete="off" wrap="off">{_e(text)}</textarea>
+<div id="which" class="field" hidden><label for="col">Which column?</label><select id="col"></select></div>
+<p class="rule"><span id="colname">{_e(column)}</span> <select id="rule" aria-label="The rule">{opts}</select> <input id="limit" inputmode="decimal" autocomplete="off" aria-label="The limit" value="{_e(limit)}"></p>
+<p id="lims" class="muted" hidden></p>
 <button id="go" class="primary" type="button">Try it</button>
 </div>
 <section id="pay" hidden></section>
@@ -398,6 +478,10 @@ def page(tool: dict, base: str, result: dict | None = None, front: str = "https:
 </html>"""
 
 
+def first_sentence(result: str) -> str:
+    return result.split(". ", 1)[0].rstrip(".") + "." if result else ""
+
+
 def missing(front: str = "https://drexthealpha.github.io/Knos/") -> str:
     """The page for an address with no tool or result behind it: what happened, and one way on."""
     return f"""<!doctype html>
@@ -406,5 +490,5 @@ def missing(front: str = "https://drexthealpha.github.io/Knos/") -> str:
 <body><main><a class="brand" href="{_e(front)}">Knos</a>
 <h1>I cannot find this page</h1>
 <p data-answer>I have nothing at this address. A result may have been cleared when the Knos server was updated.</p>
-<p><a href="{_e(front)}">Open the Knos tool and count a list</a></p>
+<p><a href="{_e(front)}">Open the Knos tool and check a file</a></p>
 </main></body></html>"""

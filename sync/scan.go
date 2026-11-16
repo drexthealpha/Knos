@@ -38,7 +38,7 @@ type ScanResult struct {
 }
 
 // scopeFiles lists README.md, every .md under docs/ and every .html under web/, sorted, as slash paths.
-func scopeFiles(root string, c *Claims) ([]string, error) {
+func scopeFiles(root string, c *Facts) ([]string, error) {
 	var out []string
 	if exists(filepath.Join(root, "README.md")) {
 		out = append(out, "README.md")
@@ -110,7 +110,7 @@ func normValue(v string) string {
 	return strings.TrimSpace(strings.ReplaceAll(v, ",", ""))
 }
 
-func loadCoverage(root string, c *Claims) *coverage {
+func loadCoverage(root string, c *Facts) *coverage {
 	cov := &coverage{byFile: map[string]map[string]string{}}
 	put := func(file, value, by string) {
 		m := cov.byFile[file]
@@ -151,7 +151,7 @@ func (cov *coverage) holds(file, value string) string {
 }
 
 // lineFlags reads the raw lines once: ignore markers, generated blocks.
-func lineFlags(content []byte, c *Claims) (ignored map[int]bool, generated map[int]string) {
+func lineFlags(content []byte, c *Facts) (ignored map[int]bool, generated map[int]string) {
 	ignored, generated = map[int]bool{}, map[int]string{}
 	var open *Generated
 	for i, line := range strings.Split(string(content), "\n") {
@@ -182,7 +182,7 @@ func lineFlags(content []byte, c *Claims) (ignored map[int]bool, generated map[i
 }
 
 // classify sets each candidate's state.
-func classify(rel string, content []byte, cands []Candidate, c *Claims, cov *coverage) {
+func classify(rel string, content []byte, cands []Candidate, c *Facts, cov *coverage) {
 	hist := c.historical(rel, content)
 	ignored, generated := lineFlags(content, c)
 	lines := strings.Split(string(content), "\n")
@@ -219,7 +219,7 @@ func classify(rel string, content []byte, cands []Candidate, c *Claims, cov *cov
 	}
 }
 
-func linkedBy(c *Claims, file string, line int, value string) string {
+func linkedBy(c *Facts, file string, line int, value string) string {
 	for _, e := range c.Entries {
 		for _, p := range e.Places {
 			if p.File == file && p.Line == line && normValue(p.Says) == normValue(value) {
@@ -232,7 +232,7 @@ func linkedBy(c *Claims, file string, line int, value string) string {
 
 // runScan reads every file in scope; a file whose content hash is unchanged reuses its stored candidates
 // (SYNC/P5.md finding 19). full re-reads everything, which is also a normal, fast path (SYNC/P5.md finding 20).
-func runScan(root string, c *Claims, st *State, full bool) (*ScanResult, error) {
+func runScan(root string, c *Facts, st *State, full bool) (*ScanResult, error) {
 	files, err := scopeFiles(root, c)
 	if err != nil {
 		return nil, err
@@ -301,7 +301,7 @@ func cmdScan(args []string) (int, error) {
 	if err != nil {
 		return 2, err
 	}
-	c, _, err := loadClaims(root)
+	c, _, err := loadFacts(root)
 	if err != nil {
 		return 2, err
 	}

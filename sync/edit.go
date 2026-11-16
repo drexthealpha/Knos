@@ -12,21 +12,21 @@ import (
 	"time"
 )
 
-// writeClaims writes sync/claims.json only if the edited bytes still parse and validate.
-func writeClaims(root string, raw []byte) error {
-	if _, err := parseClaims(raw); err != nil {
+// writeFacts writes sync/facts.json only if the edited bytes still parse and validate.
+func writeFacts(root string, raw []byte) error {
+	if _, err := parseFacts(raw); err != nil {
 		return fmt.Errorf("the change was not written: %w", err)
 	}
-	return os.WriteFile(filepath.Join(root, filepath.FromSlash(ClaimsPath)), raw, 0o644)
+	return os.WriteFile(filepath.Join(root, filepath.FromSlash(FactsPath)), raw, 0o644)
 }
 
-func needClaims(root string) (*Claims, []byte, error) {
-	c, raw, err := loadClaims(root)
+func needFacts(root string) (*Facts, []byte, error) {
+	c, raw, err := loadFacts(root)
 	if err != nil {
 		return nil, nil, err
 	}
 	if raw == nil {
-		return nil, nil, errors.New(ClaimsPath + " does not exist")
+		return nil, nil, errors.New(FactsPath + " does not exist")
 	}
 	return c, raw, nil
 }
@@ -57,18 +57,18 @@ func cmdConfirm(args []string) (int, error) {
 	if err != nil {
 		return 2, err
 	}
-	c, raw, err := needClaims(root)
+	c, raw, err := needFacts(root)
 	if err != nil {
 		return 2, err
 	}
 	if e, _ := c.entry(id); e == nil {
-		return 2, fmt.Errorf("no entry %q in %s", id, ClaimsPath)
+		return 2, fmt.Errorf("no entry %q in %s", id, FactsPath)
 	}
 	out, err := setValue(raw, []string{"entries", "[id=" + id + "]", "confirmed_by_person"}, "true")
 	if err != nil {
 		return 2, err
 	}
-	if err := writeClaims(root, out); err != nil {
+	if err := writeFacts(root, out); err != nil {
 		return 2, err
 	}
 	fmt.Printf("%s: confirmed_by_person is true\n", id)
@@ -76,7 +76,7 @@ func cmdConfirm(args []string) (int, error) {
 }
 
 // evaluateOne checks one entry now, without the state file.
-func evaluateOne(root string, c *Claims, e Entry, network bool) EntryResult {
+func evaluateOne(root string, c *Facts, e Entry, network bool) EntryResult {
 	fc := &fileCache{root: root, data: map[string][]byte{}, hashes: map[string]string{}}
 	return evaluate(fc, c, e, checkOptions{network: network})
 }
@@ -102,13 +102,13 @@ func cmdSilence(args []string) (int, error) {
 	if err != nil {
 		return 2, err
 	}
-	c, raw, err := needClaims(root)
+	c, raw, err := needFacts(root)
 	if err != nil {
 		return 2, err
 	}
 	e, _ := c.entry(id)
 	if e == nil {
-		return 2, fmt.Errorf("no entry %q in %s", id, ClaimsPath)
+		return 2, fmt.Errorf("no entry %q in %s", id, FactsPath)
 	}
 	r := evaluateOne(root, c, *e, false)
 	n := 0
@@ -128,14 +128,14 @@ func cmdSilence(args []string) (int, error) {
 	if raw, err = bumpCount(raw, []string{"kinds", e.Kind, "not_useful"}); err != nil {
 		return 2, err
 	}
-	if err := writeClaims(root, raw); err != nil {
+	if err := writeFacts(root, raw); err != nil {
 		return 2, err
 	}
 	fmt.Printf("%s: %d notice(s) marked %q; counted for the kind %s\n", id, n, *reason, e.Kind)
 	return 0, nil
 }
 
-// recordPlaces writes what each changed place says now into sync/claims.json, sets the expected value and counts
+// recordPlaces writes what each changed place says now into sync/facts.json, sets the expected value and counts
 // the act for the kind.
 func recordPlaces(raw []byte, e Entry, r EntryResult, changed map[int]PlaceResult) ([]byte, error) {
 	var err error
@@ -175,14 +175,14 @@ func cmdFix(args []string) (int, error) {
 	if err != nil {
 		return 2, err
 	}
-	c, raw, err := needClaims(root)
+	c, raw, err := needFacts(root)
 	if err != nil {
 		return 2, err
 	}
 	want := map[string]bool{}
 	for _, id := range set.Args() {
 		if e, _ := c.entry(id); e == nil {
-			return 2, fmt.Errorf("no entry %q in %s", id, ClaimsPath)
+			return 2, fmt.Errorf("no entry %q in %s", id, FactsPath)
 		}
 		want[id] = true
 	}
@@ -243,7 +243,7 @@ func cmdFix(args []string) (int, error) {
 			return 2, err
 		}
 	}
-	if err := writeClaims(root, raw); err != nil {
+	if err := writeFacts(root, raw); err != nil {
 		return 2, err
 	}
 	fmt.Printf("fixed %d entries\n", fixed)
@@ -266,13 +266,13 @@ func cmdAccept(args []string) (int, error) {
 	if err != nil {
 		return 2, err
 	}
-	c, raw, err := needClaims(root)
+	c, raw, err := needFacts(root)
 	if err != nil {
 		return 2, err
 	}
 	e, _ := c.entry(id)
 	if e == nil {
-		return 2, fmt.Errorf("no entry %q in %s", id, ClaimsPath)
+		return 2, fmt.Errorf("no entry %q in %s", id, FactsPath)
 	}
 	r := evaluateOne(root, c, *e, false)
 	changed := map[int]PlaceResult{}
@@ -287,7 +287,7 @@ func cmdAccept(args []string) (int, error) {
 	if raw, err = recordPlaces(raw, *e, r, changed); err != nil {
 		return 2, err
 	}
-	if err := writeClaims(root, raw); err != nil {
+	if err := writeFacts(root, raw); err != nil {
 		return 2, err
 	}
 	fmt.Printf("%s: %d place(s) recorded; expected is %s\n", id, len(changed), r.Actual)
@@ -311,7 +311,7 @@ func parsePlace(v string) (string, int, error) {
 	return filepath.ToSlash(v[:i]), n, nil
 }
 
-// placeText picks the claim's text on a line: the value and a few words after it (or before it, at a line's end),
+// placeText picks the fact's text on a line: the value and a few words after it (or before it, at a line's end),
 // enough to find it again when the line moves.
 func placeText(line, says string) (string, error) {
 	i := strings.Index(line, says)
@@ -361,7 +361,7 @@ func isCommon(kind, value string) bool {
 }
 
 // newPlace reads a place and refuses one an existing check already holds (E1: no second mechanism).
-func newPlace(root string, c *Claims, file string, line int, says, text string) (Place, error) {
+func newPlace(root string, c *Facts, file string, line int, says, text string) (Place, error) {
 	if !inScope(file, c.Skip) {
 		return Place{}, fmt.Errorf("%s is not a file knos-sync reads", file)
 	}
@@ -401,7 +401,7 @@ func cmdLink(args []string) (int, error) {
 	kind := set.String("kind", "", "version, hash, count, price or name")
 	subject := set.String("subject", "", "what the value is about")
 	says := set.String("says", "", "the value as the text writes it")
-	text := set.String("text", "", "the claim's text on the line (default: the value and a few words)")
+	text := set.String("text", "", "the fact's text on the line (default: the value and a few words)")
 	comparator := set.String("comparator", "equal", "equal, at_least, at_most, approximately, rounded, prefix")
 	tolerance := set.Float64("tolerance", 0, "for approximately: a share of the true value")
 	convert := set.String("convert", "", "mul:N;div:N;add:N;round:N")
@@ -418,7 +418,7 @@ func cmdLink(args []string) (int, error) {
 	if err != nil {
 		return 2, err
 	}
-	c, raw, err := needClaims(root)
+	c, raw, err := needFacts(root)
 	if err != nil {
 		return 2, err
 	}
@@ -468,7 +468,7 @@ func cmdLink(args []string) (int, error) {
 			return 2, err
 		}
 	}
-	if err := writeClaims(root, raw); err != nil {
+	if err := writeFacts(root, raw); err != nil {
 		return 2, err
 	}
 	fmt.Printf("%s: linked %d place(s); the command gives %s\n", e.ID, len(added), actual)
@@ -491,7 +491,7 @@ func cmdPropose(args []string) (int, error) {
 	if err != nil {
 		return 2, err
 	}
-	c, _, err := loadClaims(root)
+	c, _, err := loadFacts(root)
 	if err != nil {
 		return 2, err
 	}

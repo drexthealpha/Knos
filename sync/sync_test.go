@@ -169,8 +169,8 @@ func TestConvertAndJSONValue(t *testing.T) {
 	}
 }
 
-func fixture() *Claims {
-	c := defaultClaims()
+func fixture() *Facts {
+	c := defaultFacts()
 	c.Note = "test"
 	c.Skip, c.Historical = []string{}, []string{}
 	c.Existing, c.Generated, c.Silenced = []Existing{}, []Generated{}, []Silence{}
@@ -182,13 +182,13 @@ func fixture() *Claims {
 	return c
 }
 
-func writeClaimsFile(t *testing.T, dir string, c *Claims) {
+func writeFactsFile(t *testing.T, dir string, c *Facts) {
 	t.Helper()
 	b, err := encodeJSON(c, "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	writeFile(t, dir, ClaimsPath, string(b)+"\n")
+	writeFile(t, dir, FactsPath, string(b)+"\n")
 }
 
 func repo(t *testing.T) string {
@@ -196,13 +196,13 @@ func repo(t *testing.T) string {
 	dir := t.TempDir()
 	writeFile(t, dir, "docs/a.md", "# A\n\nWe list 12,010 companies today.\n")
 	writeFile(t, dir, "docs/data/x.json", `{"rows": 12010}`)
-	writeClaimsFile(t, dir, fixture())
+	writeFactsFile(t, dir, fixture())
 	return dir
 }
 
-func mustLoad(t *testing.T, dir string) *Claims {
+func mustLoad(t *testing.T, dir string) *Facts {
 	t.Helper()
-	c, _, err := loadClaims(dir)
+	c, _, err := loadFacts(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -226,12 +226,12 @@ func TestCheckFindsStaleAndBlocksOnlyWhenOptedIn(t *testing.T) {
 	}
 	c := fixture()
 	c.Kinds[KindCount].Block = true
-	writeClaimsFile(t, dir, c)
+	writeFactsFile(t, dir, c)
 	if code := run([]string{"check", "--root", dir}); code != 0 {
 		t.Fatalf("an unconfirmed entry gave exit %d", code)
 	}
 	c.Entries[0].ConfirmedByPerson = true
-	writeClaimsFile(t, dir, c)
+	writeFactsFile(t, dir, c)
 	if code := run([]string{"check", "--root", dir}); code != 1 {
 		t.Fatalf("a confirmed stale count of a blocking kind gave exit %d, want 1", code)
 	}
@@ -239,7 +239,7 @@ func TestCheckFindsStaleAndBlocksOnlyWhenOptedIn(t *testing.T) {
 	writeFile(t, dir, "docs/data/finalized.json", `{"rows": 12011}`)
 	c.Entries[0].Source, c.Entries[0].Command = "chain", []string{"json", "docs/data/finalized.json", "rows"}
 	writeFile(t, dir, "docs/a.md", "# A\n\nWe list 12,010 companies today.\n")
-	writeClaimsFile(t, dir, c)
+	writeFactsFile(t, dir, c)
 	rep = runCheck(dir, mustLoad(t, dir), nil, checkOptions{})
 	if rep.Exit != 0 || !rep.Entries[0].Reread || rep.Entries[0].Blocking {
 		t.Fatalf("a chain value: %+v", rep.Entries[0])
@@ -339,7 +339,7 @@ func TestLinkOnlyWhenTheCommandReproducesTheValue(t *testing.T) {
 	writeFile(t, dir, "docs/data/z.json", `{"n": 7}`)
 	c := mustLoad(t, dir)
 	c.Existing = []Existing{{Name: "claims_check", Command: "python scripts/claims_check.py", RunBy: "tests.yml", Checks: "numbers", FactsFrom: "docs/facts.json"}}
-	writeClaimsFile(t, dir, c)
+	writeFactsFile(t, dir, c)
 	code := run([]string{"link", "--root", dir, "--id", "drills", "--kind", "count", "--subject", "drills", "--place", "docs/c.md:1",
 		"--says", "7", "--", "json", "docs/data/z.json", "n"})
 	if code != 2 {
@@ -399,7 +399,7 @@ func TestScanUsesContentHashesAndStates(t *testing.T) {
 
 func TestJSONSpanEditsKeepEveryOtherByte(t *testing.T) {
 	dir := repo(t)
-	raw := []byte(readFile(t, dir, ClaimsPath))
+	raw := []byte(readFile(t, dir, FactsPath))
 	out, err := setValue(raw, []string{"entries", "[id=rows]", "confirmed_by_person"}, "true")
 	if err != nil {
 		t.Fatal(err)
@@ -414,27 +414,27 @@ func TestJSONSpanEditsKeepEveryOtherByte(t *testing.T) {
 	if out, err = bumpCount(out, []string{"kinds", "count", "not_useful"}); err != nil {
 		t.Fatal(err)
 	}
-	var c Claims
+	var c Facts
 	if err := json.Unmarshal(out, &c); err != nil || len(c.Silenced) != 1 || c.Kinds["count"].NotUseful != 1 {
 		t.Fatalf("after edits: %v %+v", err, c)
 	}
 }
 
-// The committed sync/claims.json is valid, and none of its places is one an existing check already holds (E1).
-func TestTheRepositoryClaimsFile(t *testing.T) {
+// The committed sync/facts.json is valid, and none of its places is one an existing check already holds (E1).
+func TestTheRepositoryFactsFile(t *testing.T) {
 	root, err := filepath.Abs("..")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !exists(filepath.Join(root, "sync", "claims.json")) {
-		t.Skip("no sync/claims.json above this folder")
+	if !exists(filepath.Join(root, "sync", "facts.json")) {
+		t.Skip("no sync/facts.json above this folder")
 	}
-	c, raw, err := loadClaims(root)
+	c, raw, err := loadFacts(root)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if raw == nil || len(c.Entries) == 0 {
-		t.Fatal("sync/claims.json has no entries")
+		t.Fatal("sync/facts.json has no entries")
 	}
 	cov := loadCoverage(root, c)
 	for _, e := range c.Entries {
