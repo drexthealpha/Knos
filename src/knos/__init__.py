@@ -1,4 +1,4 @@
-"""knos - The goal: Knos carries research across the valley of death."""
+"""knos - Knos carries research across the valley of death."""
 
 
 def version() -> str:
