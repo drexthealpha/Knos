@@ -4369,12 +4369,12 @@
   },
   {
    "id": "site_404",
-   "what": "A missing address on the site shows the site's own 404 page: the product's one header, the front door first, and links to the claims and the prices.",
+   "what": "A missing address on the site shows the site's own 404 page: the product's one header and one control back to the front door.",
    "stage": "tested",
    "evidence": {
     "implemented": {
      "path": "web/404.html",
-     "names": "lost-links"
+     "names": "No page lives here"
     },
     "tested": {
      "test": "tests/web/launch.mjs",

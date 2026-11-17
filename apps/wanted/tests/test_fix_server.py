@@ -125,7 +125,7 @@ def test_a_result_page_opened_from_its_link_shows_the_table_it_checked_in_the_bo
     assert st == 200, r
     html = page(app, "/r/" + r["link"].rstrip("/").rsplit("/", 1)[1] + "/")
     assert re.search(r'<textarea id="list"[^>]*>row,reading\n1,5\n2,3\n3,7</textarea>', html)
-    assert '<label id="lab" for="list">The table checked</label>' in html
+    assert '<label id="lab" for="list">Table checked</label>' in html
     assert "if (ran && box.value.trim())" in html                  # only the person's own run empties the box
     assert re.search(r'<div id="k-input"><p class="muted">[^<]+</p><pre data-user-content dir="auto">row,reading\n1,5\n2,3\n3,7</pre>', html)
     assert '<h1><label for="list" id="k-name">' in html          # the box's label is the screen's largest text (U1 R5)

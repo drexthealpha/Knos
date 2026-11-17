@@ -1035,7 +1035,7 @@
    "max_length": 80
   },
   "res.input": {
-   "text": "The table checked",
+   "text": "Table checked",
    "description": "The How it works fold of a result: the line above the table this result checked, since the box is left empty for the next table.",
    "max_length": 34
   }
