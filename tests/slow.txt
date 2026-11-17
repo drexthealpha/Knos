@@ -27,3 +27,5 @@ tests/test_suite_speed.py::test_the_committed_primes_are_the_ones_the_seeds_of_t
 # 2026 in WSL on a 4-CPU machine: 30 s, 19 s, 7 s, 6 s)
 tests/test_agents_verify.py::test_a_correct_fix_passes_with_real_tests_run_twice_and_a_signed_receipt
 tests/test_agents_verify.py::test_the_command_line_writes_the_receipt_prints_the_markdown_and_exits_by_verdict
+# Round 13 (17 Nov): the app's whole suite in one test took 159 s on windows-latest (run 44007456939, shard 5of5 at 5m03s)
+tests/test_fold_wanted.py::test_the_apps_own_suite_passes_against_this_knos

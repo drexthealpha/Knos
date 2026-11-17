@@ -135,10 +135,11 @@ export async function facts(payer, call = rpc) {
 }
 
 export function factsHtml(rows) {
-  return `<h3>Network facts, read from devnet now</h3><div class="k-table"><table id="netfacts"><tbody>${rows.map(([n, v, m]) =>
+  return `<h3>Network facts, read from devnet now</h3><div class="k-table"><table id="netfacts" style="table-layout:fixed;width:100%"><colgroup><col style="width:42%"><col style="width:26%"><col style="width:32%"></colgroup><tbody>${rows.map(([n, v, m]) =>
     // every value keeps its one line, "no answer" too (as words that wrapped, it squeezed its row past 400 px at 320 px),
-    // and the method's name may break anywhere, so no column is pushed to a few pixels
-    `<tr><td>${esc(n)}</td><td class="k-num">${esc(v)}</td><td class="mono small" style="overflow-wrap:anywhere">${esc(m)}</td></tr>`).join("")}</tbody></table></div>
+    // and the method's name may break anywhere; fixed column widths, so no column is pushed to a few pixels (a row of
+    // 565 px at 390 px in CI run 44007456939 when devnet gave no answer)
+    `<tr><td style="overflow-wrap:anywhere">${esc(n)}</td><td class="k-num" style="overflow-wrap:anywhere">${esc(v)}</td><td class="mono small" style="overflow-wrap:anywhere">${esc(m)}</td></tr>`).join("")}</tbody></table></div>
     <p class="fine" id="finality-clock" aria-live="polite">Finality clock: connecting…</p><ol class="small" id="activity-feed" aria-label="Knos programs, live"></ol>`;
 }
 

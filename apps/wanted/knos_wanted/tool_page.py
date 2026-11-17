@@ -829,7 +829,9 @@ function result(r, ran) {
   // the counting question follows a run the person made, not the opening of a result someone shared
   const q = ran ? ask() : null; if (q) nodes.push(q);
   if (was) checked(was);
-  show(...[answer(r), l].filter(Boolean)); under.replaceChildren(...nodes);
+  const a = answer(r), old = ran ? null : $("about"), fresh_big = a.querySelector("#about");
+  if (old && fresh_big && old.textContent.trim() === fresh_big.textContent.trim()) fresh_big.replaceWith(old);   // keep the server's verdict node: the page's largest paint stays on screen
+  show(...[a, l].filter(Boolean)); under.replaceChildren(...nodes);
   try { if (location.origin === new URL(r.link).origin && location.pathname !== new URL(r.link).pathname) history.replaceState(null, "", new URL(r.link).pathname + location.search); } catch (e) { /* another site */ }
 }
 function ownMode() {
