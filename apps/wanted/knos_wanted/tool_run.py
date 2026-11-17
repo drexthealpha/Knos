@@ -12,15 +12,17 @@ because that sandbox has no input-size setting.
 
 Routes (server.py calls handle_get and handle_post first):
     GET  /api/tools                      {"tools": [{"id", "title", "sample"}]}
-    POST /api/run   {id, table, column, rule, limit, browser, test}   the result, its link, runs left and the limits
-    POST /api/pay   {browser, press, test}             a test payment: 20 more runs, recorded once per press
+    POST /api/run   {id, table, column, rule, limit, browser, runs, test}   the result, its link, runs left and the limits
+    POST /api/pay   {browser, runs, press, test}       a test payment: 20 more runs, recorded once per press
     GET  /t/<id>/, /r/<result-id>/      server-written pages with their og tags; GET /og/<t|r>/<id>.png, their image
 The usage counts (D2) and the three measures (D1) join GET /api/usage (usage()).
 
 Store: the app's state folder (valley._save, never mirrored on chain). Render rebuilds that folder on every deploy, so
 results, allowances, test payments and counts start again from empty after each deploy; each kind is capped.
-A browser is known only by a random id its page makes after the person says yes to being counted; with no id, its
-allowance is held in this process's memory under a keyed hash of its address, never written."""
+A browser is known only by a random id its page makes after the person says yes to being counted. The free runs are
+per browser, as the pricing page says: a browser not counted sends another random id (runs) that its page keeps for the
+allowance alone, held in this process's memory under a keyed hash, never written; a caller with neither id (the
+connector, a form sent with no script) is held the same way under a keyed hash of its address."""
 from __future__ import annotations
 
 import csv
@@ -311,8 +313,9 @@ def chart(values: list, rule: str, limit: float) -> dict:
 
 # ---- the store ---------------------------------------------------------------------------------------------------------
 _lock = threading.RLock()
-_mem: dict = {}            # allowances of browsers with no id: keyed hash of the address -> record, this process only
+_mem: dict = {}            # allowances not written: keyed hash of the runs id (or of the address) -> record, this process only
 _salt = secrets.token_bytes(16)
+MEM = ("run:", "addr:")    # the keys held only in _mem
 
 
 def _today() -> str:
@@ -330,12 +333,23 @@ def address_key(address: str) -> str:
     return "addr:" + hashlib.sha256(_salt + str(address).encode()).hexdigest()[:24]
 
 
-def _key(browser, address: str) -> str:
-    return browser if isinstance(browser, str) and ID.fullmatch(browser) else address_key(address)
+def runs_key(runs: str) -> str:
+    return "run:" + hashlib.sha256(_salt + b"runs|" + str(runs).encode()).hexdigest()[:24]
+
+
+def _key(browser, address: str, runs=None) -> str:
+    """Whose free runs these are: a browser that said yes to being counted, by its id; else the browser by the random runs
+    id its page keeps for the allowance alone (pricing: "5 free a day, in each browser"), held only in memory; else (a
+    caller that sends neither, such as the connector or a form with no script) the address."""
+    if isinstance(browser, str) and ID.fullmatch(browser):
+        return browser
+    if isinstance(runs, str) and ID.fullmatch(runs):
+        return runs_key(runs)
+    return address_key(address)
 
 
 def _rec(key: str) -> dict:
-    if key.startswith("addr:"):
+    if key.startswith(MEM):
         if key not in _mem and len(_mem) > 50_000:
             _mem.clear()                             # a day's worth at most: the oldest go together
         return _mem.setdefault(key, {"day": _today(), "used": 0, "paid_left": 0})
@@ -344,7 +358,7 @@ def _rec(key: str) -> dict:
 
 
 def _keep(key: str, rec: dict) -> None:
-    if key.startswith("addr:"):
+    if key.startswith(MEM):
         _mem[key] = rec
         return
     valley._save(BROWSERS, key, rec, chain=False)
@@ -440,7 +454,7 @@ def run(body: dict, address: str, base: str = PUBLIC, test: bool = False, connec
     sample_run = is_sample(table)
     key, rec, took = None, None, None
     if not sample_run:
-        key = _key(body.get("browser"), address)
+        key = _key(body.get("browser"), address, body.get("runs"))
         with _lock:
             rec = _fresh(_rec(key))
             free, paid = _left(rec)
@@ -475,7 +489,7 @@ def run(body: dict, address: str, base: str = PUBLIC, test: bool = False, connec
         with _lock:
             rec = _fresh(_rec(key))
             free, paid = _left(rec)
-            if not key.startswith("addr:"):
+            if not key.startswith(MEM):
                 today = _today()
                 rec["test"] = bool(rec.get("test") or test)
                 rec["first"] = rec.get("first") or today
@@ -497,7 +511,7 @@ def pay(body: dict, address: str, test: bool = False) -> dict:
     press = body.get("press")
     if not isinstance(press, str) or not ID.fullmatch(press):
         raise Refusal(400, {"error": "I could not record this test payment because the press had no id. Nothing was charged. Please press Pay with test money again."})
-    key = _key(body.get("browser"), address)
+    key = _key(body.get("browser"), address, body.get("runs"))
     pid = hashlib.sha256(f"press|{press}".encode()).hexdigest()[:32]
     payload = hashlib.sha256(json.dumps({"who": key, "body": {k: v for k, v in body.items() if k not in ("press", "undo")}},
                                         sort_keys=True, default=str).encode()).hexdigest()
@@ -753,7 +767,7 @@ def handle_get(h, state, u, qs) -> bool:
     m = re.fullmatch(r"/r/([A-Za-z0-9_-]{12})(/?)", p)
     if m:
         rec = load_result(m.group(1))
-        if rec is None and not m.group(2):
+        if rec is None and not m.group(2) and _referral(m.group(1)):
             return False                                 # /r/<code> with no slash: a referral link (product_routes)
         if rec is None:
             return _html(h, 404, tool_page.missing(FRONT, _lang(h, qs)), lang=_lang(h, qs)) or True
@@ -775,7 +789,16 @@ def handle_get(h, state, u, qs) -> bool:
         if img is None:
             return h._send(404, {"error": "I have no image at this address."}) or True
         return h._send(200, img, "image/png", {"Cache-Control": "public, max-age=86400"}) or True
+    # every other /r/ address: a demand result's page or download (16 hex, server.py) or a referral link that exists
+    # (product_routes) is served there; anything else is the same plain Not found page, never a raw error
+    if p.startswith("/r/") and not re.fullmatch(r"/r/[0-9a-f]{16}(?:\.(?:pdf|csv|json))?", p) and not _referral(p[3:]):
+        return _html(h, 404, tool_page.missing(FRONT, _lang(h, qs)), lang=_lang(h, qs)) or True
     return False
+
+
+def _referral(code: str) -> bool:
+    """Whether code is a referral link's code this server holds (valley.make_referral: 12 hex)."""
+    return bool(re.fullmatch(r"[0-9a-f]{12}", code or "")) and valley._safe_load("referrals", code) is not None
 
 
 def _body(h) -> dict:

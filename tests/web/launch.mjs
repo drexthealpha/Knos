@@ -62,14 +62,14 @@ const world = async (block = () => false, o = {}) => {
       nav: [...document.querySelectorAll("#kh nav a")].map((a) => a.textContent.trim()),
       logo: document.querySelector("#kh .logo")?.href,
       go: document.querySelector("main a.go")?.href, goal: document.querySelector("main .goal")?.textContent.trim(),
-      links: [...document.querySelectorAll("#lost-links a")].map((a) => [a.textContent.trim(), a.href]),
+      links: [...document.querySelectorAll("#lost-links a")].map((a) => [a.textContent.trim(), a.href]), mainLinks: document.querySelectorAll("main a").length,
       words: [...document.querySelectorAll("h1, li, footer span")].map((e) => e.textContent.trim()),
       goTop: document.querySelector("main a.go")?.getBoundingClientRect().bottom,
     }));
-    check(`404: the product's one header at ${width}`, seen.logo === base && seen.nav.join("|") === "Claims|Papers|Builders|Labs|Pull requests", seen);
+    check(`404: the product's one header at ${width}`, seen.logo === base && seen.nav.join("|") === "Claims|Papers|Builders|Labs|Code checker", seen);
     check(`404: says the page is missing and offers the front door first at ${width}`, seen.h1 === "No page lives here" && seen.go === base && seen.goTop <= height, seen);
     check(`404: the vision line is labelled as the goal at ${width}`, /^The goal: /.test(seen.goal || ""), seen.goal);
-    check(`404: the claims and the prices at ${width}`, seen.links.length === 2 && seen.links[0][1] === base + "claims/" && seen.links[1][1] === base + "pricing/", seen.links);
+    check(`404: one control back to the front door, no other link in the page (R13 WALK 1) at ${width}`, seen.links.length === 0 && seen.mainLinks === 1, seen);
     const long = seen.words.filter((t) => (t.match(WORD) || []).length > 12);
     check(`404: no statement over 12 words at ${width}`, long.length === 0, long);
     const over = await measure(page);

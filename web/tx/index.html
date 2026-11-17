@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Knos: a NEAR testnet transaction</title>
+<title>Knos: one payment record</title>
 <link rel="icon" href="../brand/mark.svg">
 <link rel="stylesheet" href="../brand/tokens.css">
 <style>
@@ -12,27 +12,36 @@ main { max-width: 760px; margin: 0 auto; padding: 16px; }
 h1 { font: 600 24px/1.25 var(--text); margin: 16px 0 8px; }
 .verdict { font-size: 20px; font-weight: 600; margin: 8px 0 16px; }
 .ok { color: var(--ok, #1a7f37); } .no { color: var(--bad, #b42318); }
-dl { display: grid; grid-template-columns: max-content 1fr; gap: 8px 16px; margin: 0 0 16px; }
-dt { color: var(--ink-2); } dd { margin: 0; overflow-wrap: break-word; }
+dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 16px; margin: 0 0 16px; }
+dt { color: var(--ink-2); } dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 code { font: 400 16px/1.5 var(--code); overflow-wrap: anywhere; }
-ul { padding-left: 20px; } li { margin: 6px 0; overflow-wrap: break-word; }
+ul { padding-left: 20px; } li { margin: 6px 0; overflow-wrap: anywhere; }
 summary { display: flex; align-items: center; min-height: 44px; cursor: pointer; }
-pre { font: 400 14px/1.5 var(--code); white-space: pre-wrap; overflow-wrap: anywhere; background: var(--paper-2); padding: 12px; border-radius: 8px; }
+pre { font: 400 16px/1.5 var(--code); white-space: pre-wrap; overflow-wrap: anywhere; background: var(--paper-2); padding: 12px; border-radius: 8px; }
 a { color: inherit; display: inline-flex; align-items: center; min-height: 44px; }
-@media (max-width: 460px) { dl { grid-template-columns: 1fr; gap: 0 0; } dd { margin-bottom: 8px; } }
+@media (max-width: 460px) { dl { grid-template-columns: minmax(0, 1fr); gap: 0 0; } dd { margin-bottom: 8px; } }
+.btn { display: inline-flex; align-items: center; min-height: 48px; padding: 0 18px; border-radius: 10px; background: var(--accent); color: var(--accent-fg); text-decoration: none; font-weight: 600; }
+.how { margin: 24px 0 0; border-top: 1px solid var(--line); } .how > summary { font-weight: 600; }
+details:not([open]) > .kmenu-panel { display: none; }
+main { overflow-wrap: anywhere; }
 </style>
 </head>
 <body>
 <main>
-  <h1>NEAR testnet transaction</h1>
-  <p class="verdict" id="verdict">Reading it from NEAR…</p>
+  <h1>One payment record</h1>
+  <p class="verdict" id="verdict">Reading it from the public record…</p>
+  <p>Your browser reads this record itself, from a public blockchain that anyone can check.</p>
+  <p><a class="btn" href="../claims/">See all claims</a></p>
+  <details class="how" id="how"><summary>How it works</summary>
+  <p id="why"></p>
   <dl id="facts"></dl>
-  <h2 id="moved-h" hidden>Test USDC moved</h2>
+  <h2 id="moved-h" hidden>Test money moved</h2>
   <ul id="moved"></ul>
   <h2 id="said-h" hidden>What the contract decided</h2>
   <ul id="said"></ul>
   <details id="raw-d" hidden><summary>The raw record</summary><pre id="raw"></pre></details>
   <p id="more"></p>
+  </details>
 </main>
 <script>
 // Read from NEAR's public archival RPC in your browser, with no explorer and no bot check.
@@ -45,11 +54,11 @@ const el = (tag, text) => { const e = document.createElement(tag); e.textContent
 const h = new URLSearchParams(location.search).get("h") || "";
 // each method of Knos's contracts in plain words (near/contract/src/jobs.rs, near/market/src/lib.rs); any other keeps its name
 const DID = { release_job: "pay a job after the checker's signed pass", release_job_verified: "pay a job after the checker's signed pass, with the model's signature",
-  refund_job: "send a job's test USDC back after its deadline", take: "an agent takes a job", submit: "an agent sends its code", spend: "an agent spends from its budget",
+  refund_job: "send a job's test dollars back after its deadline", take: "an agent takes a job", submit: "an agent sends its code", spend: "an agent spends from its budget",
   approve_spend: "the approver releases a held spend", record_rejection: "record the AI reviewer's rejection", pause: "pause or resume the contract",
-  ft_transfer: "send test USDC", ft_transfer_call: "send test USDC to a contract, which opens a job or backs a claim", resolve: "settle a claim's market by its locked test",
+  ft_transfer: "send test dollars", ft_transfer_call: "send test dollars to a contract, which opens a job or backs a claim", resolve: "settle a claim's market by its locked test",
   redeem: "pay out a settled market's shares", vote: "settle a market by vote", set_test: "change a claim's locked test" };
-const tu = (n) => Number(n) < 1e4 ? n + " units (millionths of a test USDC)" : (Number(n) / 1e6).toFixed(2) + " test USDC";   // a spend of 1 or 3 units would round to 0.00
+const tu = (n) => Number(n) < 1e4 ? n + " units (millionths of a test dollar)" : (Number(n) / 1e6).toFixed(2) + " test dollars";   // a spend of 1 or 3 units would round to 0.00
 // what each event of the jobs contract says, in one line (its own names: near/contract/src/jobs.rs, fn event)
 const SAYS = { release: (d) => `The jobs contract released ${d.job} to ${d.agent} (${d.model}).`,
   model_verified: (d) => `The jobs contract checked the model's signature (signer ${d.signer}) and released ${d.job} to ${d.agent}.`,
@@ -74,13 +83,14 @@ function refusal(st) {
   return m ? m[1].replace(/^Smart contract panicked: /, "") : e.slice(0, 200);
 }
 (async () => {
-  if (!/^[1-9A-HJ-NP-Za-km-z]{43,44}$/.test(h)) { $("verdict").textContent = "Add ?h= and a transaction hash to the address."; return; }
+  if (!/^[1-9A-HJ-NP-Za-km-z]{43,44}$/.test(h)) { $("verdict").textContent = "This address names no record."; return; }
   const t = await find();
-  if (!t) { $("verdict").textContent = "NEAR testnet did not find this transaction from a Knos account."; return; }
+  if (!t) { $("verdict").textContent = "The public record has no such record from a Knos account."; return; }
   const tx = t.transaction, a = tx.actions[0] || {}, fc = a.FunctionCall || {};
   const failed = t.receipts_outcome.find((o) => o.outcome.status && o.outcome.status.Failure);
   const ok = "SuccessValue" in t.status && !failed;
-  $("verdict").textContent = ok ? "Succeeded" : "Refused by the contract: " + refusal(failed ? failed.outcome.status : t.status);
+  $("verdict").textContent = ok ? "Succeeded" : "Refused: the rules on the public record stopped it.";
+  $("why").textContent = ok ? "" : "Refused by the contract: " + refusal(failed ? failed.outcome.status : t.status);
   $("verdict").className = "verdict " + (ok ? "ok" : "no");
   // a job opened with a locked test carries the test's sha256 in its arguments (ft_transfer_call's msg)
   let locked = "";
@@ -100,7 +110,7 @@ function refusal(st) {
   }
   if (!ok) { $("said").append(el("li", "The contract refused it: " + refusal(failed ? failed.outcome.status : t.status))); $("said-h").hidden = false; }
   $("raw").textContent = raw.join("\n"); $("raw-d").hidden = false;
-  const x = document.createElement("a"); x.href = "https://testnet.nearblocks.io/txns/" + h; x.textContent = "The same transaction on the NEAR explorer"; x.rel = "noopener";
+  const x = document.createElement("a"); x.href = "https://testnet.nearblocks.io/txns/" + h; x.textContent = "The same record on a public explorer"; x.rel = "noopener";
   $("more").append(x);
 })();
 </script>

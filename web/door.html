@@ -47,6 +47,7 @@ a { color: var(--accent); }
 .kh .mark { display: block; width: 28px; height: 27px; background: currentColor; -webkit-mask: var(--m) center / contain no-repeat; mask: var(--m) center / contain no-repeat; }
 .kmenu > summary { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; padding: 0 12px; cursor: pointer; list-style: none; color: var(--ink); border: 1px solid var(--line); border-radius: 10px; font-size: 16px; }
 .kmenu > summary::-webkit-details-marker { display: none; }
+.kmenu:not([open]) > .kmenu-panel { display: none; }
 .kmenu-panel { position: absolute; inset-inline: 16px; top: 56px; z-index: 30; max-width: 420px; margin-inline-start: auto; padding: 8px 12px; background: var(--paper-2); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--depth-2); }
 .kmenu-panel p { margin: 4px 0 8px; font-size: 16px; color: var(--ink-2); }
 .kh nav { display: flex; flex-direction: column; }
@@ -117,7 +118,11 @@ button { min-height: 48px; min-width: 48px; padding: 0 18px; font: 600 18px var(
 .out .nw { font-size: 16px; }
 .out .nw-done input { min-height: 44px; font-size: 16px; padding: 0 10px; max-width: 70%; }
 .out p { margin: 0 0 8px; }
-.out .next { display: inline-flex; align-items: center; min-height: 48px; padding: 0 18px; border-radius: 10px; background: var(--accent); color: var(--accent-fg); text-decoration: none; font-weight: 600; }
+/* the answer's own details (its test, its record, the way to run it) sit in a closed How it works fold: plain words
+   above it, one primary control on the screen (Try it), every link a 44 px box in 16 px or larger text (R13 WALK 1) */
+.out .how p { font-size: 18px; }
+.out .how a { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; margin-inline-end: 16px; font-size: 18px; }
+.cost a { display: inline-block; padding: 10px 0; }
 footer { max-width: 760px; margin: 0 auto; padding: 16px; color: var(--ink-2); font-size: 18px; }
 :root:lang(hi) p, :root:lang(hi) li { line-height: 1.85; }
 :root:lang(ar) p, :root:lang(ar) li { line-height: 1.6; }
@@ -232,6 +237,10 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
   // until then every run and the test payment send an empty id
   const browserId = (make) => { let id = store.get("knos.browser"); if (!id && make) { id = newId(); store.set("knos.browser", id); } return id || ""; };
   const counted = () => store.get("knos.count") === "yes";
+  // the free runs are counted per browser (pricing: "5 free a day, in each browser"): a random id kept here for that alone,
+  // sent as `runs` with each run and test payment, as the tool page does (tool_page.py runsId, the same key)
+  let runs = null;
+  const runsId = () => { if (runs) return runs; runs = store.get("knos-runs"); if (!runs) { runs = newId(); store.set("knos-runs", runs); } return runs; };
   // the first action's source (U3 Rule 11): how the table got into the box when Try it is first pressed (the sample as it
   // stood, typed, or pasted or chosen from a file); kept in this browser, sent once as the event first_action, only after
   // the person says yes to being counted
@@ -277,7 +286,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
     if (c.fail) {
       const fx = X(c.fail[0]), fy = Y(c.fail[1]);
       svg.append(el("circle", { cx: r1(fx), cy: r1(fy), r: 6, fill: "none", stroke: "#b3261e", "stroke-width": 3 }));
-      const t = el("text", { x: r1(Math.min(W - 60, Math.max(P, fx - 24))), y: r1(Math.max(14, fy - 10)), fill: "currentColor", "font-size": 13 });
+      const t = el("text", { x: r1(Math.min(W - 84, Math.max(P, fx - 30))), y: r1(Math.max(20, fy - 10)), fill: "currentColor", "font-size": 18 });   // 18 px, as tool_page.py's chart (R13 WALK 1)
       t.textContent = T("chart.row", { r: row }); svg.append(t);
     }
     return svg;
@@ -346,7 +355,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
     firstAction();
     const t0 = performance.now(), mine = new AbortController(); ctl = mine;
     working(t0, table);
-    const body = { id: TOOL, table, column, rule, limit: Number(limit), mode, browser: counted() ? browserId(true) : "", test: TEST };
+    const body = { id: TOOL, table, column, rule, limit: Number(limit), mode, browser: counted() ? browserId(true) : "", runs: runsId(), test: TEST };
     let r = null, j = null;
     try {
       r = await fetch(HOSTED + "/api/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: mine.signal, credentials: "omit" });
@@ -415,7 +424,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
     b.disabled = true; $("pay-said").textContent = T("pay.recording");
     let j = null;
     try {
-      const r = await fetch(HOSTED + "/api/pay", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ browser: counted() ? browserId(true) : "", press: pressId, test: TEST }), credentials: "omit" });
+      const r = await fetch(HOSTED + "/api/pay", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ browser: counted() ? browserId(true) : "", runs: runsId(), press: pressId, test: TEST }), credentials: "omit" });
       j = r.ok ? await r.json() : null;
     } catch { j = null; }
     if (!j || j.runs_left == null) { b.disabled = false; $("pay-said").textContent = T("pay.error"); return; }
@@ -560,12 +569,17 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
     const m = (board && board.claims && board.claims[c.name]) || {}, last = live || m.last_proof && { holds: true, job: m.last_proof };
     const holds = last ? last.holds !== false : null, out7 = m.demand && m.demand.behind_usd != null ? +m.demand.behind_usd : null,
       behind = out7 != null ? T("ask.behind", { amount: KF.number(out7, KI.lang(), { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }) : "";
+    // plain words above the fold (the PLAIN-WORDS rule); the test's file, the record and the way to run the check
+    // yourself inside a closed How it works fold, none of them a primary control (Try it is the screen's one)
+    const fold = el("details", { className: "how" }, [el("summary", { textContent: T("how") }),
+      ...(behind ? [el("p", { textContent: behind + "." })] : []),
+      el("p", {}, [link(`https://github.com/drexthealpha/Knos/blob/main/near/agents/job/${c.test}`, c.test), holds != null && last.job ? link(last.record || `claim/${c.name}/`, last.job) : ""]),
+      el("p", {}, [link("prove/#paper=" + encodeURIComponent(src(c)), T("ask.prove")), link(`claim/${c.name}/`, T("ask.claim"))])]);
     out.replaceChildren(
       ...(near ? [el("p", { className: "near", textContent: T("ask.closest") })] : []),
       el("p", { className: "verdict", textContent: holds === true ? T(near ? "ask.holds_near" : "ask.holds") : holds === false ? T("ask.fails") : T("ask.not_yet") }),
-      el("p", {}, [en(`${c.plain.replace(/.$/, "")}. ${c.authors}, ${c.year}.`), " ", holds != null && last.job ? T("ask.proved") : T("ask.locked"), behind ? ` ${behind}.` : ""]),
-      el("p", { className: "fine k-fine" }, [link(`https://github.com/drexthealpha/Knos/blob/main/near/agents/job/${c.test}`, c.test), holds != null && last.job ? [", ", link(last.record || `claim/${c.name}/`, last.job)] : ""].flat()),
-      el("p", {}, [link("prove/#paper=" + encodeURIComponent(src(c)), T("ask.prove"), "next"), " ", link(`claim/${c.name}/`, T("ask.claim"))]), notWhat());
+      el("p", {}, [en(`${c.plain.replace(/.$/, "")}. ${c.authors}, ${c.year}.`), " ", holds != null && last.job ? T("ask.proved") : T("ask.locked")]),
+      notWhat(), fold);
   }
   function none(text) {
     out.replaceChildren(el("p", { className: "verdict", textContent: T("ask.none") }),

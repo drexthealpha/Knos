@@ -5,7 +5,7 @@
 // 400 ms until the answer is drawn. The network is mocked: the hosted app answers each call after 900 ms with a fixed
 // answer, so the waits are real and the same on every machine. Pressed: every button and summary the page shows when it
 // loads, then the proof flow's own controls in order (the sample paper, another paper and "Prove the sample paper
-// instead", "Run the check with 10 test USDC", "Count them with your code", "Prove the same claim again").
+// instead", "Run the check with 10 test dollars", "Count them with your code", "Check the same claim again").
 // The site the web job builds keeps the app at index.html (KNOS_SPA_AT_ROOT=1); the one page is then composed here from
 // that build, as scripts/build_site.sh composes it for the published site.
 import { createServer } from "node:http";
@@ -120,7 +120,7 @@ async function press(page, locator, name) {
 // every control the page shows when it loads, then every control inside its folded parts once they are opened
 // (summaries are pressed in the first pass, so the second presses only what the folds hold)
 const controls = ([k, opened]) => {
-  if (opened) for (const d of document.querySelectorAll("details")) d.open = true;
+  if (opened) for (const d of document.querySelectorAll("main details")) d.open = true;   // the page's folds, not the header's menu (open, it covers the first screen)
   const seen = (x) => { const b = x.getBoundingClientRect(); return b.width > 0 && b.height > 0 && getComputedStyle(x).visibility !== "hidden" && !x.disabled; };
   const all = [...document.querySelectorAll(opened ? "button, input[type=submit]" : "button, summary, input[type=submit]")].filter(seen);
   if (k < 0) return all.length;
@@ -145,16 +145,16 @@ for (const opened of [false, true]) {
 {
   const { ctx, page } = await open();
   await press(page, page.locator("#go"), 'the sample paper, "Will it work?"');
-  await press(page, page.locator("#look .offer button"), '"Run the check with 10 test USDC"');
+  await press(page, page.locator("#look .offer button"), '"Run the check with 10 test dollars"');
   await press(page, page.getByRole("button", { name: "Count them with your code" }), '"Count them with your code"');
-  await press(page, page.getByRole("button", { name: "Prove the same claim again" }), '"Prove the same claim again"');
+  await press(page, page.getByRole("button", { name: "Check the same claim again" }), '"Check the same claim again"');
   await ctx.close();
 }
 {
   const { ctx, page } = await open();
   await page.fill("#paper", "https://arxiv.org/abs/1706.03762");
   await press(page, page.locator("#go"), 'another paper, "Will it work?"');
-  await press(page, page.getByRole("button", { name: "Prove the sample paper instead" }), '"Prove the sample paper instead"');
+  await press(page, page.getByRole("button", { name: "Check the sample paper instead" }), '"Check the sample paper instead"');
   await ctx.close();
 }
 

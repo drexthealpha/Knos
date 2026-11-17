@@ -20,7 +20,7 @@
   "nav.papers": "Makala",
   "nav.builders": "Wajenzi",
   "nav.labs": "Maabara",
-  "nav.prs": "Maombi ya kuunganisha",
+  "nav.prs": "Kikagua msimbo",
   "nav.pricing": "Bei",
   "nav.status": "Hali",
   "nav.source": "Msimbo chanzo",
@@ -142,7 +142,7 @@
   "status.own_runs": "Ukaguzi wa faili binafsi",
   "status.results_opened_elsewhere": "Matokeo yaliyofunguliwa kwingine",
   "status.test_payments": "Malipo ya majaribio",
-  "status.connector_runs": "Ukaguzi kupitia kiunganishi",
+  "status.connector_runs": "Ukaguzi kutoka programu nyingine",
   "status.day7_return": "Walirudi siku ya 7, asilimia ya vivinjari",
   "status.active_days": "Siku zenye ukaguzi katika 7 za kwanza, wastani",
   "status.paying_share": "Walilipa baada ya ukaguzi wa bure kwisha, asilimia ya vivinjari",
@@ -171,7 +171,7 @@
    "one": "Jaribio la umma la faili 7 zenye majibu yanayojulikana lazima lifaulu kabla ya kutolewa; kikaguzi cha Knos huliendesha. Halijajaribiwa: faili zaidi ya safu {n}.",
    "other": "Jaribio la umma la faili 7 zenye majibu yanayojulikana lazima lifaulu kabla ya kutolewa; kikaguzi cha Knos huliendesha. Halijajaribiwa: faili zaidi ya safu {n}."
   },
-  "a.tool.who": "Knos inaendesha zana hii na jaribio lake. Hakuna tarehe iliyopangwa ya sasisho lijalo. Kupinga matokeo, <a href=\"{issues}\">fungua issue kwenye GitHub</a>.",
+  "a.tool.who": "Knos inaendesha zana hii na jaribio lake. Hakuna tarehe ya sasisho lijalo. Kupinga matokeo, <a href=\"{issues}\">fungua tatizo la umma</a>.",
   "a.price.get": {
    "one": "Ukaguzi {n} zaidi wa zana kwenye faili zako, baada ya ukaguzi wako {free} wa bure wa siku kutumika.",
    "other": "Ukaguzi {n} zaidi wa zana kwenye faili zako, baada ya ukaguzi wako {free} wa bure wa siku kutumika."
@@ -182,7 +182,7 @@
    "other": "{price} za pesa za majaribio kwa ukaguzi {n}, unalipa wewe mara moja baada ya kuthibitisha. Leo hakuna kinachotozwa; hakuna kadi wala akaunti inayohitajika."
   },
   "a.price.why": "Bei: thamani za kuanzia zisizojaribiwa, zimewekwa alama hiyo kwenye <a href=\"{url}\">faili ya bei</a>. Zana ilifaulu <a href=\"{test}\">jaribio lake la umma</a> kabla ya kutolewa; kikaguzi cha Knos kiliendesha.",
-  "a.price.who": "Knos inatoa uendeshaji; kikaguzi chake kiliendesha jaribio la zana. Hakuna tarehe ya sasisho lijalo. Kupinga, <a href=\"{issues}\">fungua issue kwenye GitHub</a>.",
+  "a.price.who": "Knos inatoa ukaguzi; mkaguzi wake aliendesha jaribio la zana. Hakuna tarehe ya sasisho lijalo. Kupinga, <a href=\"{issues}\">fungua tatizo la umma</a>.",
   "fold.sample_made_up": {
    "one": "Mfano huu ni wa kubuni: mstari ulionyooka kutoka {first} hadi {last} kwa mzunguko {n}, kwa sababu ukurasa wa NASA hautoi upakuaji kutoka anwani ya nasa.gov. Kikomo chake, {limit}, ni kanuni ya mwisho wa uhai kwenye <a href=\"{url}\">ukurasa wa data ya betri wa NASA</a>.",
    "other": "Mfano huu ni wa kubuni: mstari ulionyooka kutoka {first} hadi {last} kwa mizunguko {n}, kwa sababu ukurasa wa NASA hautoi upakuaji kutoka anwani ya nasa.gov. Kikomo chake, {limit}, ni kanuni ya mwisho wa uhai kwenye <a href=\"{url}\">ukurasa wa data ya betri wa NASA</a>."
@@ -215,21 +215,21 @@
   "ask.listening": "Inasikiliza",
   "ask.sample": "Swali la mfano",
   "ask.cost": "Kukagua makala moja kwa mkono: {low} hadi {high} (<a href=\"{url}\">Perignon, akimnukuu Colliard</a>).",
-  "ask.reading_near": "Inasoma NEAR testnet...",
-  "ask.closest": "Dai lililothibitishwa lililo karibu zaidi (si swali lako hasa):",
+  "ask.reading_near": "Inasoma rekodi...",
+  "ask.closest": "Dai lililokaguliwa lililo karibu zaidi (si swali lako hasa):",
   "ask.holds_near": "Linasimama",
   "ask.holds": "Ndiyo, dai linasimama",
   "ask.fails": "Hapana, dai halisimami",
-  "ask.not_yet": "Bado halijathibitishwa",
-  "ask.proved": "Limethibitishwa na jaribio lililofungwa kabla kazi yoyote haijaanza.",
+  "ask.not_yet": "Bado halijakaguliwa",
+  "ask.proved": "Limekaguliwa na jaribio lililowekwa kabla kazi yoyote kuanza.",
   "ask.locked": "Jaribio lake hufungwa kabla kazi yoyote haijaanza.",
-  "ask.behind": "{amount} test USDC kutoka kwa watu nje ya Knos wiki hii",
-  "ask.prove": "Thibitisha mwenyewe",
+  "ask.behind": "{amount} za pesa za majaribio kutoka kwa watu nje ya Knos wiki hii",
+  "ask.prove": "Endesha ukaguzi mwenyewe",
   "ask.claim": "Dai",
-  "ask.none": "Bado hakuna kilichothibitishwa kinacholingana",
+  "ask.none": "Bado hakuna lililokaguliwa linalolingana",
   "ask.none_line": {
-   "one": "Knos imethibitisha dai {n} kwenye NEAR testnet; hakuna linalohusu \"{q}\". Uliza kuhusu mojawapo, au weka kiungo cha makala.",
-   "other": "Knos imethibitisha madai {n} kwenye NEAR testnet; hakuna linalohusu \"{q}\". Uliza kuhusu mojawapo, au weka kiungo cha makala."
+   "one": "Knos imekagua dai {n}; hakuna linalohusu \"{q}\". Uliza kuhusu mojawapo, au weka kiungo cha makala.",
+   "other": "Knos imekagua madai {n}; hakuna linalohusu \"{q}\". Uliza kuhusu mojawapo, au weka kiungo cha makala."
   },
   "ask.notwhat": "Si ninachohitaji",
   "ask.why": "Kwa nini, kwa neno moja? (si lazima)",
@@ -239,7 +239,7 @@
   "ask.reading_paper": "Inasoma makala... sek {s}",
   "ask.not_read": "Haijasomwa",
   "ask.no_answer": "Seva ya Knos haikujibu, kwa hiyo makala haikusomwa. Huenda inaamka.",
-  "ask.cannot": "Knos bado haiwezi kuthibitisha makala hii",
+  "ask.cannot": "Knos bado haiwezi kukagua makala hii",
   "ask.person": "Leo mtu huikagua: {checker}. Bei: {price_text}. Muda: {time}.",
   "ask.someone": "mtu anayeiendesha tena",
   "ask.unpublished": "haijachapishwa",

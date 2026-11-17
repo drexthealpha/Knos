@@ -40,9 +40,9 @@ def mark(title: str, sentence: str, url: str) -> str:
     out = f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex"><title>{_e(title)} | Knos</title>
-<style>:root{{color-scheme:light dark}}html,body{{margin:0}}body{{font:15px/1.4 system-ui,sans-serif;background:Canvas;color:CanvasText}}
-.m{{border:1px solid #8a8f99;border-radius:8px;padding:12px 14px;max-width:560px}}.t{{margin:0;font-size:13px}}
-.s{{margin:6px 0 8px;font-size:17px;font-weight:600}}a{{color:LinkText}}</style></head>
+<style>:root{{color-scheme:light dark}}html,body{{margin:0}}body{{font:16px/1.4 system-ui,sans-serif;background:Canvas;color:CanvasText}}
+.m{{border:1px solid #8a8f99;border-radius:8px;padding:12px 14px;max-width:560px}}.t{{margin:0;font-size:16px}}
+.s{{margin:6px 0 8px;font-size:18px;font-weight:600}}a{{color:LinkText;display:inline-flex;align-items:center;min-height:48px}}</style></head>
 <body><div class="m"><p class="t">{_e(title)}</p><p class="s" data-answer>{_e(sentence)}</p>
 <a href="{_e(url)}" target="_top" rel="noopener">Open the result on Knos</a></div></body></html>"""
     if len(out.encode("utf-8")) > MARK_MAX:              # a very long sentence is cut, never the 10 KB limit
@@ -70,7 +70,7 @@ def print_page(title: str, sentence: str, url: str, qr_src: str) -> str:
 <meta name="robots" content="noindex"><title>{_e(title)} | Knos</title>
 <style>body{{margin:0;background:#fff;color:#000;font:16px/1.45 system-ui,sans-serif}}main{{max-width:640px;margin:0 auto;padding:32px 20px}}
 h1{{font-size:22px;margin:0 0 12px}}.s{{font-size:20px;font-weight:600;margin:0 0 20px}}img{{display:block;width:240px;height:240px;image-rendering:pixelated}}
-.u{{font-family:ui-monospace,monospace;font-size:14px;word-break:break-all;margin:12px 0 0}}
+.u{{font-family:ui-monospace,monospace;font-size:16px;word-break:break-all;margin:12px 0 0}}.u a{{display:inline-flex;align-items:center;min-height:48px}}
 @page{{margin:15mm}}@media print{{main{{padding:0}}a{{color:#000;text-decoration:none}}}}</style></head>
 <body><main><h1>{_e(title)}</h1><p class="s" data-answer>{_e(sentence)}</p>
 <img src="{_e(qr_src)}" width="240" height="240" alt="QR code for {_e(url)}">

@@ -117,13 +117,16 @@ def test_sample_body_still_runs(app):
     assert call(app, "/api/run", sample_body(test=True))[1]["verdict"] in tool_page.STATES
 
 
-def test_a_result_page_offers_the_box_empty_and_shows_the_table_it_checked(app):
-    # U6 Rule 2 (UX/U6.md line 33): after a verdict the box is empty for the next table; the checked table is kept in the
-    # page's fold, and the page's script puts it back in the box when the person comes back (section 12)
+def test_a_result_page_opened_from_its_link_shows_the_table_it_checked_in_the_box(app):
+    # R13 G2 step 6: a result address opened fresh shows the same input and result, so the box holds the table it checked
+    # (labelled as that table); U6 Rule 2 (UX/U6.md line 33): the box is emptied for the next table by the person's own
+    # run on the page (its script); the checked table is also kept in the page's fold
     st, r, _ = own(app, table="row,reading\n1,5\n2,3\n3,7", limit=4, browser="b-fix-000009")
     assert st == 200, r
     html = page(app, "/r/" + r["link"].rstrip("/").rsplit("/", 1)[1] + "/")
-    assert re.search(r'<textarea id="list"[^>]*></textarea>', html)
+    assert re.search(r'<textarea id="list"[^>]*>row,reading\n1,5\n2,3\n3,7</textarea>', html)
+    assert '<label id="lab" for="list">The table checked</label>' in html
+    assert "if (ran && box.value.trim())" in html                  # only the person's own run empties the box
     assert re.search(r'<div id="k-input"><p class="muted">[^<]+</p><pre data-user-content dir="auto">row,reading\n1,5\n2,3\n3,7</pre>', html)
     assert '<h1><label for="list" id="k-name">' in html          # the box's label is the screen's largest text (U1 R5)
 
@@ -139,3 +142,34 @@ def test_with_save_data_the_pages_come_without_their_script_and_say_so_in_vary(a
         assert "<script>" in full[1].decode() and 'id="k-tool"' not in lite[1].decode() and "serviceWorker" not in lite[1].decode()
         assert len(lite[1]) <= 0.7 * len(full[1]) and '<form id="tool" method="post"' in lite[1].decode()
         assert lite[2].get("X-Knos-Offline") is None
+
+
+def test_the_free_runs_are_counted_per_browser_not_per_address(app):
+    # R13 WALK 1: pricing says "5 free a day, in each browser"; two browsers on one address (two people on one network)
+    # that did not say yes to being counted each have their own five, by the runs id their page keeps for that alone
+    free = int(tool_run.CONF["free_runs_a_day"])
+    for runs in ("r-fixw1-browser-a", "r-fixw1-browser-b"):
+        st, r, _ = own(app, browser="", runs=runs)
+        assert st == 200 and r["free_left"] == free - 1, r
+    st, r, _ = own(app, browser="", runs="r-fixw1-browser-a")
+    assert st == 200 and r["free_left"] == free - 2, r
+    assert tool_run._key("", "1.2.3.4", "r-fixw1-browser-a").startswith("run:")
+    assert tool_run._key("", "1.2.3.4", None).startswith("addr:")         # a caller with no id at all: the address
+
+
+@pytest.mark.parametrize("path", ["/r/nosuchresult123/", "/r/nosuchresult123", "/r/abcdefabcdef", "/r/x/", "/r/aaaaaaaaaaaa/"])
+def test_every_unknown_result_address_is_the_plain_not_found_page(app, path):
+    st, body, h = call(app, path, raw=True)
+    html = body.decode()
+    assert st == 404 and h["Content-Type"].startswith("text/html") and "<h1>I cannot find this page</h1>" in html, html[:200]
+    assert '<a class="go" href="/t/limit-check/" data-primary>' in html and "referral" not in html
+
+
+def test_the_printed_page_and_the_mark_write_at_least_16_px_and_their_link_is_48_px_high(app):
+    st, r, _ = call(app, "/api/run", sample_body(mode="sample", test=True))
+    rid = r["link"].rstrip("/").rsplit("/", 1)[1]
+    for part in ("print", "mark"):
+        html = page(app, f"/r/{rid}/{part}")
+        sizes = [int(x) for x in re.findall(r"font(?:-size)?:(\d+)px", html)]
+        assert sizes and min(sizes) >= 16, (part, sizes)
+        assert "min-height:48px" in html

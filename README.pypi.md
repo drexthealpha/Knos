@@ -35,11 +35,11 @@ checks on 14 Nov ran the fixed program; the receipt and the release transaction 
 
 ### Judge it in 2 minutes
 
-1. Open https://drexthealpha.github.io/Knos/ and press **Sample question** - see "Yes, the claim holds" and "Proved by
-   a test locked before any work started.", with test_hll.py and its job under it. The test file's sha256 is one
+1. Open https://drexthealpha.github.io/Knos/ and press **Sample question** - see "Yes, the claim holds" and "Checked by
+   a test set before any work started."; How it works holds test_hll.py and its job. The test file's sha256 is one
    tap on: press **The claim** and see "The test
    file's sha256, its fingerprint".
-2. Press **Prove it yourself**, then **Run the check with 10 test USDC** - see "1. The test is locked", "2. Two agents ran
+2. Open **How it works**, press **Run the check yourself**, then **Run the check with 10 test dollars** - see "1. The test is locked", "2. Two agents ran
    the paper’s result against the locked test", "3. The spending cap blocked an over-budget step" with NEAR's refusal,
    then "4. Answer: Yes, the claim holds": 15 to 80 s when a job is ready (checks on 14 Nov), 1 to 2 min when one is not. The check
    uses test money only. To see every step and the receipt without running one, open
@@ -51,7 +51,7 @@ checks on 14 Nov ran the fixed program; the receipt and the release transaction 
    "9.00 test USDC from jobs.knos-swarm-1105.testnet to agent-a2..." and "1.00 test USDC from jobs.knos-swarm-1105.testnet to knos-payer-1102.testnet").
    From a terminal, `curl -s https://archival-rpc.testnet.near.org -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"tx","params":["CZPCygBuzzpqXm3SuDAdXUhFCwKjCjzmZBjp7yRor6DH","live.knos-swarm-1105.testnet"]}'`
    shows the same transaction.
-   After a live run (the saved page does not have it), press **Prove the same claim again** - see "Free: Yes".
+   After a live run (the saved page does not have it), press **Check the same claim again** - see "Free: Yes".
 4. Optional, about 2 minutes more, from a clone (`git clone https://github.com/drexthealpha/Knos && cd Knos`). On Windows, use Git Bash and write
    `py -3` where the commands say `python3`:
 

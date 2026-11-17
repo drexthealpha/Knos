@@ -136,8 +136,7 @@ def test_the_404_page_is_the_sites_own_from_any_depth() -> None:
     assert '<base href="/Knos/">' in html and html.index("<base") < html.index('href="brand/tokens.css"') and "app.css" not in html
     assert '<meta name="robots" content="noindex">' in html and _external("404.html") == []
     assert 'id="kh"' in html and '<a class="go" href="./">' in html                       # the product's one header, one button to the front door
-    links = re.findall(r'<li><a href="([^"]+)"', html)
-    assert links == ["claims/", "pricing/"]
+    assert re.findall(r'<li><a href="([^"]+)"', html) == []   # one control, back to the front door (R13 WALK 1)
     assert 'href="privacy.html"' in html
     for line in _statements("404.html", "h1") + _statements("404.html", "li"):
         assert len(WORD.findall(line)) <= 12, line

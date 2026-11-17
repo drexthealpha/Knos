@@ -646,10 +646,10 @@ h1{font-size:1.625rem;line-height:1.2;margin:2px 0 4px}h1 label{font-weight:inhe
 h1{font-size:2rem}.who{margin:0 0 10px;color:var(--muted)}
 label{display:block;font-weight:600;margin-bottom:4px}
 textarea{display:block;width:100%;height:6.4em;font:1.125rem/1.4 ui-monospace,Consolas,monospace;padding:8px 10px;border:2px solid var(--line);border-radius:8px;background:var(--card);color:var(--fg);resize:vertical;white-space:pre;overflow:auto}
-select,input{font:inherit;min-height:48px;max-width:100%;padding:4px 8px;border:2px solid var(--line);border-radius:8px;background:var(--card);color:var(--fg)}
+select,input{font:inherit;min-height:48px;min-width:48px;max-width:100%;padding:4px 8px;border:2px solid var(--line);border-radius:8px;background:var(--card);color:var(--fg)}
 input[type=file]{width:100%;padding:8px}
 .rule{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:10px 0 0}.rule input{width:7em}
-.field{margin:10px 0 0}
+.field{margin:10px 0 0}#col{min-width:10em}
 button{font:inherit;min-height:48px;min-width:48px;padding:8px 16px;border-radius:8px;border:2px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;margin-block:8px 0;margin-inline:0 8px}
 button.primary{width:100%;margin-block:10px 0;margin-inline:0;background:var(--accent);color:var(--accent-fg);font-weight:700}#go{display:flex;align-items:center;justify-content:center;gap:8px}#tool{display:flex;flex-direction:column}#go{order:1}#tool>label{align-self:flex-start}
 button:disabled,button[aria-disabled=true]{opacity:.75;cursor:default}
@@ -712,7 +712,8 @@ function chartSvg(c, row) {
   if (c.fail) {
     const fx = r1(X(c.fail[0])), fy = r1(Y(c.fail[1]));
     svg.append(el("circle", { cx: fx, cy: fy, r: 6, fill: "none", stroke: "#b3261e", "stroke-width": 3 }));
-    const t = el("text", { x: r1(Math.min(W - 60, Math.max(P, fx - 24))), y: r1(Math.max(14, fy - 10)), fill: "currentColor", "font-size": 13 });
+    // 18 units: at the narrowest page (320 px, the chart 288 px wide for its 320 units) the label is still 16 px
+    const t = el("text", { x: r1(Math.min(W - 84, Math.max(P, fx - 30))), y: r1(Math.max(20, fy - 10)), fill: "currentColor", "font-size": 18 });
     t.textContent = KI.t("chart.row", { r: row }); svg.append(t);
   }
   return svg;
@@ -734,6 +735,10 @@ const store = (() => { try { return window.localStorage; } catch (e) { return nu
 const get = (k) => { try { return store && store.getItem(k); } catch (e) { return null; } };
 const put = (k, v) => { try { store && store.setItem(k, v); } catch (e) { /* private window */ } };
 const browser = () => get("knos-count") === "yes" ? (get("knos-browser") || "") : "";
+// the free runs are counted per browser (pricing: "5 free a day, in each browser"): a random id kept here for that alone,
+// not a count of visitors; the server holds it only in memory, under a keyed hash (tool_run._key)
+let runs = null;
+const runsId = () => { if (runs) return runs; runs = get("knos-runs"); if (!runs) { const a = new Uint8Array(12); crypto.getRandomValues(a); runs = Array.from(a, (x) => x.toString(16).padStart(2, "0")).join(""); put("knos-runs", runs); } return runs; };
 // the first action's source (U3 Rule 11): how the table got into the box when Try it is first pressed (the sample as it
 // stood, typed, or pasted or chosen from a file); kept in this browser, sent once as the event first_action, only after
 // the person says yes to being counted
@@ -809,7 +814,8 @@ let kept = null, fresh = false;   // fresh: the box was emptied by a verdict and
 function checked(table) { const k = $("k-input"); if (!k) return; k.querySelector("pre").textContent = table; k.hidden = false; }
 function result(r, ran) {
   link = r.link; said = r.result;
-  if (box.value.trim()) { kept = { table: box.value, col: mineOn ? $("col").value : "", rule: $("rule").value, limit: $("limit").value }; box.value = ""; lab.hidden = true; }
+  // only the person's own run empties the box (U6 Rule 2); a result opened from its link shows its table in the box (G2 6)
+  if (ran && box.value.trim()) { kept = { table: box.value, col: mineOn ? $("col").value : "", rule: $("rule").value, limit: $("limit").value }; box.value = ""; lab.hidden = true; }
   const was = kept ? kept.table : D.result && D.result.input;
   fresh = !box.value;
   const nodes = [];
@@ -918,7 +924,7 @@ function run() {
     trouble(T("err.none"), T("btn.back"), edit, true);
   };
   x.onerror = x.ontimeout = () => { idle(); trouble(T("err.reach"), T("btn.back"), edit, true); };
-  x.send(JSON.stringify({ id: D.id, table, column, rule, limit: Number(limit), mode: table === D.sample ? "sample" : "own", browser: browser(), test }));
+  x.send(JSON.stringify({ id: D.id, table, column, rule, limit: Number(limit), mode: table === D.sample ? "sample" : "own", browser: browser(), runs: runsId(), test }));
 }
 function back(nodes) { pay.hidden = true; pay.replaceChildren(); form.hidden = false; show(...(nodes || [])); go.focus(); }
 const price = (p) => Number(String(p.price || "").replace(/[^0-9.]/g, "")) || 0;
@@ -957,7 +963,7 @@ const post = (path, body, done, fail) => {
 function record(b, press) {
   if (b.disabled) return;
   b.disabled = true; b.textContent = T("pay.recording");
-  post("/api/pay", { browser: browser(), press, test }, (body) => back([recorded(body, press)]), (code) => {
+  post("/api/pay", { browser: browser(), runs: runsId(), press, test }, (body) => back([recorded(body, press)]), (code) => {
     b.disabled = false; b.textContent = T("btn.retry");
     if (!code) return;
     const m = make("p", T("pay.error"), "bad"); m.setAttribute("role", "alert");
@@ -971,7 +977,7 @@ function recorded(body, press) {
   const u = btn(T("act.undo"), () => {
     if (u.disabled) return;
     u.disabled = true;
-    post("/api/pay", { browser: browser(), press, test, undo: true }, (b) => {
+    post("/api/pay", { browser: browser(), runs: runsId(), press, test, undo: true }, (b) => {
       r.replaceChildren(make("p", T("act.undone")), make("p", T("res.runs_left", { n: b.runs_left }))); go.focus();
     }, () => { u.disabled = false; const m = make("p", T("act.undo_error"), "bad"); m.setAttribute("role", "alert"); r.append(m); });
   });
@@ -998,10 +1004,11 @@ $("file").addEventListener("change", () => {
   const r = new FileReader(); r.onload = () => { box.value = String(r.result); fillColumns(); draftSave(); }; r.readAsText(f);
 });
 // on a result page the rule shows once a new table is typed in the empty box (the verdict above already says it)
-box.addEventListener("input", () => { fresh = false; $("k-rule").hidden = false; if (mineOn) fillColumns(); });
+box.addEventListener("input", () => { fresh = false; $("k-rule").hidden = false; if (lab.dataset.checked != null) { delete lab.dataset.checked; lab.textContent = T("tool.paste"); } if (mineOn) fillColumns(); });
 box.addEventListener("focus", () => { fresh = false; });   // a person who goes into the empty box means an empty one
 form.addEventListener("submit", (e) => { e.preventDefault(); run(); });
 if (D.result && D.result.mode === "own") { ownMode(); fillColumns(D.result.column); }
+if (D.result && box.value.trim()) { lab.textContent = T("res.input"); lab.dataset.checked = ""; lab.hidden = false; }
 if (D.result) result(D.result);
 // section 12 of the plain-language spec: going back or forward (or a reload) keeps the request typed in this tab, sent
 // or not, and from the pay screen too; kept for this tab only (sessionStorage), and a page without storage still works
@@ -1089,8 +1096,10 @@ def page(tool: dict, base: str, result: dict | None = None, front: str = "https:
     title = t(L, "tool.title")
     desc = first_sentence(sentence(L, result["result"], as_html=False)) if result else t(L, "tool.line")
     sent = sent or {}
-    # a result page offers the box empty, for the next table (U6 Rule 2); the checked table is shown under the answer
-    text = sent["table"] if "table" in sent else "" if result else tool["sample"]
+    # a result page opened from its link shows the table it checked in the box (G2 step 6: the same input and result); the
+    # box is emptied for the next table only by the person's own run on the page (U6 Rule 2, in the page's script)
+    text = sent["table"] if "table" in sent else (result.get("input") or "") if result else tool["sample"]
+    shown = bool(result and not sent and text.strip())
     own = bool(result and result.get("mode") == "own")
     column = sent.get("column") or (result["column"] if result else tool["column"])
     rule = sent.get("rule") or (result["rule"] if result else tool["rule"])
@@ -1166,7 +1175,7 @@ def page(tool: dict, base: str, result: dict | None = None, front: str = "https:
 <input type="hidden" dir="auto" name="lang" value="{L}">{again}<input type="hidden" dir="auto" name="column" value="{_e(column)}">{'<input type="hidden" dir="auto" name="test" value="1">' if test else ""}
 <button id="go" class="primary" type="submit" data-primary><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg><span id="go-label">{_e(t(L, "tool.try"))}</span></button>
 <div id="own" class="field" hidden><label for="file">{_e(t(L, "tool.choose_file"))}</label><input id="file" type="file" dir="auto" accept=".csv,text/csv,text/plain"></div>
-<label id="lab" for="list"{" hidden" if result and not own else ""}>{_e(t(L, "tool.paste")) if own or result else _e(label)}</label>
+<label id="lab" for="list"{" hidden" if result and not own and not shown else ""}>{_e(t(L, "res.input")) if shown else _e(t(L, "tool.paste")) if own or result else _e(label)}</label>
 <textarea id="list" dir="auto" name="table" spellcheck="false" autocomplete="off" wrap="off">{_e(text)}</textarea>
 <div id="which" class="field" hidden><label for="col">{_e(t(L, "tool.which"))}</label><select id="col" dir="auto"></select></div>
 <p class="rule" id="k-rule"{" hidden" if result and not own and not edit else ""}><span id="colname" data-user-content><bdi>{_e(column)}</bdi></span> <span id="rule-shown"{" hidden" if edit else ""}>{_e(t(L, "rule." + rule))} <bdi data-no-mirror>{_e(limit)}</bdi></span><span id="rule-edit"{"" if edit else " hidden"}><label for="rule">{_e(t(L, "tool.rule_label"))}</label> <select id="rule" name="rule" aria-label="{_e(t(L, "tool.rule_label"))}">{opts}</select> <label for="limit">{_e(t(L, "tool.limit_label"))}</label> <input id="limit" dir="auto" name="limit" inputmode="decimal" autocomplete="off" aria-label="{_e(t(L, "tool.limit_label"))}" value="{_e(limit)}"></span></p>
@@ -1195,13 +1204,17 @@ def first_sentence(result: str) -> str:
 
 
 def missing(front: str = "https://drexthealpha.github.io/Knos/", lang: str = "en") -> str:
-    """The page for an address with no tool or result behind it: what happened, and one way on."""
+    """The page for an address with no tool or result behind it (every unknown /t/ and /r/ address): what happened, and
+    one control, back to the tool. `front` is kept for the callers; the way on is the tool's own page on this server."""
+    from .runner_conf import CONF
     L = lang if lang in LANGS else "en"
+    to = f"/t/{CONF['tool']}/" + ("" if L == "en" else f"?lang={L}")
     return f"""<!doctype html>
 <html lang="{L}" dir="{meta(L)['dir']}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{_e(t(L, "nf.title"))} | Knos</title><meta name="robots" content="noindex"><style>{CSS}</style></head>
-<body><main><div class="top"><a class="brand" href="{_e(front)}" data-no-mirror>Knos</a>{switcher(L)}{warm_names()}</div>
+<title>{_e(t(L, "nf.title"))} | Knos</title><meta name="robots" content="noindex"><style>{CSS}
+.go{{display:flex;align-items:center;justify-content:center;min-height:48px;padding:8px 16px;border-radius:8px;background:var(--accent);color:var(--accent-fg);font-weight:700;text-decoration:none}}</style></head>
+<body><main><div class="top"><span class="brand" data-no-mirror>Knos</span>{switcher(L)}{warm_names()}</div>
 <h1>{_e(t(L, "nf.h"))}</h1>
 <p data-answer>{_e(t(L, "nf.p"))}</p>
-<p><a href="{_e(front)}">{_e(t(L, "nf.link"))}</a></p>
+<p><a class="go" href="{_e(to)}" data-primary>{_e(t(L, "nf.link"))}</a></p>
 </main></body></html>"""

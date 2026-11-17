@@ -167,8 +167,8 @@ for (const scheme of ["light", "dark"]) {
   await page.fill("#paper", "https://doi.org/10.1000/another");
   const t2 = await press(page, "#go");
   check(`${at} "Check it": a visible change within ${PRESS_FAIL} ms (${t2} ms; ${t2 != null && t2 <= PRESS_GOOD ? "within" : "over"} ${PRESS_GOOD} ms)`, t2 != null && t2 <= PRESS_FAIL, t2);
-  await page.waitForFunction(() => /cannot prove/.test(document.querySelector("#ask-out .verdict")?.textContent || ""), null, { timeout: 10000 });
-  check(`${at} another paper says Knos cannot prove it yet`, true);
+  await page.waitForFunction(() => /cannot check/.test(document.querySelector("#ask-out .verdict")?.textContent || ""), null, { timeout: 10000 });   // plain words (R13 WALK 1)
+  check(`${at} another paper says Knos cannot check it yet`, true);
   await ctx.close();
 }
 await browser.close(); server.close(); rmSync(made, { recursive: true, force: true });

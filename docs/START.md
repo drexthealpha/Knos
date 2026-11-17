@@ -27,7 +27,7 @@ holds", the claim, its locked test with its sha256, and its proof.
 
 ## 2. Run the check yourself
 
-Press **Prove it yourself**, then the button that runs the check with 10 test USDC. The page shows each step: the
+Open **How it works** under the answer, press **Run the check yourself**, then the button that runs the check with 10 test USDC. The page shows each step: the
 test is locked, two agents run the paper's result against it, and the spending cap blocks an over-budget step.
 
 The jobs contract holds the test money with the job. It sends 9 parts to the agent whose code passed the locked test

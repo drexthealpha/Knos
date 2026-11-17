@@ -18,7 +18,7 @@
   "nav.papers": "论文",
   "nav.builders": "构建者",
   "nav.labs": "实验室",
-  "nav.prs": "合并请求",
+  "nav.prs": "代码检查",
   "nav.pricing": "价格",
   "nav.status": "状态",
   "nav.source": "源代码",
@@ -128,7 +128,7 @@
   "status.own_runs": "自有文件运行",
   "status.results_opened_elsewhere": "在别处打开的结果",
   "status.test_payments": "测试付款",
-  "status.connector_runs": "通过连接器的运行",
+  "status.connector_runs": "来自其他应用的运行",
   "status.day7_return": "第 7 天回来的浏览器百分比",
   "status.active_days": "前 7 天中有运行的天数，平均",
   "status.paying_share": "免费运行用完后付款的浏览器百分比",
@@ -154,7 +154,7 @@
   "a.why_unreleased": {
    "other": "一个包含 7 个已知答案文件的公开测试必须在发布前通过；由 Knos 的检查程序运行。未测试：超过 {n} 行的文件。"
   },
-  "a.tool.who": "Knos 运行这个工具及其测试。下次更新没有既定日期。若要质疑某个结果，请<a href=\"{issues}\">在 GitHub 上提交 issue</a>。",
+  "a.tool.who": "Knos 运行此工具及其测试。下次更新的日期尚未确定。如对结果有异议，请<a href=\"{issues}\">公开提交问题</a>。",
   "a.price.get": {
    "other": "在用完每天 {free} 次免费运行后，用这个工具对你的文件再运行 {n} 次。"
   },
@@ -163,7 +163,7 @@
    "other": "{price} 测试用钱换 {n} 次运行，由你在确认后支付一次。今天不收取任何费用；不需要银行卡或账户。"
   },
   "a.price.why": "价格：未经检验的初始值，已在<a href=\"{url}\">价格文件</a>中如此标注。该工具在发布前通过了其<a href=\"{test}\">公开测试</a>；由 Knos 的检查程序运行。",
-  "a.price.who": "由 Knos 提供运行；其检查程序运行了该工具的测试。下次更新没有既定日期。若要提出异议，请<a href=\"{issues}\">在 GitHub 上提交 issue</a>。",
+  "a.price.who": "Knos 提供运行次数；其检查程序运行了工具的测试。下次更新日期未定。如有异议，请<a href=\"{issues}\">公开提交问题</a>。",
   "fold.sample_made_up": {
    "other": "示例是虚构的：在 {n} 个周期内从 {first} 到 {last} 的一条直线，因为 NASA 的页面没有提供来自 nasa.gov 地址的下载。它的限值 {limit} 是 <a href=\"{url}\">NASA 电池数据页面</a>上的寿命终止规则。"
   },
@@ -193,20 +193,20 @@
   "ask.listening": "正在聆听",
   "ask.sample": "示例问题",
   "ask.cost": "人工检查一篇论文：{low} 到 {high}（<a href=\"{url}\">Perignon 引用 Colliard</a>）。",
-  "ask.reading_near": "正在读取 NEAR testnet...",
-  "ask.closest": "最接近的已证明论断（不完全是你的问题）：",
+  "ask.reading_near": "正在读取记录...",
+  "ask.closest": "最接近的已检查论断（并非你问的原题）：",
   "ask.holds_near": "成立",
   "ask.holds": "是的，该论断成立",
   "ask.fails": "不，该论断不成立",
-  "ask.not_yet": "尚未证明",
-  "ask.proved": "由一个在任何工作开始前就锁定的测试证明。",
+  "ask.not_yet": "尚未检查",
+  "ask.proved": "由一项在任何工作开始前就定好的测试检查。",
   "ask.locked": "它的测试在任何工作开始前就被锁定。",
-  "ask.behind": "本周来自 Knos 以外人士的 {amount} test USDC",
-  "ask.prove": "亲自证明",
+  "ask.behind": "本周来自 Knos 以外人士的 {amount} 测试资金",
+  "ask.prove": "自己运行检查",
   "ask.claim": "该论断",
-  "ask.none": "暂无匹配的已证明内容",
+  "ask.none": "暂无匹配的已检查论断",
   "ask.none_line": {
-   "other": "Knos 已在 NEAR testnet 上证明了 {n} 个论断；没有一个与“{q}”有关。请就其中一个提问，或输入一篇论文的链接。"
+   "other": "Knos 已检查 {n} 项论断，没有一项与 \"{q}\" 有关。请就其中一项提问，或输入一篇论文的链接。"
   },
   "ask.notwhat": "不是我需要的",
   "ask.why": "为什么？用一个词说（可选）",
@@ -216,7 +216,7 @@
   "ask.reading_paper": "正在阅读论文... {s} 秒",
   "ask.not_read": "未读取",
   "ask.no_answer": "Knos 的服务器没有响应，所以没有读取这篇论文。它可能正在唤醒。",
-  "ask.cannot": "Knos 暂时无法证明这篇论文",
+  "ask.cannot": "Knos 暂时无法检查这篇论文",
   "ask.person": "目前由人工检查：{checker}。价格：{price_text}。时间：{time}。",
   "ask.someone": "重新运行它的人",
   "ask.unpublished": "未公布",

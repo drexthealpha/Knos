@@ -21,7 +21,7 @@
   "nav.papers": "Makalah",
   "nav.builders": "Pembuat",
   "nav.labs": "Laboratorium",
-  "nav.prs": "Permintaan tarik",
+  "nav.prs": "Pemeriksa kode",
   "nav.pricing": "Harga",
   "nav.status": "Keadaan",
   "nav.source": "Kode sumber",
@@ -131,7 +131,7 @@
   "status.own_runs": "Pemeriksaan berkas sendiri",
   "status.results_opened_elsewhere": "Hasil dibuka di tempat lain",
   "status.test_payments": "Pembayaran uji coba",
-  "status.connector_runs": "Pemeriksaan lewat konektor",
+  "status.connector_runs": "Pemeriksaan dari aplikasi lain",
   "status.day7_return": "Kembali pada hari ke-7, persen peramban",
   "status.active_days": "Hari dengan pemeriksaan dalam 7 hari pertama, rata-rata",
   "status.paying_share": "Membayar setelah pemeriksaan gratis habis, persen peramban",
@@ -157,7 +157,7 @@
   "a.why_unreleased": {
    "other": "Uji publik dengan 7 berkas berjawaban diketahui harus lulus sebelum rilis; pemeriksa Knos menjalankannya. Belum diuji: berkas lebih dari {n} baris."
   },
-  "a.tool.who": "Knos menjalankan alat ini beserta ujinya. Belum ada tanggal pembaruan berikutnya. Untuk menggugat sebuah hasil, <a href=\"{issues}\">buka issue di GitHub</a>.",
+  "a.tool.who": "Knos menjalankan alat ini dan ujinya. Belum ada tanggal untuk pembaruan berikutnya. Untuk menggugat hasil, <a href=\"{issues}\">buka laporan publik</a>.",
   "a.price.get": {
    "other": "{n} pemeriksaan lagi dengan alat ini pada berkas Anda, setelah {free} pemeriksaan gratis hari itu terpakai."
   },
@@ -166,7 +166,7 @@
    "other": "{price} uang uji coba untuk {n} pemeriksaan, Anda bayar sekali setelah mengonfirmasi. Hari ini tidak ada yang ditagih; tidak perlu kartu atau akun."
   },
   "a.price.why": "Harga: nilai awal yang belum diuji, ditandai begitu di <a href=\"{url}\">berkas harga</a>. Alat ini lulus <a href=\"{test}\">uji publiknya</a> sebelum rilis; pemeriksa Knos menjalankannya.",
-  "a.price.who": "Knos menyediakan run-nya; pemeriksanya menjalankan uji alat ini. Belum ada tanggal pembaruan berikutnya. Untuk menggugat, <a href=\"{issues}\">buka issue di GitHub</a>.",
+  "a.price.who": "Knos menyediakan pemeriksaan; pemeriksanya menjalankan uji alat. Belum ada tanggal pembaruan berikutnya. Untuk menggugat, <a href=\"{issues}\">buka laporan publik</a>.",
   "fold.sample_made_up": {
    "other": "Contoh ini karangan: garis lurus dari {first} ke {last} selama {n} siklus, karena halaman NASA tidak menyediakan unduhan dari alamat nasa.gov. Batasnya, {limit}, adalah aturan akhir umur di <a href=\"{url}\">halaman data baterai NASA</a>."
   },
@@ -196,20 +196,20 @@
   "ask.listening": "Mendengarkan",
   "ask.sample": "Contoh pertanyaan",
   "ask.cost": "Memeriksa satu makalah secara manual: {low} sampai {high} (<a href=\"{url}\">Perignon, mengutip Colliard</a>).",
-  "ask.reading_near": "Membaca NEAR testnet...",
-  "ask.closest": "Klaim terbukti yang paling dekat (bukan persis pertanyaan Anda):",
+  "ask.reading_near": "Membaca catatan...",
+  "ask.closest": "Klaim terperiksa yang terdekat (bukan persis pertanyaan Anda):",
   "ask.holds_near": "Berlaku",
   "ask.holds": "Ya, klaim itu berlaku",
   "ask.fails": "Tidak, klaim itu gagal",
-  "ask.not_yet": "Belum terbukti",
-  "ask.proved": "Dibuktikan oleh uji yang dikunci sebelum pekerjaan apa pun dimulai.",
+  "ask.not_yet": "Belum diperiksa",
+  "ask.proved": "Diperiksa oleh uji yang ditetapkan sebelum pekerjaan apa pun dimulai.",
   "ask.locked": "Ujinya dikunci sebelum pekerjaan apa pun dimulai.",
-  "ask.behind": "{amount} test USDC dari orang di luar Knos minggu ini",
-  "ask.prove": "Buktikan sendiri",
+  "ask.behind": "{amount} uang uji dari orang di luar Knos minggu ini",
+  "ask.prove": "Jalankan pemeriksaan sendiri",
   "ask.claim": "Klaimnya",
-  "ask.none": "Belum ada yang terbukti dan cocok",
+  "ask.none": "Belum ada yang terperiksa yang cocok",
   "ask.none_line": {
-   "other": "Knos telah membuktikan {n} klaim di NEAR testnet; tidak satu pun tentang \"{q}\". Tanyakan tentang salah satunya, atau masukkan tautan makalah."
+   "other": "Knos telah memeriksa {n} klaim; tidak ada yang tentang \"{q}\". Tanyakan salah satunya, atau masukkan tautan makalah."
   },
   "ask.notwhat": "Bukan yang saya perlukan",
   "ask.why": "Mengapa, dalam satu kata? (opsional)",
@@ -219,7 +219,7 @@
   "ask.reading_paper": "Membaca makalah... {s} dtk",
   "ask.not_read": "Tidak terbaca",
   "ask.no_answer": "Server Knos tidak menjawab, jadi makalah tidak terbaca. Mungkin server sedang bangun.",
-  "ask.cannot": "Knos belum bisa membuktikan makalah ini",
+  "ask.cannot": "Knos belum bisa memeriksa makalah ini",
   "ask.person": "Saat ini seseorang memeriksanya: {checker}. Harga: {price_text}. Waktu: {time}.",
   "ask.someone": "seseorang yang menjalankannya ulang",
   "ask.unpublished": "tidak dipublikasikan",

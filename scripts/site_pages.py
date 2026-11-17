@@ -37,6 +37,7 @@ CSS = ("#ask label a { display: inline !important; min-height: 0 !important; pad
        ".kh { position: relative; }\n"
        ".kmenu > summary { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; padding: 0 12px; cursor: pointer; list-style: none; color: var(--ink); border: 1px solid var(--line); border-radius: 10px; font-size: 16px; }\n"
        ".kmenu > summary::-webkit-details-marker { display: none; }\n"
+       ".kmenu:not([open]) > .kmenu-panel { display: none; }\n"   # a closed menu leaves no empty link boxes (R13 WALK 1)
        ".kmenu-panel { position: absolute; inset-inline: 16px; top: 56px; z-index: 30; max-width: 420px; margin-inline-start: auto; padding: 8px 12px; background: var(--paper-2); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--depth-2); }\n"
        ".kmenu-panel p { margin: 4px 0 8px; font-size: 16px; color: var(--ink-2); }\n"
        ".kh nav { display: flex; flex-direction: column; }\n"
@@ -253,7 +254,7 @@ BEACON = """<script>
     mo.observe(document.body, { subtree: true, childList: true, characterData: true }); setTimeout(() => { if (!seen) { mo.disconnect(); send("slow", { ms: 400 }); } }, 2000);
     if (/download/i.test(target.textContent)) send("download"); }, { capture: true });
   const seenText = new Set(); let pressed = false;
-  const kinds = [["result", /Yes, the claim holds|Answer: Yes|Answer: No|Nothing proved matches|cannot prove this paper/], ["proof", /Receipt for proof|Receipt: paid/], ["backed", /Bought .* shares|test USDC behind this proof|test USDC moved on NEAR testnet: /], ["error", /Not read|No answer this time|did not answer/]];
+  const kinds = [["result", /Yes, the claim holds|Answer: Yes|Answer: No|Nothing proved matches|cannot prove this paper|Nothing checked matches|cannot check this paper/], ["proof", /Receipt for proof|Receipt: paid/], ["backed", /Bought .* shares|test USDC behind this proof|test USDC moved on NEAR testnet: /], ["error", /Not read|No answer this time|did not answer/]];
   // only text that appears after this visit's first press counts: a page that shows a result as it loads is not one
   addEventListener("click", (ev) => { if (pressed || !ev.target.closest("button, a")) return; pressed = true;
     const t = document.body.textContent; for (const [k, re] of kinds) if (re.test(t)) seenText.add(k); }, { capture: true });
@@ -298,7 +299,8 @@ def sweep(out: Path) -> int:
     """Every page of the build that is not the product's becomes an old address: it sends a visitor to the front door
     (pricing.html to pricing/). Run again by the pages workflow after its own steps write pages (rank/)."""
     head = head_of((ROOT / "web" / "door.html").read_text(encoding="utf-8"))
-    keep = KEEP | {f"{p}index.html" for p, _ in PAGES} | {"pricing/index.html", "status/index.html", "near/index.html", "iris/index.html"}
+    keep = KEEP | {f"{p}index.html" for p, _ in PAGES} | {"pricing/index.html", "status/index.html", "near/index.html", "iris/index.html",
+                                                                 "data/pricing.html", "data/usage.html"}   # the pricing and status files, as pages (R13 WALK 1)
     keep |= {p.relative_to(out).as_posix() for p in (out / "claim").rglob("index.html")} if (out / "claim").is_dir() else set()
     moved = {"pricing.html": "pricing/"}
     gone = 0
@@ -488,19 +490,21 @@ def main(site: str) -> int:
     # the wallet button's blank page (near/web/embed.html) needs the local NEAR server, so it is not published (S17-006)
     near = re.sub(r'<a href="embed\.html">[^<]*</a>', "", near)
     # the proof page opens on the proof: its heading says what the page does, the front door asks the question
-    near, n = re.subn(r"<!-- k-first -->.*?<!-- /k-first -->", '<h1 class="k-first" id="k-first">Prove a paper\'s claim on NEAR</h1>', near, count=1, flags=re.S)
+    # (Round 13 WALK 1: plain words; the chain and its terms are in the page's "How it works" fold)
+    near, n = re.subn(r"<!-- k-first -->.*?<!-- /k-first -->", '<h1 class="k-first" id="k-first">Check a paper\'s claim</h1>', near, count=1, flags=re.S)
     assert n == 1, "the NEAR page has no first block"
-    near = retitle(near, "Knos: prove a paper's claim on NEAR", "Run the check of a paper's claim on NEAR testnet: the verdict, the verified code and its receipt.")
+    near = retitle(near, "Knos: check a paper's claim", "Give a paper's link: Knos checks its claim with test money and hands you code that works.")
     near = re.sub(r'\s*<p class="vision"[^>]*>.*?</p>', "", near, flags=re.S)
     (out / "prove").mkdir(exist_ok=True)
     (out / "prove" / "index.html").write_text(with_goal(with_header(near, "../", "prove/"), "../"), encoding="utf-8")
     iris = (ROOT / "web" / "iris" / "index.html").read_text(encoding="utf-8")
     iris = iris.replace('"knos-iris.mp4"', '"../iris/knos-iris.mp4"').replace('poster="poster.png"', 'poster="../iris/poster.png"')
     # the labs page opens on its own heading (its section names the check inside IRIS)
-    iris, n = re.subn(r"<!-- k-first -->.*?<!-- /k-first -->", '<h1 class="k-first" id="k-first">For labs</h1>\n<p class="k-a">This page is for labs that keep their data in InterSystems IRIS: '
-                      'there Knos checks each lab step\'s test result against terms set before the work.</p>', iris, count=1, flags=re.S)
+    # (Round 13 WALK 1: no product's name on the screen or in its fold)
+    iris, n = re.subn(r"<!-- k-first -->.*?<!-- /k-first -->", '<h1 class="k-first" id="k-first">For labs</h1>\n<p class="k-a">Knos checks each lab step\'s '
+                      'test result against terms set before the work, inside the lab\'s own database.</p>', iris, count=1, flags=re.S)
     assert n == 1, "the IRIS page has no first block"
-    iris = retitle(iris, "Knos for labs: the check inside InterSystems IRIS", "The proof check inside a lab's own InterSystems IRIS, with its install steps and video.")
+    iris = retitle(iris, "Knos for labs", "The check inside a lab's own database, with its install steps and video.")
     (out / "labs").mkdir(exist_ok=True)
     (out / "labs" / "index.html").write_text(with_goal(with_header(iris, "../", "labs/"), "../"), encoding="utf-8")
     # the checker as entered at Colosseum: the tag's page and files, under the one header, dated as the build

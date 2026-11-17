@@ -45,9 +45,9 @@
    "max_length": 12
   },
   "nav.prs": {
-   "text": "Pull requests",
+   "text": "Code checker",
    "description": "A link in the menu at the foot of the front door, pricing and status pages: to the page that checks pull requests.",
-   "max_length": 26
+   "max_length": 24
   },
   "nav.pricing": {
    "text": "Pricing",
@@ -487,9 +487,9 @@
    "max_length": 26
   },
   "status.connector_runs": {
-   "text": "Connector runs",
+   "text": "Runs from other apps",
    "description": "The status page of counts: a count: runs through the connector.",
-   "max_length": 28
+   "max_length": 40
   },
   "status.day7_return": {
    "text": "Came back on day 7, percent of browsers",
@@ -590,9 +590,9 @@
    "max_length": 164
   },
   "a.tool.who": {
-   "text": "Knos runs this tool and its test. No date is set for the next update. To challenge a result, <a href=\"{issues}\">open an issue on GitHub</a>.",
+   "text": "Knos runs this tool and its test. No date is set for the next update. To challenge a result, <a href=\"{issues}\">open a public issue</a>.",
    "description": "An answer line of the fold How it works: who answers for the tool. Keep {issues} as written; it is filled in. Keep the link markup.",
-   "max_length": 182
+   "max_length": 177
   },
   "a.price.get": {
    "one": "{n} more run of the tool on your own files, once your {free} free runs of the day are used.",
@@ -617,9 +617,9 @@
    "max_length": 229
   },
   "a.price.who": {
-   "text": "Knos delivers the runs; its checker ran the tool's test. No date is set for the next update. To challenge, <a href=\"{issues}\">open an issue on GitHub</a>.",
+   "text": "Knos delivers the runs; its checker ran the tool's test. No date is set for the next update. To challenge, <a href=\"{issues}\">open a public issue</a>.",
    "description": "An answer line of the fold How it works: who answers for the runs. Keep {issues} as written; it is filled in. Keep the link markup.",
-   "max_length": 201
+   "max_length": 195
   },
   "fold.sample_made_up": {
    "one": "The sample is made up: a straight line from {first} to {last} over {n} cycle, because NASA's page offers no download from a nasa.gov address. Its limit, {limit}, is the end-of-life rule on <a href=\"{url}\">NASA's battery data page</a>.",
@@ -740,14 +740,14 @@
    "max_length": 120
   },
   "ask.reading_near": {
-   "text": "Reading NEAR testnet...",
+   "text": "Reading the record...",
    "description": "The question box below the tool on the front door, which answers from the proved claims: while the proved claims are read.",
-   "max_length": 42
+   "max_length": 38
   },
   "ask.closest": {
-   "text": "Closest proved claim (not your exact question):",
+   "text": "Closest checked claim (not your exact question):",
    "description": "The question box below the tool on the front door, which answers from the proved claims: before the closest proved claim.",
-   "max_length": 76
+   "max_length": 77
   },
   "ask.holds_near": {
    "text": "It holds",
@@ -765,14 +765,14 @@
    "max_length": 38
   },
   "ask.not_yet": {
-   "text": "Not proved yet",
+   "text": "Not checked yet",
    "description": "The question box below the tool on the front door, which answers from the proved claims: the claim is not proved yet.",
-   "max_length": 28
+   "max_length": 30
   },
   "ask.proved": {
-   "text": "Proved by a test locked before any work started.",
+   "text": "Checked by a test set before any work started.",
    "description": "The question box below the tool on the front door, which answers from the proved claims: how the claim was proved.",
-   "max_length": 77
+   "max_length": 74
   },
   "ask.locked": {
    "text": "Its test is locked before any work starts.",
@@ -780,14 +780,14 @@
    "max_length": 68
   },
   "ask.behind": {
-   "text": "{amount} test USDC from people outside Knos this week",
+   "text": "{amount} in test money from people outside Knos this week",
    "description": "The question box below the tool on the front door, which answers from the proved claims: test money people outside Knos put behind the claim. Keep {amount} as written; it is filled in.",
-   "max_length": 75
+   "max_length": 80
   },
   "ask.prove": {
-   "text": "Prove it yourself",
+   "text": "Run the check yourself",
    "description": "The question box below the tool on the front door, which answers from the proved claims: the link to prove the claim yourself.",
-   "max_length": 34
+   "max_length": 40
   },
   "ask.claim": {
    "text": "The claim",
@@ -795,15 +795,15 @@
    "max_length": 27
   },
   "ask.none": {
-   "text": "Nothing proved matches yet",
+   "text": "Nothing checked matches yet",
    "description": "The question box below the tool on the front door, which answers from the proved claims: no proved claim matches.",
-   "max_length": 47
+   "max_length": 49
   },
   "ask.none_line": {
-   "one": "Knos has proved {n} claim on NEAR testnet; none is about \"{q}\". Ask about one of them, or enter a paper's link.",
-   "other": "Knos has proved {n} claims on NEAR testnet; none is about \"{q}\". Ask about one of them, or enter a paper's link.",
+   "one": "Knos has checked {n} claim; none is about \"{q}\". Ask about one of them, or enter a paper's link.",
+   "other": "Knos has checked {n} claims; none is about \"{q}\". Ask about one of them, or enter a paper's link.",
    "description": "The question box below the tool on the front door, which answers from the proved claims: no proved claim matches, with what to do. Keep {n}, {q} as written; they are filled in. One form per plural category of the language, chosen by {n}.",
-   "max_length": 146
+   "max_length": 127
   },
   "ask.notwhat": {
    "text": "Not what I need",
@@ -846,7 +846,7 @@
    "max_length": 101
   },
   "ask.cannot": {
-   "text": "Knos cannot prove this paper yet",
+   "text": "Knos cannot check this paper yet",
    "description": "The question box below the tool on the front door, which answers from the proved claims: the paper cannot be proved yet.",
    "max_length": 52
   },
