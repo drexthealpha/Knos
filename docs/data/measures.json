@@ -1,0 +1,29 @@
+{
+ "about": "The PASS and STOP numbers of the three measures of docs/NUMBERS.md (ROUND13 D1), each copied from a rule of v0328/research/LAWS/DISTRIBUTION (outside this repository) with its file, rule and quote. A null is a number the law does not give. sync/facts.json reads the numbers from here, so a change to docs/NUMBERS.md that this file does not make is a knos-sync notice.",
+ "day7_return": {
+  "unit": "percent of browsers",
+  "return_day": 7,
+  "pass_at_least": 7,
+  "stop_under": 7,
+  "rule": "F5.md, finding 6",
+  "quotes": ["Use the share of a sign-up cohort that returns on day 7 as the first go or no-go number, and aim for 7% or more.",
+             "do not spend on growth while it is under 7%."]
+ },
+ "active_days": {
+  "unit": "days with a run in a browser's first days",
+  "window_days": 7,
+  "pass_at_least": 3,
+  "stop_under": null,
+  "rule": "F5.md, finding 8",
+  "quotes": ["Define \"activated\" as active on 3 of the first 7 days"]
+ },
+ "paying_share": {
+  "unit": "percent of browsers that used up the free runs",
+  "pass_at_least": 3,
+  "stop_under": null,
+  "law_good": [3, 5],
+  "law_great": [6, 8],
+  "rule": "CHECKED-D9-E2.md, D10 finding 8",
+  "quotes": ["freemium self-serve 3%-5% good, 6%-8% great"]
+ }
+}

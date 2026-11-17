@@ -10,7 +10,7 @@
   {
    "source": "docs/NUMBERS.md",
    "block": 1,
-   "sha256": "7a5a20ac1472960a199bef7e5514e59388fb0ea4606d393fc22dd0210d15bd62",
+   "sha256": "ebb1ffc0a323f7093baa5277c09431ec3ed7e311170ba4bb181ff1de317da9da",
    "svg": "docs/diagrams/docs-numbers-1.svg"
   },
   {
@@ -96,6 +96,12 @@
    "block": 1,
    "sha256": "84dc2e35ac1971344c3db4830f5ff7b21a3ad9c85f8444a96987430e9e43dad3",
    "svg": "docs/diagrams/docs-reference-meter-1.svg"
+  },
+  {
+   "source": "docs/reference/OUTSIDE_USE.md",
+   "block": 1,
+   "sha256": "7a5a20ac1472960a199bef7e5514e59388fb0ea4606d393fc22dd0210d15bd62",
+   "svg": "docs/diagrams/docs-reference-outside-use-1.svg"
   },
   {
    "source": "docs/reference/README.md",

@@ -127,7 +127,7 @@
   "status.sample_runs": "示例运行",
   "status.own_runs": "自有文件运行",
   "status.results_opened_elsewhere": "在别处打开的结果",
-  "status.test_payments": "测试付款",
+  "status.test_payments": "运行付款",
   "status.connector_runs": "来自其他应用的运行",
   "status.day7_return": "第 7 天回来的浏览器百分比",
   "status.active_days": "前 7 天中有运行的天数，平均",

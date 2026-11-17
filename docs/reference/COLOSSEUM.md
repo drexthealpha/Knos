@@ -65,15 +65,15 @@ One person holds every key today. Any change to the programs waits in public for
 | Deployed at the public devnet program ids, no transaction recorded | 3 of 267: GitLab token verification, the key guardian, holding pay for a payee with no wallet | [docs/reference/CAPABILITIES.md](CAPABILITIES.md), the rows "deployed on devnet" |
 | Tested here only | 233 of 267, each with the test its row names | [docs/reference/CAPABILITIES.md](CAPABILITIES.md), the rows "tested locally" |
 | Written, not tested | 5 of 267 | [docs/reference/CAPABILITIES.md](CAPABILITIES.md), the rows "implemented" |
-| Outside funders | 0 | [docs/NUMBERS.md](../NUMBERS.md), row 1 |
-| Outside repositories | 0 | [docs/NUMBERS.md](../NUMBERS.md), row 2 |
-| Outside payees | 1, on tasks Knos funded itself | [docs/NUMBERS.md](../NUMBERS.md), row 3 |
-| Payments between unrelated accounts | 3, on tasks Knos funded itself | [docs/NUMBERS.md](../NUMBERS.md), row 4 |
-| Buyer interviews held | 0 | [docs/NUMBERS.md](../NUMBERS.md), row 5 |
-| Letters of intent | 0 | [docs/NUMBERS.md](../NUMBERS.md), row 6 |
-| Reproductions signed by GitHub | 0 | [docs/NUMBERS.md](../NUMBERS.md), row 7 |
-| Outside programs reading the verifier | 0 | [docs/NUMBERS.md](../NUMBERS.md), row 8 |
-| Shadow counts published | 0 | [docs/NUMBERS.md](../NUMBERS.md), row 9 |
+| Outside funders | 0 | [docs/reference/OUTSIDE_USE.md](OUTSIDE_USE.md), row 1 |
+| Outside repositories | 0 | [docs/reference/OUTSIDE_USE.md](OUTSIDE_USE.md), row 2 |
+| Outside payees | 1, on tasks Knos funded itself | [docs/reference/OUTSIDE_USE.md](OUTSIDE_USE.md), row 3 |
+| Payments between unrelated accounts | 3, on tasks Knos funded itself | [docs/reference/OUTSIDE_USE.md](OUTSIDE_USE.md), row 4 |
+| Buyer interviews held | 0 | [docs/reference/OUTSIDE_USE.md](OUTSIDE_USE.md), row 5 |
+| Letters of intent | 0 | [docs/reference/OUTSIDE_USE.md](OUTSIDE_USE.md), row 6 |
+| Reproductions signed by GitHub | 0 | [docs/reference/OUTSIDE_USE.md](OUTSIDE_USE.md), row 7 |
+| Outside programs reading the verifier | 0 | [docs/reference/OUTSIDE_USE.md](OUTSIDE_USE.md), row 8 |
+| Shadow counts published | 0 | [docs/reference/OUTSIDE_USE.md](OUTSIDE_USE.md), row 9 |
 | Paying customers | 0 | [docs/reference/DISCLOSURE.md](DISCLOSURE.md) |
 | Revenue | 0; test USDC is not money | [docs/PRICING.md](../PRICING.md) |
 | Outside security review | none | [docs/reference/ASSURANCE.md](ASSURANCE.md) |

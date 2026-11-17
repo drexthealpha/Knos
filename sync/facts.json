@@ -125,7 +125,7 @@
   {
    "id": "company-list-rows",
    "kind": "count",
-   "subject": "records on the company list, read from the scorecard summary (F1, F3)",
+   "subject": "records on the company list, read from the scorecard summary (F1, F3); the built pages' company sentence is written from the same field by scripts/site_pages.py company_line()",
    "places": [
     {
      "file": "docs/reference/NEAR.md",
@@ -301,139 +301,339 @@
    "expected": "docs/kani.json",
    "comparator": "equal",
    "confirmed_by_person": false
-  }
- ],
- "pointers": [
+  },
   {
    "id": "pricing-free-runs",
    "kind": "count",
-   "subject": "free own-data runs a day per browser (C2: not from a law, a starting value to be tested)",
-   "value": "5",
-   "where": [
-    "web/door.html"
+   "subject": "free own-data runs a day per browser, docs/data/pricing.json (C2: not from a law)",
+   "places": [
+    {
+     "file": "docs/PRICING.md",
+     "line": 11,
+     "text": "free. 5 runs on your own files",
+     "says": "5"
+    }
    ],
-   "source": "json docs/data/pricing.json numbers.free_runs_per_day.value",
-   "checked_by": "claims_check"
+   "command": [
+    "json",
+    "docs/data/pricing.json",
+    "numbers.free_runs_per_day.value"
+   ],
+   "expected": "5",
+   "comparator": "equal",
+   "confirmed_by_person": false
   },
   {
    "id": "pricing-pack-runs",
    "kind": "count",
-   "subject": "runs in one pack of test money (C2: not from a law)",
-   "value": "20",
-   "where": [
-    "web/door.html"
+   "subject": "runs in one pack of test money, docs/data/pricing.json (C2: not from a law)",
+   "places": [
+    {
+     "file": "docs/PRICING.md",
+     "line": 12,
+     "text": "After that, 20 more runs",
+     "says": "20"
+    }
    ],
-   "source": "json docs/data/pricing.json numbers.pack_runs.value",
-   "checked_by": "claims_check"
+   "command": [
+    "json",
+    "docs/data/pricing.json",
+    "numbers.pack_runs.value"
+   ],
+   "expected": "20",
+   "comparator": "equal",
+   "confirmed_by_person": false
   },
   {
    "id": "pricing-pack-price",
    "kind": "price",
-   "subject": "US dollars of test money for one pack (C2: not from a law)",
-   "value": "1",
-   "where": [
-    "web/door.html"
+   "subject": "US dollars of test money for one pack, docs/data/pricing.json (C2: not from a law)",
+   "places": [
+    {
+     "file": "docs/PRICING.md",
+     "line": 12,
+     "text": "cost $1 in test money",
+     "says": "$1"
+    }
    ],
-   "source": "json docs/data/pricing.json numbers.pack_price.value",
-   "checked_by": "claims_check"
+   "command": [
+    "json",
+    "docs/data/pricing.json",
+    "numbers.pack_price.value"
+   ],
+   "expected": "1",
+   "comparator": "equal",
+   "confirmed_by_person": false
   },
   {
-   "id": "company-list-rows-site",
+   "id": "numbers-return-day",
    "kind": "count",
-   "subject": "the company sentence on the built pages (F1)",
-   "value": "12,010",
-   "where": [],
-   "source": "json docs/data/scorecard_summary.json rows, written by scripts/site_pages.py company_line()",
-   "checked_by": "site_pages"
+   "subject": "the day after the first run on which day-7 return looks for a run, as the server counts it",
+   "places": [
+    {
+     "file": "docs/NUMBERS.md",
+     "line": 16,
+     "text": "back[\"Day-7 return\"]",
+     "says": "7"
+    },
+    {
+     "file": "docs/NUMBERS.md",
+     "line": 30,
+     "text": "### Day-7 return",
+     "says": "7"
+    },
+    {
+     "file": "docs/NUMBERS.md",
+     "line": 32,
+     "text": "the share that make a run on day 7.",
+     "says": "7"
+    }
+   ],
+   "command": [
+    "regex",
+    "apps/wanted/knos_wanted/tool_run.py",
+    "timedelta\\(days=(\\d+)\\)\\)\\.isoformat\\(\\) in b\\.get\\(.days"
+   ],
+   "expected": "7",
+   "comparator": "equal",
+   "confirmed_by_person": false
   },
   {
-   "id": "numbers-outside-use-table",
+   "id": "numbers-active-window",
    "kind": "count",
-   "subject": "the nine counts of outside use in the table of docs/NUMBERS.md",
-   "value": "9",
-   "where": [
-    "docs/NUMBERS.md"
+   "subject": "the first days of a browser in which active days are counted, as the server counts them (days 0 to 6)",
+   "places": [
+    {
+     "file": "docs/NUMBERS.md",
+     "line": 39,
+     "text": "in a browser's first 7 days.",
+     "says": "7"
+    }
    ],
-   "source": "docs/bench.json and docs/facts.json by_hand, written by scripts/bench_docs.py",
-   "checked_by": "bench_docs"
+   "command": [
+    "regex",
+    "apps/wanted/knos_wanted/tool_run.py",
+    "<= (\\d+)\\}\\) for b in week\\]"
+   ],
+   "expected": "7",
+   "comparator": "equal",
+   "convert": "add:1",
+   "confirmed_by_person": false
   },
   {
    "id": "numbers-day7-pass",
    "kind": "price",
-   "subject": "day-7 return: PASS at 7% or more, STOP under 7%",
-   "value": "7%",
-   "where": [
-    "docs/NUMBERS.md"
+   "subject": "day-7 return: PASS at this percent or more (F5.md, finding 6)",
+   "places": [
+    {
+     "file": "docs/NUMBERS.md",
+     "line": 34,
+     "text": "PASS: 7% or more",
+     "says": "7%"
+    },
+    {
+     "file": "docs/NUMBERS.md",
+     "line": 34,
+     "text": "and aim for 7% or more.",
+     "says": "7%"
+    }
    ],
-   "source": "LAWS/DISTRIBUTION/F5.md finding 6",
-   "checked_by": "outside"
+   "command": [
+    "json",
+    "docs/data/measures.json",
+    "day7_return.pass_at_least"
+   ],
+   "expected": "7",
+   "comparator": "equal",
+   "confirmed_by_person": false
+  },
+  {
+   "id": "numbers-day7-stop",
+   "kind": "price",
+   "subject": "day-7 return: STOP under this percent (F5.md, finding 6)",
+   "places": [
+    {
+     "file": "docs/NUMBERS.md",
+     "line": 35,
+     "text": "STOP: under 7%.",
+     "says": "7%"
+    },
+    {
+     "file": "docs/NUMBERS.md",
+     "line": 35,
+     "text": "while it is under 7%.",
+     "says": "7%"
+    }
+   ],
+   "command": [
+    "json",
+    "docs/data/measures.json",
+    "day7_return.stop_under"
+   ],
+   "expected": "7",
+   "comparator": "equal",
+   "confirmed_by_person": false
+  },
+  {
+   "id": "numbers-law-return-day",
+   "kind": "count",
+   "subject": "the day of return the law's rule names (F5.md, finding 6)",
+   "places": [
+    {
+     "file": "docs/NUMBERS.md",
+     "line": 34,
+     "text": "returns on day 7 as",
+     "says": "7"
+    }
+   ],
+   "command": [
+    "json",
+    "docs/data/measures.json",
+    "day7_return.return_day"
+   ],
+   "expected": "7",
+   "comparator": "equal",
+   "confirmed_by_person": false
   },
   {
    "id": "numbers-active-days-pass",
    "kind": "count",
-   "subject": "active days: PASS at 3 days or more of the first 7",
-   "value": "3",
-   "where": [
-    "docs/NUMBERS.md"
+   "subject": "active days: PASS at this many days or more (F5.md, finding 8)",
+   "places": [
+    {
+     "file": "docs/NUMBERS.md",
+     "line": 41,
+     "text": "PASS: 3 days or more",
+     "says": "3"
+    },
+    {
+     "file": "docs/NUMBERS.md",
+     "line": 41,
+     "text": "active on 3 of the first",
+     "says": "3"
+    }
    ],
-   "source": "LAWS/DISTRIBUTION/F5.md finding 8",
-   "checked_by": "outside"
+   "command": [
+    "json",
+    "docs/data/measures.json",
+    "active_days.pass_at_least"
+   ],
+   "expected": "3",
+   "comparator": "equal",
+   "confirmed_by_person": false
   },
   {
-   "id": "numbers-first-week",
+   "id": "numbers-law-active-window",
    "kind": "count",
-   "subject": "the first 7 days a measure counts",
-   "value": "7",
-   "where": [
-    "docs/NUMBERS.md"
+   "subject": "the first days the law's rule counts active days in (F5.md, finding 8)",
+   "places": [
+    {
+     "file": "docs/NUMBERS.md",
+     "line": 41,
+     "text": "of the first 7 days\"",
+     "says": "7"
+    }
    ],
-   "source": "LAWS/DISTRIBUTION/F5.md findings 6 and 8",
-   "checked_by": "outside"
+   "command": [
+    "json",
+    "docs/data/measures.json",
+    "active_days.window_days"
+   ],
+   "expected": "7",
+   "comparator": "equal",
+   "confirmed_by_person": false
   },
   {
    "id": "numbers-paying-share-pass",
    "kind": "price",
-   "subject": "paying share: PASS at 3% or more",
-   "value": "3%",
-   "where": [
-    "docs/NUMBERS.md"
+   "subject": "paying share: PASS at this percent or more, the bottom of the law's good range (CHECKED-D9-E2.md, D10 finding 8)",
+   "places": [
+    {
+     "file": "docs/NUMBERS.md",
+     "line": 48,
+     "text": "PASS: 3% or more",
+     "says": "3%"
+    },
+    {
+     "file": "docs/NUMBERS.md",
+     "line": 48,
+     "text": "self-serve 3%-5%",
+     "says": "3%"
+    }
    ],
-   "source": "LAWS/DISTRIBUTION/CHECKED-D9-E2.md, D10 finding 8",
-   "checked_by": "outside"
+   "command": [
+    "json",
+    "docs/data/measures.json",
+    "paying_share.pass_at_least"
+   ],
+   "expected": "3",
+   "comparator": "equal",
+   "confirmed_by_person": false
   },
   {
-   "id": "numbers-paying-share-5",
+   "id": "numbers-paying-share-good-top",
    "kind": "price",
-   "subject": "paying share: the top of the law's good range for self-serve",
-   "value": "5%",
-   "where": [
-    "docs/NUMBERS.md"
+   "subject": "paying share: the top of the law's good range for self-serve (CHECKED-D9-E2.md, D10 finding 8)",
+   "places": [
+    {
+     "file": "docs/NUMBERS.md",
+     "line": 48,
+     "text": "3%-5% good",
+     "says": "5%"
+    }
    ],
-   "source": "LAWS/DISTRIBUTION/CHECKED-D9-E2.md, D10 finding 8",
-   "checked_by": "outside"
+   "command": [
+    "json",
+    "docs/data/measures.json",
+    "paying_share.law_good.1"
+   ],
+   "expected": "5",
+   "comparator": "equal",
+   "confirmed_by_person": false
   },
   {
-   "id": "numbers-paying-share-6",
+   "id": "numbers-paying-share-great-bottom",
    "kind": "price",
-   "subject": "paying share: the bottom of the law's great range for self-serve",
-   "value": "6%",
-   "where": [
-    "docs/NUMBERS.md"
+   "subject": "paying share: the bottom of the law's great range for self-serve (CHECKED-D9-E2.md, D10 finding 8)",
+   "places": [
+    {
+     "file": "docs/NUMBERS.md",
+     "line": 48,
+     "text": "good, 6%-8%",
+     "says": "6%"
+    }
    ],
-   "source": "LAWS/DISTRIBUTION/CHECKED-D9-E2.md, D10 finding 8",
-   "checked_by": "outside"
+   "command": [
+    "json",
+    "docs/data/measures.json",
+    "paying_share.law_great.0"
+   ],
+   "expected": "6",
+   "comparator": "equal",
+   "confirmed_by_person": false
   },
   {
-   "id": "numbers-paying-share-8",
+   "id": "numbers-paying-share-great-top",
    "kind": "price",
-   "subject": "paying share: the top of the law's great range for self-serve",
-   "value": "8%",
-   "where": [
-    "docs/NUMBERS.md"
+   "subject": "paying share: the top of the law's great range for self-serve (CHECKED-D9-E2.md, D10 finding 8)",
+   "places": [
+    {
+     "file": "docs/NUMBERS.md",
+     "line": 48,
+     "text": "6%-8% great",
+     "says": "8%"
+    }
    ],
-   "source": "LAWS/DISTRIBUTION/CHECKED-D9-E2.md, D10 finding 8",
-   "checked_by": "outside"
+   "command": [
+    "json",
+    "docs/data/measures.json",
+    "paying_share.law_great.1"
+   ],
+   "expected": "8",
+   "comparator": "equal",
+   "confirmed_by_person": false
   }
  ],
+ "pointers": [],
  "silenced": []
 }

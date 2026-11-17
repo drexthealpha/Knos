@@ -155,7 +155,7 @@
   "status.sample_runs": "Essais sur l'exemple",
   "status.own_runs": "Avec vos fichiers",
   "status.results_opened_elsewhere": "Résultats ouverts ailleurs",
-  "status.test_payments": "Paiements de test",
+  "status.test_payments": "Vérifications payées",
   "status.connector_runs": "Depuis d'autres applis",
   "status.day7_return": "Revenus le jour 7, pourcentage de navigateurs",
   "status.active_days": "Jours avec une vérification parmi les 7 premiers, moyenne",

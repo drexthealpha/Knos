@@ -482,9 +482,9 @@
    "max_length": 44
   },
   "status.test_payments": {
-   "text": "Test payments",
-   "description": "The status page of counts: a count: test payments.",
-   "max_length": 26
+   "text": "Run payments",
+   "description": "The status page of counts: a count: how many times someone paid test money for more runs of the tool after the free runs (not the test money put behind claims, a different count).",
+   "max_length": 24
   },
   "status.connector_runs": {
    "text": "Runs from other apps",

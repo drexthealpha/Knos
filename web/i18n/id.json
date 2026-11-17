@@ -130,7 +130,7 @@
   "status.sample_runs": "Pemeriksaan contoh",
   "status.own_runs": "Pemeriksaan berkas sendiri",
   "status.results_opened_elsewhere": "Hasil dibuka di tempat lain",
-  "status.test_payments": "Pembayaran uji coba",
+  "status.test_payments": "Pembayaran pemeriksaan",
   "status.connector_runs": "Pemeriksaan dari aplikasi lain",
   "status.day7_return": "Kembali pada hari ke-7, persen peramban",
   "status.active_days": "Hari dengan pemeriksaan dalam 7 hari pertama, rata-rata",

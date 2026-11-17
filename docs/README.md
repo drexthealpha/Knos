@@ -26,7 +26,7 @@ flowchart TB
 | [START.md](START.md) | five minutes: a paper's claim on NEAR first, then the same Knos on Solana and IRIS |
 | [PRICING.md](PRICING.md) | what it costs: the check is free; the fee each chain takes |
 | [TRUST.md](TRUST.md) | who holds the keys today, how to ask for one, and what is tested |
-| [NUMBERS.md](NUMBERS.md) | nine numbers about use by anyone outside, zeros included |
+| [NUMBERS.md](NUMBERS.md) | the three measures written before anyone uses the tool, each with a pass and a stop line |
 | [TRANSACTION.md](TRANSACTION.md) | one order told end to end, from its terms to the payment |
 | [WORDS.md](WORDS.md) | every technical word in one plain line |
 

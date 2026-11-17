@@ -25,7 +25,7 @@ URL = "https://knos.onrender.com/api/usage"
 # each count per UTC day, with the label the status page shows (D2); short, because the status page's first screen holds
 # at most 40 words (U3 R3); each label is also a key of web/i18n/en.json (status.<key>), shown in the browser's language
 COUNTS = [("tools_opened", "Tool opened"), ("sample_runs", "Sample runs"), ("own_runs", "Own-file runs"),
-          ("results_opened_elsewhere", "Results opened elsewhere"), ("test_payments", "Test payments"),
+          ("results_opened_elsewhere", "Results opened elsewhere"), ("test_payments", "Run payments"),
           ("connector_runs", "Runs from other apps")]   # web/i18n/en.json status.connector_runs (R13 WALK 1)
 # the three measures of docs/NUMBERS.md (D1): a share in percent, or a number of days, or null with too few browsers
 MEASURES = [("day7_return", "Came back on day 7, percent of browsers"), ("active_days", "Days with a run in the first 7, average"),

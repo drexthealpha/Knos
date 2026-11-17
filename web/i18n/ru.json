@@ -165,7 +165,7 @@
   "status.sample_runs": "Запуски примера",
   "status.own_runs": "Запуски со своим файлом",
   "status.results_opened_elsewhere": "Результаты, открытые в другом месте",
-  "status.test_payments": "Тестовые платежи",
+  "status.test_payments": "Оплаты запусков",
   "status.connector_runs": "Запуски из других приложений",
   "status.day7_return": "Вернулись на 7-й день, процент браузеров",
   "status.active_days": "Дни с запуском из первых 7, в среднем",

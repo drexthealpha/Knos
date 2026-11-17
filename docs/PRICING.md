@@ -6,6 +6,12 @@
 
 What is held, released and charged now: [the money page](https://knos.onrender.com/money).
 
+## Runs of the tool
+
+Runs on the sample are free. 5 runs on your own files are free each day, in each browser.
+After that, 20 more runs cost $1 in test money, so nothing is charged.
+These are starting values to be tested, not prices a rule gives: [`docs/data/pricing.json`](data/pricing.json).
+
 ## What each chain takes today
 
 | Chain | The fee | Who pays | Where it is written |

@@ -35,13 +35,26 @@ def test_f3_numbers_are_registered():
     rows = json.loads((ROOT / "docs" / "data" / "scorecard_summary.json").read_text(encoding="utf-8"))["rows"]
     [entry] = [e for e in FACTS["entries"] if e["command"] == ["json", "docs/data/scorecard_summary.json", "rows"]]
     assert entry["expected"] == str(rows)
+    # every number of pricing.json is an entry of its own, with a place it is stated (F3: not a pointer)
     pricing = json.loads((ROOT / "docs" / "data" / "pricing.json").read_text(encoding="utf-8"))["numbers"]
-    sources = " ".join(p["source"] for p in FACTS["pointers"])
     for name, number in pricing.items():
-        assert f"docs/data/pricing.json numbers.{name}.value" in sources, name
-        [pointer] = [p for p in FACTS["pointers"] if p["source"].endswith(f"numbers.{name}.value")]
-        assert pointer["value"] == str(number["value"]), name
-    assert any("docs/NUMBERS.md" in p["where"] for p in FACTS["pointers"])
+        [e] = [e for e in FACTS["entries"] if e["command"] == ["json", "docs/data/pricing.json", f"numbers.{name}.value"]]
+        assert e["expected"] == str(number["value"]) and e["places"] and e["confirmed_by_person"] is False, name
+    # every PASS or STOP line of docs/NUMBERS.md that states a number is a place of an entry, and each entry's
+    # expected value is what its command reads
+    measures = json.loads((ROOT / "docs" / "data" / "measures.json").read_text(encoding="utf-8"))
+    placed = {(p["file"], p["line"]) for e in FACTS["entries"] for p in e["places"]}
+    lines = (ROOT / "docs" / "NUMBERS.md").read_text(encoding="utf-8").splitlines()
+    stated = [i + 1 for i, ln in enumerate(lines) if ln.startswith(("- PASS: ", "- STOP: ")) and "not given in the law" not in ln]
+    assert len(stated) == 4 and all(("docs/NUMBERS.md", n) in placed for n in stated), stated
+    for e in FACTS["entries"]:
+        if e["command"][:2] == ["json", "docs/data/measures.json"]:
+            value = measures
+            for part in e["command"][2].split("."):
+                value = value[int(part)] if isinstance(value, list) else value[part]
+            assert e["expected"] == str(value), e["id"]
+    no_pointer = ("docs/NUMBERS.md", "docs/data/pricing.json", "docs/data/scorecard_summary.json")
+    assert not [p["id"] for p in FACTS["pointers"] if any(f in p["source"] or f in p["where"] for f in no_pointer)]
 
 
 def test_a_pointer_names_an_existing_check_or_says_its_source_is_outside():

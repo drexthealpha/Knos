@@ -141,7 +141,7 @@
   "status.sample_runs": "नमूने की जाँचें",
   "status.own_runs": "अपनी फ़ाइल की जाँचें",
   "status.results_opened_elsewhere": "कहीं और खोले गए नतीजे",
-  "status.test_payments": "परीक्षण भुगतान",
+  "status.test_payments": "जाँच के भुगतान",
   "status.connector_runs": "दूसरे ऐप से जाँचें",
   "status.day7_return": "दिन 7 पर लौटे, ब्राउज़रों का प्रतिशत",
   "status.active_days": "पहले 7 में जाँच वाले दिन, औसत",

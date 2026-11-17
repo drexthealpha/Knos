@@ -146,7 +146,7 @@ def _tree(tmp_path: Path, bd, cc) -> None:
     facts = json.loads((ROOT / "docs" / "facts.json").read_text(encoding="utf-8"))["facts"]
     _copy(tmp_path, {*cc.PITCH, *bd.public_text(ROOT), "docs/bench.json", "docs/backtest.json", "docs/facts.json",
                      *({f.get("json") or f.get("file") for f in facts} - {None}), *cc.docs_of(facts)})
-    (tmp_path / "reproductions").mkdir(exist_ok=True)                 # what docs/NUMBERS.md counts: no report, as in this tree
+    (tmp_path / "reproductions").mkdir(exist_ok=True)                 # what docs/reference/OUTSIDE_USE.md counts: no report, as in this tree
     assert not list((ROOT / "reproductions").glob("*.json"))
     for rel in bd.slot_files(tmp_path):
         (tmp_path / rel).write_text(bd.SLOT.sub("not measured", (tmp_path / rel).read_text(encoding="utf-8")), encoding="utf-8")
@@ -263,7 +263,7 @@ def test_the_one_sentence_leads_the_readme_and_the_site_and_the_readmes_first_sc
     assert parts[real].split("<!-- bench:today -->")[0].count("](DISCLOSURE.md)") == 1 and "test money only" in parts[real] and "no customers yet" in parts[real]
     for zero in ("| 0 |", "Outside funders", "Letters of intent"):                         # no list of zeros above the table
         assert zero not in ref.split("## Is it real?")[0], zero
-    # one table says what is real, with the numbers of NUMBERS.md in a block this script writes; then one link onward
+    # one table says what is real, with the numbers of OUTSIDE_USE.md in a block this script writes; then one link onward
     bd = _script("bench_docs")
     table = bd.from_reference(bd.today(json.loads((ROOT / "docs" / "bench.json").read_text(encoding="utf-8")), bd.repo_numbers()))
     assert table in parts[real] and parts[real].count("\n| ") == table.count("\n| ") + 1
@@ -271,7 +271,7 @@ def test_the_one_sentence_leads_the_readme_and_the_site_and_the_readmes_first_sc
                 "| Paying customers | 0 |", "| Outside security review | none |"):
         assert row in table, row
     assert "first milestone" not in readme and "first milestone" not in ref
-    assert "](../README.md)" in parts["Read more"] and "](../NUMBERS.md)" in ref and "](CAPABILITIES.md)" in ref
+    assert "](../README.md)" in parts["Read more"] and "](OUTSIDE_USE.md)" in ref and "](CAPABILITIES.md)" in ref
     # what the front page no longer lists is on the map of the documents
     docs_map = (ROOT / "docs" / "reference" / "README.md").read_text(encoding="utf-8")
     for doc in ("SHADOW", "PLAYGROUND", "VERIFIER", "COMPANIES", "TERMS", "PROVENANCE", "CONFORMANCE", "UNWRAPS", "CAPABILITIES"):
@@ -293,7 +293,7 @@ def _a_number_filled_only_outside_the_pitch_is_a_doc_fact_that_document_is_held_
 
 
 def test_the_numbers_this_repository_holds_are_read_from_it_and_a_person_changes_them_in_one_place(tmp_path, capsys):
-    """Outside use (docs/NUMBERS.md): two numbers come from the site's stats.json, five from the repository
+    """Outside use (docs/reference/OUTSIDE_USE.md): two numbers come from the site's stats.json, five from the repository
     itself. A count only a person can supply is a constant under "by_hand" in docs/facts.json; --set cannot give it.
     The table is a generated block, so it cannot say another value than its sources."""
     bd, cc = _script("bench_docs"), _script("claims_check")
@@ -303,8 +303,8 @@ def test_the_numbers_this_repository_holds_are_read_from_it_and_a_person_changes
     now = bd.repo_numbers()
     assert set(now) == set(bd.REPO_SLOTS) and now["reproductions_signed"][0] == len(list((ROOT / "reproductions").glob("*.json")))
     _tree(tmp_path, bd, cc)
-    numbers = tmp_path / "docs" / "NUMBERS.md"
-    assert "| 6 | Letters of intent | 0 |" in numbers.read_text(encoding="utf-8") and "docs/NUMBERS.md" in bd.DOCS
+    numbers = tmp_path / "docs" / "reference" / "OUTSIDE_USE.md"
+    assert "| 6 | Letters of intent | 0 |" in numbers.read_text(encoding="utf-8") and "docs/reference/OUTSIDE_USE.md" in bd.DOCS
     # a slot that names one of them, in any document that may carry slots, is filled from the repository and from nowhere else
     numbers.write_text(numbers.read_text(encoding="utf-8") + "\nLetters: [[stat: letters_of_intent]]. Reports: [[stat: reproductions_signed]].\n", encoding="utf-8")
     with pytest.raises(SystemExit) as why:
@@ -320,7 +320,7 @@ def test_the_numbers_this_repository_holds_are_read_from_it_and_a_person_changes
     capsys.readouterr()
     assert bd.main(check=True, root=tmp_path) == 1
     out = capsys.readouterr().out
-    assert "docs/NUMBERS.md" in out and "reproductions_signed is 0 in docs/bench.json and 1 in" in out and "letters_of_intent is 0 in docs/bench.json and 1 in" in out
+    assert "docs/reference/OUTSIDE_USE.md" in out and "reproductions_signed is 0 in docs/bench.json and 1 in" in out and "letters_of_intent is 0 in docs/bench.json and 1 in" in out
     bd.main(root=tmp_path)
     table = numbers.read_text(encoding="utf-8")
     assert "| 6 | Letters of intent | 1 |" in table and "| 7 | Reproductions signed by GitHub: files in `reproductions/` from a run in someone else's repository | 1 |" in table

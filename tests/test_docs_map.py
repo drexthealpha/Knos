@@ -86,7 +86,7 @@ def test_the_front_page_has_ten_parts_above_the_line_and_three_links_onward():
         assert said in " ".join(real), said
     assert above.index("## How it works") < above.index("<!-- bench:today -->") and "/docs/diagrams/" in above.split("## Paid only when the test passes\n")[1].split("\n## ")[0]
     table = above[above.index("<!-- bench:today -->"):above.index("<!-- /bench:today -->")]
-    numbers = read("docs/NUMBERS.md")
+    numbers = read("docs/reference/OUTSIDE_USE.md")
     printed = re.findall(r"(?m)^\| \d \| ([^:|]+)[^|]*\| (\d+) \|", numbers)
     assert len(printed) == 9
     for what, value in printed:                                                             # every number that page prints, zeros included

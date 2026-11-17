@@ -86,7 +86,7 @@ main p a, main td a, main li a { padding: 12px 0; margin: -12px 0; }
 button, .btn, label, input { font-size: 16px; }
 .kmenu:not([open]) > div { display: none; }   /* the one header's closed menu: its links not laid out, so they never cover the page */
 form.fund { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: end; }
-label { display: grid; gap: var(--sp-1); font-size: var(--s0); font-weight: 500; }
+label { display: grid; gap: var(--sp-1); font-size: 16px; font-weight: 500; }
 input { min-height: 44px; width: 10em; padding: var(--sp-2) var(--sp-3); border-radius: var(--radius); border: 1px solid var(--ink-2); background: var(--paper); color: var(--ink); font: 400 var(--s1)/1.4 var(--text); }
 /* From Uiverse.io by AqFox (https://uiverse.io/AqFox/tiny-jellyfish-70), MIT License (c) 2023 Uiverse.io; colour and size from the Knos tokens */
 .spinner { flex: none; width: 20px; height: 20px; border: 4px var(--accent) double; border-left-style: solid; border-radius: 50%; }
@@ -555,7 +555,9 @@ load();
   const el = (tag, props = {}, kids = []) => { const e = Object.assign(document.createElement(tag), props); for (const k of [].concat(kids)) if (k != null) e.append(k); return e; };
   const HOSTED = "https://knos.onrender.com";
   const GH = "https://api.github.com/repos/drexthealpha/Knos/";
-  const post = (path, body) => fetch(HOSTED + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) })
+  // R13 WALK 2: each claim's plain title (the one its /claim/ page shows), written in by scripts/site_pages.py
+  const TITLES = /*TITLES*/{}/*END*/;
+  const post =(path, body) => fetch(HOSTED + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) })
     .then((r) => r.json()).catch(() => ({ ok: false, why: "the server did not answer" }));
   // a transaction link opens the site's own transaction page, which reads it from NEAR (the explorer shows a bot check)
   const out = (href, text) => el("a", { href: String(href || "").replace(/^https:\/\/testnet\.nearblocks\.io\/txns\//, TX), target: "_blank", rel: "noopener", textContent: text });
@@ -683,8 +685,12 @@ load();
         el("p", {}, [el("label", { htmlFor: "claim-amount", textContent: "Test dollars held: " }), amountIn]),
         r.ready ? order : el("p", { className: "stop", textContent: r.why || "The next check is being readied." }),
         el("p", { className: "fine", textContent: "This is a demo with test money: no card is charged and no invoice is sent." })]),
-      el("section", { className: "card" }, [el("h2", { textContent: "The paper says" }),
-        el("blockquote", {}, [`“${r.quote}”`]), el("p", { className: "fine" }, [out(r.doi, `${r.paper} (${r.authors})`)])]),
+      // R13 WALK 2: plain words on the screen; the paper's own words and title only in the closed fold
+      el("section", { className: "card" }, [el("h2", { textContent: "The claim" }),
+        TITLES[r.name] ? el("p", { textContent: TITLES[r.name] + "." }) : null,
+        el("details", { className: "how" }, [el("summary", { textContent: "How it works" }),
+          el("p", { textContent: "The paper says:" }), el("blockquote", {}, [`“${r.quote}”`]),
+          el("p", { className: "fine" }, [out(r.doi, `${r.paper} (${r.authors})`)])])]),
     ];
     const plainFits = !r.name || r.name === "hyperloglog";   // the plain-words page is the sample paper's
     // Round 11, W6: the small model's marketing-style plain-words card is no longer shown here

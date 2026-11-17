@@ -22,14 +22,14 @@ Agent PR Index scan the docs quote, the programs' compute units, what was measur
                                                      "by_hand" in docs/facts.json)
     python scripts/bench_docs.py --slots            list the slots that have no number yet; exit 1 if there is one
 
-A block is `<!-- bench:NAME -->` ... `<!-- /bench:NAME -->` in docs/reference/BENCH.md, docs/NUMBERS.md or
+A block is `<!-- bench:NAME -->` ... `<!-- /bench:NAME -->` in docs/reference/BENCH.md, docs/reference/OUTSIDE_USE.md or
 docs/reference/COLOSSEUM.md:
 
     headline      the index's two named figures, and the merged pull requests (no document carries this block today)
     today         docs/reference/COLOSSEUM.md: how many capabilities are at each stage, and which ones reached the public program ids (all
                   read from docs/capabilities.json, so the table cannot disagree with it), and the outside-use numbers of
-                  NUMBERS.md, zeros included, from the same sources
-    outside-use   docs/NUMBERS.md: nine numbers about use by anyone who is not Knos, each from where it is kept
+                  OUTSIDE_USE.md, zeros included, from the same sources
+    outside-use   docs/reference/OUTSIDE_USE.md: nine numbers about use by anyone who is not Knos, each from where it is kept
     market        the index: a failed check of any kind, per agent
     market-tests  the same pull requests, counting only failed tests and builds
     backtest      the merged ones
@@ -68,13 +68,15 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-DOCS = ["README.md", "docs/reference/BENCH.md", "docs/NUMBERS.md", "docs/reference/COLOSSEUM.md"]   # COLOSSEUM.md: refpage.PAGE
+DOCS = ["README.md", "docs/reference/BENCH.md", "docs/reference/OUTSIDE_USE.md", "docs/reference/COLOSSEUM.md"]   # COLOSSEUM.md: refpage.PAGE
+# The documents in docs/reference/: a block written for the repository root gets its links rewritten (from_reference).
+IN_REFERENCE = {"docs/reference/COLOSSEUM.md", "docs/reference/OUTSIDE_USE.md"}
 # The front-facing text (scripts/claims_check.py reads the same list): every number in it needs a fact.
 PITCH = ["README.md", "web/door.html", "docs/WHY.md"]   # Round 10, V5: the goal and the record moved to docs/WHY.md
 # The other files that may carry slots. Everything a reader opens first states a release-measured fact through one, so that the
 # release fills them all in one run and no document is left with an older number.
 SLOTTED = ["README.md", "CHANGELOG.md", "docs/reference/DISCLOSURE.md", "docs/reference/WHY.md", "docs/PRICING.md",
-           "docs/reference/SECURITY.md", "docs/reference/ASSURANCE.md", "docs/reference/BENCH.md", "docs/reference/RELAY.md", "docs/NUMBERS.md", "docs/TRANSACTION.md",
+           "docs/reference/SECURITY.md", "docs/reference/ASSURANCE.md", "docs/reference/BENCH.md", "docs/reference/RELAY.md", "docs/reference/OUTSIDE_USE.md", "docs/TRANSACTION.md",
            "docs/START.md", "docs/TRUST.md"]
 UNMEASURED = "measured at release"
 SLOT = re.compile(r"(?<!`)\[\[stat: ([a-z][a-z_]*)\]\]")      # not one quoted as code: that is the docs naming the syntax
@@ -154,10 +156,10 @@ STAGE_SLOTS |= {f"stage_whole_{stat}": (f"{what}: the merge to the payment, the 
 STAGE_SLOTS |= {f"pay_attempts_{name}": (f"{words} (scripts/latency_stages.py, network_stats.attempts)", ("attempts", name))
                 for name, words in ATTEMPT_WORDS.items()}
 SLOTS |= {name: (what, None) for name, (what, _where) in STAGE_SLOTS.items()}
-# Use by anyone who is not Knos (docs/NUMBERS.md). Two are counted by the site's build (stats.json,
+# Use by anyone who is not Knos (docs/reference/OUTSIDE_USE.md). Two are counted by the site's build (stats.json,
 # `outsiders`: scripts/outsiders.py). The others are read from this repository: the report files of reproductions/, and
 # the counts only a person can supply, which are constants under BY_HAND in docs/facts.json that a person changes when
-# the other party agrees to be counted. The table of NUMBERS.md is written from them (the block `outside-use`), and
+# the other party agrees to be counted. The table of OUTSIDE_USE.md is written from them (the block `outside-use`), and
 # `--repo` (like every fill) fills a slot that names one in any other document; nothing else may set them.
 SLOTS |= {
     "outside_repositories": ("repositories that are not Knos's in which an outside funder funded a task", "outsiders.repositories"),
@@ -239,7 +241,7 @@ def outside_rows(src: dict, repo: dict) -> list[tuple[str, object, str]]:
     if payees is None and between.get("source"):                           # the accounts the measured payments name
         payees = len(set(re.findall(r"to another GitHub account \((\d+)\)", between["source"])))
         where_p = "`docs/bench.json`, `release.payments_between_unrelated_accounts.source`: the accounts it names, on tasks Knos funded itself"
-    by_hand = "`docs/facts.json`, `by_hand`: a person changes it; [DISCLOSURE.md](reference/DISCLOSURE.md) says the same"
+    by_hand = "`docs/facts.json`, `by_hand`: a person changes it; [DISCLOSURE.md](docs/reference/DISCLOSURE.md) says the same"
     rows = [
         ("Outside funders: accounts other than Knos's that funded a task with their own tokens", _dig(stats, "outside.funders"),
          "`docs/bench.json`, `devnet.stats.outside.funders`"),
@@ -250,17 +252,17 @@ def outside_rows(src: dict, repo: dict) -> list[tuple[str, object, str]]:
         ("Buyer interviews held", (repo.get("buyer_interviews_held") or [None])[0], by_hand),
         ("Letters of intent", (repo.get("letters_of_intent") or [None])[0], by_hand),
         ("Reproductions signed by GitHub: files in `reproductions/` from a run in someone else's repository",
-         (repo.get("reproductions_signed") or [None])[0], "the report files of [`reproductions/`](../reproductions/README.md)"),
+         (repo.get("reproductions_signed") or [None])[0], "the report files of [`reproductions/`](reproductions/README.md)"),
         ("Outside programs reading the verifier", (repo.get("outside_programs_reading_the_verifier") or [None])[0],
-         by_hand + "; the examples in [COMPOSE.md](reference/COMPOSE.md) are Knos's own"),
+         by_hand + "; the examples in [COMPOSE.md](docs/reference/COMPOSE.md) are Knos's own"),
         ("Shadow counts published: a neutral count printed beside a supplier's own invoice count, with every mismatch",
-         (repo.get("shadow_counts_published") or [None])[0], by_hand + "; [SHADOW.md](reference/SHADOW.md)"),
+         (repo.get("shadow_counts_published") or [None])[0], by_hand + "; [SHADOW.md](docs/reference/SHADOW.md)"),
     ]
     return rows
 
 
 def outside_use(src: dict, repo: dict) -> str:
-    """docs/NUMBERS.md's table: nine numbers about use by anyone who is not Knos, each from where it is kept.
+    """docs/reference/OUTSIDE_USE.md's table: nine numbers about use by anyone who is not Knos, each from where it is kept.
     `repo` is repo_numbers(): what this repository answers itself. A number nothing has measured is said so, never 0."""
     lines = ["| # | number | value | where it is read |", "|---|---|---|---|"]
     lines += [f"| {i} | {what} | {_said(value) if _number(value) else 'not measured'} | {where} |"
@@ -269,8 +271,8 @@ def outside_use(src: dict, repo: dict) -> str:
 
 
 # The one table of docs/reference/COLOSSEUM.md (once README.md's), "What is real today": the stage rows (stage_rows), the nine
-# numbers of NUMBERS.md and the rows no number decides (TODAY_LAST), so the front page prints every zero that page prints and can print no other value.
-NUMBERS_DOC = "[docs/NUMBERS.md](docs/NUMBERS.md)"
+# numbers of OUTSIDE_USE.md and the rows no number decides (TODAY_LAST), so the front page prints every zero that page prints and can print no other value.
+NUMBERS_DOC = "[docs/reference/OUTSIDE_USE.md](docs/reference/OUTSIDE_USE.md)"
 CAPS_DOC = "[docs/reference/CAPABILITIES.md](docs/reference/CAPABILITIES.md)"
 # The plain name of each capability the stage rows print; a capability with none is printed by its id. The stage of each
 # is read from docs/capabilities.json every time, so the front page cannot say a capability is lower or higher than that.
@@ -316,7 +318,7 @@ def stage_rows(caps: list[dict]) -> list[tuple[str, str, str]]:
     return rows
 
 
-TODAY_NOTES = {3: ", on tasks Knos funded itself", 4: ", on tasks Knos funded itself"}     # by row of NUMBERS.md
+TODAY_NOTES = {3: ", on tasks Knos funded itself", 4: ", on tasks Knos funded itself"}     # by row of OUTSIDE_USE.md
 TODAY_LAST = [
     ("Paying customers", "0", "[docs/reference/DISCLOSURE.md](docs/reference/DISCLOSURE.md)"),
     ("Revenue", "0; test USDC is not money", "[docs/PRICING.md](docs/PRICING.md)"),
@@ -847,7 +849,7 @@ def main(check: bool = False, root: Path = ROOT) -> int:
         if not p.is_file():
             continue
         old = p.read_text(encoding="utf-8")
-        new = apply(old, {k: from_reference(v) for k, v in gen.items()} if d == "docs/reference/COLOSSEUM.md" else gen)
+        new = apply(old, {k: from_reference(v) for k, v in gen.items()} if d in IN_REFERENCE else gen)
         if new != old:
             drift.append(d)
             if not check:

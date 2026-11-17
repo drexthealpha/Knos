@@ -325,7 +325,9 @@ def door_claims() -> list[dict]:
         test = ROOT / "near" / "agents" / "job" / c["test"]
         out.append({k: c[k] for k in ("name", "plain", "quote", "paper", "authors", "year", "test")} |
                    {"doi": doi, "arxiv": ax.group(1) if ax else str(c.get("arxiv") or ""), "url": str(c.get("url") or ""),
-                    "sha256": hashlib.sha256(test.read_bytes()).hexdigest()})
+                    "sha256": hashlib.sha256(test.read_bytes()).hexdigest(),
+                    # R13 WALK 2: the claim's plain title (the one its /claim/ page shows); `plain` goes in the fold
+                    "title": site_product.everyday(c)})
     return out
 
 
@@ -487,6 +489,7 @@ def main(site: str) -> int:
     (out / "door.html").unlink(missing_ok=True)
     near = fill((ROOT / "near" / "web" / "index.html").read_text(encoding="utf-8"))
     near = near.replace('fetch("latest.json"', 'fetch("../near/latest.json"')
+    near = near.replace("/*TITLES*/{}/*END*/", json.dumps({c["name"]: c["title"] for c in door_claims()}, ensure_ascii=False).replace("</", "<\\/"), 1)
     # the wallet button's blank page (near/web/embed.html) needs the local NEAR server, so it is not published (S17-006)
     near = re.sub(r'<a href="embed\.html">[^<]*</a>', "", near)
     # the proof page opens on the proof: its heading says what the page does, the front door asks the question

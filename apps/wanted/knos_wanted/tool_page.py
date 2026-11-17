@@ -672,7 +672,8 @@ button:focus-visible,textarea:focus-visible,summary:focus-visible,a:focus-visibl
 main>details{margin-top:24px;border-top:1px solid var(--line);padding-top:4px}
 summary{min-height:48px;display:flex;align-items:center;cursor:pointer;font-weight:600}
 main>details>summary::before{content:"+";display:inline-block;width:1.2em;color:var(--accent)}main>details[open]>summary::before{content:"\\2212"}
-details li{margin:6px 0}.fold-links a{display:inline-flex;align-items:center;min-height:48px;margin-inline-end:16px}
+details li{margin:6px 0}main>details a{display:inline-block;min-height:44px;min-width:44px;padding-block:8px}
+.fold-links a{display:inline-flex;align-items:center;justify-content:center;min-height:48px;min-width:48px;padding-inline:4px;margin-inline-end:16px}
 .tgt input{width:100%;font:1rem ui-monospace,Consolas,monospace}
 .home a{display:inline-flex;align-items:center;min-height:48px;min-width:48px}#theme{display:inline-flex;align-items:center;gap:8px;min-height:48px;min-width:48px;padding:0 16px;margin-inline-start:12px;border:2px solid var(--line);border-radius:10px;background:transparent;color:var(--fg);font:inherit;cursor:pointer}
 [hidden]{display:none!important}""" + "\n" + SWITCH_CSS

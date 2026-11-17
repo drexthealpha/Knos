@@ -57,7 +57,7 @@ pre { background: var(--paper-2); border: 1px solid var(--line); border-radius: 
 .fine { color: var(--ink-2); }
 footer { max-width: 760px; margin: 0 auto; padding: 16px; color: var(--ink-2); font-size: 16px; border-top: 1px solid var(--line); }
 footer a { color: var(--ink-2); display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; margin-right: 12px; }
-@media (max-width: 480px) { th, td { padding: 8px 4px; } #claims thead { display: none; } #claims tr { display: block; border-bottom: 1px solid var(--line); padding: 8px 0; } #claims td { display: block; border: 0; padding: 2px 0; text-align: left; } #claims td[data-behind]::before { content: "Backed with: "; font-weight: 600; } #claims td[data-truth]::before { content: "Does it hold? "; font-weight: 600; } #claims td[data-demand]::before { content: "100 behind it in 7 days? "; font-weight: 600; } }
+@media (max-width: 480px) { th, td { padding: 8px 4px; } #claims thead { display: none; } #claims tr { display: block; border-bottom: 1px solid var(--line); padding: 8px 0; } #claims td { display: block; border: 0; padding: 2px 0; text-align: left; } #claims td[data-behind]::before { content: "Test money put behind it: "; font-weight: 600; } #claims td[data-truth]::before { content: "Does it hold? "; font-weight: 600; } #claims td[data-demand]::before { content: "100 test dollars from outside Knos in 7 days? "; font-weight: 600; } }
 /* a 390 px phone: no text under 16 px, every link and control a 44 px tap target */
 @media (max-width: 460px) {
   main p a, main td a, main li a, main dd a { padding: 12px 0; margin: -12px 0; }
@@ -169,7 +169,8 @@ async function nearView(contract, method, args) {
   throw new Error(last);
 }
 async function sha256(bytes) { return [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))].map((b) => b.toString(16).padStart(2, "0")).join(""); }
-const thin = (m) => m.traders == null ? `${m.trades} trades` : `${m.traders} ${m.traders === 1 ? "person has" : "people have"} traded${m.traders < 5 ? ", too few for the price to mean much" : ""}`;
+// R13 WALK 2: how many people predicted the answer in test dollars, in plain words (no "traded" or "price")
+const thin = (m) => m.traders == null ? `${m.trades} ${m.trades === 1 ? "prediction" : "predictions"}` : `${m.traders} ${m.traders === 1 ? "person" : "people"} predicted${m.traders < 5 ? ", too few to trust" : ""}`;
 // jobs paid to agents: the jobs contract's own count, read from this browser (get_totals and get_agent_record, since its
 // 14 Nov 2026 upgrade; each pass of an agent is one job paid to it), else the hosted server's copy of the same read
 const AGENTS = ["agent-a", "agent-a2", "agent-b", "agent-b2"].map((a) => a + ".knos-swarm-1105.testnet");
@@ -189,13 +190,13 @@ function truthText(m, last) {
   if (!m) return "opens with the first check";
   if (m.outcome === true) return "Yes, settled by a test fixed before any work started";
   if (m.outcome === false) return "No, settled by a test fixed before any work started";
-  return `not checked yet: its first check runs a test fixed before any work started (${thin(m)})`;
+  return `Not checked yet; ${thin(m)}`;
 }
 function demandText(m) {
   if (!m) return "opens soon";
   if (m.outcome === true) return +m.behind_usd >= 100 ? "Yes: 100 test dollars from people outside Knos within 7 days" : "Yes, settled on Knos's own test money before this rule";
   if (m.outcome === false) return "No: under 100 test dollars from people outside Knos within 7 days";
-  return `${(+m.behind_usd).toFixed(2)} of 100 test dollars from people outside Knos this week, closes ${new Date(m.closes * 1000).toISOString().slice(0, 10)} (${thin(m)})`;
+  return `${(+m.behind_usd).toFixed(2)} of 100 by ${new Date(m.closes * 1000).toISOString().slice(0, 10)}; ${thin(m)}`;
 }
 """.replace("__HOSTED__", HOSTED).replace("__JOBS__", JOBS)
 
@@ -206,7 +207,7 @@ def claims_page(header: str, cs: list[dict]) -> str:
                    f'<span class="fine">{e(c["authors"])}, {c["year"]}</span></td>'
                    f'<td class="n" data-behind>reading</td><td data-truth>reading</td><td data-demand>reading</td></tr>' for c in cs)
     body = (f"<h1>Claims</h1>\n<p>Results from papers, each checked by a test fixed before any work starts. Pick one to see it.</p>\n"
-            f'<table id="claims"><thead><tr><th>Claim</th><th class="n">Backed with</th><th>Does it hold?</th><th>100 behind it in 7 days?</th></tr></thead>\n<tbody>{rows}</tbody></table>\n'
+            f'<table id="claims"><thead><tr><th>Claim</th><th class="n">Test money put behind it</th><th>Does it hold?</th><th>100 test dollars from outside Knos in 7 days?</th></tr></thead>\n<tbody>{rows}</tbody></table>\n'
             f'<p class="fine" id="as-of">Read live from the public record.</p>\n'
             f'<details class="how"><summary>How it works</summary>\n'
             f"<p>Knos locks a test before any work starts, and test money moves to the agent that did the work only if that test "
@@ -214,7 +215,7 @@ def claims_page(header: str, cs: list[dict]) -> str:
             + "".join(f'<p><a href="../claim/{e(c["name"])}/">{e(everyday(c))}</a>: {e(c["plain"])}</p>\n' for c in cs)
             + '<p>Each claim has two markets, their prices moving with each trade: whether it holds, '
             'settled by its locked test, and whether 100 test dollars are put behind it within 7 days, settled by the '
-            'public record. Backed with counts every payment the claim market recorded, Knos\'s own test account\'s '
+            'public record. Test money put behind it counts every payment the claim market recorded, Knos\'s own test account\'s '
             'included; the last column counts outside accounts only. All of it is test money: nothing real is charged.</p>\n'
             '<h2>Tried, and refused</h2>\n<table><thead><tr><th>Attempt</th><th>What the record did</th><th>Record</th></tr></thead><tbody>'
             + "".join(f'<tr><td>{e(a)}</td><td>{e(why)}</td><td><a href="https://drexthealpha.github.io/Knos/tx/?h={tx}">{tx[:8]}...</a></td></tr>' for a, why, tx in ATTACKS)
@@ -225,12 +226,20 @@ def claims_page(header: str, cs: list[dict]) -> str:
   const b = await getJSON("/api/near/claims");
   const rows = [...document.querySelectorAll("#claims tbody tr")];
   for (const r of rows) { const m = (b && b.claims && b.claims[r.dataset.claim]) || {}, n = +m.proofs || 0, behind = +m.behind_usd || 0;
-    r.querySelector("[data-behind]").textContent = b ? `${usd(behind)}, in ${n.toLocaleString("en-US")} ${n === 1 ? "payment" : "payments"}` : "not read";
+    const paid = `${usd(behind)} in ${n.toLocaleString("en-US")} ${n === 1 ? "payment" : "payments"}`, cell = r.querySelector("[data-behind]");
+    cell.textContent = b ? `${paid}, Knos's own included` : "not read";
+    // R13 WALK 2: whose payments, read by this browser from the claim market: every named backer, Knos's own marked by
+    // the contract (set_own); backings from before backers were named carry no account and, by the contract's own
+    // record, all came from Knos's own test buyer
+    if (b && n > 0) nearView(__MARKET__, "get_backers", { claim: r.dataset.claim, from_index: 0, limit: 500 }).then((rows) => {
+      const out = rows.filter((x) => !x[3]).reduce((s, x) => s + +x[1] / 1e6, 0);
+      cell.textContent = out > 0 ? `${paid}, ${out.toFixed(2)} from outside Knos` : `${paid}, all from Knos's own test accounts`;
+    }).catch(() => {});
     r.querySelector("[data-truth]").textContent = b ? truthText(m.truth, m.last_proof) : "not read";
     r.querySelector("[data-demand]").textContent = b ? demandText(m.demand) : "not read"; r.dataset.usd = behind; }
   rows.sort((a, b) => (+b.dataset.usd || 0) - (+a.dataset.usd || 0)).forEach((r) => r.parentNode.append(r));
   $("as-of").textContent = b && b.read_at ? `Read from the public record at ${b.read_at.replace("T", " ").replace("Z", " UTC")}.` : "The public record could not be read just now.";
-})();"""
+})();""".replace("__MARKET__", json.dumps(MARKET))
     return page(header, "../", "Knos claims", "Results from papers, each checked by a test fixed before any work starts.", body, script, "claims/", css=WALK_CSS)
 
 
@@ -615,7 +624,18 @@ def status_page(header: str) -> str:
             "<p class=\"fine\">Each line is read now, from Knos's server, the test network and Knos's public code record.</p>\n"
             "<p class=\"fine\">The jobs count adds up each agent's passes in the jobs "
             "contract's <code>get_agent_record</code>; the money paid out is its <code>get_totals</code>.</p></div></details>")
-    script = LIVE_JS + """(async () => {
+    script = LIVE_JS + """// R13 WALK 2: the counts come from the published data file when the page loads (the file is refreshed between
+// builds); the copy written in at build time stays when the file cannot be read. "Counted to" is the time of
+// whichever copy is shown.
+fetch("../data/usage.json", { cache: "no-store" }).then((r) => r.ok ? r.json() : null).then((u) => {
+  if (!u || !u.totals || !u.read_at) return;
+  const n = (x) => Number(x).toLocaleString("en-US");
+  document.querySelectorAll("[data-count]").forEach((td) => { const v = u.totals[td.dataset.count]; if (Number.isInteger(v) && v >= 0) td.textContent = n(v); });
+  document.querySelectorAll("[data-measure]").forEach((td) => { const v = (u.measures || {})[td.dataset.measure]; td.textContent = v == null ? KI.t("status.too_few") : n(v); });
+  const at = "\\u2066" + String(u.read_at).replace("T", " ").slice(0, 16) + " UTC\\u2069", v = { at };
+  $("use-when").innerHTML = "<!--k:status.when " + JSON.stringify(v) + "-->" + KI.html("status.when", v) + "<!--/k-->";
+}).catch(() => { /* the build's copy stays */ });
+(async () => {
   const [l, c, t] = await Promise.all([getJSON("/api/near/live"), getJSON("/api/near/claim/counters"), getJSON("/api/near/tests")]);
   $("svc").textContent = l ? (l.live ? "up, on the test network" : "up, live runs switched off") : "not answering";
   $("today").textContent = l ? `${l.used_today} of ${l.cap_today} on the page, ${l.agent_used_today ?? 0} of ${l.agent_cap_today ?? 0} for agents` : "not read";

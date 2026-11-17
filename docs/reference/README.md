@@ -51,7 +51,8 @@ The documents in this folder are listed below, with the seven front pages too.
 | [FAUCET.md](FAUCET.md) | how a stranger gets test USDC and funds a first task, and the faucet's rules and key |
 | [REPRODUCE.md](REPRODUCE.md) | how someone else runs it and files a signed report |
 | [REPRODUCED.md](REPRODUCED.md) | knos.yml: a research repository's claims re-run on a second machine and held-out data; contested results stay private |
-| [NUMBERS.md](../NUMBERS.md) | nine numbers about use by anyone outside, zeros included |
+| [NUMBERS.md](../NUMBERS.md) | the three measures written before anyone uses the tool, each with a pass and a stop line |
+| [OUTSIDE_USE.md](OUTSIDE_USE.md) | nine numbers about use by anyone outside, zeros included |
 | [TRANSACTION.md](../TRANSACTION.md) | one held payment told end to end for a finance reader: the terms, a refused proof, a verified one, a refused replay |
 
 ## 2. Why does it matter?

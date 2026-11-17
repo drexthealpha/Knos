@@ -208,6 +208,23 @@ def test_file_2_through_the_site_and_the_connector_fails_at_row_37(app):
         assert st == 200 and site["result"] in page.decode()
 
 
+def test_the_connector_takes_a_limit_sent_as_text_as_the_site_does(app):
+    """B5: `run` takes the same inputs /api/run takes. A limit sent as text ("1.4") is checked, not refused, and gives
+    the same answer; text that is not a number is refused with the site's own sentence."""
+    table, column, limit = file2()
+    args = {"id": "limit-check", "table": table, "column": column, "rule": "above", "limit": str(limit)}
+    st, site, _ = call(app, "/api/run", {**args, "browser": "b-textlim-0001", "test": True})
+    assert st == 200 and site["first_failing_row"] == 37, site
+    got = mcp(app, "run", args)
+    assert not got.get("isError"), got
+    got = got["structuredContent"]
+    for k in ("result", "first_failing_row", "rows", "skipped", "shown_by"):
+        assert got[k] == site[k], k
+    st, bad, _ = call(app, "/api/run", {**args, "limit": "one point four", "browser": "b-textlim-0002", "test": True})
+    refused = mcp(app, "run", {**args, "limit": "one point four"})
+    assert st == 400 and refused["isError"] and refused["content"][0]["text"] == bad["error"], refused
+
+
 def test_the_sentences_follow_the_rule_and_count_skipped_rows(app):
     st, r, _ = own(app, "a,b\n1,9\n2,x\n3,8\n4,7", column="b", rule="below", limit=10)
     assert st == 200 and r["result"] == "Passed: all 3 rows stay below 10. 1 rows were skipped because they are not numbers."

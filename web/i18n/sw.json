@@ -141,7 +141,7 @@
   "status.sample_runs": "Ukaguzi wa sampuli",
   "status.own_runs": "Ukaguzi wa faili binafsi",
   "status.results_opened_elsewhere": "Matokeo yaliyofunguliwa kwingine",
-  "status.test_payments": "Malipo ya majaribio",
+  "status.test_payments": "Malipo ya ukaguzi",
   "status.connector_runs": "Ukaguzi kutoka programu nyingine",
   "status.day7_return": "Walirudi siku ya 7, asilimia ya vivinjari",
   "status.active_days": "Siku zenye ukaguzi katika 7 za kwanza, wastani",

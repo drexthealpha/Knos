@@ -910,7 +910,8 @@ MCP_TOOLS = [
          "table": {"type": "string", "maxLength": int(CONF["max_body_bytes"]), "description": "the file as text, comma separated"},
          "column": {"type": "string", "description": "a column name from the file's header, or \"column 1\", \"column 2\" and so on when it has none"},
          "rule": {"type": "string", "enum": list(RULES), "description": "whether the values must stay above or below the limit"},
-         "limit": {"type": "number", "description": "the limit; a value equal to it fails"}},
+         # a number, or the number as text ("1.4"), exactly as POST /api/run takes it (Round 13 item B5)
+         "limit": {"type": ["number", "string"], "description": "the limit, such as 1.4 or \"1.4\"; a value equal to it fails"}},
          "required": ["id", "table", "column", "rule", "limit"], "additionalProperties": False}},
 ]
 

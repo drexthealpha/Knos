@@ -155,7 +155,7 @@
   "status.sample_runs": "Execuções da amostra",
   "status.own_runs": "Execuções com seu arquivo",
   "status.results_opened_elsewhere": "Resultados abertos em outro lugar",
-  "status.test_payments": "Pagamentos de teste",
+  "status.test_payments": "Pagamentos de execuções",
   "status.connector_runs": "Execuções de outros apps",
   "status.day7_return": "Voltaram no dia 7, porcentagem de navegadores",
   "status.active_days": "Dias com uma execução nos 7 primeiros, média",

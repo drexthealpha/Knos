@@ -189,7 +189,7 @@
   "status.sample_runs": "تشغيلات العيّنة",
   "status.own_runs": "تشغيلات الملفات الخاصة",
   "status.results_opened_elsewhere": "نتائج فُتحت في مكان آخر",
-  "status.test_payments": "مدفوعات تجريبية",
+  "status.test_payments": "مدفوعات التشغيل",
   "status.connector_runs": "تشغيلات من تطبيقات أخرى",
   "status.day7_return": "عادوا في اليوم 7، نسبة المتصفحات",
   "status.active_days": "أيام فيها تشغيل من أول 7، المتوسط",
