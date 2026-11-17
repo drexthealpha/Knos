@@ -1036,8 +1036,8 @@
   },
   "res.input": {
    "text": "Table checked",
-   "description": "The How it works fold of a result: the line above the table this result checked, since the box is left empty for the next table.",
-   "max_length": 34
+   "description": "The label above the table a result checked, in the box of a result page opened from its link.",
+   "max_length": 26
   }
  }
 }
