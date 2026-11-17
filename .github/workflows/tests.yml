@@ -11,8 +11,8 @@ name: tests
 # Cores of GitHub's standard runners, which is what `-n auto` starts (read 6 Oct 2026,
 # https://docs.github.com/en/actions/reference/runners/github-hosted-runners): public repositories ubuntu-latest 4,
 # windows-latest 4, macos-latest 3 (arm64, 7 GB); private ones 2, 2 and 3. So Ubuntu gets two shards; macOS four, since one of its three shards took 5m06s (run 43578739941, 14 Nov);
-# Windows, the slowest, four: one of its three shards took 4m18s on a slow runner (run 37628951379; 2m34s the run
-# before), over the target. pytest-xdist counts the cores itself (https://pytest-xdist.readthedocs.io/en/stable/distribution.html).
+# Windows, the slowest, five: one of its three shards took 4m18s on a slow runner (run 37628951379; 2m34s the run
+# before), over the target, and one of four took 5m20s (run 43979629880, 16 Nov). pytest-xdist counts the cores itself (https://pytest-xdist.readthedocs.io/en/stable/distribution.html).
 #
 # The suite is offline (conftest refuses every non-loopback connection) and includes the Solana programs in
 # LiteSVM, the judge on Python, Node, Go, Rust and Ruby repositories, its sandbox, and the tamper benchmark.
@@ -61,10 +61,11 @@ jobs:
           - {os: macos-latest, python: "3.12", shard: 3/4, part: 3of4}
           - {os: macos-latest, python: "3.12", shard: 4/4, part: 4of4}
           - {os: macos-latest, python: "3.12", shard: slow, part: slow}
-          - {os: windows-latest, python: "3.12", shard: 1/4, part: 1of4}
-          - {os: windows-latest, python: "3.12", shard: 2/4, part: 2of4}
-          - {os: windows-latest, python: "3.12", shard: 3/4, part: 3of4}
-          - {os: windows-latest, python: "3.12", shard: 4/4, part: 4of4}
+          - {os: windows-latest, python: "3.12", shard: 1/5, part: 1of5}
+          - {os: windows-latest, python: "3.12", shard: 2/5, part: 2of5}
+          - {os: windows-latest, python: "3.12", shard: 3/5, part: 3of5}
+          - {os: windows-latest, python: "3.12", shard: 4/5, part: 4of5}
+          - {os: windows-latest, python: "3.12", shard: 5/5, part: 5of5}
           - {os: windows-latest, python: "3.12", shard: slow, part: slow}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10

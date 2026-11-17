@@ -52,13 +52,17 @@ const TABLE = "cycle,reading\n1,3.2\n2,3.1\n3,2.9\n4,2.7";
     const here = await p.evaluate(() => ({ ran: window.__xss || 0, el: document.querySelectorAll("#xssb, img[src='x']").length, out: (document.getElementById("out") || {}).innerText || "", col: (document.getElementById("col") || {}).value }));
     const now = new URL(p.url()).pathname, link = now.startsWith("/r/") && now !== before ? p.url() : null;
     let there = { ran: 0, el: 0, shown: false };
-    if (link) { await p.goto(link); await p.waitForTimeout(500); there = await p.evaluate((h) => ({ ran: window.__xss || 0, el: document.querySelectorAll("#xssb, img[src='x']").length, shown: document.getElementById("list").value.includes(h) }), HEAD); }
+    if (link) { await p.goto(link); await p.waitForTimeout(500); there = await p.evaluate((h) => ({ ran: window.__xss || 0, el: document.querySelectorAll("#xssb, img[src='x']").length, shown: (document.getElementById("list").value + ((document.querySelector("#k-input pre") || {}).textContent || "")).includes(h) }), HEAD); }
     await p.context().close();
     const result = /^(Failed at row |Passed: all )/.test(here.out.trim());
     check(`2 typed text is never run as markup: ${s} screen`, result && here.ran === 0 && here.el === 0 && !!link && there.ran === 0 && there.el === 0 && there.shown, `the run: ${result ? "a result" : "no result"} ("${here.out.slice(0, 70).replace(/\n/g, " ")}"); on the screen: ran ${here.ran}, elements made ${here.el}; its own result page ${link ? `ran ${there.ran}, elements made ${there.el}, the markup shown as text ${there.shown}` : "not reached"}`);
   }
-  const p = await env.open("price"); const inputs = await p.evaluate(() => document.querySelectorAll("input:not([type=hidden]), textarea, [contenteditable]").length); await p.context().close();
-  check("2 typed text is never run as markup: price screen", inputs === 0, `${inputs} places to type on the price screen (the pay screen has none either)`);
+  // the price screen's one place to type is the tool's box (every screen has its main input: UX/U4.md lines 87 and 98);
+  // markup typed there and sent on to the front door's tool runs nowhere and stays text in the box
+  const p = await env.open("price"); const inputs = await p.evaluate(() => document.querySelectorAll("input:not([type=hidden]), textarea, [contenteditable]").length);
+  await p.fill("#list", `cycle,${HEAD}\n1,3`); await Promise.all([p.waitForNavigation({ waitUntil: "load" }).catch(() => {}), p.click("#try")]); await p.waitForTimeout(300);
+  const door = await p.evaluate((h) => ({ ran: window.__xss || 0, el: document.querySelectorAll("img[src='x']").length, kept: (document.getElementById("list") || {}).value === `cycle,${h}\n1,3` }), HEAD); await p.context().close();
+  check("2 typed text is never run as markup: price screen", inputs === 1 && door.ran === 0 && door.el === 0 && door.kept, `${inputs} place to type on the price screen (the tool's box); sent on to the front door: run ${door.ran}, markup elements ${door.el}, kept as text ${door.kept}`);
 }
 
 // ---- 3 an error keeps what the person entered ---------------------------------------------------------------------------

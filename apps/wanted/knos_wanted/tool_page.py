@@ -435,8 +435,12 @@ def answer_html(lang: str, r: dict, test_url: str = TEST_URL) -> str:
         ffr = r.get("first_failing_row") or 0
         ev = (h(lang, "ev.fail", r=int(ffr), column=col, value=Bdi(m[2]), limit=lim) if state == "fail" and m and m[1]
               else h(lang, "ev.pass", n=int(r.get("rows") or 0), column=col, limit=lim))
-        out += (f'<p data-evidence><span data-compare>{ev}</span> <a href="{_e(test_url)}" data-verified>{_e(t(lang, "res.shown_by"))}</a></p>'
-                f'<p data-next-step>{h(lang, "next." + state, r=int(ffr))}</p>')
+        # the first screen holds the verdict and its comparison, the row quoted from the file (U6 Rules 10 and 11); what to
+        # do next and the test behind it open the part below it, under a heading (U3 Rule 1a: three controls on the first
+        # screen; U2 R3: 40 words a section), still inside the answer, so the source stays the answer's own (U4 R12)
+        out += (f'<p data-evidence><span data-compare data-quote>{ev}</span></p>'
+                f'<div class="later"><h2>{_e(t(lang, "q.next"))}</h2><p data-next-step>{h(lang, "next." + state, r=int(ffr))}</p>'
+                f'<p><a class="src" href="{_e(test_url)}" data-verified>{_e(t(lang, "res.shown_by"))}</a></p></div>')
     return f'<div class="answer" data-answer data-verdict data-state="{state}">{out}</div>'
 
 
@@ -638,8 +642,8 @@ main{max-width:640px;margin:0 auto;padding:4px 16px 48px}
 a{color:var(--accent)}
 .top{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .brand{display:inline-flex;align-items:center;min-height:48px;min-width:48px;font-weight:700;font-size:1.25rem;color:var(--fg);text-decoration:none}
-h1{font-size:1.625rem;line-height:1.2;margin:2px 0 4px}h2{font-size:1.375rem;line-height:1.25;margin:12px 0 6px}
-.who{margin:0 0 10px;color:var(--muted)}
+h1{font-size:1.625rem;line-height:1.2;margin:2px 0 4px}h1 label{font-weight:inherit;margin:0}h2{font-size:1.375rem;line-height:1.25;margin:12px 0 6px}
+h1{font-size:2rem}.who{margin:0 0 10px;color:var(--muted)}
 label{display:block;font-weight:600;margin-bottom:4px}
 textarea{display:block;width:100%;height:6.4em;font:1.125rem/1.4 ui-monospace,Consolas,monospace;padding:8px 10px;border:2px solid var(--line);border-radius:8px;background:var(--card);color:var(--fg);resize:vertical;white-space:pre;overflow:auto}
 select,input{font:inherit;min-height:48px;max-width:100%;padding:4px 8px;border:2px solid var(--line);border-radius:8px;background:var(--card);color:var(--fg)}
@@ -654,6 +658,11 @@ button:focus-visible,textarea:focus-visible,summary:focus-visible,a:focus-visibl
 .answer{display:grid;grid-template-columns:auto 1fr;column-gap:8px;align-items:start;margin:14px 0 0}
 .answer>*{grid-column:1/-1}.answer>svg{grid-column:1;width:1.75rem;height:1.75rem;margin-block-start:2px}.answer>svg+*{grid-column:2;margin:0}
 .answer p{margin-block:6px 0;margin-inline:0}.answer[data-state=pass]>svg{color:var(--ok)}.answer[data-state=fail]>svg{color:var(--bad)}.answer[data-state=unknown]>svg{color:var(--muted)}
+.first{display:flex;flex-direction:column;min-height:100vh;min-height:100svh}
+.first:has(.later){min-height:calc(100vh + 11rem);min-height:calc(100svh + 11rem)}
+.first>#out{flex:1 0 auto;display:flex;flex-direction:column}#out>.answer{flex:1 0 auto}
+.answer:has(.later){grid-template-rows:auto auto 1fr}.later{align-self:end;min-height:11rem}.src{display:inline-flex;align-items:center;min-height:48px}.later h2{font-size:1.125rem;margin:12px 0 0}
+#k-input pre{font:1rem/1.4 ui-monospace,Consolas,monospace;white-space:pre;overflow:auto;max-height:12em;margin:0}
 .chart{display:block;width:100%;height:auto;max-height:220px;margin:10px 0 0;color:var(--fg)}
 .muted{color:var(--muted)}.bad{color:var(--bad);font-weight:600}
 .bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin:12px 0 4px}
@@ -736,7 +745,8 @@ const firstAction = () => { if (!get("knos-first")) put("knos-first", how); send
 let xhr = null, tick = null, link = D.result ? D.result.link : "", mineOn = false, said = D.result ? D.result.result : "";
 const make = (tag, text, cls) => { const e = document.createElement(tag); if (text != null) e.textContent = text; if (cls) e.className = cls; return e; };
 const btn = (text, on, primary) => { const b = make("button", text, primary ? "primary" : ""); b.type = "button"; b.addEventListener("click", on); return b; };
-const show = (...nodes) => out.replaceChildren(...nodes);
+const under = $("more");
+const show = (...nodes) => { out.replaceChildren(...nodes); under.replaceChildren(); };
 /*TABLE*/
 function fillColumns(keep) {
   const names = columnsOf(box.value), sel = $("col"), was = keep || sel.value;
@@ -784,37 +794,51 @@ function answer(r) {
   else {
     const ev = make("p"); ev.dataset.evidence = "";
     const c = st === "fail" && m && m[1] ? part("span", "ev.fail", { r: +m[1], column: col, value: m[2], limit: lim }) : part("span", "ev.pass", { n: r.rows || 0, column: col, limit: lim });
-    c.dataset.compare = "";
-    const src = make("a", T("res.shown_by")); src.href = D.test_url; src.dataset.verified = "";
-    ev.append(c, " ", src);
-    a.append(ev, part("p", "next." + st, { r: r.first_failing_row || 0 }, { "data-next-step": "" }));
+    c.dataset.compare = ""; c.dataset.quote = "";
+    const src = make("a", T("res.shown_by"), "src"); src.href = D.test_url; src.dataset.verified = "";
+    ev.append(c);
+    const later = make("div", null, "later"), sp = make("p"); sp.append(src);
+    later.append(make("h2", T("q.next")), part("p", "next." + st, { r: r.first_failing_row || 0 }, { "data-next-step": "" }), sp);
+    a.append(ev, later);
   }
   return a;
 }
-function result(r) {
+// after a verdict the box is empty and ready for the next table (U6 Rule 2); the table just checked is kept: shown under
+// the answer, and put back in the box when the person comes back to this page (section 12: going back keeps the request)
+let kept = null, fresh = false;   // fresh: the box was emptied by a verdict and not touched since
+function checked(table) { const k = $("k-input"); if (!k) return; k.querySelector("pre").textContent = table; k.hidden = false; }
+function result(r, ran) {
   link = r.link; said = r.result;
-  const nodes = [answer(r)];
+  if (box.value.trim()) { kept = { table: box.value, col: mineOn ? $("col").value : "", rule: $("rule").value, limit: $("limit").value }; box.value = ""; lab.hidden = true; }
+  const was = kept ? kept.table : D.result && D.result.input;
+  fresh = !box.value;
+  const nodes = [];
   if (r.chart && r.chart.points && r.chart.points.length) nodes.push(chartSvg(r.chart, r.first_failing_row));
-  const l = left(r); if (l) nodes.push(l);
+  const l = left(r);   // the runs left stay in the answer region, beside the run they follow
   if (r.mode === "own") nodes.push(make("p", T("res.private")));
   const row = make("div");
-  const more = [btn(T("res.mine"), mine), btn(T("res.change_limit"), changeLimit), btn(T("res.copy"), (e) => copy(e.currentTarget))];
+  // Change the limit follows the person's own run; a result someone shared offers their own data and its link (U2 R13:
+  // the first screen holds most of the page's words)
+  const PIC = { mine: '<path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6"/>', limit: '<circle cx="12" cy="12" r="8"/><path d="M12 12l4-4"/>', copy: '<path d="M10 14a4 4 0 0 0 6 0l3-3a4 4 0 0 0-6-6l-1 1"/><path d="M14 10a4 4 0 0 0-6 0l-3 3a4 4 0 0 0 6 6l1-1"/>' };
+  const more = [btn(T("res.mine"), mine), ...(ran ? [btn(T("res.change_limit"), changeLimit)] : []), btn(T("res.copy"), (e) => copy(e.currentTarget))];
   // each choice carries a picture and its word (U7 R26): a file, a dial, a link
-  const PICS = ['<path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6"/>', '<circle cx="12" cy="12" r="8"/><path d="M12 12l4-4"/>', '<path d="M10 14a4 4 0 0 0 6 0l3-3a4 4 0 0 0-6-6l-1 1"/><path d="M14 10a4 4 0 0 0-6 0l-3 3a4 4 0 0 0 6 6l1-1"/>'];
+  const PICS = [PIC.mine, ...(ran ? [PIC.limit] : []), PIC.copy];
   more.forEach((b, i) => { b.dataset.followup = ""; const s = document.createElementNS("http://www.w3.org/2000/svg", "svg"); s.setAttribute("aria-hidden", "true"); s.setAttribute("width", "18"); s.setAttribute("height", "18"); s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("fill", "none"); s.setAttribute("stroke", "currentColor"); s.setAttribute("stroke-width", "2"); s.innerHTML = PICS[i]; b.prepend(s); });
   row.append(...more);
   nodes.push(row);
-  const q = ask(); if (q) nodes.push(q);
-  show(...nodes);
+  // the counting question follows a run the person made, not the opening of a result someone shared
+  const q = ran ? ask() : null; if (q) nodes.push(q);
+  if (was) checked(was);
+  show(...[answer(r), l].filter(Boolean)); under.replaceChildren(...nodes);
   try { if (location.origin === new URL(r.link).origin && location.pathname !== new URL(r.link).pathname) history.replaceState(null, "", new URL(r.link).pathname + location.search); } catch (e) { /* another site */ }
 }
 function ownMode() {
   mineOn = true; $("own").hidden = false; $("which").hidden = false; $("colname").hidden = true; editOn();
-  lab.textContent = T("tool.paste");
+  lab.textContent = T("tool.paste"); lab.hidden = false;
   $("lims").textContent = T("tool.lim_rows", { n: D.limits.max_rows }) + " " + T("tool.lim_secs", { n: D.limits.max_seconds }); $("lims").hidden = false;
 }
-function mine() { box.value = ""; $("limit").value = ""; ownMode(); fillColumns(); show(); $("file").focus(); }
-function editOn() { $("rule-shown").hidden = true; $("rule-edit").hidden = false; }
+function mine() { box.value = ""; kept = null; fresh = false; $("limit").value = ""; ownMode(); fillColumns(); show(); $("file").focus(); }
+function editOn() { $("k-rule").hidden = false; $("rule-shown").hidden = true; $("rule-edit").hidden = false; }
 function changeLimit() { editOn(); $("limit").focus(); $("limit").select(); }
 // an error is a "cannot tell" answer (U6 Rules 15 and 17): the reason in the first person, the person's file kept in
 // the box, and a next step that leaves the error; Try again beside it where the server may answer next time
@@ -860,7 +884,13 @@ function stop() {
 }
 function run() {
   if (xhr) return;
-  const table = box.value, column = mineOn ? $("col").value : D.column, rule = $("rule").value, limit = KI.num($("limit").value);
+  // a box a verdict emptied, untouched since: Try it checks the table just checked again (the one in the fold); a box
+  // the person emptied is an empty file
+  const again = fresh && !box.value.trim() && (kept || (D.result && D.result.input ? { table: D.result.input, col: D.result.column } : null));
+  const table = again ? again.table : box.value, column = again && again.col ? again.col : mineOn ? $("col").value : D.column, rule = $("rule").value, limit = KI.num($("limit").value);
+  // a table this page just checked goes back in the box while it runs, so an error keeps it there; a shared result's table
+  // stays in the fold (the box is as the person left it)
+  if (again && again === kept) { box.value = table; fresh = false; }
   if (!table.trim()) return trouble(T("err.empty"), T("btn.back"), edit);
   if (!num(limit)) return trouble(T("err.limit"), T("btn.type_limit"), () => { show(); changeLimit(); });
   const names = columnsOf(table);
@@ -877,7 +907,7 @@ function run() {
   x.onload = () => {
     idle();
     let body = {}; try { body = JSON.parse(x.responseText); } catch (e) { body = {}; }
-    if (x.status === 200) return result(body);
+    if (x.status === 200) return result(body, true);
     if (x.status === 402 && body.pay) return payScreen(body.pay);
     if (x.status === 413) return trouble(T("err.too_big", { n: D.limits.max_rows }), T("btn.smaller"), edit);
     if (x.status === 408) return trouble(T("err.too_long", { n: D.limits.max_seconds }), T("btn.smaller"), edit);
@@ -965,7 +995,9 @@ $("file").addEventListener("change", () => {
   if (how !== "pasted") how = "pasted";   // a file put in whole, as a paste is
   const r = new FileReader(); r.onload = () => { box.value = String(r.result); fillColumns(); draftSave(); }; r.readAsText(f);
 });
-box.addEventListener("input", () => { if (mineOn) fillColumns(); });
+// on a result page the rule shows once a new table is typed in the empty box (the verdict above already says it)
+box.addEventListener("input", () => { fresh = false; $("k-rule").hidden = false; if (mineOn) fillColumns(); });
+box.addEventListener("focus", () => { fresh = false; });   // a person who goes into the empty box means an empty one
 form.addEventListener("submit", (e) => { e.preventDefault(); run(); });
 if (D.result && D.result.mode === "own") { ownMode(); fillColumns(D.result.column); }
 if (D.result) result(D.result);
@@ -973,22 +1005,24 @@ if (D.result) result(D.result);
 // or not, and from the pay screen too; kept for this tab only (sessionStorage), and a page without storage still works
 const DRAFT = "knos.draft.tool." + D.id;
 function draftSave() {
-  try { sessionStorage.setItem(DRAFT, JSON.stringify({ mine: mineOn, table: box.value, col: mineOn ? $("col").value : "", rule: $("rule").value, limit: $("limit").value })); } catch (e) { /* no storage */ }
+  const k = !box.value && kept ? kept : null;
+  try { sessionStorage.setItem(DRAFT, JSON.stringify({ mine: mineOn, table: k ? k.table : box.value, col: k ? k.col : mineOn ? $("col").value : "", rule: $("rule").value, limit: $("limit").value })); } catch (e) { /* no storage */ }
 }
-function draftLoad() {
+function draftLoad(again) {
   let nav = "", d = null;
   try { nav = (performance.getEntriesByType("navigation")[0] || {}).type || ""; } catch (e) { nav = ""; }
-  if (nav !== "back_forward" && nav !== "reload") return;
+  if (!again && nav !== "back_forward" && nav !== "reload") return;
   try { d = JSON.parse(sessionStorage.getItem(DRAFT) || "null"); } catch (e) { d = null; }
   if (!d || typeof d.table !== "string") return;
   if (d.mine && !mineOn) ownMode();
-  box.value = d.table;
+  box.value = d.table; if (d.table) $("k-rule").hidden = false;
   if (mineOn) fillColumns(String(d.col || ""));
   if ([...$("rule").options].some((o) => o.value === d.rule)) $("rule").value = d.rule;
   $("limit").value = String(d.limit == null ? "" : d.limit);
   if ($("rule").value !== $("rule").defaultValue || $("limit").value !== $("limit").defaultValue || [...$("rule").options].some((o) => o.selected !== o.defaultSelected)) editOn();
 }
 draftLoad();
+addEventListener("pageshow", (e) => { if (e.persisted) draftLoad(true); });
 for (const [el, ev] of [[box, "input"], [$("col"), "change"], [$("rule"), "change"], [$("limit"), "input"]]) el.addEventListener(ev, draftSave);
 go.addEventListener("click", draftSave);
 window.addEventListener("pagehide", draftSave);
@@ -1013,7 +1047,8 @@ window.addEventListener("pagehide", draftSave);
 
 SCRIPT_KEYS = sorted(set(keys_in(SCRIPT)) | {"rs.fail_above", "rs.fail_below", "rs.before", "rs.pass_above", "rs.pass_below",
                                                 "rs.skipped", "chart.label", "chart.label_fail", "chart.row", "fold.listen", "stop", "rs.unknown",
-                                                "next.pass", "next.fail", "next.unknown", "ev.pass", "ev.fail", "why.unknown", "theme.dark", "theme.light"}) if (ROOT / "web" / "i18n" / "en.json").is_file() else []
+                                                "next.pass", "next.fail", "next.unknown", "ev.pass", "ev.fail", "why.unknown", "theme.dark", "theme.light",
+                                                "q.next", "res.input", "tool.paste"}) if (ROOT / "web" / "i18n" / "en.json").is_file() else []
 
 
 def _e(s) -> str:
@@ -1039,7 +1074,7 @@ addEventListener("DOMContentLoaded", () => { const o = document.getElementById("
 
 
 def page(tool: dict, base: str, result: dict | None = None, front: str = "https://drexthealpha.github.io/Knos/", lang: str = "en",
-         test: bool = False, sent: dict | None = None) -> str:
+         test: bool = False, sent: dict | None = None, lite: bool = False) -> str:
     """One tool page (/t/<id>/) or one result page (/r/<id>/) in one language: the og tags first, then the tool, then
     its fold, which opens with the five answers (H3 f). The result sentence is in the first response, so it shows with
     scripts blocked (H3 e). The tool is a form too: with no script, Try it posts it to /t/<id>/run (tool_run.form_run),
@@ -1052,7 +1087,8 @@ def page(tool: dict, base: str, result: dict | None = None, front: str = "https:
     title = t(L, "tool.title")
     desc = first_sentence(sentence(L, result["result"], as_html=False)) if result else t(L, "tool.line")
     sent = sent or {}
-    text = sent["table"] if "table" in sent else result["input"] if result else tool["sample"]
+    # a result page offers the box empty, for the next table (U6 Rule 2); the checked table is shown under the answer
+    text = sent["table"] if "table" in sent else "" if result else tool["sample"]
     own = bool(result and result.get("mode") == "own")
     column = sent.get("column") or (result["column"] if result else tool["column"])
     rule = sent.get("rule") or (result["rule"] if result else tool["rule"])
@@ -1066,19 +1102,21 @@ def page(tool: dict, base: str, result: dict | None = None, front: str = "https:
             "lang": L, "langs": list(LANGS), "t": strings_for(L, SCRIPT_KEYS),
             "icons": {st: icon(L, st) for st in STATES}, "test_url": TEST_URL,
             "result": result and {**{k: result.get(k) for k in ("result", "first_failing_row", "rows", "skipped", "shown_by", "link",
-                                                                 "mode", "chart", "column", "rule", "limit")}, "verdict": verdict_of(result)}}
-    ssr = sent.get("error_html", "")
+                                                                 "mode", "chart", "column", "rule", "limit", "input")}, "verdict": verdict_of(result)}}
+    ssr, below = sent.get("error_html", ""), ""
     if result:
-        ssr = (answer_html(L, result)
-               + (f'<p>{_e(t(L, "res.private"))}</p>' if own else "")
-               + (f'<p class="muted">{_e(t(L, "res.cut", shown=nf(L, result["shown_lines"]), n=result["lines"]))}</p>' if result.get("cut") else ""))
+        ssr = answer_html(L, result)
+        below = ((f'<p>{_e(t(L, "res.private"))}</p>' if own else "")
+                 + (f'<p class="muted">{_e(t(L, "res.cut", shown=nf(L, result["shown_lines"]), n=result["lines"]))}</p>' if result.get("cut") else ""))
     blob = json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
     items = "".join(f"<li>{x}</li>" for x in fold_items(L, f))
-    extra = ""
+    # the table a result checked, in the fold (the box itself is empty, for the next table: U6 Rule 2)
+    extra = (f'<div id="k-input"{"" if result else " hidden"}><p class="muted">{_e(t(L, "res.input"))}</p>'
+             f'<pre data-user-content dir="auto">{_e((result or {}).get("input") or "")}</pre></div>')
     if result:
         line = (f'<iframe src="{base}/r/{rid}/mark" width="360" height="180" style="border:0" '
                 f'title="{t(L, "embed.title")}" loading="lazy"></iframe>')
-        extra = (f'<p class="fold-links"><button type="button" id="listen" hidden>{_e(t(L, "fold.listen"))}</button>'
+        extra += (f'<p class="fold-links"><button type="button" id="listen" hidden>{_e(t(L, "fold.listen"))}</button>'
                  f'<a href="#k-embed">{_e(t(L, "fold.embed"))}</a><a href="{_e(base)}/r/{_e(rid)}/print">{_e(t(L, "fold.print"))}</a></p>'
                  f'<p id="k-embed" class="tgt"><label for="k-embed-line">{_e(t(L, "fold.embed_label"))}</label>'
                  f'<input id="k-embed-line" readonly dir="auto" value="{_e(line)}"></p>'
@@ -1089,7 +1127,12 @@ def page(tool: dict, base: str, result: dict | None = None, front: str = "https:
     alt = "".join(f'<link rel="alternate" hreflang="{c}" href="{_e(url)}?lang={c}">' for c in LANGS)
     # a tool page or a sample's result is kept for a visit with no network (tool_run.OFFLINE_SW); a result from a person's
     # own file registers nothing and is never kept
-    worker = "" if own else f"<script>{OFFLINE_JS}</script>\n"
+    # with Save-Data on (lite) the page comes without its script: the form runs on the server, as with scripts off (U7 R25)
+    worker = "" if own or lite else f"<script>{OFFLINE_JS}</script>\n"
+    # with no script, an empty box sent from a result page checks that result's table again (tool_run.form_run)
+    again = f'<input type="hidden" dir="auto" name="again" value="{_e(rid)}">' if rid and not sent else ""
+    scripts = "" if lite else (f'<script type="application/json" id="k-tool">{blob}</script>\n'
+                               f"<script>{I18N_JS}\n{SCRIPT}\n{THEME_JS}</script>")
     return f"""<!doctype html>
 <html lang="{L}" dir="{meta(L)['dir']}">
 <head>
@@ -1113,22 +1156,25 @@ def page(tool: dict, base: str, result: dict | None = None, front: str = "https:
 </head>
 <body>
 <main>
+<div class="first">
 <div class="top"><span class="brand" data-no-mirror>Knos</span>{switcher(L)}{warm_names()}</div>
-<h1>{_e(title)}</h1>
+<h1><label for="list" id="k-name">{_e(title)}</label></h1>
 <p class="who" id="k-offline" role="status" hidden>{_e(t(L, "offline.line"))}</p>
 <form id="tool" method="post" action="{_e(base)}/t/{_e(tool['id'])}/run">
-<input type="hidden" dir="auto" name="lang" value="{L}"><input type="hidden" dir="auto" name="column" value="{_e(column)}">{'<input type="hidden" dir="auto" name="test" value="1">' if test else ""}
+<input type="hidden" dir="auto" name="lang" value="{L}">{again}<input type="hidden" dir="auto" name="column" value="{_e(column)}">{'<input type="hidden" dir="auto" name="test" value="1">' if test else ""}
 <button id="go" class="primary" type="submit" data-primary><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg><span id="go-label">{_e(t(L, "tool.try"))}</span></button>
 <div id="own" class="field" hidden><label for="file">{_e(t(L, "tool.choose_file"))}</label><input id="file" type="file" dir="auto" accept=".csv,text/csv,text/plain"></div>
-<label id="lab" for="list">{_e(t(L, "tool.paste")) if own else _e(label)}</label>
+<label id="lab" for="list"{" hidden" if result and not own else ""}>{_e(t(L, "tool.paste")) if own or result else _e(label)}</label>
 <textarea id="list" dir="auto" name="table" spellcheck="false" autocomplete="off" wrap="off">{_e(text)}</textarea>
 <div id="which" class="field" hidden><label for="col">{_e(t(L, "tool.which"))}</label><select id="col" dir="auto"></select></div>
-<p class="rule"><span id="colname" data-user-content><bdi>{_e(column)}</bdi></span> <span id="rule-shown"{" hidden" if edit else ""}>{_e(t(L, "rule." + rule))} <bdi data-no-mirror>{_e(limit)}</bdi></span><span id="rule-edit"{"" if edit else " hidden"}><label for="rule">{_e(t(L, "tool.rule_label"))}</label> <select id="rule" name="rule" aria-label="{_e(t(L, "tool.rule_label"))}">{opts}</select> <label for="limit">{_e(t(L, "tool.limit_label"))}</label> <input id="limit" dir="auto" name="limit" inputmode="decimal" autocomplete="off" aria-label="{_e(t(L, "tool.limit_label"))}" value="{_e(limit)}"></span></p>
+<p class="rule" id="k-rule"{" hidden" if result and not own and not edit else ""}><span id="colname" data-user-content><bdi>{_e(column)}</bdi></span> <span id="rule-shown"{" hidden" if edit else ""}>{_e(t(L, "rule." + rule))} <bdi data-no-mirror>{_e(limit)}</bdi></span><span id="rule-edit"{"" if edit else " hidden"}><label for="rule">{_e(t(L, "tool.rule_label"))}</label> <select id="rule" name="rule" aria-label="{_e(t(L, "tool.rule_label"))}">{opts}</select> <label for="limit">{_e(t(L, "tool.limit_label"))}</label> <input id="limit" dir="auto" name="limit" inputmode="decimal" autocomplete="off" aria-label="{_e(t(L, "tool.limit_label"))}" value="{_e(limit)}"></span></p>
 <p id="lims" class="muted" hidden></p>
 </form>
 <section id="pay" hidden></section>
 <div id="out" aria-live="polite" data-state="{'done' if result else 'ready'}">{ssr}</div>
-<p class="who" id="who">{_e(t(L, "tool.line"))}</p>
+</div>
+<div id="more">{below}</div>
+<p class="who" id="who"{" hidden" if result else ""}>{_e(t(L, "tool.line"))}</p>
 <details>
 <summary>{_e(t(L, "how"))}</summary>
 {five(L, answers(L, "result" if result else "tool", f))}
@@ -1137,10 +1183,7 @@ def page(tool: dict, base: str, result: dict | None = None, front: str = "https:
 </details>
 <div class="home"><a href="{_e(front)}" data-no-mirror>Knos</a> <button type="button" id="theme" hidden><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg><span id="theme-label"></span></button></div>
 </main>
-<script type="application/json" id="k-tool">{blob}</script>
-<script>{I18N_JS}
-{SCRIPT}
-{THEME_JS}</script>
+{scripts}
 </body>
 </html>"""
 

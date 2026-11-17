@@ -243,7 +243,8 @@ check("C4: one more run after the test payment", paidRun.about.startsWith("Faile
 
 // ---- A6: a slow run, and Stop ------------------------------------------------------------------------------------------
 s.delay = 4000;
-const kept = await page.evaluate(() => document.getElementById("list").value);
+// after a verdict the box is empty (UX/U6.md line 33) and Try it checks the same table again, putting it back in the box
+const kept = await page.evaluate(() => document.getElementById("list").value) || FILE2.text.replace(/\r\n/g, "\n");
 await page.click("#try");
 await page.waitForTimeout(1300);
 const slow = await page.evaluate(() => ({ spin: !document.getElementById("spin").hidden, stop: !!document.getElementById("stop").offsetParent, step: document.getElementById("step").textContent,

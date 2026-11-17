@@ -1,26 +1,26 @@
 {
  "_source": "scripts/site_lang_factor.py: the words of each web/i18n file (Intl.Segmenter, word-like segments) divided by the words of en.json; U3 Rule 14",
  "words": {
-  "ar": 1467,
-  "en": 1738,
+  "ar": 1469,
+  "en": 1740,
   "es": 1820,
   "fr": 1891,
-  "hi": 1953,
-  "id": 1565,
-  "pt": 1784,
+  "hi": 1954,
+  "id": 1566,
+  "pt": 1785,
   "ru": 1508,
-  "sw": 1572,
-  "zh-Hans": 1810
+  "sw": 1573,
+  "zh-Hans": 1811
  },
  "factor": {
   "ar": 0.844,
   "en": 1.0,
-  "es": 1.047,
-  "fr": 1.088,
-  "hi": 1.124,
+  "es": 1.046,
+  "fr": 1.087,
+  "hi": 1.123,
   "id": 0.9,
   "pt": 1.026,
-  "ru": 0.868,
+  "ru": 0.867,
   "sw": 0.904,
   "zh-Hans": 1.041
  }

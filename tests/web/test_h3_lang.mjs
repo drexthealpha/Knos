@@ -182,6 +182,7 @@ for (const lang of ["en", "ar", "hi", "zh-Hans"]) for (const screen of ["door", 
 }
 for (const lang of ["en", "fr"]) {
   const { ctx, page } = await open(lang, S.screens.door, { init: SPEECH });
+  await page.evaluate(() => { document.getElementById("ask-box").open = true; });   // the question box's fold
   const vis = await page.evaluate(() => !document.getElementById("speak").hidden);
   await page.click("#speak");
   const label = await page.evaluate(() => document.getElementById("speak").textContent);

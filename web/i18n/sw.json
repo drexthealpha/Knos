@@ -207,7 +207,7 @@
   "fold.mt": "Ukurasa huu umetafsiriwa na mashine na haujakaguliwa na mzungumzaji asilia.",
   "fold.original": "Maneno ya programu yenyewe, kwa Kiingereza: {text}",
   "embed.title": "Matokeo ya Knos",
-  "ask.h": "Uliza chochote kuhusu utafiti",
+  "ask.h": "Uliza kuhusu utafiti",
   "ask.label": "Swali lako",
   "ask.ph": "Swali au kiungo cha makala",
   "ask.go": "Uliza",
@@ -287,6 +287,7 @@
   "act.undo": "Tendua",
   "act.undone": "Malipo ya majaribio yametenduliwa. Hakuna kilichotozwa.",
   "act.undo_error": "Sikuweza kutendua malipo ya majaribio, kwa sababu baadhi ya matumizi yake yameshatumika. Hakuna kilichotozwa.",
-  "offline.line": "Huna mtandao. Ukurasa huu ulihifadhiwa kutoka ziara yako ya mwisho."
+  "offline.line": "Huna mtandao. Ukurasa huu ulihifadhiwa kutoka ziara yako ya mwisho.",
+  "res.input": "Jedwali lililokaguliwa"
  }
 }

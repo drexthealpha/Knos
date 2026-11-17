@@ -206,7 +206,7 @@ def test_the_company_count_on_a_public_page_is_the_scorecard_summary(site: Path)
 
 def test_the_front_door_has_one_h1_and_keeps_the_question_box_below_the_tool(site: Path) -> None:
     door = (site / "index.html").read_text(encoding="utf-8")
-    assert door.count("<h1") == 1 and "<h1>What can you do with Knos?</h1>" in door
+    assert door.count("<h1") == 1 and "<h1><label for=\"list\" id=\"k-name\">What can you do with Knos?</label></h1>" in door
     assert door.index('id="tool"') < door.index('id="ask-box"') and 'id="paper"' in door and 'id="sample"' in door
     assert '<p class="kgoal">The goal: ' in door                                      # the goal, one press away: the menu
     assert '<h2 id="t-title">Check a test file against a limit</h2>' in door

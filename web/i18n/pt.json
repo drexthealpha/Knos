@@ -229,7 +229,7 @@
   "fold.mt": "Esta página foi traduzida por máquina e não foi revisada por um falante nativo.",
   "fold.original": "As palavras do próprio programa, em inglês: {text}",
   "embed.title": "Um resultado do Knos",
-  "ask.h": "Pergunte qualquer coisa sobre pesquisa",
+  "ask.h": "Pergunte sobre pesquisa",
   "ask.label": "Sua pergunta",
   "ask.ph": "Uma pergunta ou o link de um artigo",
   "ask.go": "Perguntar",
@@ -314,6 +314,7 @@
   "act.undo": "Desfazer",
   "act.undone": "O pagamento de teste foi desfeito. Nada foi cobrado.",
   "act.undo_error": "Não consegui desfazer o pagamento de teste, porque algumas das suas execuções já foram usadas. Nada foi cobrado.",
-  "offline.line": "Você está sem conexão. Esta página foi guardada da sua última visita."
+  "offline.line": "Você está sem conexão. Esta página foi guardada da sua última visita.",
+  "res.input": "A tabela verificada"
  }
 }

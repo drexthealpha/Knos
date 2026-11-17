@@ -75,7 +75,13 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
 .kh nav a:hover, .kh nav a[aria-current] { text-decoration: underline; }
 .how summary { display: inline-flex; align-items: center; min-height: 44px; cursor: pointer; text-decoration: underline; }
 .klang-list.kwarm{display:block;position:absolute;visibility:hidden;inline-size:1px;block-size:1px;overflow:hidden;padding:0;border:0}.klang-list.kwarm>span{position:absolute;inset-inline-start:0;inset-block-start:0}.klang{position:relative}.klang details{margin:0;padding:0;border:0}.klang summary{display:inline-flex;align-items:center;gap:6px;min-height:48px;min-width:48px;padding:0 10px;cursor:pointer;list-style:none;border:2px solid var(--line);border-radius:10px;font-size:1rem;font-weight:400}.klang details summary::before{content:none}.klang summary::-webkit-details-marker{display:none}.klang-list{position:absolute;inset-inline-end:0;top:50px;z-index:40;display:flex;flex-direction:column;min-width:min(11em,calc(100vw - 32px));max-width:calc(100vw - 32px);padding:6px 10px;background:var(--paper-2,var(--card));border:1px solid var(--line);border-radius:10px}.klang-list a{display:flex;align-items:center;min-height:48px;color:inherit;text-decoration:none}.klang-list a[aria-current]{font-weight:700}details:not([open])>:not(summary){display:none}:lang(ar){line-height:1.65}:lang(hi){line-height:1.85}.five dt{font-weight:700;margin:10px 0 0}.five dd{margin:0}.tgt{display:none}.tgt:target{display:block}
-body { font-size: 1.125rem; }
+body { font-size: 1.125rem; overflow-wrap: anywhere; }
+.first { min-height: calc(100vh - 48px); min-height: calc(100svh - 48px); }
+.trybox { display: flex; flex-direction: column; }
+.trybox label { order: 1; font-weight: 600; margin: 4px 0; font-size: 1.125rem; }
+.trybox textarea { order: 2; display: block; width: 100%; box-sizing: border-box; font: 1.125rem/1.4 ui-monospace, Consolas, monospace;
+  padding: 8px 10px; border: 2px solid var(--ink-2); border-radius: 8px; background: var(--paper); color: var(--ink); resize: vertical; white-space: pre; overflow: auto; height: 3em; }
+.trybox .btn.go { order: 3; border: 2px solid transparent; font: inherit; font-weight: 600; cursor: pointer; }
 main { min-height: calc(100vh - 64px); min-height: calc(100svh - 64px); box-sizing: border-box; }
 main code { font-family: ui-monospace, Consolas, monospace; }
 main th, main td { border-bottom: 0; padding-block: 8px; padding-inline: 0 8px; }
@@ -99,10 +105,10 @@ footer a { min-height: 48px; min-width: 48px; margin: 0; }
 .kfoot .kmenu-panel { position: static; margin: 8px 0 0; max-width: none; }
 #theme { min-height: 48px; min-width: 48px; padding: 0 16px; font: 500 1.125rem/1.5 var(--text); color: var(--ink); background: transparent; border: 2px solid var(--ink-2); border-radius: 10px; cursor: pointer; }
 #theme:focus-visible, .kmenu > summary:focus-visible, .klang summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
-a.k-going { opacity: .6; cursor: progress; }
+a.k-going, button.k-going { opacity: .6; cursor: progress; }
 .klang-list.kwarm { display: block; position: absolute; visibility: hidden; inline-size: 1px; block-size: 1px; overflow: hidden; padding: 0; border: 0; }
 .klang-list.kwarm > span { position: absolute; inset-inline-start: 0; inset-block-start: 0; }
-#ask-box, body > footer { content-visibility: auto; contain-intrinsic-size: auto 480px; }
+body > footer { content-visibility: auto; contain-intrinsic-size: auto 480px; }
 :root:lang(hi) p, :root:lang(hi) li, :root:lang(hi) dd { line-height: 1.85; }
 :root:lang(ar) p, :root:lang(ar) li, :root:lang(ar) dd { line-height: 1.6; }
 </style>
@@ -114,10 +120,178 @@ a.k-going { opacity: .6; cursor: progress; }
   <span class="klang-list kwarm" aria-hidden="true"><span lang="en">English</span><span lang="ar">العربية</span><span lang="hi">हिन्दी</span><span lang="es">español</span><span lang="fr">français</span><span lang="pt">português</span><span lang="zh-Hans">简体中文</span><span lang="id">Indonesia</span><span lang="sw">Kiswahili</span><span lang="ru">русский</span></span>
 </header>
 <main>
-<h1>Status</h1>
+<div class="first"><h1>Status</h1>
 <table id="use"><tbody><tr><th>Tool opened</th><td class="n" data-count="tools_opened">0</td></tr><tr><th>Sample runs</th><td class="n" data-count="sample_runs">0</td></tr><tr><th>Own-file runs</th><td class="n" data-count="own_runs">0</td></tr><tr><th>Results opened elsewhere</th><td class="n" data-count="results_opened_elsewhere">0</td></tr><tr><th>Test payments</th><td class="n" data-count="test_payments">0</td></tr><tr><th>Connector runs</th><td class="n" data-count="connector_runs">0</td></tr></tbody></table>
-<a class="btn go" id="try" href="../#tool" data-primary data-main-action><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" data-no-mirror><path d="M8 5v14l11-7z"/></svg>Try it</a>
-<p class="fine" id="use-when"><!--k:status.when {"at": "\u20662026-11-16 10:45 UTC\u2069"}-->Counted to ⁦2026-11-16 10:45 UTC⁩, without Knos's own tests.<!--/k--></p>
+<form class="trybox" id="trybox" method="post" action="https://knos.onrender.com/t/limit-check/run" data-to="../#tool"><input type="hidden" name="column" value="capacity_ah" dir="auto"><input type="hidden" name="rule" value="above" dir="auto"><input type="hidden" name="limit" value="1.4" dir="auto"><button class="btn go" id="try" type="submit" data-primary data-main-action><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" data-no-mirror><path d="M8 5v14l11-7z"/></svg>Try it</button><label for="list">Sample: made-up battery test</label><textarea id="list" name="table" rows="2" dir="auto" wrap="off" spellcheck="false" autocomplete="off">cycle,capacity_ah
+1,1.86
+2,1.857
+3,1.853
+4,1.85
+5,1.846
+6,1.843
+7,1.84
+8,1.836
+9,1.833
+10,1.829
+11,1.826
+12,1.822
+13,1.819
+14,1.816
+15,1.812
+16,1.809
+17,1.805
+18,1.802
+19,1.799
+20,1.795
+21,1.792
+22,1.788
+23,1.785
+24,1.781
+25,1.778
+26,1.775
+27,1.771
+28,1.768
+29,1.764
+30,1.761
+31,1.758
+32,1.754
+33,1.751
+34,1.747
+35,1.744
+36,1.741
+37,1.737
+38,1.734
+39,1.73
+40,1.727
+41,1.723
+42,1.72
+43,1.717
+44,1.713
+45,1.71
+46,1.706
+47,1.703
+48,1.7
+49,1.696
+50,1.693
+51,1.689
+52,1.686
+53,1.683
+54,1.679
+55,1.676
+56,1.672
+57,1.669
+58,1.665
+59,1.662
+60,1.659
+61,1.655
+62,1.652
+63,1.648
+64,1.645
+65,1.642
+66,1.638
+67,1.635
+68,1.631
+69,1.628
+70,1.624
+71,1.621
+72,1.618
+73,1.614
+74,1.611
+75,1.607
+76,1.604
+77,1.601
+78,1.597
+79,1.594
+80,1.59
+81,1.587
+82,1.584
+83,1.58
+84,1.577
+85,1.573
+86,1.57
+87,1.566
+88,1.563
+89,1.56
+90,1.556
+91,1.553
+92,1.549
+93,1.546
+94,1.543
+95,1.539
+96,1.536
+97,1.532
+98,1.529
+99,1.526
+100,1.522
+101,1.519
+102,1.515
+103,1.512
+104,1.508
+105,1.505
+106,1.502
+107,1.498
+108,1.495
+109,1.491
+110,1.488
+111,1.485
+112,1.481
+113,1.478
+114,1.474
+115,1.471
+116,1.467
+117,1.464
+118,1.461
+119,1.457
+120,1.454
+121,1.45
+122,1.447
+123,1.444
+124,1.44
+125,1.437
+126,1.433
+127,1.43
+128,1.427
+129,1.423
+130,1.42
+131,1.416
+132,1.413
+133,1.409
+134,1.406
+135,1.403
+136,1.399
+137,1.396
+138,1.392
+139,1.389
+140,1.386
+141,1.382
+142,1.379
+143,1.375
+144,1.372
+145,1.369
+146,1.365
+147,1.362
+148,1.358
+149,1.355
+150,1.351
+151,1.348
+152,1.345
+153,1.341
+154,1.338
+155,1.334
+156,1.331
+157,1.328
+158,1.324
+159,1.321
+160,1.317
+161,1.314
+162,1.31
+163,1.307
+164,1.304
+165,1.3
+166,1.297
+167,1.293
+168,1.29</textarea></form>
+<p class="fine" id="use-when"><!--k:status.when {"at": "\u20662026-11-16 10:45 UTC\u2069"}-->Counted to ⁦2026-11-16 10:45 UTC⁩, without Knos's own tests.<!--/k--></p></div>
 <details class="how"><summary>How it works</summary>
 <table id="meas"><tbody><tr><th>Came back on day 7, percent of browsers</th><td class="n" data-measure="day7_return">not enough browsers yet</td></tr><tr><th>Days with a run in the first 7, average</th><td class="n" data-measure="active_days">not enough browsers yet</td></tr><tr><th>Paid after the free runs ran out, percent of browsers</th><td class="n" data-measure="paying_share">not enough browsers yet</td></tr></tbody></table>
 <p><a href="../data/usage.json">The data file</a></p><p data-mt hidden></p>
@@ -170,7 +344,7 @@ window.KI = window.KI || (() => {
   return { set(l, s) { L = l; S = s || S; idle(warm); on.forEach((f) => f()); }, lang: () => L, has: (k) => S[k] != null, t, html, esc, nf, money, plural, sentence, num, speech, changed: (f) => on.push(f) };
 })();
 (() => {
-  const EN = {"lang.label": "Language", "menu": "Menu", "goal": "The goal: Knos turns any research into a product billions of people use, in days, not years.", "nav.claims": "Claims", "nav.papers": "Papers", "nav.builders": "Builders", "nav.labs": "Labs", "nav.prs": "Pull requests", "nav.pricing": "Pricing", "nav.status": "Status", "nav.source": "Source", "nav.privacy": "Privacy", "foot.door": "Test money, no customers yet.", "foot.pages": "Test money only, no customers yet.", "door.title": "Knos: check a test file against a limit", "door.headline": "What can you do with Knos?", "tool.title": "Check a test file against a limit", "tool.line": "For anyone who tests batteries, motors, parts or machines.", "tool.sample_made_up": "Sample: made-up battery test", "tool.sample_nasa": "Sample: NASA battery test", "tool.choose_file": "Choose a file", "tool.paste": "Or paste a table", "tool.which": "Which column?", "tool.rule_label": "The rule", "tool.limit_label": "The limit", "rule.above": "must stay above", "rule.below": "must stay below", "tool.try": "Try it", "tool.checking": "Checking", "tool.lim_rows": {"one": "Up to {n} row.", "other": "Up to {n} rows."}, "tool.lim_secs": {"one": "A run stops after {n} second.", "other": "A run stops after {n} seconds."}, "work.sending": "Sending your file to Knos", "work.sending_pct": "Sending your file to Knos: {p}%", "work.checking": "Checking your file on the Knos server", "work.waking": "Waiting for Knos's server, which may be waking up", "work.still": "Still waiting for the result from Knos's server", "work.secs": "{what}, {n} s", "stop": "Stop", "err.empty": "Your file is empty, so I have nothing to check yet. Choose a file or paste a table, then press Try it.", "err.limit": "I need the limit as a number, such as 1.4, before I can check your file. Please type it, then press Try it.", "err.stopped": "I stopped the check. Your file is still in the box, so you can change it or try again.", "err.reach": "I could not reach Knos's server. It may be waking up. Your file is still in the box, so press Try again in a moment.", "err.none": "I could not get a result from Knos's server just now. Your file is still in the box, so press Try again in a moment.", "err.too_big": {"one": "Your file is too big. The limit is {n} row. I kept your file in the box; try a shorter one.", "other": "Your file is too big. The limit is {n} rows. I kept your file in the box; try a shorter one."}, "err.too_long": {"one": "This took too long and was stopped. Try a smaller file. I stopped it after {n} second and kept your file in the box.", "other": "This took too long and was stopped. Try a smaller file. I stopped it after {n} seconds and kept your file in the box."}, "err.not_ready": "I cannot check files yet, because the program for this tool has not passed the test that decides it works. Please try again later.", "err.bad": "I could not read your file with these settings. Check the column and the limit; your file is still in the box.", "btn.retry": "Try again", "btn.smaller": "Try a smaller file", "btn.type_limit": "Type the limit", "btn.back": "Back to my file", "res.private": "Only people with this link can see it.", "res.shown_by": "Checked by a test of 7 files with known answers.", "res.mine": "Use my data", "res.copy": "Copy link", "res.copied": "Copied", "res.by_hand": "I could not copy the link. Here it is, to copy by hand:", "res.link_label": "The result's link", "res.count_q": "Count my visits to help improve Knos?", "yes": "Yes", "no": "No", "res.runs_left": {"one": "{n} run left", "other": "{n} runs left"}, "res.free_left": {"one": "{n} free run left today", "other": "{n} free runs left today"}, "chart.label": "Chart of the values with the limit", "chart.label_fail": "Chart of the values with the limit, the first failing row marked", "chart.row": "Row {r}", "rs.fail_above": "Failed at row {r}: {value} is not above {limit}.", "rs.fail_below": "Failed at row {r}: {value} is not below {limit}.", "rs.before": {"one": "It passed for the {n} rows before that.", "other": "It passed for the {n} rows before that."}, "rs.pass_above": {"one": "Passed: all {n} rows stay above {limit}.", "other": "Passed: all {n} rows stay above {limit}."}, "rs.pass_below": {"one": "Passed: all {n} rows stay below {limit}.", "other": "Passed: all {n} rows stay below {limit}."}, "rs.skipped": {"one": "{n} rows were skipped because they are not numbers.", "other": "{n} rows were skipped because they are not numbers."}, "pay.headline": {"one": "{n} more run for {price} in test money", "other": "{n} more runs for {price} in test money"}, "pay.line": "Today this is test money. Nothing is charged.", "pay.go": "Pay with test money", "pay.not_now": "Not now", "pay.confirm": {"one": "This records a {price} test payment for {n} more run. Nothing is charged.", "other": "This records a {price} test payment for {n} more runs. Nothing is charged."}, "pay.yes": "Yes, record it", "pay.recording": "Recording the test payment", "pay.error": "I could not record the test payment just now. Nothing was charged. Press Yes, record it again in a moment.", "how": "How it works", "price.sample": "The sample", "price.free": "Free", "theme.dark": "Dark theme", "theme.light": "Light theme", "res.change_limit": "Change the limit", "work.bar": "Seconds waited", "status.title": "Knos status", "status.tools_opened": "Tool opened", "status.sample_runs": "Sample runs", "status.own_runs": "Own-file runs", "status.results_opened_elsewhere": "Results opened elsewhere", "status.test_payments": "Test payments", "status.connector_runs": "Connector runs", "status.day7_return": "Came back on day 7, percent of browsers", "status.active_days": "Days with a run in the first 7, average", "status.paying_share": "Paid after the free runs ran out, percent of browsers", "status.too_few": "not enough browsers yet", "status.when": "Counted to {at}, without Knos's own tests.", "status.none": "No count has been read from Knos's server yet.", "status.file": "The data file", "q.get": "What you get", "q.next": "What to do next", "q.pay": "What you pay", "q.why": "Why believe this", "q.who": "Who is responsible", "a.tool.get": "One sentence that names the first row breaking your limit, or says every row passed, with a chart and a link to it.", "a.tool.next": "Press Try it to check the sample. For your own file, press Use my data and fill in its three boxes.", "a.res.get": "This result: the sentence and chart above, kept at this page's link. A sample result is public; one from your own file is not listed.", "a.res.next": "Press Copy link to share this result, or Use my data to check your own file.", "a.pay": {"one": "Sample runs are free. Own files: {free} free runs a day, then {price} in test money for {n} more, paid by you after you confirm.", "other": "Sample runs are free. Own files: {free} free runs a day, then {price} in test money for {n} more, paid by you after you confirm."}, "a.why_released": {"one": "A public test of 7 files with known answers passed before release; Knos's checker ran it. Not tested: files over {n} row.", "other": "A public test of 7 files with known answers passed before release; Knos's checker ran it. Not tested: files over {n} rows."}, "a.why_unreleased": {"one": "A public test of 7 files with known answers must pass before release; Knos's checker runs it. Not tested: files over {n} row.", "other": "A public test of 7 files with known answers must pass before release; Knos's checker runs it. Not tested: files over {n} rows."}, "a.tool.who": "Knos runs this tool and its test. No date is set for the next update. To challenge a result, <a href=\"{issues}\">open an issue on GitHub<\/a>.", "a.price.get": {"one": "{n} more run of the tool on your own files, once your {free} free runs of the day are used.", "other": "{n} more runs of the tool on your own files, once your {free} free runs of the day are used."}, "a.price.next": "Use the tool. When your free runs end, it shows Pay with test money; press it, then confirm.", "a.price.pay": {"one": "{price} in test money for {n} run, paid by you, once, after you confirm. Nothing is charged today; no card or account is asked.", "other": "{price} in test money for {n} runs, paid by you, once, after you confirm. Nothing is charged today; no card or account is asked."}, "a.price.why": "Prices: untested starting values, marked so in the <a href=\"{url}\">pricing file<\/a>. The tool passed its <a href=\"{test}\">public test<\/a> before release; Knos's checker ran it.", "a.price.who": "Knos delivers the runs; its checker ran the tool's test. No date is set for the next update. To challenge, <a href=\"{issues}\">open an issue on GitHub<\/a>.", "fold.sample_made_up": {"one": "The sample is made up: a straight line from {first} to {last} over {n} cycle, because NASA's page offers no download from a nasa.gov address. Its limit, {limit}, is the end-of-life rule on <a href=\"{url}\">NASA's battery data page<\/a>.", "other": "The sample is made up: a straight line from {first} to {last} over {n} cycles, because NASA's page offers no download from a nasa.gov address. Its limit, {limit}, is the end-of-life rule on <a href=\"{url}\">NASA's battery data page<\/a>."}, "fold.sample_nasa": "Sample data: <a href=\"{url}\">NASA Prognostics Center of Excellence<\/a>.", "fold.not_do": "It checks one column against one limit. It does not judge whether the limit is the right one. A row whose value is not a number is skipped and counted.", "fold.file": "Your file goes to Knos's server, which checks it and keeps it with its result page, so the link works. A sample result can be opened by anyone. Your own file can be opened only by people who have its link, and it is never listed. The server keeps results only until it is next rebuilt, so a link can stop working.", "fold.test": {"one": "The test that showed it works checks six made-up files with known answers and the sample. It did not cover files longer than {n} row, or files separated by anything other than commas. <a href=\"{url}\">The test<\/a> is public.", "other": "The test that showed it works checks six made-up files with known answers and the sample. It did not cover files longer than {n} rows, or files separated by anything other than commas. <a href=\"{url}\">The test<\/a> is public."}, "fold.price": {"one": "Runs on the sample are free. Runs on your own file: {free} free a day, then {n} more run for {price} in test money. Today nothing is charged.", "other": "Runs on the sample are free. Runs on your own file: {free} free a day, then {n} more runs for {price} in test money. Today nothing is charged."}, "fold.built_released": "Who built it: AI helpers wrote the program through Knos, and it was released only when that test passed. <a href=\"{url}\">The public record<\/a>.", "fold.built_unreleased": "Who built it: AI helpers write the program through Knos, and it is released only when that test passes. It has not been released yet.", "fold.listen": "Listen", "fold.embed": "Show this on your site", "fold.embed_label": "One line of HTML to copy onto your site", "fold.print": "Print", "fold.mt": "This page was machine translated and has not been reviewed by a native speaker.", "fold.original": "The program's own words, in English: {text}", "embed.title": "A Knos result", "ask.h": "Ask anything about research", "ask.label": "Your question", "ask.ph": "A question or a paper's link", "ask.go": "Ask", "ask.speak": "Speak", "ask.listening": "Listening", "ask.sample": "Sample question", "ask.cost": "Checking one paper by hand: {low} to {high} (<a href=\"{url}\">Perignon, citing Colliard<\/a>).", "ask.reading_near": "Reading NEAR testnet...", "ask.closest": "Closest proved claim (not your exact question):", "ask.holds_near": "It holds", "ask.holds": "Yes, the claim holds", "ask.fails": "No, the claim fails", "ask.not_yet": "Not proved yet", "ask.proved": "Proved by a test locked before any work started.", "ask.locked": "Its test is locked before any work starts.", "ask.behind": "{amount} test USDC from people outside Knos this week", "ask.prove": "Prove it yourself", "ask.claim": "The claim", "ask.none": "Nothing proved matches yet", "ask.none_line": {"one": "Knos has proved {n} claim on NEAR testnet; none is about \"{q}\". Ask about one of them, or enter a paper's link.", "other": "Knos has proved {n} claims on NEAR testnet; none is about \"{q}\". Ask about one of them, or enter a paper's link."}, "ask.notwhat": "Not what I need", "ask.why": "Why, in a word? (optional)", "ask.why_label": "Why, in a word", "ask.thanks": "Thanks.", "ask.noted": "Noted.", "ask.reading_paper": "Reading the paper... {s} s", "ask.not_read": "Not read", "ask.no_answer": "Knos's server did not answer, so the paper was not read. It may be waking up.", "ask.cannot": "Knos cannot prove this paper yet", "ask.person": "Today a person checks it: {checker}. Price: {price_text}. Time: {time}.", "ask.someone": "someone who reruns it", "ask.unpublished": "not published", "ask.source": "Source", "price.title": "Knos pricing", "price.h": "Pricing", "price.sample_free": "Runs on the sample are free.", "price.own": "Your own file", "price.free_day": {"one": "{n} free a day, in each browser", "other": "{n} free a day, in each browser"}, "price.after": "After those", "price.f1": "No study gave these prices. They are starting values to be tested, and each one is in <a href=\"{url}\">the pricing file<\/a> with that mark.", "price.f2": "When your free runs are used up, the tool shows one screen with the price. Pressing Pay with test money records a test payment on Knos's own server. No card and no account are needed.", "price.f3": "The fees for checking a paper's claim are on <a href=\"{url}\">a page of their own<\/a>.", "nf.title": "Not found", "nf.h": "I cannot find this page", "nf.p": "I have nothing at this address. A result may have been cleared when the Knos server was updated.", "nf.link": "Open the Knos tool and check a file", "res.cut": {"one": "Showing the first {shown} of {n} line.", "other": "Showing the first {shown} of {n} lines."}, "v.pass": "Passed", "v.fail": "Failed", "v.unknown": "Cannot tell", "rs.unknown": "I cannot tell: no row held a number.", "ev.pass": {"one": "{n} row of {column}, compared with {limit}.", "other": "{n} rows of {column}, each compared with {limit}."}, "ev.fail": "Row {r} of {column} holds {value}, compared with {limit}.", "why.unknown": "I could not compare any row with the limit, because no value in {column} is a number.", "next.pass": "Every row passed: check your own file with Use my data.", "next.fail": "Open your file at row {r}, the first row that failed.", "next.unknown": "Pick a column where each row holds a number, then press Try it.", "work.rows": {"one": "{n} row to check", "other": "{n} rows to check"}, "err.column": "I could not find a column called {column} in your file. The columns I found are {names}. Pick one, then press Try it.", "btn.column": "Choose the column", "act.why": "Recorded because you pressed Yes, record it. Nothing was charged.", "act.undo": "Undo", "act.undone": "The test payment is undone. Nothing was charged.", "act.undo_error": "I could not undo the test payment, because some of its runs are already used. Nothing was charged.", "offline.line": "You are offline. This page was kept from your last visit."}, LANGS = [{"code": "en", "name": "English", "dir": "ltr"}, {"code": "ar", "name": "العربية", "dir": "rtl"}, {"code": "hi", "name": "हिन्दी", "dir": "ltr"}, {"code": "es", "name": "español", "dir": "ltr"}, {"code": "fr", "name": "français", "dir": "ltr"}, {"code": "pt", "name": "português", "dir": "ltr"}, {"code": "zh-Hans", "name": "简体中文", "dir": "ltr"}, {"code": "id", "name": "Indonesia", "dir": "ltr"}, {"code": "sw", "name": "Kiswahili", "dir": "ltr"}, {"code": "ru", "name": "русский", "dir": "ltr"}], BASE = "../i18n/";
+  const EN = {"lang.label": "Language", "menu": "Menu", "goal": "The goal: Knos turns any research into a product billions of people use, in days, not years.", "nav.claims": "Claims", "nav.papers": "Papers", "nav.builders": "Builders", "nav.labs": "Labs", "nav.prs": "Pull requests", "nav.pricing": "Pricing", "nav.status": "Status", "nav.source": "Source", "nav.privacy": "Privacy", "foot.door": "Test money, no customers yet.", "foot.pages": "Test money only, no customers yet.", "door.title": "Knos: check a test file against a limit", "door.headline": "What can you do with Knos?", "tool.title": "Check a test file against a limit", "tool.line": "For anyone who tests batteries, motors, parts or machines.", "tool.sample_made_up": "Sample: made-up battery test", "tool.sample_nasa": "Sample: NASA battery test", "tool.choose_file": "Choose a file", "tool.paste": "Or paste a table", "tool.which": "Which column?", "tool.rule_label": "The rule", "tool.limit_label": "The limit", "rule.above": "must stay above", "rule.below": "must stay below", "tool.try": "Try it", "tool.checking": "Checking", "tool.lim_rows": {"one": "Up to {n} row.", "other": "Up to {n} rows."}, "tool.lim_secs": {"one": "A run stops after {n} second.", "other": "A run stops after {n} seconds."}, "work.sending": "Sending your file to Knos", "work.sending_pct": "Sending your file to Knos: {p}%", "work.checking": "Checking your file on the Knos server", "work.waking": "Waiting for Knos's server, which may be waking up", "work.still": "Still waiting for the result from Knos's server", "work.secs": "{what}, {n} s", "stop": "Stop", "err.empty": "Your file is empty, so I have nothing to check yet. Choose a file or paste a table, then press Try it.", "err.limit": "I need the limit as a number, such as 1.4, before I can check your file. Please type it, then press Try it.", "err.stopped": "I stopped the check. Your file is still in the box, so you can change it or try again.", "err.reach": "I could not reach Knos's server. It may be waking up. Your file is still in the box, so press Try again in a moment.", "err.none": "I could not get a result from Knos's server just now. Your file is still in the box, so press Try again in a moment.", "err.too_big": {"one": "Your file is too big. The limit is {n} row. I kept your file in the box; try a shorter one.", "other": "Your file is too big. The limit is {n} rows. I kept your file in the box; try a shorter one."}, "err.too_long": {"one": "This took too long and was stopped. Try a smaller file. I stopped it after {n} second and kept your file in the box.", "other": "This took too long and was stopped. Try a smaller file. I stopped it after {n} seconds and kept your file in the box."}, "err.not_ready": "I cannot check files yet, because the program for this tool has not passed the test that decides it works. Please try again later.", "err.bad": "I could not read your file with these settings. Check the column and the limit; your file is still in the box.", "btn.retry": "Try again", "btn.smaller": "Try a smaller file", "btn.type_limit": "Type the limit", "btn.back": "Back to my file", "res.private": "Only people with this link can see it.", "res.shown_by": "Checked by a test of 7 files with known answers.", "res.mine": "Use my data", "res.copy": "Copy link", "res.copied": "Copied", "res.by_hand": "I could not copy the link. Here it is, to copy by hand:", "res.link_label": "The result's link", "res.count_q": "Count my visits to help improve Knos?", "yes": "Yes", "no": "No", "res.runs_left": {"one": "{n} run left", "other": "{n} runs left"}, "res.free_left": {"one": "{n} free run left today", "other": "{n} free runs left today"}, "chart.label": "Chart of the values with the limit", "chart.label_fail": "Chart of the values with the limit, the first failing row marked", "chart.row": "Row {r}", "rs.fail_above": "Failed at row {r}: {value} is not above {limit}.", "rs.fail_below": "Failed at row {r}: {value} is not below {limit}.", "rs.before": {"one": "It passed for the {n} rows before that.", "other": "It passed for the {n} rows before that."}, "rs.pass_above": {"one": "Passed: all {n} rows stay above {limit}.", "other": "Passed: all {n} rows stay above {limit}."}, "rs.pass_below": {"one": "Passed: all {n} rows stay below {limit}.", "other": "Passed: all {n} rows stay below {limit}."}, "rs.skipped": {"one": "{n} rows were skipped because they are not numbers.", "other": "{n} rows were skipped because they are not numbers."}, "pay.headline": {"one": "{n} more run for {price} in test money", "other": "{n} more runs for {price} in test money"}, "pay.line": "Today this is test money. Nothing is charged.", "pay.go": "Pay with test money", "pay.not_now": "Not now", "pay.confirm": {"one": "This records a {price} test payment for {n} more run. Nothing is charged.", "other": "This records a {price} test payment for {n} more runs. Nothing is charged."}, "pay.yes": "Yes, record it", "pay.recording": "Recording the test payment", "pay.error": "I could not record the test payment just now. Nothing was charged. Press Yes, record it again in a moment.", "how": "How it works", "price.sample": "The sample", "price.free": "Free", "theme.dark": "Dark theme", "theme.light": "Light theme", "res.change_limit": "Change the limit", "work.bar": "Seconds waited", "status.title": "Knos status", "status.tools_opened": "Tool opened", "status.sample_runs": "Sample runs", "status.own_runs": "Own-file runs", "status.results_opened_elsewhere": "Results opened elsewhere", "status.test_payments": "Test payments", "status.connector_runs": "Connector runs", "status.day7_return": "Came back on day 7, percent of browsers", "status.active_days": "Days with a run in the first 7, average", "status.paying_share": "Paid after the free runs ran out, percent of browsers", "status.too_few": "not enough browsers yet", "status.when": "Counted to {at}, without Knos's own tests.", "status.none": "No count has been read from Knos's server yet.", "status.file": "The data file", "q.get": "What you get", "q.next": "What to do next", "q.pay": "What you pay", "q.why": "Why believe this", "q.who": "Who is responsible", "a.tool.get": "One sentence that names the first row breaking your limit, or says every row passed, with a chart and a link to it.", "a.tool.next": "Press Try it to check the sample. For your own file, press Use my data and fill in its three boxes.", "a.res.get": "This result: the sentence and chart above, kept at this page's link. A sample result is public; one from your own file is not listed.", "a.res.next": "Press Copy link to share this result, or Use my data to check your own file.", "a.pay": {"one": "Sample runs are free. Own files: {free} free runs a day, then {price} in test money for {n} more, paid by you after you confirm.", "other": "Sample runs are free. Own files: {free} free runs a day, then {price} in test money for {n} more, paid by you after you confirm."}, "a.why_released": {"one": "A public test of 7 files with known answers passed before release; Knos's checker ran it. Not tested: files over {n} row.", "other": "A public test of 7 files with known answers passed before release; Knos's checker ran it. Not tested: files over {n} rows."}, "a.why_unreleased": {"one": "A public test of 7 files with known answers must pass before release; Knos's checker runs it. Not tested: files over {n} row.", "other": "A public test of 7 files with known answers must pass before release; Knos's checker runs it. Not tested: files over {n} rows."}, "a.tool.who": "Knos runs this tool and its test. No date is set for the next update. To challenge a result, <a href=\"{issues}\">open an issue on GitHub<\/a>.", "a.price.get": {"one": "{n} more run of the tool on your own files, once your {free} free runs of the day are used.", "other": "{n} more runs of the tool on your own files, once your {free} free runs of the day are used."}, "a.price.next": "Use the tool. When your free runs end, it shows Pay with test money; press it, then confirm.", "a.price.pay": {"one": "{price} in test money for {n} run, paid by you, once, after you confirm. Nothing is charged today; no card or account is asked.", "other": "{price} in test money for {n} runs, paid by you, once, after you confirm. Nothing is charged today; no card or account is asked."}, "a.price.why": "Prices: untested starting values, marked so in the <a href=\"{url}\">pricing file<\/a>. The tool passed its <a href=\"{test}\">public test<\/a> before release; Knos's checker ran it.", "a.price.who": "Knos delivers the runs; its checker ran the tool's test. No date is set for the next update. To challenge, <a href=\"{issues}\">open an issue on GitHub<\/a>.", "fold.sample_made_up": {"one": "The sample is made up: a straight line from {first} to {last} over {n} cycle, because NASA's page offers no download from a nasa.gov address. Its limit, {limit}, is the end-of-life rule on <a href=\"{url}\">NASA's battery data page<\/a>.", "other": "The sample is made up: a straight line from {first} to {last} over {n} cycles, because NASA's page offers no download from a nasa.gov address. Its limit, {limit}, is the end-of-life rule on <a href=\"{url}\">NASA's battery data page<\/a>."}, "fold.sample_nasa": "Sample data: <a href=\"{url}\">NASA Prognostics Center of Excellence<\/a>.", "fold.not_do": "It checks one column against one limit. It does not judge whether the limit is the right one. A row whose value is not a number is skipped and counted.", "fold.file": "Your file goes to Knos's server, which checks it and keeps it with its result page, so the link works. A sample result can be opened by anyone. Your own file can be opened only by people who have its link, and it is never listed. The server keeps results only until it is next rebuilt, so a link can stop working.", "fold.test": {"one": "The test that showed it works checks six made-up files with known answers and the sample. It did not cover files longer than {n} row, or files separated by anything other than commas. <a href=\"{url}\">The test<\/a> is public.", "other": "The test that showed it works checks six made-up files with known answers and the sample. It did not cover files longer than {n} rows, or files separated by anything other than commas. <a href=\"{url}\">The test<\/a> is public."}, "fold.price": {"one": "Runs on the sample are free. Runs on your own file: {free} free a day, then {n} more run for {price} in test money. Today nothing is charged.", "other": "Runs on the sample are free. Runs on your own file: {free} free a day, then {n} more runs for {price} in test money. Today nothing is charged."}, "fold.built_released": "Who built it: AI helpers wrote the program through Knos, and it was released only when that test passed. <a href=\"{url}\">The public record<\/a>.", "fold.built_unreleased": "Who built it: AI helpers write the program through Knos, and it is released only when that test passes. It has not been released yet.", "fold.listen": "Listen", "fold.embed": "Show this on your site", "fold.embed_label": "One line of HTML to copy onto your site", "fold.print": "Print", "fold.mt": "This page was machine translated and has not been reviewed by a native speaker.", "fold.original": "The program's own words, in English: {text}", "embed.title": "A Knos result", "ask.h": "Ask about research", "ask.label": "Your question", "ask.ph": "A question or a paper's link", "ask.go": "Ask", "ask.speak": "Speak", "ask.listening": "Listening", "ask.sample": "Sample question", "ask.cost": "Checking one paper by hand: {low} to {high} (<a href=\"{url}\">Perignon, citing Colliard<\/a>).", "ask.reading_near": "Reading NEAR testnet...", "ask.closest": "Closest proved claim (not your exact question):", "ask.holds_near": "It holds", "ask.holds": "Yes, the claim holds", "ask.fails": "No, the claim fails", "ask.not_yet": "Not proved yet", "ask.proved": "Proved by a test locked before any work started.", "ask.locked": "Its test is locked before any work starts.", "ask.behind": "{amount} test USDC from people outside Knos this week", "ask.prove": "Prove it yourself", "ask.claim": "The claim", "ask.none": "Nothing proved matches yet", "ask.none_line": {"one": "Knos has proved {n} claim on NEAR testnet; none is about \"{q}\". Ask about one of them, or enter a paper's link.", "other": "Knos has proved {n} claims on NEAR testnet; none is about \"{q}\". Ask about one of them, or enter a paper's link."}, "ask.notwhat": "Not what I need", "ask.why": "Why, in a word? (optional)", "ask.why_label": "Why, in a word", "ask.thanks": "Thanks.", "ask.noted": "Noted.", "ask.reading_paper": "Reading the paper... {s} s", "ask.not_read": "Not read", "ask.no_answer": "Knos's server did not answer, so the paper was not read. It may be waking up.", "ask.cannot": "Knos cannot prove this paper yet", "ask.person": "Today a person checks it: {checker}. Price: {price_text}. Time: {time}.", "ask.someone": "someone who reruns it", "ask.unpublished": "not published", "ask.source": "Source", "price.title": "Knos pricing", "price.h": "Pricing", "price.sample_free": "Runs on the sample are free.", "price.own": "Your own file", "price.free_day": {"one": "{n} free a day, in each browser", "other": "{n} free a day, in each browser"}, "price.after": "After those", "price.f1": "No study gave these prices. They are starting values to be tested, and each one is in <a href=\"{url}\">the pricing file<\/a> with that mark.", "price.f2": "When your free runs are used up, the tool shows one screen with the price. Pressing Pay with test money records a test payment on Knos's own server. No card and no account are needed.", "price.f3": "The fees for checking a paper's claim are on <a href=\"{url}\">a page of their own<\/a>.", "nf.title": "Not found", "nf.h": "I cannot find this page", "nf.p": "I have nothing at this address. A result may have been cleared when the Knos server was updated.", "nf.link": "Open the Knos tool and check a file", "res.cut": {"one": "Showing the first {shown} of {n} line.", "other": "Showing the first {shown} of {n} lines."}, "v.pass": "Passed", "v.fail": "Failed", "v.unknown": "Cannot tell", "rs.unknown": "I cannot tell: no row held a number.", "ev.pass": {"one": "{n} row of {column}, compared with {limit}.", "other": "{n} rows of {column}, each compared with {limit}."}, "ev.fail": "Row {r} of {column} holds {value}, compared with {limit}.", "why.unknown": "I could not compare any row with the limit, because no value in {column} is a number.", "next.pass": "Every row passed: check your own file with Use my data.", "next.fail": "Open your file at row {r}, the first row that failed.", "next.unknown": "Pick a column where each row holds a number, then press Try it.", "work.rows": {"one": "{n} row to check", "other": "{n} rows to check"}, "err.column": "I could not find a column called {column} in your file. The columns I found are {names}. Pick one, then press Try it.", "btn.column": "Choose the column", "act.why": "Recorded because you pressed Yes, record it. Nothing was charged.", "act.undo": "Undo", "act.undone": "The test payment is undone. Nothing was charged.", "act.undo_error": "I could not undo the test payment, because some of its runs are already used. Nothing was charged.", "offline.line": "You are offline. This page was kept from your last visit.", "res.input": "The table checked"}, LANGS = [{"code": "en", "name": "English", "dir": "ltr"}, {"code": "ar", "name": "العربية", "dir": "rtl"}, {"code": "hi", "name": "हिन्दी", "dir": "ltr"}, {"code": "es", "name": "español", "dir": "ltr"}, {"code": "fr", "name": "français", "dir": "ltr"}, {"code": "pt", "name": "português", "dir": "ltr"}, {"code": "zh-Hans", "name": "简体中文", "dir": "ltr"}, {"code": "id", "name": "Indonesia", "dir": "ltr"}, {"code": "sw", "name": "Kiswahili", "dir": "ltr"}, {"code": "ru", "name": "русский", "dir": "ltr"}], BASE = "../i18n/";
   KI.set("en", EN);
   const match = (tag) => { const t = String(tag || "").toLowerCase(); if (!t) return null; for (const l of LANGS) if (l.code.toLowerCase() === t) return l.code;
     const b = t.split(/[-_]/)[0]; if (b === "zh") return "zh-Hans"; return LANGS.some((l) => l.code === b) ? b : null; };
@@ -302,6 +476,11 @@ addEventListener("click", (e) => { const a = e.target.closest && e.target.closes
   if (!a || a.target || a.hasAttribute("download") || e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
   const u = new URL(a.href, location); if (u.origin !== location.origin || u.pathname === location.pathname) return;
   e.preventDefault(); a.classList.add("k-going"); requestAnimationFrame(() => setTimeout(() => location.assign(u.href), 0)); }, true);
+// a form the server answers (the tool's box on the pricing and status pages) shows its press the same way
+// and, with a script, takes its table to the front door's tool (sessionStorage knos.handoff, read once there) as a link
+addEventListener("submit", (e) => { const f = e.target, b = !e.defaultPrevented && f.dataset.to && f.querySelector("[type=submit]"); if (!b) return;
+  e.preventDefault(); try { sessionStorage.setItem("knos.handoff", f.elements.table.value); } catch (x) { /* no storage */ }
+  b.classList.add("k-going"); requestAnimationFrame(() => setTimeout(() => location.assign(new URL(f.dataset.to, location).href), 0)); });
 addEventListener("pageshow", () => document.querySelectorAll(".k-going").forEach((a) => a.classList.remove("k-going")));
 </script>
 </body>

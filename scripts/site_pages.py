@@ -163,6 +163,11 @@ addEventListener("click", (e) => { const a = e.target.closest && e.target.closes
   if (!a || a.target || a.hasAttribute("download") || e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
   const u = new URL(a.href, location); if (u.origin !== location.origin || u.pathname === location.pathname) return;
   e.preventDefault(); a.classList.add("k-going"); requestAnimationFrame(() => setTimeout(() => location.assign(u.href), 0)); }, true);
+// a form the server answers (the tool's box on the pricing and status pages) shows its press the same way
+// and, with a script, takes its table to the front door's tool (sessionStorage knos.handoff, read once there) as a link
+addEventListener("submit", (e) => { const f = e.target, b = !e.defaultPrevented && f.dataset.to && f.querySelector("[type=submit]"); if (!b) return;
+  e.preventDefault(); try { sessionStorage.setItem("knos.handoff", f.elements.table.value); } catch (x) { /* no storage */ }
+  b.classList.add("k-going"); requestAnimationFrame(() => setTimeout(() => location.assign(new URL(f.dataset.to, location).href), 0)); });
 addEventListener("pageshow", () => document.querySelectorAll(".k-going").forEach((a) => a.classList.remove("k-going")));"""
 
 # the header, the foot and their controls on the three screens: every control at least 48 px with 8 px between them (U3 Rule 4)
@@ -180,12 +185,13 @@ SCREEN_CSS = (".kh .logo { cursor: default; }\n"
               "#theme { min-height: 48px; min-width: 48px; padding: 0 16px; font: 500 18px/1.5 var(--text); color: var(--ink); background: transparent; "
               "border: 2px solid var(--ink-2); border-radius: 10px; cursor: pointer; }\n"
               "#theme:focus-visible, .kmenu > summary:focus-visible, .klang summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }\n"
-              "a.k-going { opacity: .6; cursor: progress; }\n"
+              "a.k-going, button.k-going { opacity: .6; cursor: progress; }\n"
               ".klang-list.kwarm { display: block; position: absolute; visibility: hidden; inline-size: 1px; block-size: 1px; overflow: hidden; padding: 0; border: 0; }\n"
               ".klang-list.kwarm > span { position: absolute; inset-inline-start: 0; inset-block-start: 0; }\n"
               # below the first screen, laid out only when it comes near the screen (U1 R5, U7 R22: on a cheap phone the first
-              # paint waits for the layout of the whole page, and in Hindi and Arabic shaping that text is most of it)
-              "#ask-box, body > footer { content-visibility: auto; contain-intrinsic-size: auto 480px; }\n"
+              # paint waits for the layout of the whole page, and in Hindi and Arabic shaping that text is most of it); the
+              # question box is a closed fold, whose content is not laid out until it opens
+              "body > footer { content-visibility: auto; contain-intrinsic-size: auto 480px; }\n"
               ":root:lang(hi) p, :root:lang(hi) li, :root:lang(hi) dd { line-height: 1.85; }\n"
               ":root:lang(ar) p, :root:lang(ar) li, :root:lang(ar) dd { line-height: 1.6; }\n")
 

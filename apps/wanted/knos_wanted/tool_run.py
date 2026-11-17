@@ -657,12 +657,17 @@ def _base(h) -> str:
     return tasks.public_base(h._base())
 
 
+def _lite(h) -> bool:
+    """The browser asks to save data (Save-Data: on): the tool and result pages come without their script (U7 R25)."""
+    return (h.headers.get("Save-Data") or "").strip().lower() == "on"
+
+
 def _html(h, code: int, text: str, cache: str = "no-store", lang: str = "en", keep: bool = False) -> None:
-    # the page's language follows ?lang= or Accept-Language (U7 R17), so a cache keeps one copy per language; `keep` marks
-    # a page the offline worker (OFFLINE_SW) may keep for a visit with no network: a tool page or a sample's result, never
-    # a result from a person's own file
-    h._send(code, text.encode("utf-8"), "text/html; charset=utf-8", {"Cache-Control": cache, "Vary": "Accept-Language", "Content-Language": lang,
-                                                                     **({"X-Knos-Offline": "keep"} if keep else {})})
+    # the page's language follows ?lang= or Accept-Language (U7 R17) and its weight Save-Data (U7 R25), so a cache keeps
+    # one copy per language and per mode; `keep` marks a page the offline worker (OFFLINE_SW) may keep for a visit with no
+    # network: a tool page or a sample's result, never a result from a person's own file, never the lighter copy
+    h._send(code, text.encode("utf-8"), "text/html; charset=utf-8", {"Cache-Control": cache, "Vary": "Accept-Language, Save-Data", "Content-Language": lang,
+                                                                     **({"X-Knos-Offline": "keep"} if keep and not _lite(h) else {})})
 
 
 # The tool and result pages with no network (LAWS UX U7.md R24): after one visit, a tool page or a sample's result opened
@@ -731,7 +736,7 @@ def handle_get(h, state, u, qs) -> bool:
             return h._send(301, b"", "text/plain", {"Location": f"/t/{t['id']}/" + (f"?{u.query}" if u.query else "")}) or True
         if not h.headers.get("X-Knos-Offline-Copy"):                 # the offline worker's copy is not a visit
             bump("tools_opened", _marked(h, qs))
-        return _html(h, 200, tool_page.page(t, _base(h), front=FRONT, lang=_lang(h, qs), test=_marked(h, qs)), lang=_lang(h, qs), keep=True) or True
+        return _html(h, 200, tool_page.page(t, _base(h), front=FRONT, lang=_lang(h, qs), test=_marked(h, qs), lite=_lite(h)), lang=_lang(h, qs), keep=True) or True
     m = re.fullmatch(r"/r/([A-Za-z0-9_-]{12})/(mark|qr\.png|print)", p)
     if m:                                                # H3 c and d: knos_wanted.result_extras
         from . import result_extras as rx
@@ -758,7 +763,7 @@ def handle_get(h, state, u, qs) -> bool:
         if why and not h.headers.get("X-Knos-Offline-Copy"):          # the offline worker's copy is not an opening
             bump(why, _marked(h, qs))
         return _html(h, 200, tool_page.page(tool(rec["tool"]) or tool(TOOL_ID), _base(h), shape(rec, _base(h)), front=FRONT,
-                                            lang=_lang(h, qs), test=_marked(h, qs)), lang=_lang(h, qs), keep=rec["mode"] == "sample") or True
+                                            lang=_lang(h, qs), test=_marked(h, qs), lite=_lite(h)), lang=_lang(h, qs), keep=rec["mode"] == "sample") or True
     m = re.fullmatch(r"/og/(t|r)/([A-Za-z0-9_-]{1,40})\.png", p)
     if m:
         if m.group(1) == "t":
@@ -824,6 +829,11 @@ def form_run(h, state, tid: str) -> bool:
     lang = tool_page.pick(f.get("lang"), h.headers.get("Accept-Language"))
     test = f.get("test") == "1" or h.headers.get("X-Knos-Test") == "1"
     lim = _form_limit(f.get("limit"))
+    # a result page's box is offered empty (U6 Rule 2); sent empty from there, Try it checks that result's table again
+    rid = str(f.get("again") or "")
+    again = load_result(rid) if re.fullmatch(r"[A-Za-z0-9_-]{12}", rid) and not str(f.get("table") or "").strip() else None
+    if again:
+        f["table"], f["column"] = shape(again)["input"], again["column"]
     sent = {"table": str(f.get("table") or "").replace("\r\n", "\n"), "column": str(f.get("column") or ""),
             "rule": f.get("rule") if f.get("rule") in RULES else "", "limit": str(f.get("limit") or "")}
     try:
@@ -835,7 +845,7 @@ def form_run(h, state, tid: str) -> bool:
                   h._client(), _base(h), test)
     except Refusal as r:
         sent["error_html"] = _refused_html(lang, r.code, r.body, sent)
-        return _html(h, r.code, tool_page.page(t, _base(h), front=FRONT, lang=lang, test=test, sent=sent), lang=lang) or True
+        return _html(h, r.code, tool_page.page(t, _base(h), front=FRONT, lang=lang, test=test, sent=sent, lite=_lite(h)), lang=lang) or True
     q = urlencode([(k, v) for k, v in (("lang", f.get("lang") or ""), ("test", "1" if test else "")) if v])
     return h._send(303, b"", "text/plain", {"Location": f"/r/{got['id']}/" + (f"?{q}" if q else "")}) or True
 

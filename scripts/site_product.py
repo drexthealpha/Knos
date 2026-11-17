@@ -438,11 +438,11 @@ def pricing_page(header: str) -> str:
     keys = [("a.price.get", {"free": n["free_runs_per_day"], **pack}), ("a.price.next", {}), ("a.price.pay", {"free": n["free_runs_per_day"], **pack}),
             ("a.price.why", {"url": TP.PRICING_FILE, "test": TP.TEST_URL}), ("a.price.who", {"issues": TP.ISSUES})]
     answers = [f"<!--k:{k} {json.dumps(v)}-->{a}<!--/k-->" for (k, v), a in zip(keys, TP.price_answers("en", n))]
-    body = (f"<h1>{e(en('price.h'))}</h1>\n"
+    body = (f"<div class=\"first\"><h1>{e(en('price.h'))}</h1>\n"
             f'<table id="prices"><tbody><tr><th>{e(en("price.sample"))}</th><td>{e(en("price.free"))}</td></tr>'
             f'<tr><th>{e(en("price.own"))}</th><td>{comp("price.free_day", {"n": n["free_runs_per_day"]}, {"n": "free_runs_per_day"})}</td></tr>'
             f'<tr><th>{e(en("price.after"))}</th><td>{comp("pay.headline", pack, spans)}</td></tr></tbody></table>\n'
-            f"<p>{e(en('pay.line'))}</p>\n{try_link('../')}\n"
+            f"{try_link('../')}\n<p>{e(en('pay.line'))}</p></div>\n"
             f'<details class="how"><summary>{e(en("how"))}</summary>'
             + TP.five("en", answers)
             + f'<p>{comp("price.f1", {"url": "../data/pricing.json"})}</p>'
@@ -459,15 +459,32 @@ PLAY = ('<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill
 
 
 def try_link(up: str) -> str:
-    """The main action of the pricing and status pages: the tool on the front door, with its words and an icon (U2 Rule 16,
-    U7 R26), the one primary control (U3 Rule 5), among the first two controls (U3 Rule 10)."""
-    return f'<a class="btn go" id="try" href="{up}#tool" data-primary data-main-action>{PLAY}{e(en("tool.try"))}</a>'
+    """The main action of the pricing and status pages: the tool's box holding the sample, and Try it, with its words and an
+    icon (U2 Rule 16, U7 R26), the one primary control (U3 Rule 5), among the first two controls (U3 Rule 10). Every Knos
+    screen has its main input on the first screen (U4 Rules 6 and 7): the box is the front door's, a plain form that the
+    server runs and answers with the result page, so it works with no script too; with a script the table goes to the
+    front door's tool (`up`), as the link did (scripts/site_pages.py THEME_JS)."""
+    text = sample()
+    conf = (ROOT / "apps" / "wanted" / "knos_wanted" / "runner_conf.py").read_text(encoding="utf-8")
+    label = en("tool.sample_made_up" if "'sample_made_up': False" not in conf else "tool.sample_nasa")
+    return (f'<form class="trybox" id="trybox" method="post" action="https://knos.onrender.com/t/limit-check/run" data-to="{up}#tool">'
+            '<input type="hidden" name="column" value="capacity_ah" dir="auto"><input type="hidden" name="rule" value="above" dir="auto">'
+            '<input type="hidden" name="limit" value="1.4" dir="auto">'
+            f'<button class="btn go" id="try" type="submit" data-primary data-main-action>{PLAY}{e(en("tool.try"))}</button>'
+            f'<label for="list">{e(label)}</label>'
+            f'<textarea id="list" name="table" rows="2" dir="auto" wrap="off" spellcheck="false" autocomplete="off">{e(text)}</textarea></form>')
 
 
 # the pricing and status pages as screens (Round 13 FIX-SITE): text 18 px (U2 Rule 11), the main action wide and in the middle
 # of the first screen (U3 Rule 8, U5 R9), the foot below the first screen (U3 R3: that screen holds the page's own words only),
 # tables without ruled cells (a ruled cell is a box of its own: U3 R3's six blocks)
-SCREEN_PAGE_CSS = """body { font-size: 18px; }
+SCREEN_PAGE_CSS = """body { font-size: 18px; overflow-wrap: anywhere; }
+.first { min-height: calc(100vh - 48px); min-height: calc(100svh - 48px); }
+.trybox { display: flex; flex-direction: column; }
+.trybox label { order: 1; font-weight: 600; margin: 4px 0; font-size: 18px; }
+.trybox textarea { order: 2; display: block; width: 100%; box-sizing: border-box; font: 18px/1.4 ui-monospace, Consolas, monospace;
+  padding: 8px 10px; border: 2px solid var(--ink-2); border-radius: 8px; background: var(--paper); color: var(--ink); resize: vertical; white-space: pre; overflow: auto; height: 3em; }
+.trybox .btn.go { order: 3; border: 2px solid transparent; font: inherit; font-weight: 600; cursor: pointer; }
 main { min-height: calc(100vh - 64px); min-height: calc(100svh - 64px); box-sizing: border-box; }
 main code { font-family: ui-monospace, Consolas, monospace; }
 main th, main td { border-bottom: 0; padding-block: 8px; padding-inline: 0 8px; }
@@ -494,8 +511,8 @@ def status_page(header: str) -> str:
     # the time keeps its own left-to-right order inside a right-to-left sentence (U7 R2): a left-to-right isolate around it
     at = "\u2066" + u["read_at"].replace("T", " ")[:16] + " UTC\u2069" if u.get("read_at") else ""
     when = f'<!--k:status.when {json.dumps({"at": at})}-->{TP.h("en", "status.when", at=at)}<!--/k-->' if at else e(en("status.none"))
-    body = (f"<h1>{e(en('nav.status'))}</h1>\n"
-            f'<table id="use"><tbody>{rows}</tbody></table>\n{try_link("../")}\n<p class="fine" id="use-when">{when}</p>\n'
+    body = (f"<div class=\"first\"><h1>{e(en('nav.status'))}</h1>\n"
+            f'<table id="use"><tbody>{rows}</tbody></table>\n{try_link("../")}\n<p class="fine" id="use-when">{when}</p></div>\n'
             f'<details class="how"><summary>{e(en("how"))}</summary>\n'
             f'<table id="meas"><tbody>{meas}</tbody></table>\n<p><a href="../data/usage.json">{e(en("status.file"))}</a></p><p data-mt hidden></p>\n'
             '<div lang="en" dir="ltr">\n'

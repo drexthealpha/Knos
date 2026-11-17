@@ -188,7 +188,7 @@
   "fold.mt": "Halaman ini diterjemahkan mesin dan belum ditinjau oleh penutur asli.",
   "fold.original": "Kata-kata program itu sendiri, dalam bahasa Inggris: {text}",
   "embed.title": "Hasil Knos",
-  "ask.h": "Tanyakan apa saja tentang riset",
+  "ask.h": "Tanyakan tentang riset",
   "ask.label": "Pertanyaan Anda",
   "ask.ph": "Pertanyaan atau tautan makalah",
   "ask.go": "Tanya",
@@ -259,6 +259,7 @@
   "act.undo": "Batalkan",
   "act.undone": "Pembayaran uji coba dibatalkan. Tidak ada yang ditagih.",
   "act.undo_error": "Saya tidak bisa membatalkan pembayaran uji coba, karena sebagian jatahnya sudah terpakai. Tidak ada yang ditagih.",
-  "offline.line": "Anda sedang offline. Halaman ini disimpan dari kunjungan terakhir Anda."
+  "offline.line": "Anda sedang offline. Halaman ini disimpan dari kunjungan terakhir Anda.",
+  "res.input": "Tabel yang diperiksa"
  }
 }

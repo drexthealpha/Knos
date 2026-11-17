@@ -45,7 +45,8 @@ def test_pass_and_fail_carry_evidence_a_next_step_and_their_own_icon(app):
         a = answer(page(app, "/r/" + r["link"].rstrip("/").rsplit("/", 1)[1] + "/"))
         assert f'data-state="{state}"' in a and "%" not in a
         ev = re.search(r"<p data-evidence>(.*?)</p>", a).group(1)
-        assert "data-compare" in ev and f'href="{tool_page.TEST_URL}" data-verified' in ev
+        # the comparison is the evidence on the first screen; the test behind it is the answer's own link, under it
+        assert "data-compare" in ev and f'href="{tool_page.TEST_URL}" data-verified' in a.split("<p data-evidence>", 1)[1]
         assert len(re.sub(r"<[^>]+>", " ", ev).split()) >= 5
         assert re.search(r"<p data-next-step>[^<]*(<bdi>)?\w", a)
         icons.add(re.search(r"<svg [^>]*>(.*?)</svg>", a).group(1))
@@ -114,3 +115,27 @@ def test_the_tool_works_as_a_form_with_no_script(app):
 
 def test_sample_body_still_runs(app):
     assert call(app, "/api/run", sample_body(test=True))[1]["verdict"] in tool_page.STATES
+
+
+def test_a_result_page_offers_the_box_empty_and_shows_the_table_it_checked(app):
+    # U6 Rule 2 (UX/U6.md line 33): after a verdict the box is empty for the next table; the checked table is kept in the
+    # page's fold, and the page's script puts it back in the box when the person comes back (section 12)
+    st, r, _ = own(app, table="row,reading\n1,5\n2,3\n3,7", limit=4, browser="b-fix-000009")
+    assert st == 200, r
+    html = page(app, "/r/" + r["link"].rstrip("/").rsplit("/", 1)[1] + "/")
+    assert re.search(r'<textarea id="list"[^>]*></textarea>', html)
+    assert re.search(r'<div id="k-input"><p class="muted">[^<]+</p><pre data-user-content dir="auto">row,reading\n1,5\n2,3\n3,7</pre>', html)
+    assert '<h1><label for="list" id="k-name">' in html          # the box's label is the screen's largest text (U1 R5)
+
+
+def test_with_save_data_the_pages_come_without_their_script_and_say_so_in_vary(app):
+    # U7 R25 (UX/U7.md line 279): the lighter page is the form the server runs, as with scripts off
+    st, r, _ = call(app, "/api/run", sample_body(mode="sample", test=True))
+    assert st == 200, r
+    for path in ("/t/limit-check/", "/r/" + r["link"].rstrip("/").rsplit("/", 1)[1] + "/"):
+        full = call(app, path, raw=True)
+        lite = call(app, path, headers={"Save-Data": "on"}, raw=True)
+        assert full[0] == lite[0] == 200 and "Save-Data" in full[2]["Vary"] and "Save-Data" in lite[2]["Vary"]
+        assert "<script>" in full[1].decode() and 'id="k-tool"' not in lite[1].decode() and "serviceWorker" not in lite[1].decode()
+        assert len(lite[1]) <= 0.7 * len(full[1]) and '<form id="tool" method="post"' in lite[1].decode()
+        assert lite[2].get("X-Knos-Offline") is None

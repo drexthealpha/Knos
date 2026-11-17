@@ -229,7 +229,7 @@
   "fold.mt": "Esta página se tradujo automáticamente y ningún hablante nativo la ha revisado.",
   "fold.original": "Las palabras del propio programa, en inglés: {text}",
   "embed.title": "Un resultado de Knos",
-  "ask.h": "Pregunta lo que quieras sobre investigación",
+  "ask.h": "Pregunta sobre investigación",
   "ask.label": "Tu pregunta",
   "ask.ph": "Una pregunta o el enlace de un artículo",
   "ask.go": "Preguntar",
@@ -314,6 +314,7 @@
   "act.undo": "Deshacer",
   "act.undone": "El pago de prueba se deshizo. No se cobró nada.",
   "act.undo_error": "No pude deshacer el pago de prueba, porque ya se usaron algunas de sus ejecuciones. No se cobró nada.",
-  "offline.line": "No tienes conexión. Esta página se guardó en tu última visita."
+  "offline.line": "No tienes conexión. Esta página se guardó en tu última visita.",
+  "res.input": "La tabla revisada"
  }
 }

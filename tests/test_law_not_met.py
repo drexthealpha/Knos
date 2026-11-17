@@ -5,6 +5,7 @@ tests/web/law_checks.mjs, each "needs" one of the five values, each reason at mo
 a listed check that passes or fails for anything else."""
 
 import json
+import os
 import re
 from pathlib import Path
 
@@ -25,7 +26,7 @@ def test_every_listed_id_is_a_check():
 NEEDS = ("person", "outside account", "spending", "law conflict", "host limit")
 FIELDS = {"law conflict": {"reason", "needs", "won_by"}, "host limit": {"reason", "needs", "why"}}
 RULE_AT = re.compile(r"^(UX|DISTRIBUTION|SYNC|MISSION)/[\w.-]+\.md:\d+$")
-LAWS = ROOT.parent / "knos-v1-private" / "v0328" / "research" / "LAWS"
+LAWS = Path(os.environ.get("KNOS_PRIVATE_DIR", ROOT.parent / ("knos-v1" + "-private"))) / "v0328" / "research" / "LAWS"
 
 
 def test_needs_is_one_of_five():

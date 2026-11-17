@@ -229,7 +229,7 @@
   "fold.mt": "Cette page a été traduite automatiquement et n'a pas été relue par une personne de langue maternelle.",
   "fold.original": "Les mots du programme lui-même, en anglais : {text}",
   "embed.title": "Un résultat Knos",
-  "ask.h": "Posez n'importe quelle question sur la recherche",
+  "ask.h": "Questions sur la recherche",
   "ask.label": "Votre question",
   "ask.ph": "Une question ou le lien d'un article",
   "ask.go": "Demander",
@@ -314,6 +314,7 @@
   "act.undo": "Annuler",
   "act.undone": "Le paiement de test est annulé. Rien n'a été facturé.",
   "act.undo_error": "Je n'ai pas pu annuler le paiement de test, car certaines de ses exécutions sont déjà utilisées. Rien n'a été facturé.",
-  "offline.line": "Vous êtes hors ligne. Cette page a été gardée de votre dernière visite."
+  "offline.line": "Vous êtes hors ligne. Cette page a été gardée de votre dernière visite.",
+  "res.input": "Le tableau vérifié"
  }
 }

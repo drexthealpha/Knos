@@ -724,12 +724,17 @@ C("UX/U7.md:365", "every message has a description and max_length; placeholders 
   const pl = await ref("UX/U7.md:89"); return { ok: bad.length === 0 && pl.ok, v: `${bad.length} problems${bad.length ? ` (${bad.slice(0, 3).join("; ")})` : ""}; plurals (U7.md:89) ${pl.ok ? "PASS" : "FAIL"}` }; });
 
 // ---- run -----------------------------------------------------------------------------------------------------------------
+// a check that reads others' results (ref) runs them inside itself, often side by side: only the outermost run closes
+// every page when it ends, so an inner check never closes the pages another is still using (seen in CI: U6.md:127,
+// U5.md:27 and U5.md:64 failed inside U6.md:221, U5.md:134 and U5.md:112 and passed on their own)
+let depth = 0;
 async function runOne(id) {
   const c = CHECKS.find((x) => x.id === id);
   if (RESULTS[id]) return RESULTS[id];
   const t0 = Date.now(); let r;
-  try { r = await c.f(); } catch (e) { r = { ok: false, v: "the test stopped: " + String(e && e.message || e).split("\n")[0].slice(0, 200) }; }
-  await env.closeAll();
+  depth++;
+  try { r = await c.f(); } catch (e) { r = { ok: false, v: "the test stopped: " + String(e && e.message || e).split("\n")[0].slice(0, 200) }; } finally { depth--; }
+  if (depth === 0) await env.closeAll();
   if (typeof r.v === "string") r.v = r.v.replace(/\s+/g, " ").trim();
   RESULTS[id] = { id, label: c.label, ...r, s: Math.round((Date.now() - t0) / 100) / 10 };
   return RESULTS[id];

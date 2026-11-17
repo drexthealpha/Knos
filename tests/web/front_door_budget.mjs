@@ -131,7 +131,7 @@ for (const scheme of ["light", "dark"]) {
     const markRatio = mk ? (Math.max(lum(mc), lum(pg)) + 0.05) / (Math.min(lum(mc), lum(pg)) + 0.05) : 0;
     const mark = { w: mb ? Math.round(mb.width) : 0, h: mb ? Math.round(mb.height) : 0, ratio: Math.round(markRatio * 10) / 10, masked: mk ? /mark\.svg/.test(getComputedStyle(mk).maskImage || getComputedStyle(mk).webkitMaskImage) : false };
     return { mark, words, before, height: document.documentElement.scrollHeight, wide: document.documentElement.scrollWidth, small, tiny, low,
-      h1: box("h1"), input: box("#list"), go: box("#try"), ask: box("#paper"),
+      h1: box("h1"), input: box("#list"), go: box("#try"), ask: box("#ask-box"),
       primaries: [...document.querySelectorAll(".door button.go, .door .go")].filter(vis).length };
   }, { MIN_TEXT });
   check(`${at} the Knos logo mark shows in the header (drawn in the text colour, 3:1 against the page)`, m.mark.w >= 20 && m.mark.h >= 20 && m.mark.masked && m.mark.ratio >= 3, m.mark);
@@ -157,7 +157,8 @@ for (const scheme of ["light", "dark"]) {
   check(`${at} the sample's full result within ${FULL} ms of the press (${full} ms)`, full <= FULL, full);
   const ans = await page.evaluate(() => { const v = document.getElementById("about"); return { text: v.textContent, top: Math.round(v.getBoundingClientRect().top), bottom: Math.round(v.getBoundingClientRect().bottom), scrollY }; });
   check(`${at} the sample's result on the same first screen ("${ans.text}")`, ans.scrollY === 0 && ans.top >= 0 && ans.bottom <= H && /^(Failed at row |Passed: all )/.test(ans.text), ans);
-  // the moved question box still answers: its sample, then another paper
+  // the moved question box still answers, from its fold (one input on the screen: UX/U7.md line 301): its sample, then another paper
+  await page.click("#ask-box > summary");
   await page.locator("#sample").scrollIntoViewIfNeeded();
   const t3 = await press(page, "#sample");
   check(`${at} the question box's sample: a visible change within ${PRESS_FAIL} ms (${t3} ms)`, t3 != null && t3 <= PRESS_FAIL, t3);
