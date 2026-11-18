@@ -124,21 +124,21 @@
    "backed": 0,
    "came_back": 0,
    "events": {
-    "leave": 103,
-    "view": 78
+    "leave": 155,
+    "view": 117
    },
    "first_press": 0,
    "first_result": 0,
    "leave_from": {
-    "/": 23,
-    "/agents/": 20,
-    "/claim/hyperloglog/": 12,
-    "/claims/": 20,
-    "/prove/": 20
+    "/": 34,
+    "/agents/": 30,
+    "/claim/hyperloglog/": 18,
+    "/claims/": 30,
+    "/prove/": 31
    },
    "not_what": {},
    "proof_finished": 0,
-   "visits": 59
+   "visits": 89
   }
  }
 }
