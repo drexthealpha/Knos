@@ -298,7 +298,7 @@
   "res.input": "Jedwali lililokaguliwa",
   "why.unknown_none": "Sikuweza kulinganisha safu yoyote na kikomo, kwa sababu hakuna thamani katika {column} iliyo namba.",
   "why.unknown_one": "Safu {r} haina namba katika {column}.",
-  "tool.sample_column": "uwezo wa betri",
+  "tool.sample_column": "chaji iliyohifadhiwa",
   "fold.column": "Safu wima {column} ya sampuli ina uwezo wa betri kwa ampea-saa."
  }
 }

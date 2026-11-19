@@ -2,7 +2,7 @@
  "label": "Sample: made-up battery test",
  "file": "sample.csv",
  "column": "capacity_ah",
- "column_plain": "battery capacity",
+ "column_plain": "charge held",
  "rule": "above",
  "limit": 1.4,
  "made": "generated: cycle 1 to 168, capacity_ah falling in a straight line from 1.86 at cycle 1 to 1.29 at cycle 168, rounded to 3 decimals",

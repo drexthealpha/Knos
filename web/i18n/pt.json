@@ -324,7 +324,7 @@
   "res.input": "A tabela verificada",
   "why.unknown_none": "Não consegui comparar nenhuma linha com o limite, porque nenhum valor de {column} é um número.",
   "why.unknown_one": "A linha {r} não tem número em {column}.",
-  "tool.sample_column": "capacidade da bateria",
+  "tool.sample_column": "carga retida",
   "fold.column": "A coluna {column} da amostra guarda a capacidade da bateria em ampères-hora."
  }
 }

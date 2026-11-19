@@ -164,7 +164,7 @@ check("A: the first screen has none of the PLAIN-WORDS rule's words", plainHit(f
 check("A: one h1, the headline, and the tool's title under it", first.h1.length === 1 && first.h1[0] === "What can you do with Knos?" && first.title === "Check a test file against a limit", first);
 check("A2: the sample is loaded and labelled, two columns cycle and capacity_ah", /^Sample: (NASA|made-up) battery test$/.test(first.label) && first.lines[0] === "cycle,capacity_ah" && first.lines.length > 100, [first.label, first.lines.slice(0, 2)]);
 // F1B: the rule line says the sample's column in plain words; capacity_ah, the file's own name, is the box's and the fold's
-check("A2: the limit is filled in: battery capacity must stay above 1.4", first.column === "battery capacity" && !/capacity_ah/.test(first.text) && first.rule === "must stay above" && first.limit === "1.4", first);
+check("A2: the limit is filled in: charge held must stay above 1.4", first.column === "charge held" && !/capacity_ah/.test(first.text) && first.rule === "must stay above" && first.limit === "1.4", first);
 check("A: the box and Check my data are whole on the first screen, no scroll", first.boxBottom <= first.H && first.goBottom <= first.H && first.scrollX <= 0, first);
 check("A: Check my data is the main action, 48 px tall at least and 300 px wide at least; body text 18 px", first.goH >= 48 && first.goW >= 300 && first.font >= 18, first);
 

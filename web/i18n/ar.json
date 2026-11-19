@@ -393,7 +393,7 @@
   "res.input": "الجدول الذي تم فحصه",
   "why.unknown_none": "لم أتمكن من مقارنة أي صف بالحدّ، لأنه لا توجد في {column} قيمة هي رقم.",
   "why.unknown_one": "الصف {r} لا يحوي رقمًا في {column}.",
-  "tool.sample_column": "سعة البطارية",
+  "tool.sample_column": "الشحنة المخزنة",
   "fold.column": "يحمل عمود العينة {column} سعة البطارية بالأمبير ساعة."
  }
 }

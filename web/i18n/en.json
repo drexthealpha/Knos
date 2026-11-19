@@ -1094,9 +1094,9 @@
    "max_length": 55
   },
   "tool.sample_column": {
-   "text": "battery capacity",
+   "text": "charge held",
    "description": "The made-up sample's column in plain words, shown in place of its file name capacity_ah on the rule line, in the evidence line and in the example in the box (the file name shows only in the fold How it works). Lower case: it is read inside a sentence.",
-   "max_length": 32
+   "max_length": 22
   },
   "fold.column": {
    "text": "The sample's column {column} holds the battery's capacity in amp hours.",

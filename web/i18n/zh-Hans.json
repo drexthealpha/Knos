@@ -267,7 +267,7 @@
   "res.input": "已检查的表格",
   "why.unknown_none": "我无法把任何一行与限值比较，因为 {column} 中没有一个值是数字。",
   "why.unknown_one": "第 {r} 行的 {column} 没有数字。",
-  "tool.sample_column": "电池容量",
+  "tool.sample_column": "存储电量",
   "fold.column": "样本的 {column} 列是电池容量，单位为安时。"
  }
 }

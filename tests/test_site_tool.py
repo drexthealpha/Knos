@@ -218,7 +218,7 @@ def test_the_front_door_has_one_h1_and_keeps_the_question_box_below_the_tool(sit
     conf = ast.literal_eval(re.search(r"CONF = (\{.*\})", (ROOT / "apps" / "wanted" / "knos_wanted" / "runner_conf.py").read_text(encoding="utf-8"), re.S).group(1))
     assert f'<label for="list" id="list-label">{conf["sample_label"]}</label>' in door      # the same label as the server's tool page
     # F1B: the rule line says the sample's column in plain words; the file's name for it is the form's and the fold's
-    assert '<span id="colname">battery capacity</span>' in door and '<input type="hidden" name="column" value="capacity_ah" dir="auto">' in door
+    assert '<span id="colname">charge held</span>' in door and '<input type="hidden" name="column" value="capacity_ah" dir="auto">' in door
     assert re.search(r'<details class="how".*The sample\'s column <bdi>capacity_ah</bdi> holds', door, re.S)
     assert 'value="1.4"' in door
     for gone in ("count-distinct", "different items", "Exact count"):                    # the list counter is shown to nobody here

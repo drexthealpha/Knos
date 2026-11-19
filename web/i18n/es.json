@@ -324,7 +324,7 @@
   "res.input": "La tabla revisada",
   "why.unknown_none": "No pude comparar ninguna fila con el límite, porque ningún valor de {column} es un número.",
   "why.unknown_one": "La fila {r} no tiene número en {column}.",
-  "tool.sample_column": "capacidad de la batería",
+  "tool.sample_column": "carga retenida",
   "fold.column": "La columna {column} de la muestra guarda la capacidad de la batería en amperios hora."
  }
 }

@@ -356,12 +356,12 @@ def test_the_tool_page_has_its_tags_one_h1_and_plain_words(app):
     # G5: the first screen's box is empty and labelled for the person's own table, the sample's two columns only its
     # example; the sample is a link under the first screen, and choosing a file stays there too
     assert '<label id="lab" for="list">Paste your table</label>' in page
-    assert re.search(r'<textarea id="list"[^>]* placeholder="cycle,battery capacity&#10;1,1\.86&#10;[^"]*"></textarea>', page)
+    assert re.search(r'<textarea id="list"[^>]* placeholder="cycle,charge held&#10;1,1\.86&#10;[^"]*"></textarea>', page)
     assert '<a id="k-sample" href="/t/limit-check/?sample=1&amp;lang=en" data-starter>Try the made-up sample</a>' in page
     assert '<div id="own" class="field" hidden><button type="button" id="pick">Choose a file</button><input id="file" type="file"' in page
     assert page.index('id="go"') < page.index('<div id="out"') < page.index('id="k-sample"')
     # F1B: the sample's column in plain words on the rule line and in the example; its file name only in the fold
-    assert '<span id="colname"><bdi>battery capacity</bdi></span>' in page and "capacity_ah" not in outside_fold(page)
+    assert '<span id="colname"><bdi>charge held</bdi></span>' in page and "capacity_ah" not in outside_fold(page)
     assert re.search(r"<details>.*The sample's column <bdi>capacity_ah</bdi> holds the battery's capacity in amp hours\.", page, re.S)
     assert 'value="1.4"' in page and '<option value="above" selected>must stay above</option>' in page
     shown = outside_fold(page) + " " + " ".join(tags.values()).replace(tags["image"], "")

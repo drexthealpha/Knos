@@ -54,7 +54,7 @@ def test_the_samples_column_is_said_in_plain_words_and_a_persons_own_as_it_is(ap
     assert st == 200
     a = answer(page(app, "/r/" + r["link"].rstrip("/").rsplit("/", 1)[1] + "/"))
     row = r["first_failing_row"]
-    assert f"Row {row} of <bdi>battery capacity</bdi> holds" in a and "capacity_ah" not in a
+    assert f"Row {row} of <bdi>charge held</bdi> holds" in a and "capacity_ah" not in a
     st, r, _ = own(app, table="cycle,capacity_ah\n1,5\n2,3", column="capacity_ah", limit=4, browser="b-fix-000009")
     assert st == 200 and "Row 2 of <bdi>capacity_ah</bdi> holds" in answer(page(app, "/r/" + r["link"].rstrip("/").rsplit("/", 1)[1] + "/"))
 
@@ -131,7 +131,7 @@ def test_the_tool_works_as_a_form_with_no_script(app):
     assert st == 303 and re.fullmatch(r"/r/[A-Za-z0-9_-]{12}/\?test=1", h["Location"]), h["Location"]
     assert "Failed at row " in page(app, h["Location"])
     st, _, body = form(app, "/t/limit-check/run", {"table": "when,volts\n1,3", "column": "capacity_ah", "rule": "above", "limit": "2"})
-    assert st == 400 and "I cannot find a column named battery capacity. Columns: when, volts." in body   # the sample's column in plain words (F1B)
+    assert st == 400 and "I cannot find a column named charge held. Columns: when, volts." in body   # the sample's column in plain words (F1B)
     assert ">when,volts\n1,3</textarea>" in body and 'role="alert"' in body          # the person's table is kept
     # G5: the box is offered empty, the sample's first rows shown in it as an example; sent empty and untouched, Check my
     # data checks that example (the hidden field "sample"); a box sent empty without it is an empty file
