@@ -269,6 +269,7 @@ def company_multisig_tx(name: str, members: list[str], threshold: int, creator: 
     from solders.transaction import Transaction
 
     from knos import chain
+    _company_args(name, members, threshold, creator)   # bad arguments are refused before the ledger is asked
     led = led or escrow.ledger()
     create_key = Keypair()
     ix, rec, _ = multisig_ix(name, members, threshold, _pk(creator), create_key.pubkey(), led)
@@ -280,11 +281,8 @@ def company_multisig_tx(name: str, members: list[str], threshold: int, creator: 
             "message": f"Creates {rec['name']}'s Squads multisig ({rec['threshold']} of {len(rec['members'])}) on devnet. Your wallet signs and pays; Knos holds no key in it."}
 
 
-def multisig_ix(name: str, members: list[str], threshold: int, creator, create_key, led):
-    """Squads v4 multisig_create_v2 for a company: (the instruction, the company's record, the creation fee in lamports).
-    `create_key` seeds the multisig's address and signs with `creator` (a passkey wallet's vault may be both)."""
-    from solders.instruction import AccountMeta, Instruction
-    from solders.pubkey import Pubkey
+def _company_args(name: str, members: list[str], threshold: int, creator) -> str:
+    """The company's name, trimmed, once its arguments hold; a ValueError naming the first that does not."""
     name = (name or "").strip()[:80]
     if len(name) < 2:
         raise ValueError("name: the company's name")
@@ -296,6 +294,15 @@ def multisig_ix(name: str, members: list[str], threshold: int, creator, create_k
         raise ValueError("threshold: 1 to the number of members")
     if str(creator) not in members:
         raise ValueError("creator: one of the members signs and pays for the multisig")
+    return name
+
+
+def multisig_ix(name: str, members: list[str], threshold: int, creator, create_key, led):
+    """Squads v4 multisig_create_v2 for a company: (the instruction, the company's record, the creation fee in lamports).
+    `create_key` seeds the multisig's address and signs with `creator` (a passkey wallet's vault may be both)."""
+    from solders.instruction import AccountMeta, Instruction
+    from solders.pubkey import Pubkey
+    name = _company_args(name, members, threshold, creator)
     pdas = squads_pdas(create_key)
     cfg = led.account(pdas["program_config"])
     if cfg is None or len(cfg) < 80:
