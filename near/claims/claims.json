@@ -161,10 +161,10 @@
    "url": "https://data.nasa.gov/dataset/li-ion-battery-aging-datasets",
    "quote": "The experiments were stopped when the batteries reached the end-of-life (EOL) criteria of 30% fade in rated capacity (from 2 Ah to 1.4 Ah).",
    "paper_number": "end of life at 1.4 Ah, a 30% fade from the rated 2 Ah",
-   "locked": "seven test files with known answers: the first row that breaks the limit named, a value equal to the limit failing, rows that are not numbers skipped and counted, and the sample's first row at or below 1.4 found by a separate script",
+   "locked": "ten test files with known answers: the first row that breaks the limit named, a value equal to the limit failing, rows passed, failed and unmeasurable counted, a column of NaN or no rows never passing, and the sample's first row at or below 1.4 found by a separate script",
    "question": "Does the program name the first row of a test file that breaks its limit?",
    "code_name": "limit_check.py",
-   "test": "test_limit.py",
+   "test": "test_limit2.py",
    "data": [
     "data/limit/case1.csv",
     "data/limit/case2.csv",
@@ -172,6 +172,9 @@
     "data/limit/case4.csv",
     "data/limit/case5.csv",
     "data/limit/case6.csv",
+    "data/limit/case7.csv",
+    "data/limit/case8.csv",
+    "data/limit/case9.csv",
     "data/limit/sample.csv",
     "limit_check10.py"
    ],
