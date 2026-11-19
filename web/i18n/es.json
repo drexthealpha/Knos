@@ -83,7 +83,7 @@
   "btn.type_limit": "Escribe el límite",
   "btn.back": "Volver a mi archivo",
   "res.private": "Solo quien tenga este enlace puede verlo.",
-  "res.shown_by": "Comprobado con una prueba de 7 archivos de respuesta conocida.",
+  "res.shown_by": "Comprobado con una prueba de 10 archivos de respuesta conocida.",
   "res.mine": "Usar mis datos",
   "res.copy": "Copiar enlace",
   "res.copied": "Copiado",
@@ -107,11 +107,8 @@
   "chart.row": "Fila {r}",
   "rs.fail_above": "Falló en la fila {r}: {value} no está por encima de {limit}.",
   "rs.fail_below": "Falló en la fila {r}: {value} no está por debajo de {limit}.",
-  "rs.before": {
-   "one": "Pasó en la {n} fila anterior.",
-   "many": "Pasó en las {n} de filas anteriores.",
-   "other": "Pasó en las {n} filas anteriores."
-  },
+  "rs.counts": "Filas: {p} aprobadas, {f} fallidas, {u} no medibles.",
+  "rs.cannot": "No se puede comprobar: no hay filas medibles.",
   "rs.pass_above": {
    "one": "Aprobado: la {n} fila queda por encima de {limit}.",
    "many": "Aprobado: las {n} de filas quedan por encima de {limit}.",
@@ -121,11 +118,6 @@
    "one": "Aprobado: la {n} fila queda por debajo de {limit}.",
    "many": "Aprobado: las {n} de filas quedan por debajo de {limit}.",
    "other": "Aprobado: las {n} filas quedan por debajo de {limit}."
-  },
-  "rs.skipped": {
-   "one": "Se omitió {n} fila porque no es un número.",
-   "many": "Se omitieron {n} de filas porque no son números.",
-   "other": "Se omitieron {n} filas porque no son números."
   },
   "pay.headline": {
    "one": "{n} ejecución más por {price} en dinero de prueba",
@@ -179,14 +171,14 @@
    "other": "El ejemplo es gratis. Tus archivos: {free} ejecuciones gratis al día, luego {price} en dinero de prueba por {n} más, que pagas tú al confirmar."
   },
   "a.why_released": {
-   "one": "Una prueba pública de 7 archivos de respuesta conocida pasó antes de publicarse; la ejecutó el verificador de Knos. Sin probar: archivos de más de {n} fila.",
-   "many": "Una prueba pública de 7 archivos de respuesta conocida pasó antes de publicarse; la ejecutó el verificador de Knos. Sin probar: más de {n} de filas.",
-   "other": "Una prueba pública de 7 archivos de respuesta conocida pasó antes de publicarse; la ejecutó el verificador de Knos. Sin probar: archivos de más de {n} filas."
+   "one": "Una prueba pública de 10 archivos de respuesta conocida pasó antes de publicarse; la ejecutó el verificador de Knos. Sin probar: archivos de más de {n} fila.",
+   "many": "Una prueba pública de 10 archivos de respuesta conocida pasó antes de publicarse; la ejecutó el verificador de Knos. Sin probar: más de {n} de filas.",
+   "other": "Una prueba pública de 10 archivos de respuesta conocida pasó antes de publicarse; la ejecutó el verificador de Knos. Sin probar: archivos de más de {n} filas."
   },
   "a.why_unreleased": {
-   "one": "Una prueba pública de 7 archivos de respuesta conocida debe pasar antes de publicarse; la ejecuta el verificador de Knos. Sin probar: archivos de más de {n} fila.",
-   "many": "Una prueba pública de 7 archivos de respuesta conocida debe pasar antes de publicarse; la ejecuta el verificador de Knos. Sin probar: más de {n} de filas.",
-   "other": "Una prueba pública de 7 archivos de respuesta conocida debe pasar antes de publicarse; la ejecuta el verificador de Knos. Sin probar: archivos de más de {n} filas."
+   "one": "Una prueba pública de 10 archivos de respuesta conocida debe pasar antes de publicarse; la ejecuta el verificador de Knos. Sin probar: archivos de más de {n} fila.",
+   "many": "Una prueba pública de 10 archivos de respuesta conocida debe pasar antes de publicarse; la ejecuta el verificador de Knos. Sin probar: más de {n} de filas.",
+   "other": "Una prueba pública de 10 archivos de respuesta conocida debe pasar antes de publicarse; la ejecuta el verificador de Knos. Sin probar: archivos de más de {n} filas."
   },
   "a.tool.who": "Knos opera esta herramienta y su prueba. No hay fecha fijada para la próxima actualización. Para impugnar un resultado, <a href=\"{issues}\">abre una incidencia pública</a>.",
   "a.price.get": {
@@ -208,12 +200,12 @@
    "other": "El ejemplo es inventado: una línea recta de {first} a {last} a lo largo de {n} ciclos, porque la página de la NASA no ofrece descarga desde una dirección nasa.gov. Su límite, {limit}, es la regla de fin de vida de <a href=\"{url}\">la página de datos de baterías de la NASA</a>."
   },
   "fold.sample_nasa": "Datos del ejemplo: <a href=\"{url}\">NASA Prognostics Center of Excellence</a>.",
-  "fold.not_do": "Comprueba una columna contra un límite. No juzga si el límite es el correcto. Una fila cuyo valor no es un número se omite y se cuenta.",
+  "fold.not_do": "Comprueba una columna contra un límite. No juzga si el límite es el correcto. Una fila cuyo valor no es un número se cuenta como no medible.",
   "fold.file": "Tu archivo va al servidor de Knos, que lo comprueba y lo guarda con su página de resultado, para que el enlace funcione. Un resultado de ejemplo lo puede abrir cualquiera. Tu propio archivo solo lo pueden abrir quienes tengan su enlace, y nunca se lista. El servidor guarda los resultados solo hasta su próxima reconstrucción, así que un enlace puede dejar de funcionar.",
   "fold.test": {
-   "one": "La prueba que mostró que funciona comprueba seis archivos inventados de respuesta conocida y el ejemplo. No cubrió archivos de más de {n} fila, ni archivos separados por algo distinto de comas. <a href=\"{url}\">La prueba</a> es pública.",
-   "many": "La prueba que mostró que funciona comprueba seis archivos inventados de respuesta conocida y el ejemplo. No cubrió archivos de más de {n} de filas, ni archivos separados por algo distinto de comas. <a href=\"{url}\">La prueba</a> es pública.",
-   "other": "La prueba que mostró que funciona comprueba seis archivos inventados de respuesta conocida y el ejemplo. No cubrió archivos de más de {n} filas, ni archivos separados por algo distinto de comas. <a href=\"{url}\">La prueba</a> es pública."
+   "one": "La prueba que mostró que funciona comprueba nueve archivos inventados de respuesta conocida y el ejemplo. No cubrió archivos de más de {n} fila, ni archivos separados por algo distinto de comas. <a href=\"{url}\">La prueba</a> es pública.",
+   "many": "La prueba que mostró que funciona comprueba nueve archivos inventados de respuesta conocida y el ejemplo. No cubrió archivos de más de {n} de filas, ni archivos separados por algo distinto de comas. <a href=\"{url}\">La prueba</a> es pública.",
+   "other": "La prueba que mostró que funciona comprueba nueve archivos inventados de respuesta conocida y el ejemplo. No cubrió archivos de más de {n} filas, ni archivos separados por algo distinto de comas. <a href=\"{url}\">La prueba</a> es pública."
   },
   "fold.price": {
    "one": "Las ejecuciones del ejemplo son gratis. Con tu propio archivo: {free} gratis al día, luego {n} ejecución más por {price} en dinero de prueba. Hoy no se cobra nada.",
@@ -292,7 +284,6 @@
   "v.pass": "Aprobado",
   "v.fail": "Fallido",
   "v.unknown": "No puedo saberlo",
-  "rs.unknown": "No puedo saberlo: ninguna fila tenía un número.",
   "ev.pass": {
    "one": "{n} fila de {column}, comparada con {limit}.",
    "many": "{n} filas de {column}, cada una comparada con {limit}.",

@@ -77,7 +77,7 @@
   "btn.type_limit": "Andika kikomo",
   "btn.back": "Rudi kwenye faili yangu",
   "res.private": "Ni watu wenye kiungo hiki tu wanaoweza kuiona.",
-  "res.shown_by": "Imekaguliwa na jaribio la faili 7 zenye majibu yanayojulikana.",
+  "res.shown_by": "Imekaguliwa na jaribio la faili 10 zenye majibu yanayojulikana.",
   "res.mine": "Tumia data yangu",
   "res.copy": "Nakili kiungo",
   "res.copied": "Imenakiliwa",
@@ -99,10 +99,8 @@
   "chart.row": "Safu {r}",
   "rs.fail_above": "Imeshindwa kwenye safu {r}: {value} si juu ya {limit}.",
   "rs.fail_below": "Imeshindwa kwenye safu {r}: {value} si chini ya {limit}.",
-  "rs.before": {
-   "one": "Ilifaulu kwa safu {n} iliyotangulia.",
-   "other": "Ilifaulu kwa safu {n} zilizotangulia."
-  },
+  "rs.counts": "Safu: {p} zimefaulu, {f} zimeshindwa, {u} hazipimiki.",
+  "rs.cannot": "Haiwezi kukaguliwa: hakuna safu zinazopimika.",
   "rs.pass_above": {
    "one": "Imefaulu: safu {n} inabaki juu ya {limit}.",
    "other": "Imefaulu: safu zote {n} zinabaki juu ya {limit}."
@@ -110,10 +108,6 @@
   "rs.pass_below": {
    "one": "Imefaulu: safu {n} inabaki chini ya {limit}.",
    "other": "Imefaulu: safu zote {n} zinabaki chini ya {limit}."
-  },
-  "rs.skipped": {
-   "one": "Safu {n} imerukwa kwa sababu si namba.",
-   "other": "Safu {n} zimerukwa kwa sababu si namba."
   },
   "pay.headline": {
    "one": "Ukaguzi {n} zaidi kwa {price} za pesa za majaribio",
@@ -164,12 +158,12 @@
    "other": "Mfano ni bure. Faili zako: ukaguzi {free} wa bure kwa siku, kisha {price} za pesa za majaribio kwa {n} zaidi, unalipa wewe baada ya kuthibitisha."
   },
   "a.why_released": {
-   "one": "Jaribio la umma la faili 7 zenye majibu yanayojulikana lilifaulu kabla ya kutolewa; kikaguzi cha Knos kiliendesha. Halijajaribiwa: faili zaidi ya safu {n}.",
-   "other": "Jaribio la umma la faili 7 zenye majibu yanayojulikana lilifaulu kabla ya kutolewa; kikaguzi cha Knos kiliendesha. Halijajaribiwa: faili zaidi ya safu {n}."
+   "one": "Jaribio la umma la faili 10 zenye majibu yanayojulikana lilifaulu kabla ya kutolewa; kikaguzi cha Knos kiliendesha. Halijajaribiwa: faili zaidi ya safu {n}.",
+   "other": "Jaribio la umma la faili 10 zenye majibu yanayojulikana lilifaulu kabla ya kutolewa; kikaguzi cha Knos kiliendesha. Halijajaribiwa: faili zaidi ya safu {n}."
   },
   "a.why_unreleased": {
-   "one": "Jaribio la umma la faili 7 zenye majibu yanayojulikana lazima lifaulu kabla ya kutolewa; kikaguzi cha Knos huliendesha. Halijajaribiwa: faili zaidi ya safu {n}.",
-   "other": "Jaribio la umma la faili 7 zenye majibu yanayojulikana lazima lifaulu kabla ya kutolewa; kikaguzi cha Knos huliendesha. Halijajaribiwa: faili zaidi ya safu {n}."
+   "one": "Jaribio la umma la faili 10 zenye majibu yanayojulikana lazima lifaulu kabla ya kutolewa; kikaguzi cha Knos huliendesha. Halijajaribiwa: faili zaidi ya safu {n}.",
+   "other": "Jaribio la umma la faili 10 zenye majibu yanayojulikana lazima lifaulu kabla ya kutolewa; kikaguzi cha Knos huliendesha. Halijajaribiwa: faili zaidi ya safu {n}."
   },
   "a.tool.who": "Knos inaendesha zana hii na jaribio lake. Hakuna tarehe ya sasisho lijalo. Kupinga matokeo, <a href=\"{issues}\">fungua tatizo la umma</a>.",
   "a.price.get": {
@@ -188,11 +182,11 @@
    "other": "Mfano huu ni wa kubuni: mstari ulionyooka kutoka {first} hadi {last} kwa mizunguko {n}, kwa sababu ukurasa wa NASA hautoi upakuaji kutoka anwani ya nasa.gov. Kikomo chake, {limit}, ni kanuni ya mwisho wa uhai kwenye <a href=\"{url}\">ukurasa wa data ya betri wa NASA</a>."
   },
   "fold.sample_nasa": "Data ya mfano: <a href=\"{url}\">NASA Prognostics Center of Excellence</a>.",
-  "fold.not_do": "Inakagua safu wima moja dhidi ya kikomo kimoja. Haiamui kama kikomo ndicho sahihi. Safu ambayo thamani yake si namba inarukwa na kuhesabiwa.",
+  "fold.not_do": "Inakagua safu wima moja dhidi ya kikomo kimoja. Haiamui kama kikomo ndicho sahihi. Safu ambayo thamani yake si namba inahesabiwa kuwa haipimiki.",
   "fold.file": "Faili yako inakwenda kwenye seva ya Knos, inayoikagua na kuihifadhi pamoja na ukurasa wa matokeo yake, ili kiungo kifanye kazi. Matokeo ya mfano yanaweza kufunguliwa na yeyote. Faili yako mwenyewe inaweza kufunguliwa tu na wenye kiungo chake, na haiorodheshwi kamwe. Seva huhifadhi matokeo hadi itakapojengwa upya tu, kwa hiyo kiungo kinaweza kuacha kufanya kazi.",
   "fold.test": {
-   "one": "Jaribio lililoonyesha kuwa inafanya kazi linakagua faili sita za kubuni zenye majibu yanayojulikana na mfano. Halikushughulikia faili ndefu kuliko safu {n}, wala faili zilizotenganishwa kwa kitu kingine zaidi ya koma. <a href=\"{url}\">Jaribio</a> ni la umma.",
-   "other": "Jaribio lililoonyesha kuwa inafanya kazi linakagua faili sita za kubuni zenye majibu yanayojulikana na mfano. Halikushughulikia faili ndefu kuliko safu {n}, wala faili zilizotenganishwa kwa kitu kingine zaidi ya koma. <a href=\"{url}\">Jaribio</a> ni la umma."
+   "one": "Jaribio lililoonyesha kuwa inafanya kazi linakagua faili tisa za kubuni zenye majibu yanayojulikana na mfano. Halikushughulikia faili ndefu kuliko safu {n}, wala faili zilizotenganishwa kwa kitu kingine zaidi ya koma. <a href=\"{url}\">Jaribio</a> ni la umma.",
+   "other": "Jaribio lililoonyesha kuwa inafanya kazi linakagua faili tisa za kubuni zenye majibu yanayojulikana na mfano. Halikushughulikia faili ndefu kuliko safu {n}, wala faili zilizotenganishwa kwa kitu kingine zaidi ya koma. <a href=\"{url}\">Jaribio</a> ni la umma."
   },
   "fold.price": {
    "one": "Ukaguzi wa mfano ni bure. Kwa faili yako mwenyewe: {free} bure kwa siku, kisha ukaguzi {n} zaidi kwa {price} za pesa za majaribio. Leo hakuna kinachotozwa.",
@@ -267,7 +261,6 @@
   "v.pass": "Imepita",
   "v.fail": "Imeshindwa",
   "v.unknown": "Siwezi kusema",
-  "rs.unknown": "Siwezi kusema: hakuna safu iliyokuwa na namba.",
   "ev.pass": {
    "one": "Safu {n} ya {column}, imelinganishwa na {limit}.",
    "other": "Safu {n} za {column}, kila moja imelinganishwa na {limit}."

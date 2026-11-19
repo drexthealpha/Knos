@@ -1,34 +1,54 @@
-import csv, io
+import csv, io, math
 
 def check(table, column, rule, limit):
     rows = list(csv.reader(io.StringIO(table)))
     if not rows:
-        return {"result": f"Passed: all 0 rows stay {rule} {limit}.", "first_failing_row": None, "rows": 0, "skipped": 0, "values": []}
-    def isnum(s):
+        return {"result": "Cannot check: no measurable rows. Rows: 0 passed, 0 failed, 0 unmeasurable.",
+                "first_failing_row": None, "passed": 0, "failed": 0, "unmeasurable": 0, "values": []}
+    def num(s):
         try:
-            float(s); return True
-        except ValueError:
-            return False
-    if any(not isnum(c) for c in rows[0]):
-        header = rows[0]; data = rows[1:]
+            v = float(s)
+        except (ValueError, TypeError):
+            return None
+        if math.isnan(v) or math.isinf(v):
+            return None
+        return v
+    header = any(num(c) is None for c in rows[0])
+    if header:
+        names = rows[0]
+        data = rows[1:]
     else:
-        header = [f"column {i+1}" for i in range(len(rows[0]))]; data = rows
-    idx = header.index(column)
-    values = []; skipped = 0; first = None; r = 0
-    for row in data:
-        r += 1
-        try:
-            v = float(row[idx])
-        except (ValueError, IndexError):
-            skipped += 1; continue
+        names = ["column %d" % (i + 1) for i in range(len(rows[0]))]
+        data = rows
+    try:
+        idx = names.index(column)
+    except ValueError:
+        idx = -1
+    p = f = u = 0
+    first = None
+    firstval = None
+    values = []
+    for i, row in enumerate(data, 1):
+        cell = row[idx] if 0 <= idx < len(row) else None
+        v = num(cell) if cell is not None else None
+        if v is None:
+            u += 1
+            continue
         values.append(v)
-        if first is None:
-            if (rule == "above" and v <= limit) or (rule == "below" and v >= limit):
-                first = r
-    skip = f" {skipped} rows were skipped because they are not numbers." if skipped else ""
+        bad = (v <= limit) if rule == "above" else (v >= limit)
+        if bad:
+            f += 1
+            if first is None:
+                first = i
+                firstval = cell
+        else:
+            p += 1
+    counts = " Rows: %d passed, %d failed, %d unmeasurable." % (p, f, u)
     if first is not None:
-        raw = data[first-1][idx]
-        res = f"Failed at row {first}: {raw} is not {rule} {limit}. It passed for the {first-1} rows before that.{skip}"
-        return {"result": res, "first_failing_row": first, "rows": first-1, "skipped": skipped, "values": values}
-    res = f"Passed: all {len(values)} rows stay {rule} {limit}.{skip}"
-    return {"result": res, "first_failing_row": None, "rows": len(values), "skipped": skipped, "values": values}
+        res = "Failed at row %d: %s is not %s %s." % (first, firstval, rule, limit) + counts
+    elif p == 0:
+        res = "Cannot check: no measurable rows." + counts
+    else:
+        res = "Passed: all %d rows stay %s %s." % (p, rule, limit) + counts
+    return {"result": res, "first_failing_row": first, "passed": p, "failed": f,
+            "unmeasurable": u, "values": values}

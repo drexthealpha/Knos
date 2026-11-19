@@ -408,10 +408,10 @@ def fill(html: str) -> str:
 
 def run_seconds() -> int:
     """The most seconds one run of the first tool may take, as the server reads it (tool_run, runner_conf.py): the
-    timeout_s of the claim whose locked test is test_limit.py, else the checker's default. The front door's waiting bar
+    timeout_s of the claim whose locked test is test_limit2.py, else the checker's default. The front door's waiting bar
     counts against it until the server's own answer gives it (limits.max_seconds)."""
     for c in json.loads((ROOT / "near" / "claims" / "claims.json").read_text(encoding="utf-8"))["claims"]:
-        if c.get("test") == "test_limit.py" and c.get("timeout_s"):
+        if c.get("test") == "test_limit2.py" and c.get("timeout_s"):
             return int(c["timeout_s"])
     conf = (ROOT / "apps" / "wanted" / "knos_wanted" / "runner_conf.py").read_text(encoding="utf-8")
     return int(re.search(r"'checker_default_seconds': (\d+)", conf)[1])
@@ -423,7 +423,7 @@ def released() -> bool:
 
 
 PERIGNON = "https://labordynamicsinstitute.github.io/crress-book/sessions/6/perignon/"
-TEST_URL = "https://github.com/drexthealpha/Knos/blob/main/near/agents/job/test_limit.py"
+TEST_URL = "https://github.com/drexthealpha/Knos/blob/main/near/agents/job/test_limit2.py"
 NASA_URL = "https://data.nasa.gov/dataset/li-ion-battery-aging-datasets"
 
 

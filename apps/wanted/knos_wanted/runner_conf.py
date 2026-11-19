@@ -10,8 +10,8 @@ CONF = {'tool': 'limit-check',
  'sample_column': 'capacity_ah',
  'sample_rule': 'above',
  'sample_limit': 1.4,
- 'claim_test': 'test_limit.py',
- 'max_seconds_source': 'near/claims/claims.json timeout_s of the claim whose test is test_limit.py; without '
+ 'claim_test': 'test_limit2.py',
+ 'max_seconds_source': 'near/claims/claims.json timeout_s of the claim whose test is test_limit2.py; without '
                        "one, near/agents/checker.py run_test's default: checker_default_seconds",
  'checker_default_seconds': 20,
  'max_rows': 100000,

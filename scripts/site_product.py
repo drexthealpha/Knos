@@ -749,12 +749,18 @@ def sample() -> str:
 
 
 def sample_result() -> str:
-    """The sample's result sentence as the locked test fixes it (near/agents/job/test_limit.py case 7): the first row
-    whose capacity_ah is at or below 1.4, found the way its separate script finds it (limit_check10.py)."""
+    """The sample's result sentence as the locked test fixes it (near/agents/job/test_limit2.py, the sample case): the
+    first row whose capacity_ah is at or below 1.4, found the way its separate script finds it (limit_check10.py), and
+    the rows passed, failed and unmeasurable."""
     import csv
     import io
-    r, row = next((n, x) for n, x in enumerate(csv.DictReader(io.StringIO(sample())), 1) if float(x["capacity_ah"]) <= 1.4)
-    return f"Failed at row {r}: {row['capacity_ah']} is not above 1.4. It passed for the {r - 1} rows before that."
+    import math
+    rows = list(csv.DictReader(io.StringIO(sample())))
+    r, row = next((n, x) for n, x in enumerate(rows, 1) if float(x["capacity_ah"]) <= 1.4)
+    vals = [float(x["capacity_ah"]) for x in rows]
+    p, u = sum(math.isfinite(v) and v > 1.4 for v in vals), sum(not math.isfinite(v) for v in vals)
+    return (f"Failed at row {r}: {row['capacity_ah']} is not above 1.4. "
+            f"Rows: {p} passed, {len(vals) - p - u} failed, {u} unmeasurable.")
 
 
 def where_you_are() -> str:

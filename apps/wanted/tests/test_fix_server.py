@@ -26,8 +26,8 @@ def answer(html: str) -> str:
 
 def test_a_file_with_no_number_in_the_column_is_cannot_tell_never_a_pass(app):
     st, r, _ = own(app, table=ALL_SKIPPED, column="v", limit=2, browser="b-fix-000001")
-    assert st == 200 and r["verdict"] == "unknown" and r["result"] == tool_page.UNKNOWN, r
-    assert r["result"].startswith("I cannot ") and len(r["result"].split()) <= 9
+    assert st == 200 and r["verdict"] == "unknown", r
+    assert r["result"] == "Cannot check: no measurable rows. Rows: 0 passed, 0 failed, 3 unmeasurable."
     html = page(app, "/r/" + r["link"].rstrip("/").rsplit("/", 1)[1] + "/")
     a = answer(html)
     assert 'data-state="unknown"' in a and "data-evidence" not in a
@@ -61,7 +61,7 @@ def test_every_language_writes_the_verdict(app, lang):
     st, r, _ = own(app, table=ALL_SKIPPED, column="v", limit=2, browser="b-fix-000003")
     html = page(app, "/r/" + r["link"].rstrip("/").rsplit("/", 1)[1] + f"/?lang={lang}")
     a = answer(html)
-    assert tool_page.t(lang, "rs.unknown").split()[0] in a and tool_page.t(lang, "v.unknown") in html
+    assert tool_page.t(lang, "rs.cannot").split()[0] in a and tool_page.t(lang, "v.unknown") in html
 
 
 def test_an_undo_takes_the_test_payment_back_once_while_its_runs_are_unused(app):

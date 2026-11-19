@@ -74,7 +74,7 @@
   "btn.type_limit": "Ketik batasnya",
   "btn.back": "Kembali ke berkas saya",
   "res.private": "Hanya orang yang punya tautan ini yang bisa melihatnya.",
-  "res.shown_by": "Diperiksa oleh uji dengan 7 berkas yang jawabannya sudah diketahui.",
+  "res.shown_by": "Diperiksa oleh uji dengan 10 berkas yang jawabannya sudah diketahui.",
   "res.mine": "Pakai data saya",
   "res.copy": "Salin tautan",
   "res.copied": "Tersalin",
@@ -94,17 +94,13 @@
   "chart.row": "Baris {r}",
   "rs.fail_above": "Gagal di baris {r}: {value} tidak di atas {limit}.",
   "rs.fail_below": "Gagal di baris {r}: {value} tidak di bawah {limit}.",
-  "rs.before": {
-   "other": "Lulus untuk {n} baris sebelumnya."
-  },
+  "rs.counts": "Baris: {p} lulus, {f} gagal, {u} tak terukur.",
+  "rs.cannot": "Tidak bisa diperiksa: tak ada baris yang terukur.",
   "rs.pass_above": {
    "other": "Lulus: semua {n} baris tetap di atas {limit}."
   },
   "rs.pass_below": {
    "other": "Lulus: semua {n} baris tetap di bawah {limit}."
-  },
-  "rs.skipped": {
-   "other": "{n} baris dilewati karena bukan angka."
   },
   "pay.headline": {
    "other": "{n} pemeriksaan lagi seharga {price} uang uji coba"
@@ -152,10 +148,10 @@
    "other": "Contoh gratis. Berkas Anda: {free} pemeriksaan gratis sehari, lalu {price} uang uji coba untuk {n} lagi, Anda bayar setelah mengonfirmasi."
   },
   "a.why_released": {
-   "other": "Uji publik dengan 7 berkas berjawaban diketahui lulus sebelum rilis; pemeriksa Knos menjalankannya. Belum diuji: berkas lebih dari {n} baris."
+   "other": "Uji publik dengan 10 berkas berjawaban diketahui lulus sebelum rilis; pemeriksa Knos menjalankannya. Belum diuji: berkas lebih dari {n} baris."
   },
   "a.why_unreleased": {
-   "other": "Uji publik dengan 7 berkas berjawaban diketahui harus lulus sebelum rilis; pemeriksa Knos menjalankannya. Belum diuji: berkas lebih dari {n} baris."
+   "other": "Uji publik dengan 10 berkas berjawaban diketahui harus lulus sebelum rilis; pemeriksa Knos menjalankannya. Belum diuji: berkas lebih dari {n} baris."
   },
   "a.tool.who": "Knos menjalankan alat ini dan ujinya. Belum ada tanggal untuk pembaruan berikutnya. Untuk menggugat hasil, <a href=\"{issues}\">buka laporan publik</a>.",
   "a.price.get": {
@@ -171,10 +167,10 @@
    "other": "Contoh ini karangan: garis lurus dari {first} ke {last} selama {n} siklus, karena halaman NASA tidak menyediakan unduhan dari alamat nasa.gov. Batasnya, {limit}, adalah aturan akhir umur di <a href=\"{url}\">halaman data baterai NASA</a>."
   },
   "fold.sample_nasa": "Data contoh: <a href=\"{url}\">NASA Prognostics Center of Excellence</a>.",
-  "fold.not_do": "Alat ini memeriksa satu kolom terhadap satu batas. Alat ini tidak menilai apakah batasnya tepat. Baris yang nilainya bukan angka dilewati dan dihitung.",
+  "fold.not_do": "Alat ini memeriksa satu kolom terhadap satu batas. Alat ini tidak menilai apakah batasnya tepat. Baris yang nilainya bukan angka dihitung sebagai tak terukur.",
   "fold.file": "Berkas Anda dikirim ke server Knos, yang memeriksanya dan menyimpannya bersama halaman hasilnya, supaya tautannya berfungsi. Hasil contoh bisa dibuka siapa saja. Berkas Anda sendiri hanya bisa dibuka oleh orang yang punya tautannya, dan tidak pernah dicantumkan. Server menyimpan hasil hanya sampai dibangun ulang berikutnya, jadi sebuah tautan bisa berhenti berfungsi.",
   "fold.test": {
-   "other": "Uji yang menunjukkan alat ini berfungsi memeriksa enam berkas karangan berjawaban diketahui dan contohnya. Uji itu tidak mencakup berkas lebih dari {n} baris, atau berkas yang dipisah selain dengan koma. <a href=\"{url}\">Ujinya</a> bersifat publik."
+   "other": "Uji yang menunjukkan alat ini berfungsi memeriksa sembilan berkas karangan berjawaban diketahui dan contohnya. Uji itu tidak mencakup berkas lebih dari {n} baris, atau berkas yang dipisah selain dengan koma. <a href=\"{url}\">Ujinya</a> bersifat publik."
   },
   "fold.price": {
    "other": "Pemeriksaan contoh gratis. Untuk berkas Anda sendiri: {free} gratis sehari, lalu {n} pemeriksaan lagi seharga {price} uang uji coba. Hari ini tidak ada yang ditagih."
@@ -245,7 +241,6 @@
   "v.pass": "Lolos",
   "v.fail": "Gagal",
   "v.unknown": "Tidak bisa dipastikan",
-  "rs.unknown": "Saya tidak bisa memastikan: tak ada baris berisi angka.",
   "ev.pass": "{n} baris dari {column}, masing-masing dibandingkan dengan {limit}.",
   "ev.fail": "Baris {r} dari {column} berisi {value}, dibandingkan dengan {limit}.",
   "why.unknown": "Saya tidak bisa membandingkan baris mana pun dengan batas, karena tak ada nilai di {column} yang berupa angka.",

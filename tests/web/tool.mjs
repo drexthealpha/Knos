@@ -74,16 +74,16 @@ function standInCheck(table, column, rule, limit) {
   const head = rows[0].some((c) => !isNum(c));
   const names = head ? rows[0].map((c) => c.trim()) : rows[0].map((_, i) => `column ${i + 1}`);
   const at = names.indexOf(column), data = head ? rows.slice(1) : rows, lim = String(limit);
-  let skipped = 0; const values = [];
+  let p = 0, f = 0, u = 0, first = null, fail = null; const values = [];
   for (let r = 1; r <= data.length; r++) {
     const cell = (data[r - 1][at] || "").trim();
-    if (!isNum(cell)) { skipped++; continue; }
+    if (!isNum(cell)) { u++; continue; }
     const v = Number(cell); values.push(v);
-    if (rule === "above" ? v <= limit : v >= limit) {
-      return { result: `Failed at row ${r}: ${cell} is not ${rule} ${lim}. It passed for the ${r - 1} rows before that.` + (skipped ? ` ${skipped} rows were skipped because they are not numbers.` : ""), first_failing_row: r, rows: r - 1, skipped, values, fail: [values.length, v] };
-    }
+    if (rule === "above" ? v <= limit : v >= limit) { f++; if (!first) { first = [r, cell]; fail = [values.length, v]; } } else p++;
   }
-  return { result: `Passed: all ${values.length} rows stay ${rule} ${lim}.` + (skipped ? ` ${skipped} rows were skipped because they are not numbers.` : ""), first_failing_row: null, rows: values.length, skipped, values, fail: null };
+  const counts = ` Rows: ${p} passed, ${f} failed, ${u} unmeasurable.`;
+  const said = first ? `Failed at row ${first[0]}: ${first[1]} is not ${rule} ${lim}.` : p ? `Passed: all ${p} rows stay ${rule} ${lim}.` : "Cannot check: no measurable rows.";
+  return { result: said + counts, first_failing_row: first ? first[0] : null, passed: p, failed: f, unmeasurable: u, values, fail };
 }
 let SAMPLE = null;
 function standIn() {
@@ -110,8 +110,8 @@ function standIn() {
         s.left.set(body.browser, had); free = had.free; paid = had.paid; left = free + paid;
       }
       const id = `r${s.runs.length}`;
-      return reply(200, { id, mode, result: got.result, first_failing_row: got.first_failing_row, rows: got.rows, skipped: got.skipped,
-        shown_by: "Checked by a test of 7 files with known answers.", link: `https://knos.onrender.com/r/${id}/`,
+      return reply(200, { id, mode, result: got.result, first_failing_row: got.first_failing_row, passed: got.passed, failed: got.failed, unmeasurable: got.unmeasurable,
+        shown_by: "Checked by a test of 10 files with known answers.", link: `https://knos.onrender.com/r/${id}/`,
         chart: { points: got.values.map((v, i) => [i + 1, v]), fail: got.fail, limit: body.limit, rule: body.rule, n: got.values.length },
         runs_left: left, free_left: free, paid_left: paid, limits: LIMITS });
     }
@@ -178,7 +178,7 @@ check("A2: under the sentence, one chart: the values as a line, the first failin
 if (LIVE) { console.log(fails ? `${fails} failed` : "all passed"); await browser.close(); process.exit(fails ? 1 : 0); }
 check("D2: the run carries the test marker and no browser id before the counting question is answered", s.runs.length === 1 && s.runs[0].test === true && s.runs[0].mode === "sample" && s.runs[0].browser === "" && s.runs[0].column === "capacity_ah" && s.runs[0].limit === 1.4, s.runs);
 const shownLine = await page.evaluate(() => document.getElementById("shown").textContent);
-check("A5: the test that showed it works, in one plain line outside the fold", shownLine === "Checked by a test of 7 files with known answers.", shownLine);
+check("A5: the test that showed it works, in one plain line outside the fold", shownLine === "Checked by a test of 10 files with known answers.", shownLine);
 const fold = await page.evaluate(() => [...document.querySelectorAll("#how li")].map((li) => li.textContent.trim()));
 check("A5: the fold holds, in order, the sample's source, what it does not do, your file, the test, the price, who built it",
   fold.length === 6 && /^The sample is /.test(fold[0]) && /does not judge whether the limit is the right one/.test(fold[1]) && /^Your file goes/.test(fold[2]) && /^The test that showed it works/.test(fold[3]) && /test money/.test(fold[4]) && /^Who built it/.test(fold[5]), fold);
@@ -213,7 +213,7 @@ const runOwn = async () => { await page.click("#try"); await page.waitForFunctio
 await runOwn();
 const own = await page.evaluate(() => ({ about: document.getElementById("about").textContent, left: document.getElementById("left").textContent, priv: !document.getElementById("private").hidden,
   ring: document.querySelector("#chart svg text") ? document.querySelector("#chart svg text").textContent : "" }));
-check("A: file 2 of A8 reads \"Failed at row 37\"", own.about.startsWith("Failed at row 37: ") && own.about.endsWith("It passed for the 36 rows before that.") && own.ring === "Row 37", own);
+check("A: file 2 of A8 reads \"Failed at row 37\"", own.about.startsWith("Failed at row 37: ") && own.about.endsWith(" Rows: 98 passed, 2 failed, 0 unmeasurable.") && own.ring === "Row 37", own);
 check("C3: after an own-data run the screen says how many free runs are left today", own.left === `${N.free_runs_per_day - 1} free runs left today`, own);
 check("B1: an own-data result says only people with its link can see it", own.priv, own);
 check("D2: after Yes, the own-data run carries a browser id and the test marker", s.runs[1].mode === "own" && /^[0-9a-f]{24}$/.test(s.runs[1].browser) && s.runs[1].test === true, s.runs[1]);

@@ -166,7 +166,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
       <div id="chart"></div>
       <p id="left" hidden></p>
       <p id="private" hidden>{{res.private}}</p>
-      <p id="shown">{{res.shown_by files=7}}</p>
+      <p id="shown">{{res.shown_by files=10}}</p>
       <div class="acts"><button id="mine" type="button" data-followup>{{res.mine}}</button><button id="change" type="button" data-followup data-next-step>{{res.change_limit}}</button><button id="copy" type="button">{{res.copy}}</button></div>
       <p id="copied-by-hand" hidden>{{res.by_hand}} <input id="link-text" readonly dir="auto" aria-label="{{res.link_label}}"></p>
       <p id="optin" hidden>{{res.count_q}} <button id="optin-yes" type="button">{{yes}}</button> <button id="optin-no" type="button">{{no}}</button></p>
@@ -381,8 +381,9 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
     last = j; limits = j.limits || limits;
     if (box.value.trim()) { kept = { table: box.value, col: mineOn ? $("col").value : "" }; box.value = ""; fresh = true; $("list-label").textContent = T("tool.paste"); }
     $("about").innerHTML = KI.sentence(j.result);
-    // the verdict's state: a failing row is a fail, a pass over no row at all is a verdict Knos cannot give (U6 Rule 15)
-    $("about").dataset.state = j.first_failing_row != null ? "fail" : /^Passed: all [1-9]/.test(j.result) ? "pass" : "unknown";
+    // the verdict's state: a failing row is a fail, "Cannot check" (no measurable row) a verdict Knos cannot give (U6 Rule 15)
+    $("about").dataset.state = /^(pass|fail|unknown)$/.test(j.verdict || "") ? j.verdict : j.first_failing_row != null ? "fail"
+      : /^Passed: all [1-9]/.test(j.result) ? "pass" : "unknown";
     $("chart").replaceChildren(chartSvg(j.chart, j.first_failing_row));
     const own = j.mode === "own" && j.runs_left != null;
     show($("left"), own); if (own) $("left").textContent = leftText(j);

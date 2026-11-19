@@ -1,9 +1,10 @@
 """Tools a stranger can run (Round 13, parts A to D): the first is "Check a test file against a limit".
 
-The program is the one Knos's own job flow released for the claim whose locked test is near/agents/job/test_limit.py,
-copied byte for byte to near/agents/job/data/limit/released_solution.py (released.json beside it names the job). Its
-interface is fixed by that test: check(table, column, rule, limit) -> {result, first_failing_row, rows, skipped, values}.
-Until that file exists the tool answers that it is not ready; nothing else stands in for it here.
+The program is the one Knos's own job flow released for the claim whose locked test is near/agents/job/test_limit2.py,
+copied byte for byte to near/agents/job/data/limit/released_solution.py (released.json beside it names the job and the
+program's sha256). Its interface is fixed by that test: check(table, column, rule, limit) -> {result, first_failing_row,
+passed, failed, unmeasurable, values}. Until that file exists, and whenever its sha256 is not the one released.json
+records, the tool refuses to run; nothing else stands in for it here.
 
 It runs as the checker runs a locked test (near/agents/checker.py run_test): a temporary folder of its own,
 `python -E -s -B`, a time limit. The two limits come from one place, runner_conf.py: the time limit is the one the
@@ -48,7 +49,7 @@ HERE = Path(__file__).parent
 TOOL_ID = CONF["tool"]
 TITLE = "Check a test file against a limit"
 LINE = "For anyone who tests batteries, motors, parts or machines."
-SHOWN_BY = "Checked by a test of 7 files with known answers."
+SHOWN_BY = "Checked by a test of 10 files with known answers."
 TEST_URL = tool_page.TEST_URL
 PUBLIC = "https://knos.onrender.com"
 FRONT = "https://drexthealpha.github.io/Knos/"
@@ -99,7 +100,11 @@ def released() -> dict:
 
 
 def ready() -> bool:
-    return program_path().is_file()
+    """The program file exists and is, byte for byte, the one released.json records (its sha256), F1e."""
+    try:
+        return program_sha256() == str(released().get("sha256") or "").lower()
+    except OSError:
+        return False
 
 
 def program() -> str:
@@ -162,13 +167,13 @@ def fold() -> list[str]:
                    f"end-of-life rule on <a href=\"{CONF['limit_rule_url']}\">NASA's battery data page</a>.")
     out += [
         "What it does not do: it checks one column against one limit. It does not judge whether the limit is the right "
-        "one. A row whose value is not a number is skipped and counted.",
+        "one. A row whose value is not a number is counted as unmeasurable.",
         f"What happens to your file: it is sent to the Knos server at knos.onrender.com and checked there. It is kept, up "
         f"to its first {CONF['input_kept_chars']:,} characters, so that its result link works, until the server is next "
         f"updated or {CONF['results_kept']:,} newer results replace it. A sample result can be seen by anyone with its link. "
         "A result from your own file is shown only to people who have its link and is never listed anywhere. Knos keeps "
         "nothing that says who you are.",
-        f"The test that showed it works: six made-up files with known answers and the sample, each checked against a "
+        f"The test that showed it works: nine made-up files with known answers and the sample, each checked against a "
         f"limit. It did not cover files longer than {longest_test_file()} rows, or files separated by anything other than "
         f"commas. <a href=\"{TEST_URL}\">The test</a> is public.",
         f"The price: runs on the sample are free. {CONF['free_runs_a_day']} runs on your own files are free each day. "
@@ -235,6 +240,22 @@ def too_big() -> dict:
     return {"error": f"Your file is too big. The limit is {int(CONF['max_rows']):,} rows. {KEPT}"}
 
 
+MISMATCH = "This tool's program does not match its release."
+
+
+def mismatch() -> dict:
+    return {"error": MISMATCH}
+
+
+def refuse_unless_ready() -> None:
+    """Before every run (F1e): no program file is the not-ready answer; a file whose sha256 is not released.json's is
+    refused with MISMATCH. Both are 503."""
+    if not program_path().is_file():
+        raise Refusal(503, not_ready())
+    if not ready():
+        raise Refusal(503, mismatch())
+
+
 def not_ready() -> dict:
     return {"error": "I cannot check files yet, because the program for this tool has not passed the test that decides "
                      "it works. Please try again later."}
@@ -267,8 +288,7 @@ def inputs(body: dict) -> tuple[str, str, str, float]:
 
 def run_program(table: str, column: str, rule: str, limit: float) -> dict:
     """The reader and the released program in a folder of their own, as the checker runs a test: the program's answer."""
-    if not ready():
-        raise Refusal(503, not_ready())
+    refuse_unless_ready()
     lim = limits()
     if not _slots.acquire(timeout=lim["max_seconds"]):
         raise Refusal(503, {"error": "I am checking other files right now and could not start yours. Your file is still in the box. Please try again in a moment."})
@@ -396,6 +416,13 @@ def bump(field: str, test: bool = False) -> None:
         print(f"knos tool usage: not counted: {type(why).__name__}: {str(why)[:120]}", flush=True)
 
 
+COUNTS = ("passed", "failed", "unmeasurable")     # the program's three row counts (test_limit2.py)
+
+
+def _count(x) -> int:
+    return int(x) if isinstance(x, int) and not isinstance(x, bool) and x >= 0 else 0
+
+
 def save_result(table: str, column: str, rule: str, limit: float, got: dict, sample_run: bool) -> dict:
     rid = secrets.token_urlsafe(9)                     # 12 characters: never a 16-hex demand result's id
     while re.fullmatch(r"[0-9a-f]{12}", rid):          # nor a referral code (/r/<12 hex>, valley.make_referral)
@@ -404,11 +431,9 @@ def save_result(table: str, column: str, rule: str, limit: float, got: dict, sam
     rec = {"id": rid, "tool": TOOL_ID, "mode": "sample" if sample_run else "own", "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
            "column": column, "rule": rule, "limit": limit, "result": str(got["result"]),
            "first_failing_row": int(ffr) if isinstance(ffr, int) and not isinstance(ffr, bool) else None,
-           "rows": int(got.get("rows") or 0), "skipped": int(got.get("skipped") or 0),
+           **{k: _count(got.get(k)) for k in COUNTS},
            "chart": chart(got.get("values") or [], rule, limit)}
-    rec["verdict"] = tool_page.verdict_of(rec)
-    if rec["verdict"] == "unknown":                    # no row held a number: nothing was checked, so it is not a pass
-        rec.update(result=tool_page.UNKNOWN, program_result=str(got["result"]))
+    rec["verdict"] = tool_page.verdict_of(rec)         # no measurable row: "Cannot check", the program's own words
     if not sample_run:                                 # a sample result keeps no input: the sample is the tool's
         lines = table.replace("\r\n", "\n").split("\n")
         kept, size = [], 0
@@ -434,14 +459,14 @@ def load_result(rid: str) -> dict | None:
 def shape(rec: dict, base: str = PUBLIC) -> dict:
     """A stored result as the pages and the run answer show it."""
     return {"id": rec["id"], "mode": rec["mode"], "result": rec["result"], "first_failing_row": rec.get("first_failing_row"),
-            "rows": rec.get("rows"), "skipped": rec.get("skipped"), "verdict": tool_page.verdict_of(rec),
+            **{k: rec.get(k) for k in COUNTS}, "verdict": tool_page.verdict_of(rec),
             "program_result": rec.get("program_result") or rec["result"], "shown_by": SHOWN_BY, "link": f"{base}/r/{rec['id']}/",
             "column": rec["column"], "rule": rec["rule"], "limit": rec["limit"], "chart": rec.get("chart"),
             "input": sample() if rec["mode"] == "sample" else rec.get("input", ""),
             "lines": rec.get("lines"), "cut": rec.get("cut", False), "shown_lines": rec.get("shown_lines")}
 
 
-ANSWER = ("result", "first_failing_row", "rows", "skipped", "shown_by", "link")
+ANSWER = ("result", "first_failing_row", "passed", "failed", "unmeasurable", "shown_by", "link")
 
 
 def run(body: dict, address: str, base: str = PUBLIC, test: bool = False, connector: bool = False) -> dict:
@@ -449,8 +474,7 @@ def run(body: dict, address: str, base: str = PUBLIC, test: bool = False, connec
     if str(body.get("id") or "") != TOOL_ID:
         raise Refusal(404, {"error": f"I do not have a tool called \"{str(body.get('id'))[:40]}\". The tool I have is {TOOL_ID}: ask for it by that name."})
     table, column, rule, limit = inputs(body)
-    if not ready():
-        raise Refusal(503, not_ready())
+    refuse_unless_ready()
     sample_run = is_sample(table)
     key, rec, took = None, None, None
     if not sample_run:
@@ -834,7 +858,7 @@ def _refused_html(lang: str, code: int, body: dict, sent: dict) -> str:
         msg = T(lang, "pay.headline", n=f["runs"], price=f["price"]) + " " + T(lang, "pay.line")
     else:
         msg = {413: T(lang, "err.too_big", n=int(CONF["max_rows"])), 408: T(lang, "err.too_long", n=max_seconds()),
-               503: T(lang, "err.not_ready")}.get(code) or T(lang, "err.none")
+               503: MISMATCH if body.get("error") == MISMATCH else T(lang, "err.not_ready")}.get(code) or T(lang, "err.none")
     return (f'<div class="answer" data-verdict data-state="unknown">{tool_page.icon(lang, "unknown")}'
             f'<p class="bad" role="alert" data-answer data-reason>{tool_page._e(msg)}</p></div>')
 
@@ -903,7 +927,7 @@ MCP_TOOLS = [
     {"name": "run", "title": "Run a Knos tool",
      "description": "Runs one Knos tool on a file, as the Knos site does, with the same limits and the same free runs a day: "
                     "for limit-check, a comma separated table, the column to check, the rule (above or below) and the limit. "
-                    "Returns the result sentence, the first failing row, the rows checked, the rows skipped, the test that "
+                    "Returns the result sentence, the first failing row, the rows passed, failed and unmeasurable, the test that "
                     "showed the program works, and the result's link.",
      "inputSchema": {"type": "object", "properties": {
          "id": {"type": "string", "enum": [TOOL_ID], "description": "the tool's id"},

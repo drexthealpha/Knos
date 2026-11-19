@@ -274,9 +274,9 @@
    "max_length": 61
   },
   "res.shown_by": {
-   "text": "Checked by a test of 7 files with known answers.",
+   "text": "Checked by a test of 10 files with known answers.",
    "description": "The result area, after a run: the test that showed the tool works, a link.",
-   "max_length": 77
+   "max_length": 79
   },
   "res.mine": {
    "text": "Use my data",
@@ -355,11 +355,15 @@
    "description": "Part of the result sentence, built from the program's English sentence: a value was not below the limit. Keep {limit}, {r}, {value} as written; they are filled in.",
    "max_length": 77
   },
-  "rs.before": {
-   "one": "It passed for the {n} rows before that.",
-   "other": "It passed for the {n} rows before that.",
-   "description": "Part of the result sentence, built from the program's English sentence: the rows that passed before it. Keep {n} as written; it is filled in. One form per plural category of the language, chosen by {n}.",
-   "max_length": 63
+  "rs.counts": {
+   "text": "Rows: {p} passed, {f} failed, {u} unmeasurable.",
+   "description": "Part of the result sentence, built from the program's English sentence: the rows passed, failed and unmeasurable (a cell that is missing or not a finite number). Keep {f}, {p}, {u} as written; they are filled in.",
+   "max_length": 76
+  },
+  "rs.cannot": {
+   "text": "Cannot check: no measurable rows.",
+   "description": "Part of the result sentence, built from the program's English sentence: no row held a measurable number, so nothing was checked (never a pass).",
+   "max_length": 53
   },
   "rs.pass_above": {
    "one": "Passed: all {n} rows stay above {limit}.",
@@ -372,12 +376,6 @@
    "other": "Passed: all {n} rows stay below {limit}.",
    "description": "Part of the result sentence, built from the program's English sentence: every row was below the limit. Keep {limit}, {n} as written; they are filled in. One form per plural category of the language, chosen by {n}.",
    "max_length": 64
-  },
-  "rs.skipped": {
-   "one": "{n} rows were skipped because they are not numbers.",
-   "other": "{n} rows were skipped because they are not numbers.",
-   "description": "Part of the result sentence, built from the program's English sentence: rows that held no number. Keep {n} as written; it is filled in. One form per plural category of the language, chosen by {n}.",
-   "max_length": 72
   },
   "pay.headline": {
    "one": "{n} more run for {price} in test money",
@@ -578,16 +576,16 @@
    "max_length": 167
   },
   "a.why_released": {
-   "one": "A public test of 7 files with known answers passed before release; Knos's checker ran it. Not tested: files over {n} row.",
-   "other": "A public test of 7 files with known answers passed before release; Knos's checker ran it. Not tested: files over {n} rows.",
+   "one": "A public test of 10 files with known answers passed before release; Knos's checker ran it. Not tested: files over {n} row.",
+   "other": "A public test of 10 files with known answers passed before release; Knos's checker ran it. Not tested: files over {n} rows.",
    "description": "An answer line of the fold How it works: why to believe a released tool. Keep {n} as written; it is filled in. One form per plural category of the language, chosen by {n}.",
-   "max_length": 159
+   "max_length": 160
   },
   "a.why_unreleased": {
-   "one": "A public test of 7 files with known answers must pass before release; Knos's checker runs it. Not tested: files over {n} row.",
-   "other": "A public test of 7 files with known answers must pass before release; Knos's checker runs it. Not tested: files over {n} rows.",
+   "one": "A public test of 10 files with known answers must pass before release; Knos's checker runs it. Not tested: files over {n} row.",
+   "other": "A public test of 10 files with known answers must pass before release; Knos's checker runs it. Not tested: files over {n} rows.",
    "description": "An answer line of the fold How it works: why the tool is not released yet. Keep {n} as written; it is filled in. One form per plural category of the language, chosen by {n}.",
-   "max_length": 164
+   "max_length": 166
   },
   "a.tool.who": {
    "text": "Knos runs this tool and its test. No date is set for the next update. To challenge a result, <a href=\"{issues}\">open a public issue</a>.",
@@ -633,9 +631,9 @@
    "max_length": 93
   },
   "fold.not_do": {
-   "text": "It checks one column against one limit. It does not judge whether the limit is the right one. A row whose value is not a number is skipped and counted.",
+   "text": "It checks one column against one limit. It does not judge whether the limit is the right one. A row whose value is not a number is counted as unmeasurable.",
    "description": "A line inside the fold How it works: what the tool does not do.",
-   "max_length": 197
+   "max_length": 202
   },
   "fold.file": {
    "text": "Your file goes to Knos's server, which checks it and keeps it with its result page, so the link works. A sample result can be opened by anyone. Your own file can be opened only by people who have its link, and it is never listed. The server keeps results only until it is next rebuilt, so a link can stop working.",
@@ -643,10 +641,10 @@
    "max_length": 407
   },
   "fold.test": {
-   "one": "The test that showed it works checks six made-up files with known answers and the sample. It did not cover files longer than {n} row, or files separated by anything other than commas. <a href=\"{url}\">The test</a> is public.",
-   "other": "The test that showed it works checks six made-up files with known answers and the sample. It did not cover files longer than {n} rows, or files separated by anything other than commas. <a href=\"{url}\">The test</a> is public.",
+   "one": "The test that showed it works checks nine made-up files with known answers and the sample. It did not cover files longer than {n} row, or files separated by anything other than commas. <a href=\"{url}\">The test</a> is public.",
+   "other": "The test that showed it works checks nine made-up files with known answers and the sample. It did not cover files longer than {n} rows, or files separated by anything other than commas. <a href=\"{url}\">The test</a> is public.",
    "description": "A line inside the fold How it works: what the tool's test covered. Keep {n}, {url} as written; they are filled in. Keep the link markup. One form per plural category of the language, chosen by {n}.",
-   "max_length": 292
+   "max_length": 293
   },
   "fold.price": {
    "one": "Runs on the sample are free. Runs on your own file: {free} free a day, then {n} more run for {price} in test money. Today nothing is charged.",
@@ -956,11 +954,6 @@
    "text": "Cannot tell",
    "description": "The verdict word beside the result's icon: Knos cannot tell.",
    "max_length": 22
-  },
-  "rs.unknown": {
-   "text": "I cannot tell: no row held a number.",
-   "description": "Part of the result sentence, built from the program's English sentence: no row held a number.",
-   "max_length": 58
   },
   "ev.pass": {
    "one": "{n} row of {column}, compared with {limit}.",

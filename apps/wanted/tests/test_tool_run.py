@@ -2,13 +2,14 @@
 
 GET /api/tools, POST /api/run, POST /api/pay, GET /api/usage (its tool counts), /mcp tools "tools" and "run",
 GET /t/<id>/, GET /r/<result-id>/, GET /og/<t|r>/<id>.png. The program is the one the job released,
-near/agents/job/data/limit/released_solution.py; until that file exists these tests run the stand-in written to the
-locked test's interface, tests/limit_standin.py, which is kept only here (it is never served).
+near/agents/job/data/limit/released_solution.py; until that file exists and matches released.json these tests run the
+stand-in written to the locked test's interface, tests/limit_standin.py, which is kept only here (it is never served).
 
 B's "Proved by": file 2 of A8 (near/agents/job/data/limit/case2.csv, or the same file built here: 100 rows, row 37 the
 first below the limit) through /api/run and through the connector gives first_failing_row 37, one result sentence, and
 a link that opens."""
 import datetime as dt
+import hashlib
 import json
 import re
 import shutil
@@ -49,7 +50,9 @@ def file2() -> tuple[str, str, float]:
 def program(monkeypatch):
     """The released program when it exists, else the stand-in under tests."""
     if not tool_run.ready():
+        rel = {**tool_run.released(), "sha256": hashlib.sha256(STANDIN.read_bytes()).hexdigest()}
         monkeypatch.setattr(tool_run, "program_path", lambda: STANDIN)
+        monkeypatch.setattr(tool_run, "released", lambda: rel)      # ready() compares the program with released.json
 
 
 @pytest.fixture
@@ -120,23 +123,23 @@ def test_with_no_released_program_the_tool_says_it_is_not_ready(app, monkeypatch
 
 
 def test_the_locked_test_passes_on_the_program():
-    """A8: near/agents/job/test_limit.py run against the program as the checker runs it (the released one when it exists)."""
-    claim = next(c for c in json.loads((REPO / "near" / "claims" / "claims.json").read_text(encoding="utf-8"))["claims"] if c["test"] == "test_limit.py")
+    """A8: near/agents/job/test_limit2.py run against the program as the checker runs it (the released one when it exists)."""
+    claim = next(c for c in json.loads((REPO / "near" / "claims" / "claims.json").read_text(encoding="utf-8"))["claims"] if c["test"] == "test_limit2.py")
     with tempfile.TemporaryDirectory() as d:                          # as near/agents/checker.py run_test lays it out
-        shutil.copy(JOB / "test_limit.py", Path(d) / "test_limit.py")
+        shutil.copy(JOB / "test_limit2.py", Path(d) / "test_limit2.py")
         (Path(d) / "solution.py").write_bytes(tool_run.program_path().read_bytes())
         for rel in claim.get("data") or []:
             (Path(d) / rel).parent.mkdir(parents=True, exist_ok=True)
             shutil.copy(JOB / rel, Path(d) / rel)
-        p = subprocess.run([sys.executable, "-E", "-s", "-B", "test_limit.py"], cwd=d, capture_output=True, text=True, timeout=60)
-    assert p.returncode == 0 and p.stdout.strip().splitlines()[-1].startswith("Passed: all 7 cases"), p.stdout + p.stderr
+        p = subprocess.run([sys.executable, "-E", "-s", "-B", "test_limit2.py"], cwd=d, capture_output=True, text=True, timeout=60)
+    assert p.returncode == 0 and p.stdout.strip().splitlines()[-1].startswith("Passed: all 10 cases"), p.stdout + p.stderr
 
 
 def test_the_limits_come_from_the_sandbox_settings():
     checker = (REPO / "near" / "agents" / "checker.py").read_text(encoding="utf-8")
     default = int(re.search(r'c\.get\("timeout_s"\) or (\d+)', checker).group(1))
     claims = json.loads((REPO / "near" / "claims" / "claims.json").read_text(encoding="utf-8"))["claims"]
-    c = next((c for c in claims if c["test"] == "test_limit.py"), {})
+    c = next((c for c in claims if c["test"] == "test_limit2.py"), {})
     assert tool_run.limits() == {"max_rows": 100_000, "max_seconds": int(c.get("timeout_s") or default)}
     assert tool_run.CONF["checker_default_seconds"] == default      # runner_conf.py follows the checker
 
@@ -144,14 +147,15 @@ def test_the_limits_come_from_the_sandbox_settings():
 def test_100000_rows_run_inside_the_time_limit():
     table = "cycle,v\n" + "\n".join(f"{i},{2 + (i % 7) / 10}" for i in range(1, 100_001))
     got = tool_run.run_program(table, "v", "above", 1.5)
-    assert got["result"] == "Passed: all 100000 rows stay above 1.5." and got["rows"] == 100_000
+    assert got["result"] == "Passed: all 100000 rows stay above 1.5. Rows: 100000 passed, 0 failed, 0 unmeasurable."
+    assert got["passed"] == 100_000
 
 
 def test_the_sample_is_the_jobs_and_fails_where_the_separate_script_says():
     assert tool_run.sample() == (JOB / "data" / "limit" / "sample.csv").read_text(encoding="utf-8").replace("\r\n", "\n").strip("\n")
     r = sample_row()
     got = tool_run.run_program(tool_run.sample(), "capacity_ah", "above", 1.4)
-    assert got["first_failing_row"] == r and got["result"].startswith(f"Failed at row {r}: ") and got["rows"] == r - 1
+    assert got["first_failing_row"] == r and got["result"].startswith(f"Failed at row {r}: ") and got["passed"] == r - 1
 
 
 def test_the_sample_label_and_limit_are_the_jobs():
@@ -181,8 +185,8 @@ def test_a_sample_run_gives_the_result_and_a_link_that_opens(app):
     row = sample_row()
     assert st == 200 and h["Access-Control-Allow-Origin"] == FRONT
     assert r["result"].startswith(f"Failed at row {row}: ") and r["first_failing_row"] == row and r["runs_left"] is None
-    assert r["result"].endswith(f"is not above 1.4. It passed for the {row - 1} rows before that.")
-    assert r["shown_by"] == "Checked by a test of 7 files with known answers." and r["skipped"] == 0
+    assert r["result"].endswith(f"is not above 1.4. Rows: {row - 1} passed, {169 - row} failed, 0 unmeasurable.")
+    assert r["shown_by"] == "Checked by a test of 10 files with known answers." and r["unmeasurable"] == 0
     assert r["limits"] == tool_run.limits() and r["chart"]["fail"][0] == row and r["chart"]["limit"] == 1.4
     m = re.fullmatch(r"https?://[^/]+/r/([A-Za-z0-9_-]{12})/", r["link"])     # knos.onrender.com when deployed
     assert m, r["link"]
@@ -198,9 +202,9 @@ def test_file_2_through_the_site_and_the_connector_fails_at_row_37(app):
     args = {"id": "limit-check", "table": table, "column": column, "rule": "above", "limit": limit}
     st, site, _ = call(app, "/api/run", {**args, "browser": "b-file2-0001", "test": True})
     assert st == 200 and site["first_failing_row"] == 37 and site["result"].startswith("Failed at row 37: "), site
-    assert site["rows"] == 36 and site["result"].endswith("It passed for the 36 rows before that.")
+    assert site["passed"] == 98 and site["result"].endswith(" Rows: 98 passed, 2 failed, 0 unmeasurable.")
     got = mcp(app, "run", args)["structuredContent"]
-    assert set(got) == {"result", "first_failing_row", "rows", "skipped", "shown_by", "link"}
+    assert set(got) == {"result", "first_failing_row", "passed", "failed", "unmeasurable", "shown_by", "link"}
     assert got["first_failing_row"] == 37 and got["result"] == site["result"] and got["shown_by"] == site["shown_by"]
     for link in (site["link"], got["link"]):
         rid = link.rstrip("/").rsplit("/", 1)[1]
@@ -218,25 +222,25 @@ def test_the_connector_takes_a_limit_sent_as_text_as_the_site_does(app):
     got = mcp(app, "run", args)
     assert not got.get("isError"), got
     got = got["structuredContent"]
-    for k in ("result", "first_failing_row", "rows", "skipped", "shown_by"):
+    for k in ("result", "first_failing_row", "passed", "failed", "unmeasurable", "shown_by"):
         assert got[k] == site[k], k
     st, bad, _ = call(app, "/api/run", {**args, "limit": "one point four", "browser": "b-textlim-0002", "test": True})
     refused = mcp(app, "run", {**args, "limit": "one point four"})
     assert st == 400 and refused["isError"] and refused["content"][0]["text"] == bad["error"], refused
 
 
-def test_the_sentences_follow_the_rule_and_count_skipped_rows(app):
+def test_the_sentences_follow_the_rule_and_count_unmeasurable_rows(app):
     st, r, _ = own(app, "a,b\n1,9\n2,x\n3,8\n4,7", column="b", rule="below", limit=10)
-    assert st == 200 and r["result"] == "Passed: all 3 rows stay below 10. 1 rows were skipped because they are not numbers."
+    assert st == 200 and r["result"] == "Passed: all 3 rows stay below 10. Rows: 3 passed, 0 failed, 1 unmeasurable."
     st, r, _ = own(app, "1,2.5\n2,2.6", column="column 2", rule="above", limit=2.5)
-    assert r["result"] == "Failed at row 1: 2.5 is not above 2.5. It passed for the 0 rows before that." and r["first_failing_row"] == 1
+    assert r["result"] == "Failed at row 1: 2.5 is not above 2.5. Rows: 1 passed, 1 failed, 0 unmeasurable." and r["first_failing_row"] == 1
 
 
 def test_own_runs_use_the_free_allowance_then_ask_for_test_money(app):
     seen = []
     for i in range(5):
         st, r, _ = own(app)
-        assert st == 200 and r["result"] == "Passed: all 3 rows stay above 4." and r["mode"] == "own", r
+        assert st == 200 and r["result"] == "Passed: all 3 rows stay above 4. Rows: 3 passed, 0 failed, 0 unmeasurable." and r["mode"] == "own", r
         seen.append(r["free_left"])
     assert seen == [4, 3, 2, 1, 0]
     st, r, _ = own(app)

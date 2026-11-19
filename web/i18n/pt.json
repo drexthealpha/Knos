@@ -83,7 +83,7 @@
   "btn.type_limit": "Digite o limite",
   "btn.back": "Voltar ao meu arquivo",
   "res.private": "Só quem tem este link pode ver.",
-  "res.shown_by": "Verificado por um teste de 7 arquivos com respostas conhecidas.",
+  "res.shown_by": "Verificado por um teste de 10 arquivos com respostas conhecidas.",
   "res.mine": "Usar meus dados",
   "res.copy": "Copiar link",
   "res.copied": "Copiado",
@@ -107,11 +107,8 @@
   "chart.row": "Linha {r}",
   "rs.fail_above": "Falhou na linha {r}: {value} não está acima de {limit}.",
   "rs.fail_below": "Falhou na linha {r}: {value} não está abaixo de {limit}.",
-  "rs.before": {
-   "one": "Passou na {n} linha anterior.",
-   "many": "Passou nas {n} de linhas anteriores.",
-   "other": "Passou nas {n} linhas anteriores."
-  },
+  "rs.counts": "Linhas: {p} aprovadas, {f} reprovadas, {u} não mensuráveis.",
+  "rs.cannot": "Não é possível verificar: nenhuma linha mensurável.",
   "rs.pass_above": {
    "one": "Aprovado: a {n} linha fica acima de {limit}.",
    "many": "Aprovado: as {n} de linhas ficam acima de {limit}.",
@@ -121,11 +118,6 @@
    "one": "Aprovado: a {n} linha fica abaixo de {limit}.",
    "many": "Aprovado: as {n} de linhas ficam abaixo de {limit}.",
    "other": "Aprovado: as {n} linhas ficam abaixo de {limit}."
-  },
-  "rs.skipped": {
-   "one": "{n} linha foi ignorada porque não é um número.",
-   "many": "{n} de linhas foram ignoradas porque não são números.",
-   "other": "{n} linhas foram ignoradas porque não são números."
   },
   "pay.headline": {
    "one": "Mais {n} verificação por {price} em dinheiro de teste",
@@ -179,14 +171,14 @@
    "other": "O exemplo é grátis. Seus arquivos: {free} verificações grátis por dia, depois {price} em dinheiro de teste por mais {n}, pago por você após confirmar."
   },
   "a.why_released": {
-   "one": "Um teste público de 7 arquivos com respostas conhecidas passou antes do lançamento; o verificador do Knos o executou. Não testado: mais de {n} linha.",
-   "many": "Um teste público de 7 arquivos com respostas conhecidas passou antes do lançamento; o verificador do Knos o executou. Não testado: mais de {n} de linhas.",
-   "other": "Um teste público de 7 arquivos com respostas conhecidas passou antes do lançamento; o verificador do Knos o executou. Não testado: mais de {n} linhas."
+   "one": "Um teste público de 10 arquivos com respostas conhecidas passou antes do lançamento; o verificador do Knos o executou. Não testado: mais de {n} linha.",
+   "many": "Um teste público de 10 arquivos com respostas conhecidas passou antes do lançamento; o verificador do Knos o executou. Não testado: mais de {n} de linhas.",
+   "other": "Um teste público de 10 arquivos com respostas conhecidas passou antes do lançamento; o verificador do Knos o executou. Não testado: mais de {n} linhas."
   },
   "a.why_unreleased": {
-   "one": "Um teste público de 7 arquivos com respostas conhecidas precisa passar antes do lançamento; o verificador do Knos o executa. Não testado: mais de {n} linha.",
-   "many": "Um teste público de 7 arquivos com respostas conhecidas precisa passar antes do lançamento; o verificador do Knos o executa. Não testado: mais de {n} de linhas.",
-   "other": "Um teste público de 7 arquivos com respostas conhecidas precisa passar antes do lançamento; o verificador do Knos o executa. Não testado: mais de {n} linhas."
+   "one": "Um teste público de 10 arquivos com respostas conhecidas precisa passar antes do lançamento; o verificador do Knos o executa. Não testado: mais de {n} linha.",
+   "many": "Um teste público de 10 arquivos com respostas conhecidas precisa passar antes do lançamento; o verificador do Knos o executa. Não testado: mais de {n} de linhas.",
+   "other": "Um teste público de 10 arquivos com respostas conhecidas precisa passar antes do lançamento; o verificador do Knos o executa. Não testado: mais de {n} linhas."
   },
   "a.tool.who": "A Knos opera esta ferramenta e o seu teste. Não há data marcada para a próxima atualização. Para contestar um resultado, <a href=\"{issues}\">abra um relato público</a>.",
   "a.price.get": {
@@ -208,12 +200,12 @@
    "other": "O exemplo é inventado: uma linha reta de {first} a {last} ao longo de {n} ciclos, porque a página da NASA não oferece download de um endereço nasa.gov. Seu limite, {limit}, é a regra de fim de vida da <a href=\"{url}\">página de dados de baterias da NASA</a>."
   },
   "fold.sample_nasa": "Dados do exemplo: <a href=\"{url}\">NASA Prognostics Center of Excellence</a>.",
-  "fold.not_do": "Verifica uma coluna contra um limite. Não julga se o limite é o certo. Uma linha cujo valor não é um número é ignorada e contada.",
+  "fold.not_do": "Verifica uma coluna contra um limite. Não julga se o limite é o certo. Uma linha cujo valor não é um número é contada como não mensurável.",
   "fold.file": "Seu arquivo vai para o servidor do Knos, que o verifica e o guarda com a página do resultado, para o link funcionar. Um resultado de exemplo pode ser aberto por qualquer pessoa. Seu próprio arquivo só pode ser aberto por quem tem o link, e nunca é listado. O servidor guarda os resultados só até a próxima reconstrução, então um link pode parar de funcionar.",
   "fold.test": {
-   "one": "O teste que mostrou que funciona verifica seis arquivos inventados com respostas conhecidas e o exemplo. Não cobriu arquivos com mais de {n} linha, nem arquivos separados por algo além de vírgulas. <a href=\"{url}\">O teste</a> é público.",
-   "many": "O teste que mostrou que funciona verifica seis arquivos inventados com respostas conhecidas e o exemplo. Não cobriu arquivos com mais de {n} de linhas, nem arquivos separados por algo além de vírgulas. <a href=\"{url}\">O teste</a> é público.",
-   "other": "O teste que mostrou que funciona verifica seis arquivos inventados com respostas conhecidas e o exemplo. Não cobriu arquivos com mais de {n} linhas, nem arquivos separados por algo além de vírgulas. <a href=\"{url}\">O teste</a> é público."
+   "one": "O teste que mostrou que funciona verifica nove arquivos inventados com respostas conhecidas e o exemplo. Não cobriu arquivos com mais de {n} linha, nem arquivos separados por algo além de vírgulas. <a href=\"{url}\">O teste</a> é público.",
+   "many": "O teste que mostrou que funciona verifica nove arquivos inventados com respostas conhecidas e o exemplo. Não cobriu arquivos com mais de {n} de linhas, nem arquivos separados por algo além de vírgulas. <a href=\"{url}\">O teste</a> é público.",
+   "other": "O teste que mostrou que funciona verifica nove arquivos inventados com respostas conhecidas e o exemplo. Não cobriu arquivos com mais de {n} linhas, nem arquivos separados por algo além de vírgulas. <a href=\"{url}\">O teste</a> é público."
   },
   "fold.price": {
    "one": "As verificações do exemplo são grátis. Com seu próprio arquivo: {free} grátis por dia, depois mais {n} verificação por {price} em dinheiro de teste. Hoje nada é cobrado.",
@@ -292,7 +284,6 @@
   "v.pass": "Aprovado",
   "v.fail": "Reprovado",
   "v.unknown": "Não sei dizer",
-  "rs.unknown": "Não sei dizer: nenhuma linha tinha um número.",
   "ev.pass": {
    "one": "{n} linha de {column}, comparada com {limit}.",
    "many": "{n} linhas de {column}, cada uma comparada com {limit}.",

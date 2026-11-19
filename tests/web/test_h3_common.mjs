@@ -23,7 +23,7 @@ const localeFile = (lang) => { const d = JSON.parse(readFileSync(join(ROOT, "web
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 export const LANGS = ["en", "ar", "hi", "es", "fr", "pt", "zh-Hans", "id", "sw", "ru"];
 export const RID = "H3resultAAAA";
-export const RESULT = "Failed at row 136: 1.399 is not above 1.4. It passed for the 135 rows before that.";
+export const RESULT = "Failed at row 136: 1.399 is not above 1.4. Rows: 135 passed, 33 failed, 0 unmeasurable.";
 const PY = process.env.PYTHON || "python3";
 
 // the server's pages, in every language, by its own code (a result made from the sample, as /api/run would store it)
@@ -34,7 +34,7 @@ from knos_wanted import tool_page, tool_run
 out, base, rid, sentence = Path(sys.argv[1]), sys.argv[2], sys.argv[3], sys.argv[4]
 t = tool_run.tool("limit-check")
 vals = [float(r.split(",")[1]) for r in t["sample"].splitlines()[1:]]
-res = {"id": rid, "mode": "sample", "result": sentence, "first_failing_row": 136, "rows": 135, "skipped": 0,
+res = {"id": rid, "mode": "sample", "result": sentence, "first_failing_row": 136, "passed": 135, "failed": 33, "unmeasurable": 0,
        "shown_by": tool_run.SHOWN_BY, "link": f"{base}/r/{rid}/", "column": "capacity_ah", "rule": "above", "limit": 1.4,
        "chart": {"points": [[i + 1, v] for i, v in enumerate(vals)], "fail": [136, vals[135]], "limit": 1.4, "rule": "above", "n": len(vals)},
        "input": t["sample"], "lines": len(vals), "cut": False, "shown_lines": len(vals)}
@@ -51,7 +51,7 @@ const pick = (q, accept) => {
 
 // the stand-in for POST /api/run: the sample's answer, or file-of-the-test answers given by `answer`
 export function apiAnswer(body, base) {
-  return { id: RID, mode: body.mode || "sample", result: RESULT, first_failing_row: 136, rows: 135, skipped: 0, shown_by: "Checked by a test of 7 files with known answers.",
+  return { id: RID, mode: body.mode || "sample", result: RESULT, first_failing_row: 136, passed: 135, failed: 33, unmeasurable: 0, shown_by: "Checked by a test of 10 files with known answers.",
     link: `${base}/r/${RID}/`, limits: { max_rows: 100000, max_seconds: 20 }, chart: { points: [[1, 1.86], [136, 1.399], [168, 1.29]], fail: [136, 1.399], limit: body.limit, rule: body.rule, n: 168 },
     runs_left: null, free_left: null, paid_left: null };
 }

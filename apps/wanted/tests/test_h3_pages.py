@@ -199,11 +199,12 @@ def test_the_result_page_has_listen_the_line_for_another_site_and_print(app):
 
 
 # ---- the result sentence, in every language, with no script ----------------------------------------------------------
-SENTENCES = ["Failed at row 37: 2.41 is not above 2.5. It passed for the 36 rows before that.",
-             "Failed at row 1: 3 is not below 2. It passed for the 0 rows before that.",
-             "Passed: all 100 rows stay above 1.4.",
-             "Passed: all 97 rows stay above 1.4. 3 rows were skipped because they are not numbers.",
-             "Failed at row 50: 1.4 is not above 1.4. It passed for the 47 rows before that. 2 rows were skipped because they are not numbers."]
+SENTENCES = ["Failed at row 37: 2.41 is not above 2.5. Rows: 98 passed, 2 failed, 0 unmeasurable.",
+             "Failed at row 1: 3 is not below 2. Rows: 0 passed, 1 failed, 0 unmeasurable.",
+             "Passed: all 100 rows stay above 1.4. Rows: 100 passed, 0 failed, 0 unmeasurable.",
+             "Passed: all 97 rows stay above 1.4. Rows: 97 passed, 0 failed, 3 unmeasurable.",
+             "Failed at row 50: 1.4 is not above 1.4. Rows: 47 passed, 1 failed, 2 unmeasurable.",
+             "Cannot check: no measurable rows. Rows: 0 passed, 0 failed, 3 unmeasurable."]
 
 
 def test_the_template_reads_every_sentence_the_program_writes():
@@ -217,7 +218,7 @@ def test_the_template_reads_every_sentence_the_program_writes():
             for n in re.findall(r"\d+(?:\.\d+)?", s):
                 assert n in out, (lang, n, out)                          # every number of the program's sentence is kept
             html_ = tool_page.sentence(lang, s)
-            if lang != "en":
+            if lang != "en" and not s.startswith("Cannot check"):   # "Cannot check" quotes no value from the file
                 assert "<bdi>" in html_                                    # values from the file keep their own direction (U7 R2)
     assert tool_page.sentence("ar", "something else") == "something else"   # a sentence the template does not know: as written
 

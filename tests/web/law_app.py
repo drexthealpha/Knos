@@ -6,6 +6,7 @@ The same set-up as apps/wanted/tests/test_tool_run.py's `app` fixture: the app's
 in-process mock, no chain count from the network, a state folder of its own (KNOS_WANTED_STATE, a new temporary folder).
 The tool's program is the released one (near/agents/job/data/limit/released_solution.py) when it exists; until then the
 stand-in written to the locked test's interface, apps/wanted/tests/limit_standin.py, which is kept only under tests."""
+import hashlib
 import os
 import sys
 import tempfile
@@ -27,7 +28,9 @@ def main() -> int:
     released = tool_run.ready()
     if not released:
         standin = REPO / "apps" / "wanted" / "tests" / "limit_standin.py"
+        rel = {**tool_run.released(), "sha256": hashlib.sha256(standin.read_bytes()).hexdigest()}
         tool_run.program_path = lambda: standin
+        tool_run.released = lambda: rel          # ready() compares the program with released.json
     usage.chain_count = lambda url=None: (_ for _ in ()).throw(OSError("no network in tests"))
     state = server.State(Qloo(InProcess(), mode="mock", sleep=lambda s: None))
     state.allow = lambda *a, **k: True          # the tests press far more often than a person: no rate limit here
