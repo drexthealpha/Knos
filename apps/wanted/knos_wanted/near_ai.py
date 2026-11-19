@@ -31,6 +31,7 @@ BASE = os.environ.get("NEAR_AI_BASE", "https://cloud-api.near.ai/v1").rstrip("/"
 MODELS = ("deepseek-ai/DeepSeek-V4.1-Flash-1017", "moonshotai/kimi-k2.6")
 PRICE = {"deepseek-ai/DeepSeek-V4.1-Flash-1017": (0.30e-6, 1.20e-6), "moonshotai/kimi-k2.6": (0.81e-6, 3.85e-6)}   # USD per input, output token (GET /v1/models, 12 Nov 2026)
 MAX_TOKENS = 800
+WRITE_MAX_TOKENS = 2400   # writing a program: a 60 to 80 line module did not fit in 800 and came back cut (G3, 19 Nov 2026)
 CREDIT_USD = 10.0
 STOP_AT_USD = 8.0
 PER_VISITOR_HOUR = 10
@@ -133,7 +134,7 @@ def attestation(model: str = MODELS[0]) -> dict:
 
 def status() -> dict:
     s, src = spent()
-    return {"on": bool(_key()), "model": MODELS[0], "fallback": MODELS[1], "max_tokens": MAX_TOKENS, "calls_per_order": 4,
+    return {"on": bool(_key()), "model": MODELS[0], "fallback": MODELS[1], "max_tokens": MAX_TOKENS, "write_max_tokens": WRITE_MAX_TOKENS, "calls_per_order": 4,
             "spent_usd": s, "spent_from": src, "stop_at_usd": STOP_AT_USD, "credit_usd": CREDIT_USD, "calls": _state["calls"],
             "calls_today": _state["today"] if _state["day"] == _today() else 0, "per_day": PER_DAY,
             "per_visitor_hour": PER_VISITOR_HOUR, "cached_answers": len(_state["cache"])}
@@ -172,7 +173,7 @@ def _call(kind: str, inp: dict, system: str, user: str, visitor: str) -> dict:
     for model in MODELS:   # the fallback only when the first model gives no answer; one answer either way
         att = near_attest.verify_model(model)   # preflight: the attestation verified before the completion is sent
         # thinking off: the reasoning of DeepSeek V4.1 Flash otherwise uses all 800 tokens before any answer (12 Nov)
-        body = json.dumps({"model": model, "max_tokens": MAX_TOKENS, "temperature": 0, "chat_template_kwargs": {"thinking": False},
+        body = json.dumps({"model": model, "max_tokens": WRITE_MAX_TOKENS if kind == "write" else MAX_TOKENS, "temperature": 0, "chat_template_kwargs": {"thinking": False},
                            "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}).encode()
         req = urllib.request.Request(BASE + "/chat/completions", method="POST", data=body,
                                      headers={"Authorization": "Bearer " + _key(), "Content-Type": "application/json", "User-Agent": "knos-agent/1.0",

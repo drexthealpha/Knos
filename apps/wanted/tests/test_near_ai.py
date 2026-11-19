@@ -34,7 +34,8 @@ def ai(monkeypatch, tmp_path):
         def urlopen(req, timeout=0):
             body = json.loads(req.data) if req.data else {}
             calls.append(body.get("model"))
-            assert req.headers.get("Authorization") == "Bearer " + FAKE and body.get("max_tokens") == 800
+            # a review or an answer gets 800 tokens; writing a program gets 2,400 (near_ai.WRITE_MAX_TOKENS)
+            assert req.headers.get("Authorization") == "Bearer " + FAKE and body.get("max_tokens") in (800, 2400)
             if model_fail and body.get("model") == model_fail:
                 raise urllib.error.HTTPError(req.full_url, 503, "busy", {}, None)
             return _Resp(json.dumps({"id": "chatcmpl-1", "choices": [{"message": {"content": content}, "finish_reason": "stop"}],
