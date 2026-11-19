@@ -305,7 +305,7 @@
    "other": "{n} linhas de {column}, cada uma comparada com {limit}."
   },
   "ev.fail": "A linha {r} de {column} tem {value}, comparada com {limit}.",
-  "why.unknown": "Não consegui comparar nenhuma linha com o limite, porque nenhum valor de {column} é um número.",
+  "why.unknown": "As linhas {rows} não têm número em {column}.",
   "next.pass": "Todas as linhas passaram: confira seu próprio arquivo com Usar meus dados.",
   "next.fail": "Abra seu arquivo na linha {r}, a primeira linha que falhou.",
   "next.unknown": "Escolha uma coluna em que cada linha tenha um número e toque em Verificar meus dados.",
@@ -321,6 +321,10 @@
   "act.undone": "O pagamento de teste foi desfeito. Nada foi cobrado.",
   "act.undo_error": "Não consegui desfazer o pagamento de teste, porque algumas das suas execuções já foram usadas. Nada foi cobrado.",
   "offline.line": "Você está sem conexão. Esta página foi guardada da sua última visita.",
-  "res.input": "A tabela verificada"
+  "res.input": "A tabela verificada",
+  "why.unknown_none": "Não consegui comparar nenhuma linha com o limite, porque nenhum valor de {column} é um número.",
+  "why.unknown_one": "A linha {r} não tem número em {column}.",
+  "tool.sample_column": "capacidade da bateria",
+  "fold.column": "A coluna {column} da amostra guarda a capacidade da bateria em ampères-hora."
  }
 }

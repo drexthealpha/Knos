@@ -256,7 +256,7 @@
   "v.unknown": "Tidak bisa dipastikan",
   "ev.pass": "{n} baris dari {column}, masing-masing dibandingkan dengan {limit}.",
   "ev.fail": "Baris {r} dari {column} berisi {value}, dibandingkan dengan {limit}.",
-  "why.unknown": "Saya tidak bisa membandingkan baris mana pun dengan batas, karena tak ada nilai di {column} yang berupa angka.",
+  "why.unknown": "Baris {rows} tidak berisi angka di {column}.",
   "next.pass": "Semua baris lolos: periksa berkas Anda sendiri dengan Pakai data saya.",
   "next.fail": "Buka berkas Anda di baris {r}, baris pertama yang gagal.",
   "next.unknown": "Pilih kolom yang setiap barisnya berisi angka, lalu tekan Periksa data saya.",
@@ -268,6 +268,10 @@
   "act.undone": "Pembayaran uji coba dibatalkan. Tidak ada yang ditagih.",
   "act.undo_error": "Saya tidak bisa membatalkan pembayaran uji coba, karena sebagian jatahnya sudah terpakai. Tidak ada yang ditagih.",
   "offline.line": "Anda sedang offline. Halaman ini disimpan dari kunjungan terakhir Anda.",
-  "res.input": "Tabel yang diperiksa"
+  "res.input": "Tabel yang diperiksa",
+  "why.unknown_none": "Saya tidak bisa membandingkan baris mana pun dengan batas, karena tak ada nilai di {column} yang berupa angka.",
+  "why.unknown_one": "Baris {r} tidak berisi angka di {column}.",
+  "tool.sample_column": "kapasitas baterai",
+  "fold.column": "Kolom {column} pada sampel berisi kapasitas baterai dalam ampere-jam."
  }
 }

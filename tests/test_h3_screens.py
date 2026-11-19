@@ -57,7 +57,7 @@ def test_the_front_doors_source_writes_no_visible_string_of_its_own():
     body = re.sub(r"<script\b.*?</script>|<!--.*?-->|<style\b.*?</style>", " ", body, flags=re.S)
     text = re.sub(r"\{\{@?[\w.]+(?: \w+=[^ }]+)*\}\}", " ", re.sub(r"<[^>]+>", " ", body))
     words = [w for w in text.split() if re.search(r"[A-Za-z]", w)]
-    assert words == ["Knos", "capacity_ah"], words                   # the brand and the sample's column name only
+    assert words == ["Knos"], words                                  # the brand only (F1B: the sample's column is a key too)
     for key in re.findall(r"\{\{@?([\w.]+)", door):
         assert key in EN or key in ("tool.sample_label", "five", "fold.sample", "fold.built"), key
     for key in re.findall(r"""\bT\(\s*"([\w.]+)\"""", door):

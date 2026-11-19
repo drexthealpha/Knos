@@ -101,7 +101,9 @@ for (const lang of ["en", "ar"]) {
   const t = await load(lang, S.screens.tool, { js: false });
   // G5: the box is offered empty, the sample shown in it as its example; sent untouched, the form checks that sample
   const tool = await t.page.evaluate(() => { const l = document.getElementById("list"), f = document.querySelector('#tool input[name="sample"]'); return { box: (l.value || l.placeholder).split("\n")[0], sample: l.value ? "1" : (f ? f.value : ""), go: !!document.getElementById("go") && !!document.getElementById("go").offsetParent }; });
-  check(`${lang}: with scripts blocked the tool page shows its sample and its button`, tool.box === "cycle,capacity_ah" && tool.sample === "1" && tool.go, tool);
+  // F1B: the example's header says the sample's column in plain words, in the page's language (tool.sample_column)
+  const plainCol = { en: "battery capacity", ar: "سعة البطارية" }[lang];
+  check(`${lang}: with scripts blocked the tool page shows its sample and its button`, tool.box === `cycle,${plainCol}` && tool.sample === "1" && tool.go, tool);
   await t.ctx.close();
 }
 

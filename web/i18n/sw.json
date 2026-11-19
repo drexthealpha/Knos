@@ -280,7 +280,7 @@
    "other": "Safu {n} za {column}, kila moja imelinganishwa na {limit}."
   },
   "ev.fail": "Safu {r} ya {column} ina {value}, imelinganishwa na {limit}.",
-  "why.unknown": "Sikuweza kulinganisha safu yoyote na kikomo, kwa sababu hakuna thamani katika {column} iliyo namba.",
+  "why.unknown": "Safu {rows} hazina namba katika {column}.",
   "next.pass": "Kila safu imepita: kagua faili yako mwenyewe kwa Tumia data yangu.",
   "next.fail": "Fungua faili yako kwenye safu {r}, safu ya kwanza iliyoshindwa.",
   "next.unknown": "Chagua safu wima ambayo kila safu ina namba, kisha bonyeza Kagua data yangu.",
@@ -295,6 +295,10 @@
   "act.undone": "Malipo ya majaribio yametenduliwa. Hakuna kilichotozwa.",
   "act.undo_error": "Sikuweza kutendua malipo ya majaribio, kwa sababu baadhi ya matumizi yake yameshatumika. Hakuna kilichotozwa.",
   "offline.line": "Huna mtandao. Ukurasa huu ulihifadhiwa kutoka ziara yako ya mwisho.",
-  "res.input": "Jedwali lililokaguliwa"
+  "res.input": "Jedwali lililokaguliwa",
+  "why.unknown_none": "Sikuweza kulinganisha safu yoyote na kikomo, kwa sababu hakuna thamani katika {column} iliyo namba.",
+  "why.unknown_one": "Safu {r} haina namba katika {column}.",
+  "tool.sample_column": "uwezo wa betri",
+  "fold.column": "Safu wima {column} ya sampuli ina uwezo wa betri kwa ampea-saa."
  }
 }

@@ -380,6 +380,11 @@ def sample_facts() -> dict:
             "longest": f"{max(data_rows(f.read_text(encoding='utf-8')) for f in test_files()):,}"}
 
 
+def sample_column() -> str:
+    """The sample's column as its file names it (sample.json column), shown by that name only in the How it works fold."""
+    return json.loads((LIMIT / "sample.json").read_text(encoding="utf-8"))["column"]
+
+
 def test_files() -> list[Path]:
     """The files the first tool's locked test checks: the "data" list of its claim (test_limit3.py) in claims.json."""
     claims = json.loads((ROOT / "near" / "claims" / "claims.json").read_text(encoding="utf-8"))["claims"]
@@ -466,7 +471,7 @@ def strings(html: str) -> str:
         "fold.built": comp("fold.built_released", {"url": job[1]}) if job else tp.h("en", "fold.built_unreleased"),
     }
     composite = {"pay.headline": (pack, pspans), "pay.confirm": (pack, pspans), "fold.test": ({"n": longest, "url": TEST_URL}, {"n": 'data-sample="longest"'}),
-                 "fold.price": (pay_v, pspans), "ask.cost": ({"low": 330, "high": 763, "url": PERIGNON}, None)}
+                 "fold.price": (pay_v, pspans), "fold.column": ({"column": site_product.TP.Bdi(sample_column())}, None), "ask.cost": ({"low": 330, "high": 763, "url": PERIGNON}, None)}
 
     def one(m):
         key, hints = m[1], dict(h.split("=", 1) for h in m[2].split())

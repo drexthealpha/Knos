@@ -163,7 +163,8 @@ check("A: the first screen is 40 words or fewer (the box's sample is the input, 
 check("A: the first screen has none of the PLAIN-WORDS rule's words", plainHit(first.text).length === 0, plainHit(first.text));
 check("A: one h1, the headline, and the tool's title under it", first.h1.length === 1 && first.h1[0] === "What can you do with Knos?" && first.title === "Check a test file against a limit", first);
 check("A2: the sample is loaded and labelled, two columns cycle and capacity_ah", /^Sample: (NASA|made-up) battery test$/.test(first.label) && first.lines[0] === "cycle,capacity_ah" && first.lines.length > 100, [first.label, first.lines.slice(0, 2)]);
-check("A2: the limit is filled in: capacity_ah must stay above 1.4", first.column === "capacity_ah" && first.rule === "must stay above" && first.limit === "1.4", first);
+// F1B: the rule line says the sample's column in plain words; capacity_ah, the file's own name, is the box's and the fold's
+check("A2: the limit is filled in: battery capacity must stay above 1.4", first.column === "battery capacity" && !/capacity_ah/.test(first.text) && first.rule === "must stay above" && first.limit === "1.4", first);
 check("A: the box and Check my data are whole on the first screen, no scroll", first.boxBottom <= first.H && first.goBottom <= first.H && first.scrollX <= 0, first);
 check("A: Check my data is the main action, 48 px tall at least and 300 px wide at least; body text 18 px", first.goH >= 48 && first.goW >= 300 && first.font >= 18, first);
 
@@ -186,8 +187,8 @@ check("D2: the run carries the test marker and no browser id before the counting
 const shownLine = await page.evaluate(() => document.getElementById("shown").textContent);
 check("A5: the test that showed it works, in one plain line outside the fold", shownLine === "Checked by a test of 14 cases with known answers.", shownLine);
 const fold = await page.evaluate(() => [...document.querySelectorAll("#how li")].map((li) => li.textContent.trim()));
-check("A5: the fold holds, in order, the sample's source, what it does not do, your file, the test, the price, who built it",
-  fold.length === 6 && /^The sample is /.test(fold[0]) && /does not judge whether the limit is the right one/.test(fold[1]) && /^Your file goes/.test(fold[2]) && /^The test that showed it works/.test(fold[3]) && /test money/.test(fold[4]) && /^Who built it/.test(fold[5]), fold);
+check("A5: the fold holds, in order, the sample's source, its column by the file's name (F1B), what it does not do, your file, the test, the price, who built it",
+  fold.length === 7 && /^The sample is /.test(fold[0]) && fold[1] === "The sample's column capacity_ah holds the battery's capacity in amp hours." && /does not judge whether the limit is the right one/.test(fold[2]) && /^Your file goes/.test(fold[3]) && /^The test that showed it works/.test(fold[4]) && /test money/.test(fold[5]) && /^Who built it/.test(fold[6]), fold);
 const optin = await page.evaluate(() => ({ text: document.getElementById("optin").textContent.trim(), shown: !document.getElementById("optin").hidden }));
 check("D2: the counting question is asked once, below the result", optin.shown && optin.text === "Count my visits to help improve Knos? Yes No", optin);
 await page.click("#optin-yes");
@@ -272,6 +273,12 @@ await runOwn();
 const down = await page.evaluate(() => ({ err: document.getElementById("err-text").textContent, next: document.getElementById("err-next").textContent }));
 check("errors: a server that does not answer gets a first-person line of 12 words or more and Try again", words(down.err) >= 12 && /^I could not reach/.test(down.err) && down.next === "Try again", down);
 s.fail = null;
+// F1B: no row has a number: under "I cannot check", the reason names the rows (the answer's unchecked list)
+await page.fill("#list", "cycle,reading\n1,NaN\n2,NaN\n3,NaN"); await page.dispatchEvent("#list", "input");
+await page.selectOption("#col", "reading"); await page.fill("#limit", "1.4");
+await runOwn();
+const none = await page.evaluate(() => ({ about: document.getElementById("about").textContent, reason: document.getElementById("reason").textContent, shown: !document.getElementById("reason").hidden }));
+check("F1B: no row has a number: the reason names rows 1, 2 and 3", none.about === "I cannot check: no row has a number." && none.shown && none.reason === "Rows 1, 2 and 3 have no number in reading.", none);
 check("D2: every run the page sent carried the test marker", s.unmarked === 0, s.unmarked);
 
 await browser.close(); server.close(); rmSync(tmp, { recursive: true, force: true }); if (made) rmSync(made, { recursive: true, force: true });

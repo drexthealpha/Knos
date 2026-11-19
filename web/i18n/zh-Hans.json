@@ -252,7 +252,7 @@
   "v.unknown": "无法判断",
   "ev.pass": "已检查 {column} 的 {n} 行，每行都与 {limit} 比较。",
   "ev.fail": "{column} 的第 {r} 行是 {value}，已与 {limit} 比较。",
-  "why.unknown": "我无法把任何一行与限值比较，因为 {column} 中没有一个值是数字。",
+  "why.unknown": "第 {rows} 行的 {column} 没有数字。",
   "next.pass": "每一行都通过了：用“使用我的数据”检查你自己的文件。",
   "next.fail": "打开你的文件，找到第 {r} 行，这是第一个未通过的行。",
   "next.unknown": "选择每一行都是数字的列，然后按“检查我的数据”。",
@@ -264,6 +264,10 @@
   "act.undone": "测试付款已撤销。没有收取任何费用。",
   "act.undo_error": "我无法撤销这笔测试付款，因为它的部分运行次数已被使用。没有收取任何费用。",
   "offline.line": "你已离线。此页面保存自你上次访问。",
-  "res.input": "已检查的表格"
+  "res.input": "已检查的表格",
+  "why.unknown_none": "我无法把任何一行与限值比较，因为 {column} 中没有一个值是数字。",
+  "why.unknown_one": "第 {r} 行的 {column} 没有数字。",
+  "tool.sample_column": "电池容量",
+  "fold.column": "样本的 {column} 列是电池容量，单位为安时。"
  }
 }

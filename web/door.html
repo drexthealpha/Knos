@@ -152,7 +152,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
       <label for="list" id="list-label">{{@tool.sample_label}}</label>
       <textarea id="list" name="table" rows="4" dir="auto" wrap="off" spellcheck="false" autocomplete="off" data-sample></textarea>
       <div class="field" id="which" hidden><label for="col">{{tool.which}}</label><select id="col" dir="auto"></select></div>
-      <p class="rule"><span id="colname" data-user-content>capacity_ah</span> <span id="rule-shown"><span>{{rule.above}}</span> <bdi data-no-mirror>1.4</bdi></span><span class="rule" id="rule-edit" hidden><label for="rule">{{tool.rule_label}}</label> <select id="rule" name="rule" aria-label="{{tool.rule_label}}"><option value="above" selected>{{rule.above}}</option><option value="below">{{rule.below}}</option></select> <label for="limit">{{tool.limit_label}}</label> <input id="limit" name="limit" dir="auto" inputmode="decimal" autocomplete="off" aria-label="{{tool.limit_label}}" value="1.4"></span></p>
+      <p class="rule"><span id="colname">{{tool.sample_column}}</span> <span id="rule-shown"><span>{{rule.above}}</span> <bdi data-no-mirror>1.4</bdi></span><span class="rule" id="rule-edit" hidden><label for="rule">{{tool.rule_label}}</label> <select id="rule" name="rule" aria-label="{{tool.rule_label}}"><option value="above" selected>{{rule.above}}</option><option value="below">{{rule.below}}</option></select> <label for="limit">{{tool.limit_label}}</label> <input id="limit" name="limit" dir="auto" inputmode="decimal" autocomplete="off" aria-label="{{tool.limit_label}}" value="1.4"></span></p>
       <p class="who" id="limits" hidden></p>
     </form>
     <!-- the tool's name and who it is for, under the box and Check my data: above the box stands only the headline
@@ -163,6 +163,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
     <div class="err" id="err" role="alert" hidden><p id="err-text"></p><button id="err-next" type="button"></button></div>
     <div class="result" id="result" aria-live="polite" hidden>
       <p class="about" id="about" data-verdict data-answer></p>
+      <p id="reason" data-reason data-uncertain="true" hidden></p>
       <div id="chart"></div>
       <p id="left" hidden></p>
       <p id="private" hidden>{{res.private}}</p>
@@ -172,6 +173,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
       <p id="optin" hidden>{{res.count_q}} <button id="optin-yes" type="button">{{yes}}</button> <button id="optin-no" type="button">{{no}}</button></p>
       <details class="how" id="how"><summary>{{how}}</summary>{{@five}}<ol>
         <li>{{@fold.sample first=1.86 last=1.29 cycles=168 limit=1.4}}</li>
+        <li>{{fold.column column=capacity_ah}}</li>
         <li>{{fold.not_do}}</li>
         <li>{{fold.file}}</li>
         <li>{{fold.test rows=168}}</li>
@@ -225,7 +227,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
   const $ = (id) => document.getElementById(id);
   const box = $("list"), tryBtn = $("try"), state = $("state"), step = $("step"), stopBtn = $("stop"), res = $("result"), err = $("err"), pay = $("pay"), bar = $("bar");
   const r1 = (x) => String(Math.round(x * 10) / 10);   // a chart coordinate, one decimal
-  const SAMPLE = box.defaultValue, SAMPLE_COLUMN = $("colname").textContent;
+  const SAMPLE = box.defaultValue, SAMPLE_COLUMN = $("form").elements.column.value;   // the file's own column name; the rule line says it in plain words (F1B)
   // with no network the page is the copy kept by web/sw.js: one line says so, in the page's language
   const offline = () => { $("k-offline").hidden = navigator.onLine !== false; };
   offline(); addEventListener("online", offline); addEventListener("offline", offline);
@@ -249,7 +251,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
   const sendFirst = () => { const s = store.get("knos.first"); if (!s || store.get("knos.first-sent") || !counted()) return; store.set("knos.first-sent", "1");
     fetch(HOSTED + "/api/first_action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ event: "first_action", source: s, browser: browserId(true), test: TEST }), credentials: "omit", keepalive: true }).catch(() => { /* not counted */ }); };
   const firstAction = () => { if (!store.get("knos.first")) store.set("knos.first", how); sendFirst(); };
-  let ctl = null, last = null, limits = null, pressId = null, mineOn = false, offer = null;
+  let sentColumn = "", ctl = null, last = null, limits = null, pressId = null, mineOn = false, offer = null;
   const show = (el, on) => { el.hidden = !on; };
   const num = (s) => { const t = String(s).trim(); return t !== "" && Number.isFinite(Number(t)); };
   // a cell Python's float() reads is data, NaN, inf and -inf included in any case (G2); a first row with any other is the header
@@ -355,6 +357,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
     if (!table.trim()) { fail(T("err.empty"), "back"); return; }
     if (!num(limit)) { fail(T("err.limit"), "limit"); return; }
     const mode = table === SAMPLE ? "sample" : "own";
+    sentColumn = column;
     firstAction();
     const t0 = performance.now(), mine = new AbortController(); ctl = mine;
     working(t0, table);
@@ -388,6 +391,11 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
     // (no row has a number) is a verdict Knos cannot give (U6 Rule 15)
     $("about").dataset.state = /^(pass|fail|unknown)$/.test(j.verdict || "") ? j.verdict : j.first_failing_row != null ? "fail"
       : j.passed > 0 ? "pass" : "unknown";
+    // under "I cannot check", the rows with no number, named from the answer's unchecked list (tool_page.why_html, F1B);
+    // the sample's column in plain words, a person's own column as their file names it
+    const unknown = $("about").dataset.state === "unknown", col = j.column || sentColumn || SAMPLE_COLUMN;
+    show($("reason"), unknown);
+    if (unknown) $("reason").innerHTML = KI.why(j.unchecked, j.mode !== "own" && col === SAMPLE_COLUMN ? T("tool.sample_column") : col);
     $("chart").replaceChildren(chartSvg(j.chart, j.first_failing_row));
     const own = j.mode === "own" && j.runs_left != null;
     show($("left"), own); if (own) $("left").textContent = leftText(j);

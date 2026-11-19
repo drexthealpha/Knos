@@ -1018,9 +1018,9 @@
    "max_length": 80
   },
   "why.unknown": {
-   "text": "I could not compare any row with the limit, because no value in {column} is a number.",
-   "description": "The reason line of a result Knos cannot tell: no value in the column is a number. Keep {column} as written; it is filled in.",
-   "max_length": 111
+   "text": "Rows {rows} have no number in {column}.",
+   "description": "The reason line under the result I cannot check: two or more rows whose cell in the column is missing or not a number, named by row. {rows} is the list of row numbers built with rs.list_sep and rs.list_and or rs.list_more (at most five numbers, then how many more). Keep {rows}, {column} as written; they are filled in.",
+   "max_length": 63
   },
   "next.pass": {
    "text": "Every row passed: check your own file with Use my data.",
@@ -1082,6 +1082,26 @@
    "text": "Table checked",
    "description": "The label of the table a result checked: in the box of a result page opened from its link, and over the read-only copy shown under the result after a run.",
    "max_length": 26
+  },
+  "why.unknown_none": {
+   "text": "I could not compare any row with the limit, because no value in {column} is a number.",
+   "description": "The reason line of a result Knos cannot tell when the program names no row: no value in the column is a number. Keep {column} as written; it is filled in.",
+   "max_length": 111
+  },
+  "why.unknown_one": {
+   "text": "Row {r} has no number in {column}.",
+   "description": "The reason line under the result I cannot check: the one row whose cell in the column is missing or not a number. Keep {r}, {column} as written; they are filled in.",
+   "max_length": 55
+  },
+  "tool.sample_column": {
+   "text": "battery capacity",
+   "description": "The made-up sample's column in plain words, shown in place of its file name capacity_ah on the rule line, in the evidence line and in the example in the box (the file name shows only in the fold How it works). Lower case: it is read inside a sentence.",
+   "max_length": 32
+  },
+  "fold.column": {
+   "text": "The sample's column {column} holds the battery's capacity in amp hours.",
+   "description": "A line inside the fold How it works: the sample's column as the file names it, and what it holds. Keep {column} as written; it is filled in with capacity_ah.",
+   "max_length": 93
   }
  }
 }

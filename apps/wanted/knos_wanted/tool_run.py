@@ -879,7 +879,7 @@ def _refused_html(lang: str, code: int, body: dict, sent: dict) -> str:
     names = columns(sent.get("table") or "")[0]
     if code == 400:
         msg = (T(lang, "err.empty") if not str(sent.get("table") or "").strip()
-               else T(lang, "err.column", column=sent.get("column") or "", names=", ".join(names)) if sent.get("column") not in names
+               else T(lang, "err.column", column=tool_page.column_shown(lang, sent.get("column") or ""), names=", ".join(names)) if sent.get("column") not in names
                else T(lang, "err.limit") if _num(_form_limit(sent.get("limit"))) is None else T(lang, "err.bad"))
     elif code == 402:
         f = tool_page.facts()

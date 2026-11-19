@@ -305,7 +305,7 @@
    "other": "{n} filas de {column}, cada una comparada con {limit}."
   },
   "ev.fail": "La fila {r} de {column} tiene {value}, comparada con {limit}.",
-  "why.unknown": "No pude comparar ninguna fila con el límite, porque ningún valor de {column} es un número.",
+  "why.unknown": "Las filas {rows} no tienen número en {column}.",
   "next.pass": "Todas las filas pasaron: comprueba tu propio archivo con Usar mis datos.",
   "next.fail": "Abre tu archivo en la fila {r}, la primera fila que falló.",
   "next.unknown": "Elige una columna donde cada fila tenga un número y pulsa Comprobar mis datos.",
@@ -321,6 +321,10 @@
   "act.undone": "El pago de prueba se deshizo. No se cobró nada.",
   "act.undo_error": "No pude deshacer el pago de prueba, porque ya se usaron algunas de sus ejecuciones. No se cobró nada.",
   "offline.line": "No tienes conexión. Esta página se guardó en tu última visita.",
-  "res.input": "La tabla revisada"
+  "res.input": "La tabla revisada",
+  "why.unknown_none": "No pude comparar ninguna fila con el límite, porque ningún valor de {column} es un número.",
+  "why.unknown_one": "La fila {r} no tiene número en {column}.",
+  "tool.sample_column": "capacidad de la batería",
+  "fold.column": "La columna {column} de la muestra guarda la capacidad de la batería en amperios hora."
  }
 }

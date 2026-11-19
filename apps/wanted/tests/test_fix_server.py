@@ -31,10 +31,32 @@ def test_a_file_with_no_number_in_the_column_is_cannot_tell_never_a_pass(app):
     html = page(app, "/r/" + r["link"].rstrip("/").rsplit("/", 1)[1] + "/")
     a = answer(html)
     assert 'data-state="unknown"' in a and "data-evidence" not in a
+    # F1B: the reason names the rows with no number, from the answer's unchecked list, by the result sentence's rules
     reason = re.search(r'<p data-reason data-uncertain="true">(.*?)</p>', a).group(1)
-    words = re.sub(r"<[^>]+>", " ", reason).split()
-    assert 12 <= len(words) <= 35 and words[0] == "I", reason
+    assert reason == "Rows 1, 2 and 3 have no number in <bdi>v</bdi>.", reason
     assert len(re.sub(r"<[^>]+>", " ", re.search(r"<p data-next-step>(.*?)</p>", a).group(1)).split()) >= 3
+
+
+def test_the_reason_names_the_rows_with_no_number_as_the_sentence_does():
+    # F1B: one row, up to five joined with "and", else the first five and how many more; English and another language
+    col = tool_page.Bdi("reading")
+    assert tool_page.why_html("en", [2], col) == "Row 2 has no number in <bdi>reading</bdi>."
+    assert tool_page.why_html("en", [1, 2, 3, 4, 5], col) == "Rows 1, 2, 3, 4 and 5 have no number in <bdi>reading</bdi>."
+    assert tool_page.why_html("en", list(range(1, 10)), col) == "Rows 1, 2, 3, 4, 5 and 4 more have no number in <bdi>reading</bdi>."
+    assert tool_page.why_html("fr", [1, 2, 3], col) == "Les lignes 1, 2 et 3 n'ont pas de nombre dans <bdi>reading</bdi>."
+    assert "no value in <bdi>reading</bdi> is a number" in tool_page.why_html("en", [], col)   # no row named: the reason without rows
+    big = tool_page.why_html("hi", [1000, 2000], col)
+    assert "1,000" in big and "2,000" in big                  # counts in the language's digits, as the sentence writes them
+
+
+def test_the_samples_column_is_said_in_plain_words_and_a_persons_own_as_it_is(app):
+    st, r, _ = call(app, "/api/run", sample_body(mode="sample", browser="", test=True))
+    assert st == 200
+    a = answer(page(app, "/r/" + r["link"].rstrip("/").rsplit("/", 1)[1] + "/"))
+    row = r["first_failing_row"]
+    assert f"Row {row} of <bdi>battery capacity</bdi> holds" in a and "capacity_ah" not in a
+    st, r, _ = own(app, table="cycle,capacity_ah\n1,5\n2,3", column="capacity_ah", limit=4, browser="b-fix-000009")
+    assert st == 200 and "Row 2 of <bdi>capacity_ah</bdi> holds" in answer(page(app, "/r/" + r["link"].rstrip("/").rsplit("/", 1)[1] + "/"))
 
 
 def test_pass_and_fail_carry_evidence_a_next_step_and_their_own_icon(app):
@@ -109,7 +131,7 @@ def test_the_tool_works_as_a_form_with_no_script(app):
     assert st == 303 and re.fullmatch(r"/r/[A-Za-z0-9_-]{12}/\?test=1", h["Location"]), h["Location"]
     assert "Failed at row " in page(app, h["Location"])
     st, _, body = form(app, "/t/limit-check/run", {"table": "when,volts\n1,3", "column": "capacity_ah", "rule": "above", "limit": "2"})
-    assert st == 400 and "I cannot find a column named capacity_ah. Columns: when, volts." in body
+    assert st == 400 and "I cannot find a column named battery capacity. Columns: when, volts." in body   # the sample's column in plain words (F1B)
     assert ">when,volts\n1,3</textarea>" in body and 'role="alert"' in body          # the person's table is kept
     # G5: the box is offered empty, the sample's first rows shown in it as an example; sent empty and untouched, Check my
     # data checks that example (the hidden field "sample"); a box sent empty without it is an empty file

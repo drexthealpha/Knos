@@ -430,15 +430,42 @@ def icon(lang: str, state: str) -> str:
             f'stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">{_SHAPES[state]}</svg>')
 
 
+def rows_list(lang: str, rows: list[int]) -> str:
+    """Row numbers as the result sentence lists them (G1): one row, up to five joined by rs.list_sep and rs.list_and,
+    else the first five and rs.list_more ("1, 2, 3, 4, 5 and 4 more"), each in the language's digits."""
+    rows = [int(x) for x in rows]
+    sep = t(lang, "rs.list_sep")
+    if len(rows) == 1:
+        return nf(lang, rows[0])
+    if len(rows) <= 5:
+        return t(lang, "rs.list_and", list=sep.join(nf(lang, x) for x in rows[:-1]), r=rows[-1])
+    return t(lang, "rs.list_more", list=sep.join(nf(lang, x) for x in rows[:5]), n=len(rows) - 5)
+
+
+def why_html(lang: str, rows, column) -> str:
+    """The reason under "I cannot check": the rows with no number, named from the answer's "unchecked" list (F1B)."""
+    rows = [int(x) for x in (rows or []) if isinstance(x, int) and not isinstance(x, bool)]
+    if len(rows) == 1:
+        return h(lang, "why.unknown_one", r=rows[0], column=column)
+    return h(lang, "why.unknown", rows=rows_list(lang, rows), column=column) if rows else h(lang, "why.unknown_none", column=column)
+
+
+def column_shown(lang: str, column: str, own: bool = False) -> str:
+    """A column as the screen names it: the sample's own column in plain words (sample.json column_plain, its
+    translation tool.sample_column), its file name kept for the fold; a person's own column as their file has it (F1B)."""
+    from .runner_conf import CONF
+    return t(lang, "tool.sample_column") if not own and column == CONF["sample_column"] else column
+
+
 def answer_html(lang: str, r: dict, test_url: str = TEST_URL) -> str:
     """The answer block: icon, sentence (p.big#about), evidence or reason, next step."""
     state = verdict_of(r)
     m = RS.match(r.get("result") or "")
-    col = Bdi(r.get("column") or "")
+    col = Bdi(column_shown(lang, r.get("column") or "", r.get("mode") == "own"))
     lim = Bdi(m[4] if m and m[1] else m[8] if m and m[6] else shown_limit(r.get("limit") or 0))
     out = f'{icon(lang, state)}<p class="big" id="about">{sentence(lang, r.get("result") or "")}</p>'
     if state == "unknown":
-        out += (f'<p data-reason data-uncertain="true">{h(lang, "why.unknown", column=col)}</p>'
+        out += (f'<p data-reason data-uncertain="true">{why_html(lang, r.get("unchecked"), col)}</p>'
                 f'<p data-next-step>{h(lang, "next.unknown")}</p>')
     else:
         ffr = r.get("first_failing_row") or 0
@@ -524,7 +551,9 @@ def fold_items(lang: str, f: dict, spans: dict | None = None) -> list[str]:
     sp = spans or {}
     first = (h(lang, "fold.sample_made_up", n=f["rows"], first=Bdi(f["first"]), last=Bdi(f["last"]), limit=Bdi(f["limit"]), url=f["url"])
              if f["made_up"] else h(lang, "fold.sample_nasa", url=f["url"]))
-    return [first, h(lang, "fold.not_do"), h(lang, "fold.file"), h(lang, "fold.test", n=f["longest"], url=f["test_url"]),
+    # the sample's column by its file name: the one place the page shows it (F1B; elsewhere it is said in plain words)
+    from .runner_conf import CONF
+    return [first, h(lang, "fold.column", column=Bdi(CONF["sample_column"])), h(lang, "fold.not_do"), h(lang, "fold.file"), h(lang, "fold.test", n=f["longest"], url=f["test_url"]),
             h(lang, "fold.price", {k: v for k, v in sp.items() if k in ("free", "n", "price")}, free=f["free"], n=f["runs"], price=f["price"]),
             h(lang, "fold.built_released", url=f["job"]) if f["job"] else h(lang, "fold.built_unreleased")]
 
@@ -579,6 +608,18 @@ I18N_JS = r"""window.KI = window.KI || (() => {
     }
     return parts.join(sep());
   }
+  // row numbers as the result sentence lists them: one, up to five ("1, 2 and 3"), else the first five and how many more
+  // (tool_page.rows_list); and the reason under "I cannot check" that names them (tool_page.why_html, F1B)
+  function rows(list) {
+    const a = (list || []).map(Number), s = raw("rs.list_sep");
+    if (a.length === 1) return nf(a[0]);
+    if (a.length <= 5) return t("rs.list_and", { list: a.slice(0, -1).map(nf).join(s), r: a[a.length - 1] });
+    return t("rs.list_more", { list: a.slice(0, 5).map(nf).join(s), n: a.length - 5 });
+  }
+  function why(list, column) {
+    const a = (Array.isArray(list) ? list : []).filter((x) => Number.isInteger(x));
+    return a.length === 1 ? html("why.unknown_one", { r: a[0], column }) : a.length ? html("why.unknown", { rows: rows(a), column }) : html("why.unknown_none", { column });
+  }
   // a number typed in any of the digit sets people use (U7 R13): Arabic-Indic, Persian, Devanagari and Bengali digits,
   // the Arabic decimal mark, or a decimal comma, read as the same number
   function num(s) {
@@ -590,7 +631,7 @@ I18N_JS = r"""window.KI = window.KI || (() => {
   const speech = () => L === "zh-Hans" ? "zh-CN" : L;
   const on = [];
   idle(warm);
-  return { set(l, s) { L = l; S = s || S; idle(warm); on.forEach((f) => f()); }, lang: () => L, has: (k) => S[k] != null, t, html, esc, nf, money, plural, sentence, num, speech, changed: (f) => on.push(f) };
+  return { set(l, s) { L = l; S = s || S; idle(warm); on.forEach((f) => f()); }, lang: () => L, has: (k) => S[k] != null, t, html, esc, nf, money, plural, sentence, rows, why, num, speech, changed: (f) => on.push(f) };
 })();"""
 
 # the static pages' runtime (the front door and the pricing page on GitHub Pages, written by scripts/site_pages.py): the
@@ -804,15 +845,20 @@ function ask() {
 // the verdict block, as the server writes it (tool_page.answer_html): icon, sentence, evidence or reason, next step
 const icon = (st) => { const x = document.createElement("template"); x.innerHTML = D.icons[st]; return x.content.firstChild; };
 const RSX = /^(?:Failed at row (\d+): (.+?) is not (?:above|below) (.+?)\. \d+ rows? passed\.|Passed: all \d+ rows? stays? (?:above|below) (.+?)\.(?: |$))/;
+// the sample's column in plain words (tool_page.column_shown); a person's own column as their file names it
+const shownColumn = (c, own) => !own && c === D.column ? D.column_plain : c;
 const verdictOf = (r) => /^(pass|fail|unknown)$/.test(r.verdict || "") ? r.verdict : r.first_failing_row ? "fail" : r.passed > 0 ? "pass" : "unknown";
 function part(tag, key, v, attrs) { const e = make(tag); e.innerHTML = KI.html(key, v); for (const a in attrs || {}) e.setAttribute(a, attrs[a]); return e; }
 function answer(r) {
-  const st = verdictOf(r), m = RSX.exec(r.result || ""), col = r.column || D.column;
+  const st = verdictOf(r), m = RSX.exec(r.result || ""), col = shownColumn(r.column || D.column, r.mode === "own");
   const lim = m ? (m[1] ? m[3] : m[4]) : String(r.limit);
   const a = make("div", null, "answer"); a.dataset.answer = ""; a.dataset.verdict = ""; a.dataset.state = st;
   const big = make("p", null, "big"); big.id = "about"; big.innerHTML = KI.sentence(r.result);
   a.append(icon(st), big);
-  if (st === "unknown") a.append(part("p", "why.unknown", { column: col }, { "data-reason": "", "data-uncertain": "true" }), part("p", "next.unknown", {}, { "data-next-step": "" }));
+  if (st === "unknown") {
+    const why = make("p"); why.innerHTML = KI.why(r.unchecked, col); why.dataset.reason = ""; why.dataset.uncertain = "true";
+    a.append(why, part("p", "next.unknown", {}, { "data-next-step": "" }));
+  }
   else {
     const ev = make("p"); ev.dataset.evidence = "";
     const c = st === "fail" && m && m[1] ? part("span", "ev.fail", { r: +m[1], column: col, value: m[2], limit: lim }) : part("span", "ev.pass", { n: r.passed || 0, column: col, limit: lim });
@@ -931,7 +977,7 @@ function run() {
   if (!table.trim()) return trouble(T("err.empty"), T("btn.back"), edit);
   if (!num(limit)) return trouble(T("err.limit"), T("btn.type_limit"), () => { show(); changeLimit(); });
   const names = columnsOf(table);
-  if (!names.includes(column)) return trouble(T("err.column", { column, names: names.join(", ") }), T("btn.column"), chooseColumn);
+  if (!names.includes(column)) return trouble(T("err.column", { column: shownColumn(column, mineOn), names: names.join(", ") }), T("btn.column"), chooseColumn);
   firstAction();
   const w = working(Math.max(0, rowsOf(table).length - (isHeader(rowsOf(table)[0]) ? 1 : 0)));
   xhr = new XMLHttpRequest();
@@ -1043,7 +1089,9 @@ box.addEventListener("input", () => { fresh = false; starter = false; $("k-rule"
 box.addEventListener("focus", () => { fresh = false; starter = false; });   // a person who goes into the empty box means an empty one
 // the sample link (G5): the sample in the box, then checked; with no script it opens the tool page with the sample in the box
 const sampleLink = $("k-sample");
-if (sampleLink) sampleLink.addEventListener("click", (e) => { e.preventDefault(); if (xhr) return; loadSample(); run(); });
+// in place (F1B: following the link cost a page load, first paint at 528 to 580 ms): the link sits under the first screen,
+// so the page goes back to its top at once, where the sample now fills the box and the check is under way
+if (sampleLink) sampleLink.addEventListener("click", (e) => { e.preventDefault(); if (xhr) return; loadSample(); run(); scrollTo(0, 0); box.scrollTop = 0; });
 form.addEventListener("submit", (e) => { e.preventDefault(); run(); });
 if (D.result && D.result.mode === "own") { ownMode(); fillColumns(D.result.column); }
 if (D.result && box.value.trim()) { lab.textContent = T("res.input"); lab.dataset.checked = ""; lab.hidden = false; }
@@ -1094,7 +1142,7 @@ window.addEventListener("pagehide", draftSave);
 
 SCRIPT_KEYS = sorted(set(keys_in(SCRIPT)) | {"rs.fail_above", "rs.fail_below", "rs.passed", "rs.pass_above", "rs.pass_below",
                                                 "rs.cannot", "rs.unchecked_one", "rs.unchecked", "rs.list_sep", "rs.list_and", "rs.list_more", "chart.label", "chart.label_fail", "chart.row", "fold.listen", "stop",
-                                                "next.pass", "next.fail", "next.unknown", "ev.pass", "ev.fail", "why.unknown", "theme.dark", "theme.light",
+                                                "next.pass", "next.fail", "next.unknown", "ev.pass", "ev.fail", "why.unknown", "why.unknown_one", "why.unknown_none","theme.dark", "theme.light",
                                                 "q.next", "res.input", "tool.paste"}) if (ROOT / "web" / "i18n" / "en.json").is_file() else []
 
 
@@ -1154,7 +1202,7 @@ def page(tool: dict, base: str, result: dict | None = None, front: str = "https:
     edit = own or bool(sent)
     f = facts()
     label = t(L, "tool.sample_made_up" if f["made_up"] else "tool.sample_nasa")
-    data = {"id": tool["id"], "sample": tool["sample"], "sample_label": label, "rule": tool["rule"], "limit": shown_limit(tool["limit"]), "starter": starter, "api": base, "limits": tool["limits"], "column": tool["column"],
+    data = {"id": tool["id"], "sample": tool["sample"], "sample_label": label, "rule": tool["rule"], "limit": shown_limit(tool["limit"]), "starter": starter, "api": base, "limits": tool["limits"], "column": tool["column"], "column_plain": column_shown(L, tool["column"]),
             "lang": L, "langs": list(LANGS), "t": strings_for(L, SCRIPT_KEYS),
             "icons": {st: icon(L, st) for st in STATES}, "test_url": TEST_URL,
             "result": result and {**{k: result.get(k) for k in ("result", "first_failing_row", "passed", "unchecked", "shown_by", "link",
@@ -1193,7 +1241,11 @@ def page(tool: dict, base: str, result: dict | None = None, front: str = "https:
     again = f'<input type="hidden" dir="auto" name="again" value="{_e(rid)}">' if rid and not sent else ""
     # with no script, the tool page's empty, untouched box sent checks the example it shows (tool_run.form_run)
     starter_field = '<input type="hidden" dir="auto" name="sample" value="1">' if starter else ""
-    ex = "\n".join(tool["sample"].replace("\r\n", "\n").split("\n")[:4])
+    # the example's header names the sample's column in plain words, as the rule line under it does (F1B)
+    head, *first_rows = tool["sample"].replace("\r\n", "\n").split("\n")[:4]
+    ex = "\n".join([",".join(column_shown(L, c.strip()) for c in head.split(","))] + first_rows)
+    shown_col = column_shown(L, column, own)
+    plain_col = shown_col != column
     example = f' placeholder="{_e(ex).replace(chr(10), "&#10;")}"' if starter else ""
     sample_href = f"/t/{tool['id']}/?" + "&".join(["sample=1", f"lang={L}"] + (["test=1"] if test else []))
     scripts = "" if lite else (f'<script type="application/json" id="k-tool">{blob}</script>\n'
@@ -1231,7 +1283,7 @@ def page(tool: dict, base: str, result: dict | None = None, front: str = "https:
 <label id="lab" for="list"{" hidden" if result and not own and not shown else ""}>{_e(t(L, "res.input")) if shown else _e(label) if sample and not result and not sent else _e(t(L, "tool.paste_own"))}</label>
 <textarea id="list" dir="auto" name="table" spellcheck="false" autocomplete="off" wrap="off"{example}>{_e(text)}</textarea>
 <div id="which" class="field" hidden><label for="col">{_e(t(L, "tool.which"))}</label><select id="col" dir="auto"></select></div>
-<p class="rule" id="k-rule"{" hidden" if result and not own and not edit else ""}><span id="colname" data-user-content><bdi>{_e(column)}</bdi></span> <span id="rule-shown"{" hidden" if edit else ""}>{_e(t(L, "rule." + rule))} <bdi data-no-mirror>{_e(limit)}</bdi></span><span id="rule-edit"{"" if edit else " hidden"}><label for="rule">{_e(t(L, "tool.rule_label"))}</label> <select id="rule" name="rule" aria-label="{_e(t(L, "tool.rule_label"))}">{opts}</select> <label for="limit">{_e(t(L, "tool.limit_label"))}</label> <input id="limit" dir="auto" name="limit" inputmode="decimal" autocomplete="off" aria-label="{_e(t(L, "tool.limit_label"))}" value="{_e(limit)}"></span></p>
+<p class="rule" id="k-rule"{" hidden" if result and not own and not edit else ""}><span id="colname"{"" if plain_col else " data-user-content"}><bdi>{_e(shown_col)}</bdi></span> <span id="rule-shown"{" hidden" if edit else ""}>{_e(t(L, "rule." + rule))} <bdi data-no-mirror>{_e(limit)}</bdi></span><span id="rule-edit"{"" if edit else " hidden"}><label for="rule">{_e(t(L, "tool.rule_label"))}</label> <select id="rule" name="rule" aria-label="{_e(t(L, "tool.rule_label"))}">{opts}</select> <label for="limit">{_e(t(L, "tool.limit_label"))}</label> <input id="limit" dir="auto" name="limit" inputmode="decimal" autocomplete="off" aria-label="{_e(t(L, "tool.limit_label"))}" value="{_e(limit)}"></span></p>
 <p id="lims" class="muted" hidden></p>
 </form>
 <section id="pay" hidden></section>
