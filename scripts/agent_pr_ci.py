@@ -118,14 +118,18 @@ def _limited(headers, attempt, kind, err):
         COME_BACK[0] = time.time() + wait
         what = f"GitHub refused a {kind} request for {'a secondary rate limit' if secondary else 'a rate limit'}"
         if NO_WAIT:
-            _stop(what, OutOfBudget)
-        _stop(f"{what} and the wait it named does not fit in the run's minutes", OutOfTime)
+            _stop(what, OutOfBudget, limited=True)
+        what += " and the wait it named does not fit in the run's minutes"
+        if kind == "search":        # no search can be answered in this run: stop searching, as at 0
+            _search_out(what)
+        _stop(what, OutOfTime, limited=True)
     print(f"  rate-limited, sleeping {wait:.0f}s", file=sys.stderr)
     time.sleep(wait)
 
 
-# GitHub's search limit at 0: the run sends no more searches (it waits for nothing), keeps what it has read, and the
-# next scheduled run resumes from the cache. Said once, in these words.
+# GitHub's search limit at 0, or a refusal for its secondary limit whose wait does not fit in the run: the run sends no
+# more searches (it waits for nothing), keeps what it has read, and the next scheduled run resumes from the cache. Said
+# once, in these words.
 SEARCH_SPENT = "rate-limited; resumes next run"
 SEARCH_OUT = [False]
 _SEARCH_OUT_LOCK = __import__("threading").Lock()
@@ -143,7 +147,7 @@ def search_spent(headers, read=None):
         return False
 
 
-def _search_out(headers=None):
+def _search_out(why="GitHub's search rate limit reached 0", headers=None):
     """Stop searching for this run: say SEARCH_SPENT once and raise OutOfBudget (scan_agent keeps what it found)."""
     with _SEARCH_OUT_LOCK:
         first, SEARCH_OUT[0] = not SEARCH_OUT[0], True
@@ -153,7 +157,7 @@ def _search_out(headers=None):
             COME_BACK[0] = float((headers or {})["x-ratelimit-reset"])
         except (KeyError, TypeError, ValueError):
             pass
-    _stop("GitHub's search rate limit reached 0", OutOfBudget)
+    _stop(why, OutOfBudget, limited=True)
 
 
 # ---- agent definitions (search qualifiers) --------------------------------
@@ -252,10 +256,14 @@ NO_WAIT = False
 STOPPED = [None]        # why a bounded run stopped early, in words: its minutes, its requests, or GitHub's refusal
 
 
-def _stop(why, exc):
-    """Raise `exc`, keeping the first reason a bounded run was given for stopping (STOPPED)."""
+RATE_LIMITED = [False]  # the first reason (STOPPED) was GitHub refusing a request for a rate limit
+
+
+def _stop(why, exc, limited=False):
+    """Raise `exc`, keeping the first reason a bounded run was given for stopping (STOPPED), and whether that reason
+    was a refusal for a rate limit (RATE_LIMITED; its own budget, its minutes or its requests are not)."""
     if STOPPED[0] is None:
-        STOPPED[0] = why
+        STOPPED[0], RATE_LIMITED[0] = why, limited
     raise exc()
 
 
@@ -265,7 +273,7 @@ def _spend(kind="core"):
     if time_left() < 15:
         _stop("its minutes were spent", OutOfTime)
     if kind == "search" and SEARCH_OUT[0]:
-        _stop("GitHub's search rate limit reached 0", OutOfBudget)
+        _stop("GitHub's search rate limit reached 0", OutOfBudget, limited=True)
     if MAX_REQUESTS is not None and ASKED[0] >= MAX_REQUESTS:
         _stop("its requests were spent", OutOfBudget)
     if LEFT.get(kind, 1) <= 0:
@@ -401,7 +409,7 @@ def gh_get(path, params=None, kind="core", max_age=None):
         err = err + out[:500]
         if status == 429 or re.search(r"rate limit|HTTP 429|secondary", err, re.I):
             if kind == "search" and search_spent(headers):
-                _search_out(headers)
+                _search_out(headers=headers)
             _limited(headers, attempt, kind, err)
             continue
         if _NO_ANSWER.search(err) and attempt < 3:
@@ -603,9 +611,9 @@ def gh_graphql(query):
             return {"ok": False, "error": text[:300], "transient": code == 0 or bool(_NO_ANSWER.search(text))}
         if not (PATIENT and attempt < MAX_RETRIES and time_left() >= limit_wait(headers, attempt) + 15):
             COME_BACK[0] = time.time() + limit_wait(headers, attempt)
-            _stop("GitHub refused a GraphQL request for a rate limit", OutOfBudget)
+            _stop("GitHub refused a GraphQL request for a rate limit", OutOfBudget, limited=True)
         time.sleep(limit_wait(headers, attempt))
-    _stop("GitHub refused a GraphQL request for a rate limit", OutOfBudget)
+    _stop("GitHub refused a GraphQL request for a rate limit", OutOfBudget, limited=True)
 
 
 def read_rollup(cands):

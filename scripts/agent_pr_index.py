@@ -230,7 +230,7 @@ def scan(end, days, per_agent, max_seconds, width=None, prune_days=0, previous=N
     (`stopped` says why, `come_back` when GitHub said to); None: no hourly budget is read."""
     agent_pr_ci.ARGS = SimpleNamespace(max_seconds=max_seconds)
     agent_pr_ci.SEARCH_PAUSE = 2.1  # concurrent agents share one 30/min search pacing; gh_get backs off on 403/429
-    agent_pr_ci.STOPPED[0], agent_pr_ci.COME_BACK[0], agent_pr_ci.SEARCH_OUT[0] = None, None, False
+    agent_pr_ci.STOPPED[0], agent_pr_ci.COME_BACK[0], agent_pr_ci.SEARCH_OUT[0], agent_pr_ci.RATE_LIMITED[0] = None, None, False, False
     del agent_pr_ci.NO_CLAIM[:], agent_pr_ci.SEARCH_ERRORS[:]
     if prune_days is not None:      # the week's scan shares the index's cache and must not empty it
         agent_pr_ci.prune(prune_days or days + 7)     # answers about pull requests that have left the window
@@ -250,7 +250,7 @@ def scan(end, days, per_agent, max_seconds, width=None, prune_days=0, previous=N
     return {"window": [start, end], "counts": n, "kept": len(kept), "unfinished_search": unfinished, "unread": unread,
             "search_errors": list(agent_pr_ci.SEARCH_ERRORS), "seeded": seeded,
             "stopped": agent_pr_ci.STOPPED[0] if unfinished or unread else None,
-            "rate_limited": bool(agent_pr_ci.SEARCH_OUT[0] and (unfinished or unread)),
+            "rate_limited": bool(agent_pr_ci.RATE_LIMITED[0] and (unfinished or unread)),
             "come_back": dt.datetime.fromtimestamp(come, dt.timezone.utc).isoformat(timespec="seconds") if come and (unfinished or unread) else None,
             "no_claim": sorted(agent_pr_ci.NO_CLAIM),
             "rows": [c for c in kept if c.get("class") not in (None, "error")]}
@@ -590,8 +590,8 @@ def sample_week(monday, path, per_stratum=PER_STRATUM, max_requests=MAX_REQUESTS
     agent_pr_ci.SEARCH_PAUSE = min(agent_pr_ci.SEARCH_PAUSE, SEARCH_PAUSE)
     agent_pr_ci.NO_WAIT, agent_pr_ci.STOPPED[0], broken, done = True, None, set(), False
     agent_pr_ci.PATIENT, agent_pr_ci.PACE, agent_pr_ci.COME_BACK[0] = patient, pace, None
-    agent_pr_ci.SEARCH_OUT[0] = False
-    due = (state.get("cursor") or {}).get("come_back")
+    agent_pr_ci.SEARCH_OUT[0] = agent_pr_ci.RATE_LIMITED[0] = False
+    due =(state.get("cursor") or {}).get("come_back")
     wait, held = (dt.datetime.fromisoformat(due).timestamp() - time.time() if patient and due else 0), False
 
     def budget(reserve):
@@ -1025,8 +1025,9 @@ def errors(scanned, index, previous=None, now=None):
     """What makes the run fail where it can be seen: a search GitHub refused for itself (a bad query or token, which no
     later run fixes), a finished scan that found nothing or shrank to under half of the last index, or runs that have
     stopped early for STALE_AFTER and so are not catching up. A scan that only stopped early (out of minutes, or out
-    of this hour's budget) is not an error: nothing is published and the next run continues from the cache. Nor is a
-    run that stopped because GitHub's search limit reached 0 (`rate_limited`): it resumes next run."""
+    of this hour's budget) is not an error: nothing is published and the next run continues from the cache. Runs that
+    stop early for STALE_AFTER fail, unless this one stopped because GitHub refused a request for a rate limit
+    (`rate_limited`: search at 0, a wait that does not fit, an hourly limit spent by others): it resumes next run."""
     bad = [f"GitHub refused the search query itself for {e}: fix the query or the token" for e in scanned.get("search_errors") or []]
     if finished(scanned):
         return bad + gate(scanned, index, previous)

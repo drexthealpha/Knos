@@ -1346,6 +1346,7 @@ class HourlyGithub:
     def __init__(self, prs, core=1000, graphql=1000, search=None):
         self.prs, self.left, self.asked, self.refused = prs, {"core": core, "graphql": graphql}, [], 0
         self.search = search        # searches GitHub answers before its search limit is at 0 (None: no limit)
+        self.secondary = None       # (refusals left, retry-after): searches refused for the secondary limit, search left
 
     def __call__(self, cmd):
         if cmd[2] == "graphql":
@@ -1362,7 +1363,12 @@ class HourlyGithub:
                                                                                          "x-ratelimit-reset": str(int(time.time()) + 60)}), \
                         "gh: API rate limit exceeded for installation ID 1. (HTTP 403)"
                 self.search -= 1
-            lo, hi =re.search(r"created:(\S+)\.\.(\S+)", fields["q"]).groups()
+            if self.secondary and self.secondary[0] > 0 and self.count("search") > 1:
+                self.secondary, self.refused = (self.secondary[0] - 1, self.secondary[1]), self.refused + 1
+                return 1, _headers(403, '{"message": "You have exceeded a secondary rate limit."}', **{"retry-after": str(self.secondary[1]),
+                                   "x-ratelimit-remaining": "25", "x-ratelimit-resource": "search"}), \
+                    "gh: You have exceeded a secondary rate limit. Please wait a few minutes before you try again. (HTTP 403)"
+            lo, hi = re.search(r"created:(\S+)\.\.(\S+)", fields["q"]).groups()
             hits = sorted((n for n, day in self.prs.items() if lo[:10] <= day <= hi[:10]), reverse=True)
             page = int(fields.get("page", 1))
             items = [{"repository_url": "https://api.github.com/repos/acme/app", "number": n, "user": {"login": "Copilot"},
@@ -1465,14 +1471,19 @@ def test_a_refusal_for_the_hourly_limit_ends_the_run_with_a_time_to_come_back_an
     assert got["stopped"] == "GitHub refused a GraphQL request for a rate limit"
     back = dt.datetime.fromisoformat(got["come_back"]).timestamp() - time.time()
     assert 1700 < back <= 1802 and why and bad == []
-    # still stopped early six hours on and a day on: green; two days on: an error that says what to do
-    for hours, failing in ((6, False), (24, False), (48, True)):
+    # refused for the rate limit six hours on, a day on, two days on: green each time, it resumes next run
+    for hours in (6, 24, 48):
         api.left["graphql"] = 0
         got, index, why, bad = _run(api, monkeypatch, tmp_path, "2026-10-05", 1, now=t0 + dt.timedelta(hours=hours))
-        assert got["unfinished_since"] == t0.isoformat(timespec="seconds") and bool(bad) is failing, (hours, bad)
-    assert "not catching up" in bad[0] and "KNOS_INDEX_TOKEN" in bad[0]
-    # and one finished run clears it
+        assert got["unfinished_since"] == t0.isoformat(timespec="seconds") and got["rate_limited"] and bad == [], (hours, bad)
+    # stopped early for another reason (its own share of the hour spent, nobody refused it) two days on: an error
     api.left["graphql"] = 1000
+    monkeypatch.setattr(agent_pr_ci, "budget", lambda reserve, read=None: agent_pr_ci.LEFT.update(core=800, graphql=0) or agent_pr_ci.LEFT)
+    got, index, why, bad = _run(api, monkeypatch, tmp_path, "2026-10-05", 1, now=t0 + dt.timedelta(hours=50))
+    assert not got["rate_limited"] and "this hour's budget leaves it" in got["stopped"] and api.refused == 4
+    assert len(bad) == 1 and "not catching up" in bad[0] and "KNOS_INDEX_TOKEN" in bad[0]
+    # and one finished run clears it
+    monkeypatch.setattr(agent_pr_ci, "budget", lambda reserve, read=None: agent_pr_ci.LEFT.update(core=800, graphql=800) or agent_pr_ci.LEFT)
     got, index, why, bad = _run(api, monkeypatch, tmp_path, "2026-10-05", 1, now=t0 + dt.timedelta(hours=54))
     assert got["unfinished_since"] is None and why == bad == [] and index["n_prs"] == 60
 
@@ -1505,6 +1516,30 @@ def test_a_search_limit_at_zero_stops_the_scan_at_once_keeps_what_it_read_and_th
     assert not agent_pr_ci.search_spent({"x-ratelimit-remaining": "4"})
     said = lambda n: (lambda cmd: (0, json.dumps({"resources": {"search": {"remaining": n}}}), ""))  # noqa: E731
     assert agent_pr_ci.search_spent({}, read=said(0)) and not agent_pr_ci.search_spent({}, read=said(9))
+
+
+def test_a_secondary_limit_whose_wait_does_not_fit_stops_the_searching_the_same_way_and_one_that_fits_is_waited_out(hourly, monkeypatch, tmp_path, capsys):
+    """Run 44508089789: GitHub refused searches for its secondary limit with search requests still left; the scan slept
+    a minute a time until its minutes were gone and the gate failed the job. A wait that does not fit in the run now
+    ends the searching as a limit at 0 does: one line, no sleep, what was read kept, green two days on."""
+    import datetime as dt
+    prs = {n: "2026-10-05" if n <= 100 else "2026-10-04" for n in range(1, 151)}
+    api = HourlyGithub(prs)
+    t0 = dt.datetime(2026, 10, 6, 0, 17, tzinfo=dt.timezone.utc)
+    for hours in (0, 48):
+        api.secondary = (1, 3600)                      # an hour: the run has 1,200 seconds
+        got, index, why, bad = _run(api, monkeypatch, tmp_path, "2026-10-05", 2, now=t0 + dt.timedelta(hours=hours))
+        err = capsys.readouterr().err
+        assert err.count(agent_pr_ci.SEARCH_SPENT) == 1 and "rate-limited, sleeping" not in err and max(hourly, default=0) < 3
+        assert got["stopped"] == "GitHub refused a search request for a secondary rate limit and the wait it named does not fit in the run's minutes"
+        assert got["rate_limited"] and got["unfinished_search"] == ["copilot"] and got["kept"] == 100 and index["n_prs"] == 100
+        assert why and bad == [], (hours, bad)
+    # a wait that fits is waited out, once, and the run finishes
+    api.secondary = (1, 30)
+    got, index, why, bad = _run(api, monkeypatch, tmp_path, "2026-10-05", 2, now=t0 + dt.timedelta(hours=54))
+    err = capsys.readouterr().err
+    assert 31 in hourly and "rate-limited, sleeping 31s" in err and agent_pr_ci.SEARCH_SPENT not in err
+    assert not got["rate_limited"] and index["n_prs"] == 150 and why == bad == [] and got["unfinished_since"] is None
 
 
 def test_the_budget_is_what_github_says_is_left_less_the_reserve_and_the_token_s_hour_when_it_does_not_say(monkeypatch):
