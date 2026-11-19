@@ -15,7 +15,10 @@ APP = ROOT / "apps" / "wanted"
 def test_the_apps_own_suite_passes_against_this_knos():
     env = {**os.environ, "PYTHONPATH": os.pathsep.join([str(ROOT / "src"), str(APP)])}
     # from the Knos root: PYTHONPATH=src:apps/wanted python -m pytest -q apps/wanted
-    got = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "apps/wanted"], cwd=ROOT, env=env,
+    # two workers, each file on one of them (--dist loadfile): the suite outgrew the slow shard's 5 minutes on Windows
+    # (5m25s, F1B); with no pytest-xdist it runs as before
+    par = ["-n", "2", "--dist", "loadfile"] if __import__("importlib").util.find_spec("xdist") else []
+    got = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", *par, "apps/wanted"], cwd=ROOT, env=env,
                          capture_output=True, text=True, timeout=600)
     assert got.returncode == 0, got.stdout[-3000:] + got.stderr[-2000:]
     assert " passed" in got.stdout and " failed" not in got.stdout
