@@ -225,7 +225,7 @@ WRITE = ("You are agent A. Write the Python module solution.py that the locked t
          "and the 20 s time limit, and meet each limit with room to spare. Do not open the test file at run time, and do not "
          "special-case its inputs. Keep it short: the answer is cut at 800 tokens, so at most 45 short lines, short names, standard library only, no comments or docstrings. "
          "Do not think aloud. Answer with the code only, in one ```python block.")
-ATTEMPTS = 3   # agent A writes, and when the locked test fails, up to 2 more attempts with the test's own error message
+ATTEMPTS = 5   # agent A writes, and when the locked test fails, up to 4 more attempts with the test's own error message (G3: 3 were not enough for test_limit3.py)
                # (founder, 13 Nov); with the reviewer an order makes at most 4 model calls
 
 
@@ -266,11 +266,11 @@ def write_code(claim: str, quote: str, test: str, visitor: str = "", plain: str 
     fixed program is then used and the order says so). `plain` is the claim in plain words; `fix` is the previous
     attempt's code and the locked test's own error message, for the next attempt."""
     inp = {"claim": claim, "quote": quote, "test": test[:8000], **({"plain": plain} if plain else {}),
-           **({"fix_code": fix[0][:6000], "fix_error": fix[1][:400]} if fix else {})}
+           **({"fix_code": fix[0][:6000], "fix_error": fix[1][:1200]} if fix else {})}
     user = (f"Claim: {quote}\n" + (f"In plain words: {plain}\n" if plain else "")
             + f"\nThe locked test ({claim}), which imports solution:\n{test[:8000]}")
     if fix:
-        user += (f"\n\nYour last solution.py failed the locked test with: {fix[1][:400]}\nFix it. Measure the way the test measures "
+        user += (f"\n\nYour last solution.py failed the locked test with: {fix[1][:1200]}\nFix it. Measure the way the test measures "
                  "(read its code: what it times, counts or serializes) and leave room under each limit: when it says you are over "
                  "a limit, keep less (only what the method needs, in the most compact form the test counts), do not just tune a "
                  "constant; when it says too few results were accurate enough, use the method's own accuracy parameter as its "
