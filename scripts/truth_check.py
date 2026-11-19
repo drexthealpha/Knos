@@ -429,8 +429,7 @@ def version_problems(stmts: list[Statement], data: dict) -> list[Problem]:
 COUNTS: tuple[tuple[str, str], ...] = (
     ("programs on devnet", r"\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten) (?:Solana |devnet |Solana devnet |on-chain |public )*programs\b(?! reading)"),
     ("capabilities", r"\b(\d+) capabilities\b"),
-    # "Rows: 135 passed" is the limit check's own row count (F1), not a count of tests
-    ("tests passed", r"(?<!Rows: )\b(\d{1,3}(?:,\d{3})+|\d{3,}) (?:tests )?passed\b"),
+    ("tests passed", r"\b(\d{1,3}(?:,\d{3})+|\d{3,}) (?:tests )?passed\b"),
 )
 
 
