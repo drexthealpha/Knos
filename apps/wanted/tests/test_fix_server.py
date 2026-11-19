@@ -111,6 +111,17 @@ def test_the_tool_works_as_a_form_with_no_script(app):
     st, _, body = form(app, "/t/limit-check/run", {"table": "when,volts\n1,3", "column": "capacity_ah", "rule": "above", "limit": "2"})
     assert st == 400 and "I cannot find a column named capacity_ah. Columns: when, volts." in body
     assert ">when,volts\n1,3</textarea>" in body and 'role="alert"' in body          # the person's table is kept
+    # G5: the box is offered empty, the sample's first rows shown in it as an example; sent empty and untouched, Check my
+    # data checks that example (the hidden field "sample"); a box sent empty without it is an empty file
+    assert '<input type="hidden" dir="auto" name="sample" value="1">' in html
+    st, h, _ = form(app, "/t/limit-check/run", {"table": "", "sample": "1", "column": "capacity_ah", "rule": "above", "limit": "1.4", "test": "1"})
+    assert st == 303 and "Failed at row " in page(app, h["Location"])
+    st, _, body = form(app, "/t/limit-check/run", {"table": "", "column": "capacity_ah", "rule": "above", "limit": "1.4"})
+    assert st == 400 and "Your file is empty" in body and "then press Check my data." in body
+    # the sample link with no script: the tool page with the sample in the box, labelled as the sample
+    html = page(app, "/t/limit-check/?sample=1")
+    assert re.search(r'<textarea id="list"[^>]*>cycle,capacity_ah\n1,1\.86\n', html) and ">Sample: made-up battery test</label>" in html
+    assert 'name="sample"' not in html and "placeholder=" not in html
 
 
 def test_sample_body_still_runs(app):
@@ -120,14 +131,17 @@ def test_sample_body_still_runs(app):
 def test_a_result_page_opened_from_its_link_shows_the_table_it_checked_in_the_box(app):
     # R13 G2 step 6: a result address opened fresh shows the same input and result, so the box holds the table it checked
     # (labelled as that table); U6 Rule 2 (UX/U6.md line 33): the box is emptied for the next table by the person's own
-    # run on the page (its script); the checked table is also kept in the page's fold
+    # run on the page (its script); the checked table then stays shown, read-only, under the result (G5): that copy is
+    # hidden while the box itself holds the table
     st, r, _ = own(app, table="row,reading\n1,5\n2,3\n3,7", limit=4, browser="b-fix-000009")
     assert st == 200, r
     html = page(app, "/r/" + r["link"].rstrip("/").rsplit("/", 1)[1] + "/")
     assert re.search(r'<textarea id="list"[^>]*>row,reading\n1,5\n2,3\n3,7</textarea>', html)
     assert '<label id="lab" for="list">Table checked</label>' in html
     assert "if (ran && box.value.trim())" in html                  # only the person's own run empties the box
-    assert re.search(r'<div id="k-input"><p class="muted">[^<]+</p><pre data-user-content dir="auto">row,reading\n1,5\n2,3\n3,7</pre>', html)
+    assert re.search(r'<figure id="k-input" aria-labelledby="k-input-h" hidden><figcaption id="k-input-h">Table checked</figcaption>'
+                     r'<pre data-user-content dir="auto" tabindex="0" aria-labelledby="k-input-h">row,reading\n1,5\n2,3\n3,7</pre></figure>', html)
+    assert "if (was && box.value.trim() !== String(was).trim()) checked(was); else unchecked();" in html
     assert '<h1><label for="list" id="k-name">' in html          # the box's label is the screen's largest text (U1 R5)
 
 

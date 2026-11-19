@@ -5,10 +5,10 @@
 // it (under /Knos/), in headless Chromium at 360 by 800 with no stored state, the hosted server answered by a stand-in
 // that keeps the API contract and the program's interface of SPEC2.md (POST /api/run, POST /api/pay, GET /api/tools; the
 // 402, 413 and 408 answers):
-//   A  "Proved by": the first screen holds 40 words or fewer and none of the PLAIN-WORDS rule's words; "Try it" shows a
+//   A  "Proved by": the first screen holds 40 words or fewer and none of the PLAIN-WORDS rule's words; "Check my data" shows a
 //      first change within 200 ms (SPEC: U1 R2 and R3) and a sentence that starts "Failed at row " or "Passed: all ";
 //      "Use my data" shows "Choose a file", "Which column?" and the limit, in that order; file 2 of A8 given as a file,
-//      its column picked, "must stay above" and its limit set, "Try it" reads "Failed at row 37"; "Copy link" reads
+//      its column picked, "must stay above" and its limit set, "Check my data" reads "Failed at row 37"; "Copy link" reads
 //      "Copied" within 400 ms
 //   A6 a slow run shows a moving sign, the step and Stop from 1 s; Stop stops it and keeps the file in the box
 //   C  own-data runs until the free runs end; the pay screen's strings are the ones docs/data/pricing.json gives; "Pay with
@@ -164,8 +164,8 @@ check("A: the first screen has none of the PLAIN-WORDS rule's words", plainHit(f
 check("A: one h1, the headline, and the tool's title under it", first.h1.length === 1 && first.h1[0] === "What can you do with Knos?" && first.title === "Check a test file against a limit", first);
 check("A2: the sample is loaded and labelled, two columns cycle and capacity_ah", /^Sample: (NASA|made-up) battery test$/.test(first.label) && first.lines[0] === "cycle,capacity_ah" && first.lines.length > 100, [first.label, first.lines.slice(0, 2)]);
 check("A2: the limit is filled in: capacity_ah must stay above 1.4", first.column === "capacity_ah" && first.rule === "must stay above" && first.limit === "1.4", first);
-check("A: the box and Try it are whole on the first screen, no scroll", first.boxBottom <= first.H && first.goBottom <= first.H && first.scrollX <= 0, first);
-check("A: Try it is the main action, 48 px tall at least and 300 px wide at least; body text 18 px", first.goH >= 48 && first.goW >= 300 && first.font >= 18, first);
+check("A: the box and Check my data are whole on the first screen, no scroll", first.boxBottom <= first.H && first.goBottom <= first.H && first.scrollX <= 0, first);
+check("A: Check my data is the main action, 48 px tall at least and 300 px wide at least; body text 18 px", first.goH >= 48 && first.goW >= 300 && first.font >= 18, first);
 
 // a first change within 200 ms of a press: the first mutation of the page after the click
 const firstChange = (sel) => page.evaluate((sel) => new Promise((done) => {
@@ -175,7 +175,7 @@ const firstChange = (sel) => page.evaluate((sel) => new Promise((done) => {
   setTimeout(() => { mo.disconnect(); done(9999); }, 2000);
 }), sel);
 const ms = await firstChange("#try");
-check("A6: Try it shows a first change within 200 ms", ms <= 200, Math.round(ms));
+check("A6: Check my data shows a first change within 200 ms", ms <= 200, Math.round(ms));
 await page.waitForFunction(() => !document.getElementById("result").hidden || !document.getElementById("err").hidden, null, { timeout: LIVE ? 90000 : 10000 });
 const sample = await page.evaluate(() => ({ about: document.getElementById("about").textContent, err: document.getElementById("err-text").textContent,
   chart: !!document.querySelector("#chart svg polyline"), ring: !!document.querySelector("#chart svg circle") }));
@@ -249,7 +249,7 @@ check("C4: one more run after the test payment", paidRun.about.startsWith("Faile
 
 // ---- A6: a slow run, and Stop ------------------------------------------------------------------------------------------
 s.delay = 4000;
-// after a verdict the box is empty (UX/U6.md line 33) and Try it checks the same table again, putting it back in the box
+// after a verdict the box is empty (UX/U6.md line 33) and Check my data checks the same table again, putting it back in the box
 const kept = await page.evaluate(() => document.getElementById("list").value) || FILE2.text.replace(/\r\n/g, "\n");
 await page.click("#try");
 await page.waitForTimeout(1300);

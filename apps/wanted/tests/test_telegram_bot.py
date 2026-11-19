@@ -181,7 +181,7 @@ def test_every_error_is_twelve_words_with_a_next_step():
         assert len(m.split()) >= 12, m
         assert re.search(r"\b(I|me|my)\b", m), m
         assert re.search(r"Please|Send|Put one|try again", m), m
-        assert "box" not in m and "Try it" not in m, m
+        assert "box" not in m and "Try it" not in m and "Check my data" not in m, m
 
 
 def test_started_with_a_token_answers_through_the_loop_and_hides_the_token(tg, capsys):

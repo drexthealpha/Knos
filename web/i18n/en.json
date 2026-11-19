@@ -119,6 +119,11 @@
    "description": "The tool's form, on the front door and the tool page: the label of the box to paste a table into.",
    "max_length": 32
   },
+  "tool.paste_own": {
+   "text": "Paste your table",
+   "description": "The tool page: the label of the empty box, on its first screen, that a person pastes their own table into.",
+   "max_length": 32
+  },
   "tool.which": {
    "text": "Which column?",
    "description": "The tool's form, on the front door and the tool page: the label of the column field.",
@@ -145,8 +150,23 @@
    "max_length": 30
   },
   "tool.try": {
+   "text": "Check my data",
+   "description": "The tool's form, on the front door and the tool page: the main button that checks the table in the box.",
+   "max_length": 26
+  },
+  "tool.try_made_up": {
+   "text": "Try the made-up sample",
+   "description": "The tool page: the link under the first screen that puts the made-up sample table in the box and checks it.",
+   "max_length": 40
+  },
+  "tool.try_nasa": {
+   "text": "Try the NASA sample",
+   "description": "The tool page: the link under the first screen that puts NASA's sample table in the box and checks it.",
+   "max_length": 38
+  },
+  "tool.try_sample": {
    "text": "Try it",
-   "description": "The tool's form, on the front door and the tool page: the main button that runs the check.",
+   "description": "The pricing and status pages: the main button that checks the sample table already in their box.",
    "max_length": 18
   },
   "tool.checking": {
@@ -202,14 +222,14 @@
    "max_length": 12
   },
   "err.empty": {
-   "text": "Your file is empty, so I have nothing to check yet. Choose a file or paste a table, then press Try it.",
+   "text": "Your file is empty, so I have nothing to check yet. Choose a file or paste a table, then press Check my data.",
    "description": "An error shown in place of a result; it speaks as Knos, in the first person, and keeps the person's file: no file.",
-   "max_length": 133
+   "max_length": 142
   },
   "err.limit": {
-   "text": "I need the limit as a number, such as 1.4, before I can check your file. Please type it, then press Try it.",
+   "text": "I need the limit as a number, such as 1.4, before I can check your file. Please type it, then press Check my data.",
    "description": "An error shown in place of a result; it speaks as Knos, in the first person, and keeps the person's file: no limit typed.",
-   "max_length": 140
+   "max_length": 149
   },
   "err.stopped": {
    "text": "I stopped the check. Your file is still in the box, so you can change it or try again.",
@@ -475,6 +495,11 @@
    "description": "The result area, after a run: the button to change the limit and run again.",
    "max_length": 32
   },
+  "res.next_h": {
+   "text": "Next step",
+   "description": "The result area, after a run: the short heading over the next step line and the test behind the result.",
+   "max_length": 27
+  },
   "work.bar": {
    "text": "Seconds waited",
    "description": "The waiting line while the server checks a file: the name of the progress bar of seconds waited.",
@@ -581,9 +606,9 @@
    "max_length": 150
   },
   "a.tool.next": {
-   "text": "Press Try it to check the sample. For your own file, press Use my data and fill in its three boxes.",
+   "text": "Paste your table or choose a file, then press Check my data. To see an example first, press the sample link.",
    "description": "An answer line of the fold How it works: what to do on the tool.",
-   "max_length": 129
+   "max_length": 141
   },
   "a.res.get": {
    "text": "This result: the sentence and chart above, kept at this page's link. A sample result is public; one from your own file is not listed.",
@@ -1008,9 +1033,9 @@
    "max_length": 75
   },
   "next.unknown": {
-   "text": "Pick a column where each row holds a number, then press Try it.",
+   "text": "Pick a column where each row holds a number, then press Check my data.",
    "description": "The next step line under a verdict: after a result Knos cannot tell.",
-   "max_length": 89
+   "max_length": 98
   },
   "work.rows": {
    "one": "{n} row to check",
@@ -1055,7 +1080,7 @@
   },
   "res.input": {
    "text": "Table checked",
-   "description": "The label above the table a result checked, in the box of a result page opened from its link.",
+   "description": "The label of the table a result checked: in the box of a result page opened from its link, and over the read-only copy shown under the result after a run.",
    "max_length": 26
   }
  }

@@ -6,7 +6,7 @@
 <!-- THE FRONT DOOR of the published site (scripts/site_pages.py writes it as index.html). Round 13, A2 and A7: the first
      screen is the first tool, "Check a test file against a limit", under the headline "What can you do with Knos?".
      The box holds the labelled sample (near/agents/job/data/limit/sample.csv, written in at build time) with its limit
-     filled in; "Try it" sends the file to the hosted server (POST /api/run, the contract in v0328 research R13 SPEC2.md)
+     filled in; "Check my data" sends the file to the hosted server (POST /api/run, the contract in v0328 research R13 SPEC2.md)
      and the result sentence and its chart are shown under the button. Below the first screen: the earlier question box,
      unchanged. Every number in the How it works fold and the pay screen is written in at build time from
      docs/data/pricing.json, the sample and the job's released.json (the spans marked data-n, data-sample, data-job). -->
@@ -119,7 +119,7 @@ button { min-height: 48px; min-width: 48px; padding: 0 18px; font: 600 18px var(
 .out .nw-done input { min-height: 44px; font-size: 16px; padding: 0 10px; max-width: 70%; }
 .out p { margin: 0 0 8px; }
 /* the answer's own details (its test, its record, the way to run it) sit in a closed How it works fold: plain words
-   above it, one primary control on the screen (Try it), every link a 44 px box in 16 px or larger text (R13 WALK 1) */
+   above it, one primary control on the screen (Check my data), every link a 44 px box in 16 px or larger text (R13 WALK 1) */
 .out .how p { font-size: 18px; }
 .out .how a { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; margin-inline-end: 16px; font-size: 18px; }
 .cost a { display: inline-block; padding: 10px 0; }
@@ -155,7 +155,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
       <p class="rule"><span id="colname" data-user-content>capacity_ah</span> <span id="rule-shown"><span>{{rule.above}}</span> <bdi data-no-mirror>1.4</bdi></span><span class="rule" id="rule-edit" hidden><label for="rule">{{tool.rule_label}}</label> <select id="rule" name="rule" aria-label="{{tool.rule_label}}"><option value="above" selected>{{rule.above}}</option><option value="below">{{rule.below}}</option></select> <label for="limit">{{tool.limit_label}}</label> <input id="limit" name="limit" dir="auto" inputmode="decimal" autocomplete="off" aria-label="{{tool.limit_label}}" value="1.4"></span></p>
       <p class="who" id="limits" hidden></p>
     </form>
-    <!-- the tool's name and who it is for, under the box and Try it: above the box stands only the headline
+    <!-- the tool's name and who it is for, under the box and Check my data: above the box stands only the headline
          (U4.md line 76: at most one text block above the main input) -->
     <h2 id="t-title">{{tool.title}}</h2>
     <p class="who" id="who">{{tool.line}}</p>
@@ -241,7 +241,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
   // sent as `runs` with each run and test payment, as the tool page does (tool_page.py runsId, the same key)
   let runs = null;
   const runsId = () => { if (runs) return runs; runs = store.get("knos-runs"); if (!runs) { runs = newId(); store.set("knos-runs", runs); } return runs; };
-  // the first action's source (U3 Rule 11): how the table got into the box when Try it is first pressed (the sample as it
+  // the first action's source (U3 Rule 11): how the table got into the box when Check my data is first pressed (the sample as it
   // stood, typed, or pasted or chosen from a file); kept in this browser, sent once as the event first_action, only after
   // the person says yes to being counted
   let how = "starter";
@@ -348,7 +348,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
   const limitIn = (j, re, key) => { const m = j && j.error && re.exec(j.error); return m ? Number(m[1].replace(/[^0-9]/g, "")) : limits && limits[key]; };
   async function run() {
     if (ctl) return;
-    // a box a verdict emptied, untouched since: Try it checks the table just checked again; one the person emptied is empty
+    // a box a verdict emptied, untouched since: Check my data checks the table just checked again; one the person emptied is empty
     const again = fresh && !box.value.trim() && kept;
     const table = again ? kept.table : box.value, column = again && kept.col ? kept.col : mineOn ? $("col").value : SAMPLE_COLUMN, rule = $("rule").value, limit = KI.num($("limit").value);
     if (again) { box.value = table; fresh = false; }   // the table goes back in the box while it runs, so an error keeps it there
@@ -492,7 +492,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
   };
   draftLoad();
   addEventListener("pageshow", (e) => { if (e.persisted) draftLoad(true); });
-  // the table sent from the pricing or status page's box (their Try it), read once
+  // the table sent from the pricing or status page's box (their Check my data), read once
   try { const h = sessionStorage.getItem("knos.handoff"); if (h !== null) { sessionStorage.removeItem("knos.handoff"); if (h.trim()) box.value = h; } } catch { /* no storage */ }
   for (const [el, ev] of [[box, "input"], [$("col"), "change"], [$("rule"), "change"], [$("limit"), "input"]]) el.addEventListener(ev, draftSave);
   tryBtn.addEventListener("click", draftSave);
@@ -575,7 +575,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
     const holds = last ? last.holds !== false : null, out7 = m.demand && m.demand.behind_usd != null ? +m.demand.behind_usd : null,
       behind = out7 != null ? T("ask.behind", { amount: KF.number(out7, KI.lang(), { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }) : "";
     // plain words above the fold (the PLAIN-WORDS rule); the test's file, the record and the way to run the check
-    // yourself inside a closed How it works fold, none of them a primary control (Try it is the screen's one)
+    // yourself inside a closed How it works fold, none of them a primary control (Check my data is the screen's one)
     // R13 WALK 2: the claim's plain title on the screen; its exact sentence, with its numbers, only in the closed fold
     const fold = el("details", { className: "how" }, [el("summary", { textContent: T("how") }),
       el("p", {}, [en(c.plain)]),

@@ -350,7 +350,14 @@ def test_the_tool_page_has_its_tags_one_h1_and_plain_words(app):
     assert tags["title"] == "Check a test file against a limit" and len(tags["title"]) <= 52
     assert tags["description"] == "For anyone who tests batteries, motors, parts or machines." and words(tool_run.LINE) <= 12
     assert tags["image"].endswith("/og/t/limit-check.png")
-    assert page.count("<h1") == 1 and ">Sample: made-up battery test<" in page and ">Try it<" in page and "<summary>How it works</summary>" in page
+    assert page.count("<h1") == 1 and ">Check my data<" in page and "<summary>How it works</summary>" in page
+    # G5: the first screen's box is empty and labelled for the person's own table, the sample's two columns only its
+    # example; the sample is a link under the first screen, and choosing a file stays there too
+    assert '<label id="lab" for="list">Paste your table</label>' in page
+    assert re.search(r'<textarea id="list"[^>]* placeholder="cycle,capacity_ah&#10;1,1\.86&#10;[^"]*"></textarea>', page)
+    assert '<a id="k-sample" href="/t/limit-check/?sample=1&amp;lang=en" data-starter>Try the made-up sample</a>' in page
+    assert '<div id="own" class="field" hidden><button type="button" id="pick">Choose a file</button><input id="file" type="file"' in page
+    assert page.index('id="go"') < page.index('<div id="out"') < page.index('id="k-sample"')
     assert '<span id="colname" data-user-content><bdi>capacity_ah</bdi></span>' in page and 'value="1.4"' in page and '<option value="above" selected>must stay above</option>' in page
     shown = outside_fold(page) + " " + " ".join(tags.values()).replace(tags["image"], "")
     for w in PLAIN:

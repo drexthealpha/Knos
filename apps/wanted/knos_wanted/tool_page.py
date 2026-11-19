@@ -448,7 +448,7 @@ def answer_html(lang: str, r: dict, test_url: str = TEST_URL) -> str:
         # do next and the test behind it open the part below it, under a heading (U3 Rule 1a: three controls on the first
         # screen; U2 R3: 40 words a section), still inside the answer, so the source stays the answer's own (U4 R12)
         out += (f'<p data-evidence><span data-compare data-quote>{ev}</span></p>'
-                f'<div class="later"><h2>{_e(t(lang, "q.next"))}</h2><p data-next-step>{h(lang, "next." + state, r=int(ffr))}</p>'
+                f'<div class="later"><h2>{_e(t(lang, "res.next_h"))}</h2><p data-next-step>{h(lang, "next." + state, r=int(ffr))}</p>'
                 f'<p><a class="src" href="{_e(test_url)}" data-verified>{_e(t(lang, "res.shown_by"))}</a></p></div>')
     return f'<div class="answer" data-answer data-verdict data-state="{state}">{out}</div>'
 
@@ -674,7 +674,8 @@ button:focus-visible,textarea:focus-visible,summary:focus-visible,a:focus-visibl
 .first:has(.later){min-height:calc(100vh + 11rem);min-height:calc(100svh + 11rem)}
 .first>#out{flex:1 0 auto;display:flex;flex-direction:column}#out>.answer{flex:1 0 auto}
 .answer:has(.later){grid-template-rows:auto auto 1fr}.later{align-self:end;min-height:11rem}.src{display:inline-flex;align-items:center;min-height:48px}.later h2{font-size:1.125rem;margin:12px 0 0}
-#k-input pre{font:1rem/1.4 ui-monospace,Consolas,monospace;white-space:pre;overflow:auto;max-height:12em;margin:0}
+#k-input{margin:14px 0 0}#k-input figcaption{font-weight:600;margin:0 0 4px}#k-input pre{font:1rem/1.4 ui-monospace,Consolas,monospace;white-space:pre;overflow:auto;max-height:12em;margin:0}
+.alt{margin:16px 0 0}.alt p{margin:0}#k-sample{display:inline-flex;align-items:center;min-height:48px;min-width:48px}textarea::placeholder{color:var(--muted);opacity:1}#pick.on{background:var(--accent);color:var(--accent-fg)}
 .chart{display:block;width:100%;height:auto;max-height:220px;margin:10px 0 0;color:var(--fg)}
 .muted{color:var(--muted)}.bad{color:var(--bad);font-weight:600}
 .bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin:12px 0 4px}
@@ -755,7 +756,7 @@ const browser = () => get("knos-count") === "yes" ? (get("knos-browser") || "") 
 // not a count of visitors; the server holds it only in memory, under a keyed hash (tool_run._key)
 let runs = null;
 const runsId = () => { if (runs) return runs; runs = get("knos-runs"); if (!runs) { const a = new Uint8Array(12); crypto.getRandomValues(a); runs = Array.from(a, (x) => x.toString(16).padStart(2, "0")).join(""); put("knos-runs", runs); } return runs; };
-// the first action's source (U3 Rule 11): how the table got into the box when Try it is first pressed (the sample as it
+// the first action's source (U3 Rule 11): how the table got into the box when Check my data is first pressed (the sample as it
 // stood, typed, or pasted or chosen from a file); kept in this browser, sent once as the event first_action, only after
 // the person says yes to being counted
 let how = "starter";
@@ -819,7 +820,7 @@ function answer(r) {
     const src = make("a", T("res.shown_by"), "src"); src.href = D.test_url; src.dataset.verified = "";
     ev.append(c);
     const later = make("div", null, "later"), sp = make("p"); sp.append(src);
-    later.append(make("h2", T("q.next")), part("p", "next." + st, { r: r.first_failing_row || 0 }, { "data-next-step": "" }), sp);
+    later.append(make("h2", T("res.next_h")), part("p", "next." + st, { r: r.first_failing_row || 0 }, { "data-next-step": "" }), sp);
     a.append(ev, later);
   }
   return a;
@@ -827,11 +828,18 @@ function answer(r) {
 // after a verdict the box is empty and ready for the next table (U6 Rule 2); the table just checked is kept: shown under
 // the answer, and put back in the box when the person comes back to this page (section 12: going back keeps the request)
 let kept = null, fresh = false;   // fresh: the box was emptied by a verdict and not touched since
+// starter: the tool page's box is empty and untouched, the sample's first rows shown in it as an example (G5)
+let starter = !!D.starter, lastExample = null;
+// the sample in the box, as the sample link puts it there (and Check my data on the untouched box): its column, rule and limit
+function loadSample() { box.value = D.sample; box.placeholder = ""; starter = false; fresh = false; kept = null; lab.textContent = D.sample_label; lab.hidden = false; lab.dataset.checked = ""; $("rule").value = D.rule; $("limit").value = D.limit; if (mineOn) fillColumns(D.column); }
 function checked(table) { const k = $("k-input"); if (!k) return; k.querySelector("pre").textContent = table; k.hidden = false; }
+function unchecked() { const k = $("k-input"); if (k) k.hidden = true; }
 function result(r, ran) {
   link = r.link; said = r.result;
   // only the person's own run empties the box (U6 Rule 2); a result opened from its link shows its table in the box (G2 6)
-  if (ran && box.value.trim()) { kept = { table: box.value, col: mineOn ? $("col").value : "", rule: $("rule").value, limit: $("limit").value }; box.value = ""; lab.hidden = true; }
+  if (ran && lastExample && !box.value.trim()) box.value = lastExample;   // the example checked becomes the table checked
+  lastExample = null; if (ran) starter = false;
+  if (ran && box.value.trim()) { kept = { table: box.value, col: mineOn ? $("col").value : "", rule: $("rule").value, limit: $("limit").value }; box.value = ""; box.placeholder = ""; lab.textContent = T("tool.paste_own"); lab.hidden = false; delete lab.dataset.checked; }
   const was = kept ? kept.table : D.result && D.result.input;
   fresh = !box.value;
   const nodes = [];
@@ -850,18 +858,19 @@ function result(r, ran) {
   nodes.push(row);
   // the counting question follows a run the person made, not the opening of a result someone shared
   const q = ran ? ask() : null; if (q) nodes.push(q);
-  if (was) checked(was);
+  // the table checked stays on the screen, read-only under the result, while the box is empty for the next one (G5)
+  if (was && box.value.trim() !== String(was).trim()) checked(was); else unchecked();
   const a = answer(r), old = ran ? null : $("about"), fresh_big = a.querySelector("#about");
   if (old && fresh_big && old.textContent.trim() === fresh_big.textContent.trim()) fresh_big.replaceWith(old);   // keep the server's verdict node: the page's largest paint stays on screen
   show(...[a, l].filter(Boolean)); under.replaceChildren(...nodes);
   try { if (location.origin === new URL(r.link).origin && location.pathname !== new URL(r.link).pathname) history.replaceState(null, "", new URL(r.link).pathname + location.search); } catch (e) { /* another site */ }
 }
 function ownMode() {
-  mineOn = true; $("own").hidden = false; $("which").hidden = false; $("colname").hidden = true; editOn();
-  lab.textContent = T("tool.paste"); lab.hidden = false;
+  mineOn = true; $("alt").hidden = false; $("which").hidden = false; $("colname").hidden = true; editOn();
+  lab.textContent = T("tool.paste_own"); lab.hidden = false;
   $("lims").textContent = T("tool.lim_rows", { n: D.limits.max_rows }) + " " + T("tool.lim_secs", { n: D.limits.max_seconds }); $("lims").hidden = false;
 }
-function mine() { box.value = ""; kept = null; fresh = false; $("limit").value = ""; ownMode(); fillColumns(); show(); $("file").focus(); }
+function mine() { box.value = ""; kept = null; fresh = false; starter = false; $("limit").value = ""; ownMode(); fillColumns(); show(); unchecked(); box.focus(); }
 function editOn() { $("k-rule").hidden = false; $("rule-shown").hidden = true; $("rule-edit").hidden = false; }
 function changeLimit() { editOn(); $("limit").focus(); $("limit").select(); }
 // an error is a "cannot tell" answer (U6 Rules 15 and 17): the reason in the first person, the person's file kept in
@@ -908,12 +917,16 @@ function stop() {
 }
 function run() {
   if (xhr) return;
-  // a box a verdict emptied, untouched since: Try it checks the table just checked again (the one in the fold); a box
+  // the tool page's empty, untouched box: Check my data checks the example the box shows (G5)
+  // (the box itself stays as it is, so an error leaves it as the person left it)
+  const example = starter && !mineOn && !box.value.trim();
+  lastExample = example ? D.sample : null;
+  // a box a verdict emptied, untouched since: Check my data checks the table just checked again (the copy under the result); a box
   // the person emptied is an empty file
-  const again = fresh && !box.value.trim() && (kept || (D.result && D.result.input ? { table: D.result.input, col: D.result.column } : null));
+  const again = example ? { table: D.sample, col: D.column } : fresh && !box.value.trim() && (kept || (D.result && D.result.input ? { table: D.result.input, col: D.result.column } : null));
   const table = again ? again.table : box.value, column = again && again.col ? again.col : mineOn ? $("col").value : D.column, rule = $("rule").value, limit = KI.num($("limit").value);
   // a table this page just checked goes back in the box while it runs, so an error keeps it there; a shared result's table
-  // stays in the fold (the box is as the person left it)
+  // stays under the result (the box is as the person left it)
   if (again && again === kept) { box.value = table; fresh = false; }
   if (!table.trim()) return trouble(T("err.empty"), T("btn.back"), edit);
   if (!num(limit)) return trouble(T("err.limit"), T("btn.type_limit"), () => { show(); changeLimit(); });
@@ -1014,14 +1027,23 @@ if (listen && "speechSynthesis" in window && window.SpeechSynthesisUtterance) {
     listen.textContent = T("stop"); s.speak(u);
   });
 }
+// Choose a file: a button that opens the browser's file chooser, pressed-looking until the chooser closes
+const pick = $("pick"), unpick = () => pick.classList.remove("on");
+$("own").hidden = false;   // with no script the button could not open the chooser, so it shows only with one
+pick.addEventListener("click", () => { pick.classList.add("on"); $("file").click(); });
+$("file").addEventListener("cancel", unpick); addEventListener("focus", unpick);
 $("file").addEventListener("change", () => {
+  unpick();
   const f = $("file").files[0]; if (!f) return;
   if (how !== "pasted") how = "pasted";   // a file put in whole, as a paste is
   const r = new FileReader(); r.onload = () => { box.value = String(r.result); fillColumns(); draftSave(); }; r.readAsText(f);
 });
 // on a result page the rule shows once a new table is typed in the empty box (the verdict above already says it)
-box.addEventListener("input", () => { fresh = false; $("k-rule").hidden = false; if (lab.dataset.checked != null) { delete lab.dataset.checked; lab.textContent = T("tool.paste"); } if (mineOn) fillColumns(); });
-box.addEventListener("focus", () => { fresh = false; });   // a person who goes into the empty box means an empty one
+box.addEventListener("input", () => { fresh = false; starter = false; $("k-rule").hidden = false; if (lab.dataset.checked != null) { delete lab.dataset.checked; lab.textContent = T("tool.paste_own"); } if (mineOn) fillColumns(); });
+box.addEventListener("focus", () => { fresh = false; starter = false; });   // a person who goes into the empty box means an empty one
+// the sample link (G5): the sample in the box, then checked; with no script it opens the tool page with the sample in the box
+const sampleLink = $("k-sample");
+if (sampleLink) sampleLink.addEventListener("click", (e) => { e.preventDefault(); if (xhr) return; loadSample(); run(); });
 form.addEventListener("submit", (e) => { e.preventDefault(); run(); });
 if (D.result && D.result.mode === "own") { ownMode(); fillColumns(D.result.column); }
 if (D.result && box.value.trim()) { lab.textContent = T("res.input"); lab.dataset.checked = ""; lab.hidden = false; }
@@ -1099,11 +1121,14 @@ addEventListener("DOMContentLoaded", () => { const o = document.getElementById("
 
 
 def page(tool: dict, base: str, result: dict | None = None, front: str = "https://drexthealpha.github.io/Knos/", lang: str = "en",
-         test: bool = False, sent: dict | None = None, lite: bool = False) -> str:
+         test: bool = False, sent: dict | None = None, lite: bool = False, sample: bool = False) -> str:
     """One tool page (/t/<id>/) or one result page (/r/<id>/) in one language: the og tags first, then the tool, then
     its fold, which opens with the five answers (H3 f). The result sentence is in the first response, so it shows with
-    scripts blocked (H3 e). The tool is a form too: with no script, Try it posts it to /t/<id>/run (tool_run.form_run),
-    which answers with the result page, or with this page again holding what was sent (`sent`) and why it was not run."""
+    scripts blocked (H3 e). The tool is a form too: with no script, Check my data posts it to /t/<id>/run
+    (tool_run.form_run), which answers with the result page, or with this page again holding what was sent (`sent`) and
+    why it was not run. G5: the tool page's box is empty for the person's own table, the sample's first rows shown in it
+    as an example; the sample is a link under the first screen (`sample`: the page that link opens with no script, the
+    sample in the box)."""
     lang = lang if lang in LANGS else "en"
     L = lang
     rid = (result or {}).get("id")
@@ -1114,18 +1139,22 @@ def page(tool: dict, base: str, result: dict | None = None, front: str = "https:
     sent = sent or {}
     # a result page opened from its link shows the table it checked in the box (G2 step 6: the same input and result); the
     # box is emptied for the next table only by the person's own run on the page (U6 Rule 2, in the page's script)
-    text = sent["table"] if "table" in sent else (result.get("input") or "") if result else tool["sample"]
+    text = sent["table"] if "table" in sent else (result.get("input") or "") if result else tool["sample"] if sample else ""
     shown = bool(result and not sent and text.strip())
+    # the empty box of the tool page shows the sample's first rows as an example (U6 Rule 1); pressed while it is empty
+    # and untouched, Check my data checks that example (the page's script; tool_run.form_run with no script)
+    starter = not result and not sent and not sample
     own = bool(result and result.get("mode") == "own")
     column = sent.get("column") or (result["column"] if result else tool["column"])
     rule = sent.get("rule") or (result["rule"] if result else tool["rule"])
     limit = sent["limit"] if "limit" in sent else shown_limit(result["limit"] if result else tool["limit"])
-    # U3 Rule 1a (UX/U3.md:21): the first screen holds the box, Try it and the language control; the rule and the limit
-    # show as words, and their fields open with Use my data or Change the limit (open at once for a person's own file)
+    # U3 Rule 1a (UX/U3.md:21): the first screen holds the box, Check my data and the language control; the rule and the
+    # limit show as words, and their fields open with Use my data or Change the limit (open at once for a person's own
+    # file); the sample link and the file chooser sit under the first screen
     edit = own or bool(sent)
     f = facts()
     label = t(L, "tool.sample_made_up" if f["made_up"] else "tool.sample_nasa")
-    data = {"id": tool["id"], "sample": tool["sample"], "api": base, "limits": tool["limits"], "column": tool["column"],
+    data = {"id": tool["id"], "sample": tool["sample"], "sample_label": label, "rule": tool["rule"], "limit": shown_limit(tool["limit"]), "starter": starter, "api": base, "limits": tool["limits"], "column": tool["column"],
             "lang": L, "langs": list(LANGS), "t": strings_for(L, SCRIPT_KEYS),
             "icons": {st: icon(L, st) for st in STATES}, "test_url": TEST_URL,
             "result": result and {**{k: result.get(k) for k in ("result", "first_failing_row", "passed", "unchecked", "shown_by", "link",
@@ -1137,9 +1166,13 @@ def page(tool: dict, base: str, result: dict | None = None, front: str = "https:
                  + (f'<p class="muted">{_e(t(L, "res.cut", shown=nf(L, result["shown_lines"]), n=result["lines"]))}</p>' if result.get("cut") else ""))
     blob = json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
     items = "".join(f"<li>{x}</li>" for x in fold_items(L, f))
-    # the table a result checked, in the fold (the box itself is empty, for the next table: U6 Rule 2)
-    extra = (f'<div id="k-input"{"" if result else " hidden"}><p class="muted">{_e(t(L, "res.input"))}</p>'
-             f'<pre data-user-content dir="auto">{_e((result or {}).get("input") or "")}</pre></div>')
+    # the table a result checked, read-only under the result (G5): after the person's own run the box is empty for the
+    # next table (U6 Rule 2) and this copy stays; a result page opened from its link holds that table in the box itself
+    checked = (result or {}).get("input") or ""
+    copy = (f'<figure id="k-input" aria-labelledby="k-input-h"{"" if checked and not shown else " hidden"}>'
+            f'<figcaption id="k-input-h">{_e(t(L, "res.input"))}</figcaption>'
+            f'<pre data-user-content dir="auto" tabindex="0" aria-labelledby="k-input-h">{_e(checked)}</pre></figure>')
+    extra = ""
     if result:
         line = (f'<iframe src="{base}/r/{rid}/mark" width="360" height="180" style="border:0" '
                 f'title="{t(L, "embed.title")}" loading="lazy"></iframe>')
@@ -1158,6 +1191,11 @@ def page(tool: dict, base: str, result: dict | None = None, front: str = "https:
     worker = "" if own or lite else f"<script>{OFFLINE_JS}</script>\n"
     # with no script, an empty box sent from a result page checks that result's table again (tool_run.form_run)
     again = f'<input type="hidden" dir="auto" name="again" value="{_e(rid)}">' if rid and not sent else ""
+    # with no script, the tool page's empty, untouched box sent checks the example it shows (tool_run.form_run)
+    starter_field = '<input type="hidden" dir="auto" name="sample" value="1">' if starter else ""
+    ex = "\n".join(tool["sample"].replace("\r\n", "\n").split("\n")[:4])
+    example = f' placeholder="{_e(ex).replace(chr(10), "&#10;")}"' if starter else ""
+    sample_href = f"/t/{tool['id']}/?" + "&".join(["sample=1", f"lang={L}"] + (["test=1"] if test else []))
     scripts = "" if lite else (f'<script type="application/json" id="k-tool">{blob}</script>\n'
                                f"<script>{I18N_JS}\n{SCRIPT}\n{THEME_JS}</script>")
     return f"""<!doctype html>
@@ -1188,11 +1226,10 @@ def page(tool: dict, base: str, result: dict | None = None, front: str = "https:
 <h1><label for="list" id="k-name">{_e(title)}</label></h1>
 <p class="who" id="k-offline" role="status" hidden>{_e(t(L, "offline.line"))}</p>
 <form id="tool" method="post" action="{_e(base)}/t/{_e(tool['id'])}/run">
-<input type="hidden" dir="auto" name="lang" value="{L}">{again}<input type="hidden" dir="auto" name="column" value="{_e(column)}">{'<input type="hidden" dir="auto" name="test" value="1">' if test else ""}
+<input type="hidden" dir="auto" name="lang" value="{L}">{again}{starter_field}<input type="hidden" dir="auto" name="column" value="{_e(column)}">{'<input type="hidden" dir="auto" name="test" value="1">' if test else ""}
 <button id="go" class="primary" type="submit" data-primary><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg><span id="go-label">{_e(t(L, "tool.try"))}</span></button>
-<div id="own" class="field" hidden><label for="file">{_e(t(L, "tool.choose_file"))}</label><input id="file" type="file" dir="auto" accept=".csv,text/csv,text/plain"></div>
-<label id="lab" for="list"{" hidden" if result and not own and not shown else ""}>{_e(t(L, "res.input")) if shown else _e(t(L, "tool.paste")) if own or result else _e(label)}</label>
-<textarea id="list" dir="auto" name="table" spellcheck="false" autocomplete="off" wrap="off">{_e(text)}</textarea>
+<label id="lab" for="list"{" hidden" if result and not own and not shown else ""}>{_e(t(L, "res.input")) if shown else _e(label) if sample and not result and not sent else _e(t(L, "tool.paste_own"))}</label>
+<textarea id="list" dir="auto" name="table" spellcheck="false" autocomplete="off" wrap="off"{example}>{_e(text)}</textarea>
 <div id="which" class="field" hidden><label for="col">{_e(t(L, "tool.which"))}</label><select id="col" dir="auto"></select></div>
 <p class="rule" id="k-rule"{" hidden" if result and not own and not edit else ""}><span id="colname" data-user-content><bdi>{_e(column)}</bdi></span> <span id="rule-shown"{" hidden" if edit else ""}>{_e(t(L, "rule." + rule))} <bdi data-no-mirror>{_e(limit)}</bdi></span><span id="rule-edit"{"" if edit else " hidden"}><label for="rule">{_e(t(L, "tool.rule_label"))}</label> <select id="rule" name="rule" aria-label="{_e(t(L, "tool.rule_label"))}">{opts}</select> <label for="limit">{_e(t(L, "tool.limit_label"))}</label> <input id="limit" dir="auto" name="limit" inputmode="decimal" autocomplete="off" aria-label="{_e(t(L, "tool.limit_label"))}" value="{_e(limit)}"></span></p>
 <p id="lims" class="muted" hidden></p>
@@ -1200,8 +1237,10 @@ def page(tool: dict, base: str, result: dict | None = None, front: str = "https:
 <section id="pay" hidden></section>
 <div id="out" aria-live="polite" data-state="{'done' if result else 'ready'}">{ssr}</div>
 </div>
+{copy}
 <div id="more">{below}</div>
-<p class="who" id="who"{" hidden" if result else ""}>{_e(t(L, "tool.line"))}</p>
+<div id="alt" class="alt"{" hidden" if result and not own else ""}><p><a id="k-sample" href="{_e(sample_href)}" data-starter>{_e(t(L, "tool.try_made_up" if f["made_up"] else "tool.try_nasa"))}</a></p>
+<div id="own" class="field" hidden><button type="button" id="pick">{_e(t(L, "tool.choose_file"))}</button><input id="file" type="file" dir="auto" accept=".csv,text/csv,text/plain" aria-label="{_e(t(L, "tool.choose_file"))}" hidden></div></div>
 <details>
 <summary>{_e(t(L, "how"))}</summary>
 {five(L, answers(L, "result" if result else "tool", f))}

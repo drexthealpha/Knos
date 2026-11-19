@@ -291,22 +291,22 @@ def inputs(body: dict) -> tuple[str, str, str, float]:
     """The four inputs, read and checked before anything runs: (table, column, rule, limit). Raises Refusal 400 or 413."""
     table, column, rule, limit = body.get("table"), body.get("column"), body.get("rule"), body.get("limit")
     if not isinstance(table, str) or not table.strip():
-        raise Refusal(400, {"error": "Your file is empty, so I have nothing to check yet. Choose a file or paste a table, then press Try it."})
+        raise Refusal(400, {"error": "Your file is empty, so I have nothing to check yet. Choose a file or paste a table, then press Check my data."})
     if rule not in RULES:
-        raise Refusal(400, {"error": "I need to know whether the values must stay above or below the limit. Please choose one, then press Try it."})
+        raise Refusal(400, {"error": "I need to know whether the values must stay above or below the limit. Please choose one, then press Check my data."})
     try:
         lim = float(limit) if not isinstance(limit, bool) else math.nan
     except (TypeError, ValueError):
         lim = math.nan
     if not math.isfinite(lim):
-        raise Refusal(400, {"error": "I need the limit as a number, such as 1.4, before I can check your file. Please type it, then press Try it."})
+        raise Refusal(400, {"error": "I need the limit as a number, such as 1.4, before I can check your file. Please type it, then press Check my data."})
     names, n = columns(table)
     if n > int(CONF["max_rows"]):
         raise Refusal(413, too_big())
     if not isinstance(column, str) or column not in names:
         raise Refusal(400, {"error": no_column(column, names)})
     if n == 0:
-        raise Refusal(400, {"error": "Your file has a header but no rows under it, so I have nothing to check. Please add rows, then press Try it."})
+        raise Refusal(400, {"error": "Your file has a header but no rows under it, so I have nothing to check. Please add rows, then press Check my data."})
     # a whole limit goes to the program as a whole number, so its sentence prints it as given: 3, not 3.0 (SPEC2)
     return table, column, rule, (int(lim) if lim.is_integer() and abs(lim) < 2**53 else lim)
 
@@ -618,7 +618,7 @@ SCREENS = ("door", "tool", "result", "price", "status")     # the five screens t
 
 
 def first_action(body: dict, test: bool = False) -> dict:
-    """The analytics event first_action (U3 Rule 11): whether a browser's first press of Try it ran the sample as it
+    """The analytics event first_action (U3 Rule 11): whether a browser's first press of Check my data ran the sample as it
     stood (starter), a table typed into the box (typed), or one pasted or chosen from a file (pasted). The browser keeps it
     and sends it once, only after its person said yes to being counted (its random id is required and not kept); it is
     one count on the day's row, first_<source>."""
@@ -705,7 +705,7 @@ def usage() -> dict:
                             "test_days: the same counts for requests marked as Knos's own tests or WALK runs. measures: "
                             "own-data runs of browsers that said yes to being counted, test browsers left out. "
                             "test_payments_undone: test payments taken back with Undo. first_starter, first_typed, first_pasted: the "
-                            "first press of Try it of browsers that said yes to being counted, by where the table came from "
+                            "first press of Check my data of browsers that said yes to being counted, by where the table came from "
                             "(the sample as it stood, typed, or pasted or chosen from a file). vitals: per UTC day and screen, how "
                             "many pages browsers that said yes to being counted measured, and the 75th percentile of their "
                             "largest paint (lcp, ms), slowest press (inp, ms) and layout shift (cls)",
@@ -801,7 +801,8 @@ def handle_get(h, state, u, qs) -> bool:
             return h._send(301, b"", "text/plain", {"Location": f"/t/{t['id']}/" + (f"?{u.query}" if u.query else "")}) or True
         if not h.headers.get("X-Knos-Offline-Copy"):                 # the offline worker's copy is not a visit
             bump("tools_opened", _marked(h, qs))
-        return _html(h, 200, tool_page.page(t, _base(h), front=FRONT, lang=_lang(h, qs), test=_marked(h, qs), lite=_lite(h)), lang=_lang(h, qs), keep=True) or True
+        return _html(h, 200, tool_page.page(t, _base(h), front=FRONT, lang=_lang(h, qs), test=_marked(h, qs), lite=_lite(h),
+                                          sample=(qs.get("sample") or [""])[0] == "1"), lang=_lang(h, qs), keep=True) or True
     m = re.fullmatch(r"/r/([A-Za-z0-9_-]{12})/(mark|qr\.png|print)", p)
     if m:                                                # H3 c and d: knos_wanted.result_extras
         from . import result_extras as rx
@@ -903,11 +904,15 @@ def form_run(h, state, tid: str) -> bool:
     lang = tool_page.pick(f.get("lang"), h.headers.get("Accept-Language"))
     test = f.get("test") == "1" or h.headers.get("X-Knos-Test") == "1"
     lim = _form_limit(f.get("limit"))
-    # a result page's box is offered empty (U6 Rule 2); sent empty from there, Try it checks that result's table again
+    # a result page's box is offered empty (U6 Rule 2); sent empty from there, Check my data checks that result's table again
     rid = str(f.get("again") or "")
     again = load_result(rid) if re.fullmatch(r"[A-Za-z0-9_-]{12}", rid) and not str(f.get("table") or "").strip() else None
     if again:
         f["table"], f["column"] = shape(again)["input"], again["column"]
+    # the tool page's box is offered empty, the sample shown in it as an example (G5); sent empty from there, untouched,
+    # Check my data checks that example, as the page's script does
+    elif f.get("sample") == "1" and not str(f.get("table") or "").strip():
+        f["table"], f["column"] = t["sample"], t["column"]
     sent = {"table": str(f.get("table") or "").replace("\r\n", "\n"), "column": str(f.get("column") or ""),
             "rule": f.get("rule") if f.get("rule") in RULES else "", "limit": str(f.get("limit") or "")}
     try:

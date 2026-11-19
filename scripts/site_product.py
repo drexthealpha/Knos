@@ -563,7 +563,7 @@ def try_link(up: str) -> str:
     return (f'<form class="trybox" id="trybox" method="post" action="https://knos.onrender.com/t/limit-check/run" data-to="{up}#tool">'
             '<input type="hidden" name="column" value="capacity_ah" dir="auto"><input type="hidden" name="rule" value="above" dir="auto">'
             '<input type="hidden" name="limit" value="1.4" dir="auto">'
-            f'<button class="btn go" id="try" type="submit" data-primary data-main-action>{PLAY}{e(en("tool.try"))}</button>'
+            f'<button class="btn go" id="try" type="submit" data-primary data-main-action>{PLAY}{e(en("tool.try_sample"))}</button>'
             f'<label for="list">{e(label)}</label>'
             f'<textarea id="list" name="table" rows="2" dir="auto" wrap="off" spellcheck="false" autocomplete="off">{e(text)}</textarea></form>')
 

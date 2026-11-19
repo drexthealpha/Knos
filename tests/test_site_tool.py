@@ -2,7 +2,7 @@
 against a limit", and the pages around it, on a build of the site (scripts/build_site.sh).
 
   A  tests/web/tool.mjs in headless Chromium at 360 by 800 with no stored state, the hosted server answered by a stand-in
-     that keeps SPEC2.md's interface: the first screen's words (40 or fewer, none of the PLAIN-WORDS rule), "Try it" and a
+     that keeps SPEC2.md's interface: the first screen's words (40 or fewer, none of the PLAIN-WORDS rule), "Check my data" and a
      sentence that starts "Failed at row " or "Passed: all ", "Use my data" with file 2 of A8 and "Failed at row 37"
   C  the same script runs own-data runs until the free runs end and checks the pay screen's strings against
      docs/data/pricing.json; here, every number on the pricing page and the pay screen equals that file

@@ -1,8 +1,8 @@
 // node tests/web/front_door_budget.mjs <site dir>
 // The front door's numbers (Round 7, S1, with the first screen of Round 13 part A), on a 390 x 844 phone with the CPU
 // slowed 4 times, in light and dark: the first screen is the first tool, "Check a test file against a limit": its
-// headline, the sample already loaded and "Try it", the one primary button, whose result appears on that same screen;
-// the first screen holds at most 40 words (ROUND13-ITEMS A2; R2 section 8 item 4) and "Try it" comes within them; the
+// headline, the sample already loaded and "Check my data", the one primary button, whose result appears on that same screen;
+// the first screen holds at most 40 words (ROUND13-ITEMS A2; R2 section 8 item 4) and "Check my data" comes within them; the
 // moved question box below the first screen still answers; the page is at most 3 screens tall; body text is at
 // least 16 px; every touch target is at least 44 px (a link inside a sentence is exempt, as WCAG 2.2 2.5.8 exempts it,
 // and a link inside the closed menu is not on the screen);
@@ -137,21 +137,21 @@ for (const scheme of ["light", "dark"]) {
   check(`${at} the Knos logo mark shows in the header (drawn in the text colour, 3:1 against the page)`, m.mark.w >= 20 && m.mark.h >= 20 && m.mark.masked && m.mark.ratio >= 3, m.mark);
   check(`${at} one plain line on the first screen`, m.h1 && m.h1.top >= 0 && m.h1.bottom <= H, m.h1);
   check(`${at} the tool's sample, already loaded, whole on the first screen`, m.input && m.input.top >= 0 && m.input.bottom <= H, m.input);
-  check(`${at} one primary button, Try it, on the first screen`, m.primaries === 1 && m.go && m.go.bottom <= H, { primaries: m.primaries, go: m.go });
+  check(`${at} one primary button, Check my data, on the first screen`, m.primaries === 1 && m.go && m.go.bottom <= H, { primaries: m.primaries, go: m.go });
   check(`${at} the moved question box is below the first screen`, m.ask && m.ask.top >= H, m.ask);
   check(`${at} at most ${MAX_SCREENS} screens tall (${m.height} px)`, m.height <= MAX_SCREENS * H, m.height);
   check(`${at} no sideways scroll`, m.wide <= W, m.wide);
   check(`${at} at most ${MAX_WORDS} words (${m.words})`, m.words <= MAX_WORDS, m.words);
-  check(`${at} the main action within the first ${ACTION_WITHIN} words (${m.before} before Try it)`, m.before != null && m.before <= ACTION_WITHIN, m.before);
+  check(`${at} the main action within the first ${ACTION_WITHIN} words (${m.before} before Check my data)`, m.before != null && m.before <= ACTION_WITHIN, m.before);
   check(`${at} body text at least ${MIN_TEXT} px`, m.small.length === 0, m.small);
   check(`${at} touch targets at least ${MIN_TARGET} px`, m.tiny.length === 0, m.tiny);
   check(`${at} text contrast WCAG 2.2 AA`, m.low.length === 0, m.low);
   const v = await page.evaluate(() => ({ lcp: Math.round(window.__v.lcp), cls: Math.round(window.__v.cls * 1000) / 1000 }));
   check(`${at} LCP at most ${LCP} ms (${v.lcp} ms, CPU slowed 4 times)`, v.lcp > 0 && v.lcp <= LCP, v);
   check(`${at} CLS at most ${CLS} (${v.cls})`, v.cls <= CLS, v);
-  // the tool's sample: one press on Try it, its result on this same screen
+  // the tool's sample: one press on Check my data, its result on this same screen
   const t1 = await press(page, "#try");
-  check(`${at} "Try it": a visible change within ${PRESS_FAIL} ms (${t1} ms; ${t1 != null && t1 <= PRESS_GOOD ? "within" : "over"} ${PRESS_GOOD} ms)`, t1 != null && t1 <= PRESS_FAIL, t1);
+  check(`${at} "Check my data": a visible change within ${PRESS_FAIL} ms (${t1} ms; ${t1 != null && t1 <= PRESS_GOOD ? "within" : "over"} ${PRESS_GOOD} ms)`, t1 != null && t1 <= PRESS_FAIL, t1);
   await page.waitForFunction(() => !document.getElementById("result").hidden, null, { timeout: 10000, polling: "raf" });
   const full = await page.evaluate(() => Math.round(performance.now() - window.__v.press));
   check(`${at} the sample's full result within ${FULL} ms of the press (${full} ms)`, full <= FULL, full);

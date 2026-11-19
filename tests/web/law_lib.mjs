@@ -347,7 +347,7 @@ export const SURVEY = () => {
   };
 };
 
-// the tool's own-file form: "Try it" once on the sample, then "Use my data" (the result screen has that button already)
+// the tool's own-file form: "Check my data" once on the sample, then "Use my data" (the result screen has that button already)
 export const OWN_TABLE = "cycle,reading\n1,3.2\n2,3.1\n3,2.9\n4,2.7";
 export const settled = (p) => p.waitForFunction(() => document.getElementById("out") && document.getElementById("out").dataset.state !== "working", null, { timeout: 15000 }).catch(() => {});
 export const isResult = (p) => p.waitForFunction(() => [...document.querySelectorAll("#out .big, #out p")].some((e) => /^(Failed at row |Passed: all )/.test(e.textContent.trim())), null, { timeout: 15000 }).then(() => true).catch(() => false);

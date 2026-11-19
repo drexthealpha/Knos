@@ -78,7 +78,7 @@ for (const [screen, url] of SCREENS) {
       await page.tap(screen === "door" ? "#try" : "#go");
       await page.waitForTimeout(600);
       const ms = await page.evaluate(() => { const p = window.__v.press, m = window.__v.marks.find((t) => t > p); return p == null || m == null ? null : Math.round(m - p); });
-      check(`${at} Try it shows a visible change in ${ms} ms with the CPU slowed 6 times (U7 R22: 400 ms; SPEC: over 200 ms fails)`, ms != null && ms <= PRESS_LAW, ms);
+      check(`${at} Check my data shows a visible change in ${ms} ms with the CPU slowed 6 times (U7 R22: 400 ms; SPEC: over 200 ms fails)`, ms != null && ms <= PRESS_LAW, ms);
       if (ms != null && ms > PRESS_FAIL) console.log(`note ${at} the press took ${ms} ms, over SPEC's 200 ms at full speed, with the CPU slowed 6 times`);
     }
     if (screen === "price" && (lang === "en" || lang === "ar")) {
