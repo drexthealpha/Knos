@@ -1343,8 +1343,9 @@ class HourlyGithub:
     GITHUB_TOKEN). Search answers from `prs` by the `created:` range; GraphQL answers the checks of each pull request
     it names; a request past the budget is refused as GitHub refuses it (HTTP 403, x-ratelimit-remaining 0)."""
 
-    def __init__(self, prs, core=1000, graphql=1000):
+    def __init__(self, prs, core=1000, graphql=1000, search=None):
         self.prs, self.left, self.asked, self.refused = prs, {"core": core, "graphql": graphql}, [], 0
+        self.search = search        # searches GitHub answers before its search limit is at 0 (None: no limit)
 
     def __call__(self, cmd):
         if cmd[2] == "graphql":
@@ -1354,7 +1355,14 @@ class HourlyGithub:
             return 0, json.dumps({"resources": {k: {"remaining": v, "reset": int(time.time()) + 1800} for k, v in self.left.items()}}), ""
         if path == "search/issues":
             self.asked.append(("search", fields["q"]))
-            lo, hi = re.search(r"created:(\S+)\.\.(\S+)", fields["q"]).groups()
+            if self.search is not None:
+                if self.search <= 0:
+                    self.refused += 1
+                    return 1, _headers(403, '{"message": "API rate limit exceeded"}', **{"x-ratelimit-remaining": "0", "x-ratelimit-resource": "search",
+                                                                                         "x-ratelimit-reset": str(int(time.time()) + 60)}), \
+                        "gh: API rate limit exceeded for installation ID 1. (HTTP 403)"
+                self.search -= 1
+            lo, hi =re.search(r"created:(\S+)\.\.(\S+)", fields["q"]).groups()
             hits = sorted((n for n, day in self.prs.items() if lo[:10] <= day <= hi[:10]), reverse=True)
             page = int(fields.get("page", 1))
             items = [{"repository_url": "https://api.github.com/repos/acme/app", "number": n, "user": {"login": "Copilot"},
@@ -1467,6 +1475,36 @@ def test_a_refusal_for_the_hourly_limit_ends_the_run_with_a_time_to_come_back_an
     api.left["graphql"] = 1000
     got, index, why, bad = _run(api, monkeypatch, tmp_path, "2026-10-05", 1, now=t0 + dt.timedelta(hours=54))
     assert got["unfinished_since"] is None and why == bad == [] and index["n_prs"] == 60
+
+
+def test_a_search_limit_at_zero_stops_the_scan_at_once_keeps_what_it_read_and_the_job_stays_green(hourly, monkeypatch, tmp_path, capsys):
+    """What kept index.yml red from 9 November: the search limit ran out and the scan slept a minute a time, again and
+    again, then the gate failed the job for not catching up. Now the first search refused at 0 ends the searching: one
+    line, "rate-limited; resumes next run", no sleep, the pages already read are kept, and the job is green however
+    long it lasts. The next run with searches to spend resumes from the cache and finishes."""
+    import datetime as dt
+    prs = {n: "2026-10-05" if n <= 100 else "2026-10-04" for n in range(1, 151)}      # two days: two searches
+    api = HourlyGithub(prs, search=1)
+    t0 = dt.datetime(2026, 10, 6, 0, 17, tzinfo=dt.timezone.utc)
+    for hours in (0, 24, 48, 96):
+        got, index, why, bad = _run(api, monkeypatch, tmp_path, "2026-10-05", 2, now=t0 + dt.timedelta(hours=hours))
+        err = capsys.readouterr().err
+        assert err.count(agent_pr_ci.SEARCH_SPENT) == 1 and "rate-limited, sleeping" not in err and max(hourly, default=0) < 3
+        assert got["rate_limited"] and got["unfinished_search"] == ["copilot"] and got["search_errors"] == []
+        assert got["stopped"] == "GitHub's search rate limit reached 0" and why and bad == [], (hours, bad)   # green, held back
+        assert got["kept"] == 100 and got["unread"] == 0 and index["n_prs"] == 100                             # the first day, read and kept
+        assert got["unfinished_since"] == t0.isoformat(timespec="seconds")
+    searched = api.count("search")
+    api.search = None                                                                                          # the next hour's searches
+    got, index, why, bad = _run(api, monkeypatch, tmp_path, "2026-10-05", 2, now=t0 + dt.timedelta(hours=102))
+    assert agent_pr_ci.SEARCH_SPENT not in capsys.readouterr().err and not got["rate_limited"]
+    assert api.count("search") == searched + 1 and index["n_prs"] == 150 and why == bad == [] and got["unfinished_since"] is None
+    # the headers alone decide when they speak; a refusal that names another resource, or a search left, is not this
+    assert agent_pr_ci.search_spent({"x-ratelimit-remaining": "0", "x-ratelimit-resource": "search"})
+    assert not agent_pr_ci.search_spent({"x-ratelimit-remaining": "0", "x-ratelimit-resource": "core"})
+    assert not agent_pr_ci.search_spent({"x-ratelimit-remaining": "4"})
+    said = lambda n: (lambda cmd: (0, json.dumps({"resources": {"search": {"remaining": n}}}), ""))  # noqa: E731
+    assert agent_pr_ci.search_spent({}, read=said(0)) and not agent_pr_ci.search_spent({}, read=said(9))
 
 
 def test_the_budget_is_what_github_says_is_left_less_the_reserve_and_the_token_s_hour_when_it_does_not_say(monkeypatch):

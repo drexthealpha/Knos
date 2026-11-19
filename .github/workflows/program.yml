@@ -474,6 +474,27 @@ jobs:
         run: |
           [ -x "$HOME/.cargo/bin/solana-verify" ] || cargo install --locked solana-verify
           echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+      # solana-verify finds --library-name by `find <mount> -name Cargo.toml` and builds the FIRST match, in the order
+      # the runner's file system lists the directories. Mounting the repository, programs/ (and repos/knos-rc) hold a
+      # knos_oidc and a knos_pay too: up to runner image ubuntu-26.04 20261025.179.1 programs-v2/ came first; from
+      # 20261101.186.1 on, programs/ does (run 42172837330 built /build/programs/knos_oidc for programs-v2). So every
+      # other crate of this name leaves the checkout before the build, and exactly one, in $WORKSPACE, must be left.
+      # Nothing this build compiles is removed: the workspace and its path dependencies stay.
+      - name: one crate of this name in the mount (the one in the workspace)
+        if: matrix.mount == 'repository'
+        run: |
+          set -euo pipefail
+          pat="^[[:space:]]*name[[:space:]]*=[[:space:]]*\"(${PROGRAM}|${PROGRAM//_/-})\"[[:space:]]*$"
+          mapfile -t others < <(find . -path ./.git -prune -o -name Cargo.toml -print | grep -v "^\./$WORKSPACE/" | xargs -r grep -El "$pat" || true)
+          for m in "${others[@]}"; do
+            echo "set aside for this build: ${m%/Cargo.toml} (it also names $PROGRAM)"
+            rm -rf "${m%/Cargo.toml}"
+          done
+          mapfile -t left < <(find . -path ./.git -prune -o -name Cargo.toml -print | xargs -r grep -El "$pat" || true)
+          if [ "${#left[@]}" != 1 ] || [[ "${left[0]}" != "./$WORKSPACE/"* ]]; then
+            echo "::error::the mount names $PROGRAM in ${left[*]:-no Cargo.toml}, not in $WORKSPACE alone: solana-verify could build another crate"; exit 1
+          fi
+          echo "solana-verify will build ${left[0]}"
       - name: solana-verify build (docker)
         run: |
           if [ "$MOUNT" = repository ]; then

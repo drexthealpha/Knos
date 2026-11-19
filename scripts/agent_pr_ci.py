@@ -124,6 +124,38 @@ def _limited(headers, attempt, kind, err):
     time.sleep(wait)
 
 
+# GitHub's search limit at 0: the run sends no more searches (it waits for nothing), keeps what it has read, and the
+# next scheduled run resumes from the cache. Said once, in these words.
+SEARCH_SPENT = "rate-limited; resumes next run"
+SEARCH_OUT = [False]
+_SEARCH_OUT_LOCK = __import__("threading").Lock()
+
+
+def search_spent(headers, read=None):
+    """True when GitHub's search limit is at 0: the refusal's headers say so (x-ratelimit-remaining 0, for the search
+    resource when they name one), or, when they say nothing of it, rate_limit does (reading it costs nothing)."""
+    if headers.get("x-ratelimit-remaining") is not None:
+        return headers["x-ratelimit-remaining"] == "0" and headers.get("x-ratelimit-resource", "search") == "search"
+    try:
+        code, out, _ = (read or _gh)(["gh", "api", "-X", "GET", "rate_limit"])
+        return code == 0 and int(json.loads(out)["resources"]["search"]["remaining"]) == 0
+    except Exception:       # no answer, or not the one expected: the refusal is handled as any other (_limited)
+        return False
+
+
+def _search_out(headers=None):
+    """Stop searching for this run: say SEARCH_SPENT once and raise OutOfBudget (scan_agent keeps what it found)."""
+    with _SEARCH_OUT_LOCK:
+        first, SEARCH_OUT[0] = not SEARCH_OUT[0], True
+    if first:
+        print(SEARCH_SPENT, file=sys.stderr)
+        try:
+            COME_BACK[0] = float((headers or {})["x-ratelimit-reset"])
+        except (KeyError, TypeError, ValueError):
+            pass
+    _stop("GitHub's search rate limit reached 0", OutOfBudget)
+
+
 # ---- agent definitions (search qualifiers) --------------------------------
 AGENTS = [
     ("copilot",     "author:app/copilot-swe-agent"),
@@ -232,6 +264,8 @@ def _spend(kind="core"):
     for a kind of request (core, graphql), how many this run may still send of GitHub's hourly budget (budget())."""
     if time_left() < 15:
         _stop("its minutes were spent", OutOfTime)
+    if kind == "search" and SEARCH_OUT[0]:
+        _stop("GitHub's search rate limit reached 0", OutOfBudget)
     if MAX_REQUESTS is not None and ASKED[0] >= MAX_REQUESTS:
         _stop("its requests were spent", OutOfBudget)
     if LEFT.get(kind, 1) <= 0:
@@ -366,6 +400,8 @@ def gh_get(path, params=None, kind="core", max_age=None):
             break
         err = err + out[:500]
         if status == 429 or re.search(r"rate limit|HTTP 429|secondary", err, re.I):
+            if kind == "search" and search_spent(headers):
+                _search_out(headers)
             _limited(headers, attempt, kind, err)
             continue
         if _NO_ANSWER.search(err) and attempt < 3:
