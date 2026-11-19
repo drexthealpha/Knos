@@ -211,7 +211,8 @@ def test_the_template_reads_every_sentence_the_program_writes():
     for s in SENTENCES:
         m = tool_page.RS.match(s)
         assert m, s
-        assert tool_page.sentence("en", s, as_html=False) == s
+        # English is the program's sentence, except "Cannot check", said in the first person (UX/U6.md Rule 7)
+        assert tool_page.sentence("en", s, as_html=False) == ("I c" + s[1:] if s.startswith("Cannot check") else s)
         for lang in LANGS:
             out = tool_page.sentence(lang, s, as_html=False)
             assert out and (lang == "en" or out != s)

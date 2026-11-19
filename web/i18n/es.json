@@ -108,7 +108,7 @@
   "rs.fail_above": "Falló en la fila {r}: {value} no está por encima de {limit}.",
   "rs.fail_below": "Falló en la fila {r}: {value} no está por debajo de {limit}.",
   "rs.counts": "Filas: {p} aprobadas, {f} fallidas, {u} no medibles.",
-  "rs.cannot": "No se puede comprobar: no hay filas medibles.",
+  "rs.cannot": "No puedo comprobarlo: no hay filas medibles.",
   "rs.pass_above": {
    "one": "Aprobado: la {n} fila queda por encima de {limit}.",
    "many": "Aprobado: las {n} de filas quedan por encima de {limit}.",

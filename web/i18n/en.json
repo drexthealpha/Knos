@@ -361,9 +361,9 @@
    "max_length": 76
   },
   "rs.cannot": {
-   "text": "Cannot check: no measurable rows.",
-   "description": "Part of the result sentence, built from the program's English sentence: no row held a measurable number, so nothing was checked (never a pass).",
-   "max_length": 53
+   "text": "I cannot check: no measurable rows.",
+   "description": "The start of the result when no row held a measurable number, so nothing was checked (never a pass); said in the first person, UX/U6.md Rule 7.",
+   "max_length": 56
   },
   "rs.pass_above": {
    "one": "Passed: all {n} rows stay above {limit}.",

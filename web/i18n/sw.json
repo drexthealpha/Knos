@@ -100,7 +100,7 @@
   "rs.fail_above": "Imeshindwa kwenye safu {r}: {value} si juu ya {limit}.",
   "rs.fail_below": "Imeshindwa kwenye safu {r}: {value} si chini ya {limit}.",
   "rs.counts": "Safu: {p} zimefaulu, {f} zimeshindwa, {u} hazipimiki.",
-  "rs.cannot": "Haiwezi kukaguliwa: hakuna safu zinazopimika.",
+  "rs.cannot": "Siwezi kukagua: hakuna safu zinazopimika.",
   "rs.pass_above": {
    "one": "Imefaulu: safu {n} inabaki juu ya {limit}.",
    "other": "Imefaulu: safu zote {n} zinabaki juu ya {limit}."

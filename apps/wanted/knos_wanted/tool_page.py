@@ -380,7 +380,9 @@ def sentence(lang: str, text: str, as_html: bool = True) -> str:
     """The program's result sentence in this language: English as the program wrote it; any other language from the
     fixed template, every count in the language's digits, every value from the file as written there."""
     m = RS.match(text or "")
-    if lang == "en" or not m:
+    # English shows the program's words, except "Cannot check": a check that is not conclusive says so in the first
+    # person, in every language (UX/U6.md Rule 7, line 92); the API and the fold keep the program's own words
+    if not m or (lang == "en" and not m[8]):
         return _e(text) if as_html else str(text or "")
     f = h if as_html else (lambda lg, k, **v: t(lg, k, **v))
     if m[1]:
@@ -559,7 +561,7 @@ I18N_JS = r"""window.KI = window.KI || (() => {
   const RS = /^(?:Failed at row (\d+): (.+?) is not (above|below) (.+?)\.|Passed: all (\d+) rows stay (above|below) (.+?)\.|(Cannot check: no measurable rows\.)) Rows: (\d+) passed, (\d+) failed, (\d+) unmeasurable\.$/;
   function sentence(text, plain) {
     const m = RS.exec(text || ""), f = plain ? t : html;
-    if (L === "en" || !m) return plain ? String(text || "") : esc(text || "");
+    if (!m || (L === "en" && !m[8])) return plain ? String(text || "") : esc(text || "");   // "Cannot check" in the first person (UX/U6.md Rule 7)
     const parts = m[1] ? [f("rs.fail_" + m[3], { r: +m[1], value: m[2], limit: m[4] })] : m[5] ? [f("rs.pass_" + m[6], { n: +m[5], limit: m[7] })] : [f("rs.cannot")];
     parts.push(f("rs.counts", { p: +m[9], f: +m[10], u: +m[11] }));
     return parts.join(sep());

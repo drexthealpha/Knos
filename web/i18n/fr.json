@@ -108,7 +108,7 @@
   "rs.fail_above": "Échec à la ligne {r} : {value} n'est pas au-dessus de {limit}.",
   "rs.fail_below": "Échec à la ligne {r} : {value} n'est pas en dessous de {limit}.",
   "rs.counts": "Lignes : {p} réussies, {f} échouées, {u} non mesurables.",
-  "rs.cannot": "Vérification impossible : aucune ligne mesurable.",
+  "rs.cannot": "Je ne peux pas vérifier : aucune ligne mesurable.",
   "rs.pass_above": {
    "one": "Réussi : la {n} ligne reste au-dessus de {limit}.",
    "many": "Réussi : les {n} de lignes restent au-dessus de {limit}.",

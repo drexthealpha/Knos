@@ -108,7 +108,7 @@
   "rs.fail_above": "Falhou na linha {r}: {value} não está acima de {limit}.",
   "rs.fail_below": "Falhou na linha {r}: {value} não está abaixo de {limit}.",
   "rs.counts": "Linhas: {p} aprovadas, {f} reprovadas, {u} não mensuráveis.",
-  "rs.cannot": "Não é possível verificar: nenhuma linha mensurável.",
+  "rs.cannot": "Não consigo verificar: nenhuma linha mensurável.",
   "rs.pass_above": {
    "one": "Aprovado: a {n} linha fica acima de {limit}.",
    "many": "Aprovado: as {n} de linhas ficam acima de {limit}.",

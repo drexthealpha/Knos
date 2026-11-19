@@ -92,7 +92,7 @@
   "rs.fail_above": "在第 {r} 行失败：{value} 不高于 {limit}。",
   "rs.fail_below": "在第 {r} 行失败：{value} 不低于 {limit}。",
   "rs.counts": "行：{p} 行通过，{f} 行未通过，{u} 行无法测量。",
-  "rs.cannot": "无法检查：没有可测量的行。",
+  "rs.cannot": "我无法检查：没有可测量的行。",
   "rs.pass_above": {
    "other": "通过：全部 {n} 行都保持高于 {limit}。"
   },

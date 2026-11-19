@@ -95,7 +95,7 @@
   "rs.fail_above": "Gagal di baris {r}: {value} tidak di atas {limit}.",
   "rs.fail_below": "Gagal di baris {r}: {value} tidak di bawah {limit}.",
   "rs.counts": "Baris: {p} lulus, {f} gagal, {u} tak terukur.",
-  "rs.cannot": "Tidak bisa diperiksa: tak ada baris yang terukur.",
+  "rs.cannot": "Saya tidak bisa memeriksa: tak ada baris yang terukur.",
   "rs.pass_above": {
    "other": "Lulus: semua {n} baris tetap di atas {limit}."
   },
