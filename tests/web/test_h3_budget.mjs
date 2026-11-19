@@ -99,8 +99,9 @@ for (const lang of ["en", "ar"]) {
   check(`${lang}: with scripts blocked the result page shows the result sentence ("${shown.slice(0, 50)}")`, lang === "en" ? /^Failed at row 136: /.test(shown) : shown.length > 20 && /136/.test(shown), shown);
   await r.ctx.close();
   const t = await load(lang, S.screens.tool, { js: false });
-  const tool = await t.page.evaluate(() => ({ box: document.getElementById("list").value.split("\n")[0], go: !!document.getElementById("go") && !!document.getElementById("go").offsetParent }));
-  check(`${lang}: with scripts blocked the tool page shows its sample and its button`, tool.box === "cycle,capacity_ah" && tool.go, tool);
+  // G5: the box is offered empty, the sample shown in it as its example; sent untouched, the form checks that sample
+  const tool = await t.page.evaluate(() => { const l = document.getElementById("list"), f = document.querySelector('#tool input[name="sample"]'); return { box: (l.value || l.placeholder).split("\n")[0], sample: l.value ? "1" : (f ? f.value : ""), go: !!document.getElementById("go") && !!document.getElementById("go").offsetParent }; });
+  check(`${lang}: with scripts blocked the tool page shows its sample and its button`, tool.box === "cycle,capacity_ah" && tool.sample === "1" && tool.go, tool);
   await t.ctx.close();
 }
 
