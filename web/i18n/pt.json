@@ -304,7 +304,7 @@
    "many": "{n} linhas de {column}, cada uma comparada com {limit}.",
    "other": "{n} linhas de {column}, cada uma comparada com {limit}."
   },
-  "ev.fail": "A linha {r} de {column} tem {value}, comparada com {limit}.",
+  "ev.fail": "A linha {r} tem {value}, comparada com {limit}.",
   "why.unknown": "As linhas {rows} não têm número em {column}.",
   "next.pass": "Todas as linhas passaram: confira seu próprio arquivo com Usar meus dados.",
   "next.fail": "Abra seu arquivo na linha {r}, a primeira linha que falhou.",
@@ -327,9 +327,9 @@
   "tool.sample_column": "carga retida",
   "fold.column": "A coluna {column} da amostra guarda a capacidade da bateria em ampères-hora.",
   "ev.range": "{a} a {b}",
-  "ev.failing_above": "As linhas {rows} não estão acima de {limit}.",
-  "ev.failing_below": "As linhas {rows} não estão abaixo de {limit}.",
-  "ev.failing_one_above": "Só a linha {r} não está acima de {limit}.",
-  "ev.failing_one_below": "Só a linha {r} não está abaixo de {limit}."
+  "ev.failing_above": "As linhas {rows} falham.",
+  "ev.failing_below": "As linhas {rows} falham.",
+  "ev.failing_one_above": "Só a linha {r} falha.",
+  "ev.failing_one_below": "Só a linha {r} falha."
  }
 }

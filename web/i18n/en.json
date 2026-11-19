@@ -1013,9 +1013,9 @@
    "max_length": 79
   },
   "ev.fail": {
-   "text": "Row {r} of {column} holds {value}, compared with {limit}.",
+   "text": "Row {r} holds {value}, compared with {limit}.",
    "description": "The evidence line under the verdict: the row that failed. Keep {column}, {limit}, {r}, {value} as written; they are filled in.",
-   "max_length": 80
+   "max_length": 72
   },
   "why.unknown": {
    "text": "Rows {rows} have no number in {column}.",
@@ -1109,24 +1109,24 @@
    "max_length": 30
   },
   "ev.failing_above": {
-   "text": "Rows {rows} are not above {limit}.",
+   "text": "Rows {rows} fail.",
    "description": "After the evidence line of a failed result: every row that is not above the limit, named. {rows} is the list of rows and runs (ev.range) built with rs.list_sep and rs.list_and or rs.list_more (five items, then how many more rows). Keep {rows}, {limit} as written.",
-   "max_length": 55
+   "max_length": 34
   },
   "ev.failing_below": {
-   "text": "Rows {rows} are not below {limit}.",
+   "text": "Rows {rows} fail.",
    "description": "After the evidence line of a failed result: every row that is not below the limit, named. {rows} is the list of rows and runs (ev.range) built with rs.list_sep and rs.list_and or rs.list_more (five items, then how many more rows). Keep {rows}, {limit} as written.",
-   "max_length": 55
+   "max_length": 34
   },
   "ev.failing_one_above": {
-   "text": "Only row {r} is not above {limit}.",
+   "text": "Only row {r} fails.",
    "description": "After the evidence line of a failed result when one row alone fails: no other row is under the limit. Keep {r}, {limit} as written; they are filled in.",
-   "max_length": 55
+   "max_length": 38
   },
   "ev.failing_one_below": {
-   "text": "Only row {r} is not below {limit}.",
+   "text": "Only row {r} fails.",
    "description": "After the evidence line of a failed result when one row alone fails: no other row is over the limit. Keep {r}, {limit} as written; they are filled in.",
-   "max_length": 55
+   "max_length": 38
   }
  }
 }

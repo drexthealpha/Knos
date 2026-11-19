@@ -279,7 +279,7 @@
    "one": "Safu {n} ya {column}, imelinganishwa na {limit}.",
    "other": "Safu {n} za {column}, kila moja imelinganishwa na {limit}."
   },
-  "ev.fail": "Safu {r} ya {column} ina {value}, imelinganishwa na {limit}.",
+  "ev.fail": "Safu {r} ina {value}, imelinganishwa na {limit}.",
   "why.unknown": "Safu {rows} hazina namba katika {column}.",
   "next.pass": "Kila safu imepita: kagua faili yako mwenyewe kwa Tumia data yangu.",
   "next.fail": "Fungua faili yako kwenye safu {r}, safu ya kwanza iliyoshindwa.",
@@ -301,9 +301,9 @@
   "tool.sample_column": "chaji iliyohifadhiwa",
   "fold.column": "Safu wima {column} ya sampuli ina uwezo wa betri kwa ampea-saa.",
   "ev.range": "{a} hadi {b}",
-  "ev.failing_above": "Safu {rows} si juu ya {limit}.",
-  "ev.failing_below": "Safu {rows} si chini ya {limit}.",
-  "ev.failing_one_above": "Safu {r} pekee si juu ya {limit}.",
-  "ev.failing_one_below": "Safu {r} pekee si chini ya {limit}."
+  "ev.failing_above": "Safu {rows} zimeshindwa.",
+  "ev.failing_below": "Safu {rows} zimeshindwa.",
+  "ev.failing_one_above": "Safu {r} pekee imeshindwa.",
+  "ev.failing_one_below": "Safu {r} pekee imeshindwa."
  }
 }

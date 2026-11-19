@@ -304,7 +304,7 @@
    "many": "{n} filas de {column}, cada una comparada con {limit}.",
    "other": "{n} filas de {column}, cada una comparada con {limit}."
   },
-  "ev.fail": "La fila {r} de {column} tiene {value}, comparada con {limit}.",
+  "ev.fail": "La fila {r} tiene {value}, comparada con {limit}.",
   "why.unknown": "Las filas {rows} no tienen número en {column}.",
   "next.pass": "Todas las filas pasaron: comprueba tu propio archivo con Usar mis datos.",
   "next.fail": "Abre tu archivo en la fila {r}, la primera fila que falló.",
@@ -327,9 +327,9 @@
   "tool.sample_column": "carga retenida",
   "fold.column": "La columna {column} de la muestra guarda la capacidad de la batería en amperios hora.",
   "ev.range": "{a} a {b}",
-  "ev.failing_above": "Las filas {rows} no están por encima de {limit}.",
-  "ev.failing_below": "Las filas {rows} no están por debajo de {limit}.",
-  "ev.failing_one_above": "Solo la fila {r} no está por encima de {limit}.",
-  "ev.failing_one_below": "Solo la fila {r} no está por debajo de {limit}."
+  "ev.failing_above": "Las filas {rows} fallan.",
+  "ev.failing_below": "Las filas {rows} fallan.",
+  "ev.failing_one_above": "Solo la fila {r} falla.",
+  "ev.failing_one_below": "Solo la fila {r} falla."
  }
 }

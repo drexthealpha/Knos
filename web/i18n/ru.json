@@ -325,7 +325,7 @@
    "many": "{n} строк из {column}, каждая сравнена с {limit}.",
    "other": "{n} строки из {column}, каждая сравнена с {limit}."
   },
-  "ev.fail": "Строка {r} из {column} содержит {value}, сравнено с {limit}.",
+  "ev.fail": "Строка {r} содержит {value}, сравнено с {limit}.",
   "why.unknown": "В строках {rows} нет числа в столбце {column}.",
   "next.pass": "Все строки прошли: проверьте свой файл кнопкой Мои данные.",
   "next.fail": "Откройте свой файл на строке {r}, первой строке, которая не прошла.",
@@ -349,9 +349,9 @@
   "tool.sample_column": "удержанный заряд",
   "fold.column": "Столбец {column} в образце содержит ёмкость батареи в ампер-часах.",
   "ev.range": "{a}–{b}",
-  "ev.failing_above": "Строки {rows} не выше {limit}.",
-  "ev.failing_below": "Строки {rows} не ниже {limit}.",
-  "ev.failing_one_above": "Только строка {r} не выше {limit}.",
-  "ev.failing_one_below": "Только строка {r} не ниже {limit}."
+  "ev.failing_above": "Строки {rows} не прошли.",
+  "ev.failing_below": "Строки {rows} не прошли.",
+  "ev.failing_one_above": "Не прошла только строка {r}.",
+  "ev.failing_one_below": "Не прошла только строка {r}."
  }
 }

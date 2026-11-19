@@ -370,7 +370,7 @@
    "many": "عدد الصفوف المفحوصة من {column}: {n}، وكل منها قورن بـ {limit}.",
    "other": "عدد الصفوف المفحوصة من {column}: {n}، وكل منها قورن بـ {limit}."
   },
-  "ev.fail": "الصف {r} من {column} يحمل {value}، وقد قورن بـ {limit}.",
+  "ev.fail": "الصف {r} يحمل {value}، وقد قورن بـ {limit}.",
   "why.unknown": "الصفوف {rows} لا تحوي رقمًا في {column}.",
   "next.pass": "نجحت كل الصفوف: افحص ملفك أنت عبر استخدم بياناتي.",
   "next.fail": "افتح ملفك عند الصف {r}، أول صف فشل.",
@@ -396,9 +396,9 @@
   "tool.sample_column": "الشحنة المخزنة",
   "fold.column": "يحمل عمود العينة {column} سعة البطارية بالأمبير ساعة.",
   "ev.range": "{a} إلى {b}",
-  "ev.failing_above": "الصفوف {rows} ليست أعلى من {limit}.",
-  "ev.failing_below": "الصفوف {rows} ليست أدنى من {limit}.",
-  "ev.failing_one_above": "الصف {r} وحده ليس أعلى من {limit}.",
-  "ev.failing_one_below": "الصف {r} وحده ليس أدنى من {limit}."
+  "ev.failing_above": "الصفوف {rows} تفشل.",
+  "ev.failing_below": "الصفوف {rows} تفشل.",
+  "ev.failing_one_above": "الصف {r} وحده يفشل.",
+  "ev.failing_one_below": "الصف {r} وحده يفشل."
  }
 }

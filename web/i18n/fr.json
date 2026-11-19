@@ -304,7 +304,7 @@
    "many": "{n} lignes de {column}, chacune comparée à {limit}.",
    "other": "{n} lignes de {column}, chacune comparée à {limit}."
   },
-  "ev.fail": "La ligne {r} de {column} contient {value}, comparée à {limit}.",
+  "ev.fail": "La ligne {r} contient {value}, comparée à {limit}.",
   "why.unknown": "Les lignes {rows} n'ont pas de nombre dans {column}.",
   "next.pass": "Tout a réussi : vérifiez votre fichier avec Utiliser mes données.",
   "next.fail": "Ouvrez votre fichier à la ligne {r}, la première ligne qui a échoué.",
@@ -327,9 +327,9 @@
   "tool.sample_column": "charge retenue",
   "fold.column": "La colonne {column} de l'échantillon donne la capacité de la batterie en ampères-heures.",
   "ev.range": "{a} à {b}",
-  "ev.failing_above": "Les lignes {rows} ne sont pas au-dessus de {limit}.",
-  "ev.failing_below": "Les lignes {rows} ne sont pas en dessous de {limit}.",
-  "ev.failing_one_above": "Seule la ligne {r} n'est pas au-dessus de {limit}.",
-  "ev.failing_one_below": "Seule la ligne {r} n'est pas en dessous de {limit}."
+  "ev.failing_above": "Les lignes {rows} échouent.",
+  "ev.failing_below": "Les lignes {rows} échouent.",
+  "ev.failing_one_above": "Seule la ligne {r} échoue.",
+  "ev.failing_one_below": "Seule la ligne {r} échoue."
  }
 }

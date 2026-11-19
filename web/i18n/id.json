@@ -255,7 +255,7 @@
   "v.fail": "Gagal",
   "v.unknown": "Tidak bisa dipastikan",
   "ev.pass": "{n} baris dari {column}, masing-masing dibandingkan dengan {limit}.",
-  "ev.fail": "Baris {r} dari {column} berisi {value}, dibandingkan dengan {limit}.",
+  "ev.fail": "Baris {r} berisi {value}, dibandingkan dengan {limit}.",
   "why.unknown": "Baris {rows} tidak berisi angka di {column}.",
   "next.pass": "Semua baris lolos: periksa berkas Anda sendiri dengan Pakai data saya.",
   "next.fail": "Buka berkas Anda di baris {r}, baris pertama yang gagal.",
@@ -274,9 +274,9 @@
   "tool.sample_column": "muatan tersimpan",
   "fold.column": "Kolom {column} pada sampel berisi kapasitas baterai dalam ampere-jam.",
   "ev.range": "{a} sampai {b}",
-  "ev.failing_above": "Baris {rows} tidak di atas {limit}.",
-  "ev.failing_below": "Baris {rows} tidak di bawah {limit}.",
-  "ev.failing_one_above": "Hanya baris {r} yang tidak di atas {limit}.",
-  "ev.failing_one_below": "Hanya baris {r} yang tidak di bawah {limit}."
+  "ev.failing_above": "Baris {rows} gagal.",
+  "ev.failing_below": "Baris {rows} gagal.",
+  "ev.failing_one_above": "Hanya baris {r} yang gagal.",
+  "ev.failing_one_below": "Hanya baris {r} yang gagal."
  }
 }

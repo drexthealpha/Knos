@@ -279,7 +279,7 @@
    "one": "{column} की {n} पंक्ति, {limit} से तुलना की गई।",
    "other": "{column} की {n} पंक्तियाँ, हर एक की {limit} से तुलना की गई।"
   },
-  "ev.fail": "{column} की पंक्ति {r} में {value} है, {limit} से तुलना की गई।",
+  "ev.fail": "पंक्ति {r} में {value} है, {limit} से तुलना की गई।",
   "why.unknown": "पंक्तियों {rows} के {column} में कोई संख्या नहीं है।",
   "next.pass": "हर पंक्ति पास हुई: अपना डेटा डालें से अपनी फ़ाइल जाँचें।",
   "next.fail": "अपनी फ़ाइल में पंक्ति {r} खोलें, जो पहली फ़ेल हुई पंक्ति है।",
@@ -301,9 +301,9 @@
   "tool.sample_column": "रखा गया चार्ज",
   "fold.column": "नमूने का कॉलम {column} बैटरी की क्षमता एम्पियर-घंटे में रखता है।",
   "ev.range": "{a} से {b}",
-  "ev.failing_above": "पंक्तियाँ {rows}, {limit} से ऊपर नहीं हैं।",
-  "ev.failing_below": "पंक्तियाँ {rows}, {limit} से नीचे नहीं हैं।",
-  "ev.failing_one_above": "केवल पंक्ति {r}, {limit} से ऊपर नहीं है।",
-  "ev.failing_one_below": "केवल पंक्ति {r}, {limit} से नीचे नहीं है।"
+  "ev.failing_above": "पंक्तियाँ {rows} विफल हैं।",
+  "ev.failing_below": "पंक्तियाँ {rows} विफल हैं।",
+  "ev.failing_one_above": "केवल पंक्ति {r} विफल है।",
+  "ev.failing_one_below": "केवल पंक्ति {r} विफल है।"
  }
 }

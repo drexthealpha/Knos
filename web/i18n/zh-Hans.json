@@ -251,7 +251,7 @@
   "v.fail": "未通过",
   "v.unknown": "无法判断",
   "ev.pass": "已检查 {column} 的 {n} 行，每行都与 {limit} 比较。",
-  "ev.fail": "{column} 的第 {r} 行是 {value}，已与 {limit} 比较。",
+  "ev.fail": "第 {r} 行是 {value}，已与 {limit} 比较。",
   "why.unknown": "第 {rows} 行的 {column} 没有数字。",
   "next.pass": "每一行都通过了：用“使用我的数据”检查你自己的文件。",
   "next.fail": "打开你的文件，找到第 {r} 行，这是第一个未通过的行。",
@@ -270,9 +270,9 @@
   "tool.sample_column": "存储电量",
   "fold.column": "样本的 {column} 列是电池容量，单位为安时。",
   "ev.range": "{a} 至 {b}",
-  "ev.failing_above": "第 {rows} 行不高于 {limit}。",
-  "ev.failing_below": "第 {rows} 行不低于 {limit}。",
-  "ev.failing_one_above": "只有第 {r} 行不高于 {limit}。",
-  "ev.failing_one_below": "只有第 {r} 行不低于 {limit}。"
+  "ev.failing_above": "第 {rows} 行未通过。",
+  "ev.failing_below": "第 {rows} 行未通过。",
+  "ev.failing_one_above": "只有第 {r} 行未通过。",
+  "ev.failing_one_below": "只有第 {r} 行未通过。"
  }
 }

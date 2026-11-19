@@ -54,9 +54,11 @@ def test_the_samples_column_is_said_in_plain_words_and_a_persons_own_as_it_is(ap
     assert st == 200
     a = answer(page(app, "/r/" + r["link"].rstrip("/").rsplit("/", 1)[1] + "/"))
     row = r["first_failing_row"]
-    assert f"Row {row} of <bdi>charge held</bdi> holds" in a and "capacity_ah" not in a
+    assert f"Row {row} holds" in a and "capacity_ah" not in a   # the evidence names the row and its value (U3.md:57: 40 words)
     st, r, _ = own(app, table="cycle,capacity_ah\n1,5\n2,3", column="capacity_ah", limit=4, browser="b-fix-000009")
-    assert st == 200 and "Row 2 of <bdi>capacity_ah</bdi> holds" in answer(page(app, "/r/" + r["link"].rstrip("/").rsplit("/", 1)[1] + "/"))
+    pg = page(app, "/r/" + r["link"].rstrip("/").rsplit("/", 1)[1] + "/")
+    # a person's own column as their file names it, on the rule line; the evidence names the row and its value
+    assert st == 200 and "Row 2 holds" in answer(pg) and '<span id="colname" data-user-content><bdi>capacity_ah</bdi></span>' in pg
 
 
 def test_pass_and_fail_carry_evidence_a_next_step_and_their_own_icon(app):
@@ -73,7 +75,7 @@ def test_pass_and_fail_carry_evidence_a_next_step_and_their_own_icon(app):
         assert re.search(r"<p data-next-step>[^<]*(<bdi>)?\w", a)
         icons.add(re.search(r"<svg [^>]*>(.*?)</svg>", a).group(1))
         if state == "fail":
-            assert "Row 2 of <bdi>reading</bdi> holds <bdi>3</bdi>, compared with <bdi>4</bdi>." in ev
+            assert "Row 2 holds <bdi>3</bdi>, compared with <bdi>4</bdi>." in ev
     icons.add(tool_page._SHAPES["unknown"])
     assert len(icons) == 3                                  # three states, three shapes
 
@@ -157,15 +159,15 @@ def test_every_failing_row_is_named_after_the_first_ones_evidence(app):
     assert st == 200 and r["result"] == "Failed at row 136: 1.399 is not above 1.4. 135 rows passed." and r["failing"] == [[136, 168]], r
     a = answer(page(app, "/r/" + r["link"].rstrip("/").rsplit("/", 1)[1] + "/"))
     ev = re.sub(r"<[^>]+>", "", re.search(r"<p data-evidence>(.*?)</p>", a).group(1))
-    assert ev == "Row 136 of charge held holds 1.399, compared with 1.4. Rows 136 to 168 are not above 1.4.", ev
+    assert ev == "Row 136 holds 1.399, compared with 1.4. Rows 136 to 168 fail.", ev
     # unchecked rows skipped, a run of two said as two rows, the rows after five counted
     st, r, _ = own(app, table="c,v\n1,1.8\n2,x\n3,1.6\n4,1.3\n5,1.9\n6,1\n7,y\n8,1\n9,1.2\n10,2", column="v", limit=1.4, browser="b-fix-000010")
     assert st == 200 and r["failing"] == [[4, 4], [6, 6], [8, 9]] and r["unchecked"] == [2, 7], r
     ev = re.sub(r"<[^>]+>", "", re.search(r"<p data-evidence>(.*?)</p>", answer(page(app, "/r/" + r["link"].rstrip("/").rsplit("/", 1)[1] + "/"))).group(1))
-    assert ev.endswith(" Rows 4, 6, 8 and 9 are not above 1.4."), ev
-    assert tool_page.failing_html("en", [[1, 2], [4, 5], [7, 9], [11, 11]], "below", "3") == "Rows 1, 2, 4, 5, 7 to 9 and 1 more are not below 3."
-    assert tool_page.failing_html("en", [[2, 2]], "above", tool_page.Bdi("4")) == "Only row 2 is not above <bdi>4</bdi>."
-    assert tool_page.failing_html("fr", [[136, 168]], "above", "1.4") == "Les lignes 136 à 168 ne sont pas au-dessus de 1.4."
+    assert ev.endswith(" Rows 4, 6, 8 and 9 fail."), ev
+    assert tool_page.failing_html("en", [[1, 2], [4, 5], [7, 9], [11, 11]], "below", "3") == "Rows 1, 2, 4, 5, 7 to 9 and 1 more fail."
+    assert tool_page.failing_html("en", [[2, 2]], "above", tool_page.Bdi("4")) == "Only row 2 fails."
+    assert tool_page.failing_html("fr", [[136, 168]], "above", "1.4") == "Les lignes 136 à 168 échouent."
     assert tool_page.failing_html("en", None, "above", "4") == ""        # an answer with no list: the first row's line alone
     got = {"values": [1.0, 1.3, 2.0], "unchecked": [], "first_failing_row": 2}
     assert tool_run.failing(got, "above", 1.4) is None        # row 1 would fail first, not the program's row: no list
