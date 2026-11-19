@@ -31,7 +31,9 @@ BASE = os.environ.get("NEAR_AI_BASE", "https://cloud-api.near.ai/v1").rstrip("/"
 MODELS = ("deepseek-ai/DeepSeek-V4.1-Flash-1017", "moonshotai/kimi-k2.6")
 PRICE = {"deepseek-ai/DeepSeek-V4.1-Flash-1017": (0.30e-6, 1.20e-6), "moonshotai/kimi-k2.6": (0.81e-6, 3.85e-6)}   # USD per input, output token (GET /v1/models, 12 Nov 2026)
 MAX_TOKENS = 800
-WRITE_MAX_TOKENS = 2400   # writing a program: a 60 to 80 line module did not fit in 800 and came back cut (G3, 19 Nov 2026)
+WRITE_MAX_TOKENS = 8000   # writing a program: the model reasons first, then writes the whole module (G3, 19 Nov 2026:
+#                            at 800, then 2,400 tokens with no reasoning, test_limit3.py failed 11 posts on exact wording)
+WRITE_TIMEOUT_S = 180     # a reply of that length takes longer than a review's 60 s
 CREDIT_USD = 10.0
 STOP_AT_USD = 8.0
 PER_VISITOR_HOUR = 10
@@ -172,14 +174,16 @@ def _call(kind: str, inp: dict, system: str, user: str, visitor: str) -> dict:
     t0, last = time.time(), ""
     for model in MODELS:   # the fallback only when the first model gives no answer; one answer either way
         att = near_attest.verify_model(model)   # preflight: the attestation verified before the completion is sent
-        # thinking off: the reasoning of DeepSeek V4.1 Flash otherwise uses all 800 tokens before any answer (12 Nov)
-        body = json.dumps({"model": model, "max_tokens": WRITE_MAX_TOKENS if kind == "write" else MAX_TOKENS, "temperature": 0, "chat_template_kwargs": {"thinking": False},
+        # thinking off for reviews and answers: the reasoning of DeepSeek V4.1 Flash otherwise uses all 800 tokens before
+        # any answer (12 Nov); on for writing a program, which has WRITE_MAX_TOKENS for it
+        write = kind == "write"
+        body = json.dumps({"model": model, "max_tokens": WRITE_MAX_TOKENS if write else MAX_TOKENS, "temperature": 0, "chat_template_kwargs": {"thinking": write},
                            "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}).encode()
         req = urllib.request.Request(BASE + "/chat/completions", method="POST", data=body,
                                      headers={"Authorization": "Bearer " + _key(), "Content-Type": "application/json", "User-Agent": "knos-agent/1.0",
                                               "x-no-aliasing": "true", "Accept-Encoding": "identity"})
         try:
-            with urllib.request.urlopen(req, timeout=60) as r:
+            with urllib.request.urlopen(req, timeout=WRITE_TIMEOUT_S if write else 60) as r:
                 raw = r.read()
             out = json.loads(raw)
         except urllib.error.HTTPError as e:
@@ -223,7 +227,7 @@ WRITE = ("You are agent A. Write the Python module solution.py that the locked t
          "paper's method the claim names, so that the test passes. Read the test to learn the interface it calls and every "
          "limit it checks: memory as the test counts it (for example len() of the bytes or bytearray it measures), accuracy "
          "and the 20 s time limit, and meet each limit with room to spare. Do not open the test file at run time, and do not "
-         "special-case its inputs. Keep it short: the answer is cut at 800 tokens, so at most 45 short lines, short names, standard library only, no comments or docstrings. "
+         "special-case its inputs. Write the whole module: there is room for about 200 lines, standard library only, no comments or docstrings. Match every sentence the test expects character for character: its punctuation, singular and plural, how lists are joined, and every value as the test says to print it. "
          "Do not think aloud. Answer with the code only, in one ```python block.")
 ATTEMPTS = 5   # agent A writes, and when the locked test fails, up to 4 more attempts with the test's own error message (G3: 3 were not enough for test_limit3.py)
                # (founder, 13 Nov); with the reviewer an order makes at most 4 model calls
