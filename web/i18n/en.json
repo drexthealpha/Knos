@@ -274,7 +274,7 @@
    "max_length": 61
   },
   "res.shown_by": {
-   "text": "Checked by a test of 10 files with known answers.",
+   "text": "Checked by a test of 14 cases with known answers.",
    "description": "The result area, after a run: the test that showed the tool works, a link.",
    "max_length": 79
   },
@@ -355,27 +355,53 @@
    "description": "Part of the result sentence, built from the program's English sentence: a value was not below the limit. Keep {limit}, {r}, {value} as written; they are filled in.",
    "max_length": 77
   },
-  "rs.counts": {
-   "text": "Rows: {p} passed, {f} failed, {u} unmeasurable.",
-   "description": "Part of the result sentence, built from the program's English sentence: the rows passed, failed and unmeasurable (a cell that is missing or not a finite number). Keep {f}, {p}, {u} as written; they are filled in.",
-   "max_length": 76
-  },
   "rs.cannot": {
-   "text": "I cannot check: no measurable rows.",
-   "description": "The start of the result when no row held a measurable number, so nothing was checked (never a pass); said in the first person, UX/U6.md Rule 7.",
-   "max_length": 56
+   "text": "I cannot check: no row has a number.",
+   "description": "The whole result when no row held a number, so nothing was checked (never a pass); said in the first person, UX/U6.md Rule 7.",
+   "max_length": 58
   },
   "rs.pass_above": {
-   "one": "Passed: all {n} rows stay above {limit}.",
+   "one": "Passed: all {n} row stays above {limit}.",
    "other": "Passed: all {n} rows stay above {limit}.",
    "description": "Part of the result sentence, built from the program's English sentence: every row was above the limit. Keep {limit}, {n} as written; they are filled in. One form per plural category of the language, chosen by {n}.",
    "max_length": 64
   },
   "rs.pass_below": {
-   "one": "Passed: all {n} rows stay below {limit}.",
+   "one": "Passed: all {n} row stays below {limit}.",
    "other": "Passed: all {n} rows stay below {limit}.",
    "description": "Part of the result sentence, built from the program's English sentence: every row was below the limit. Keep {limit}, {n} as written; they are filled in. One form per plural category of the language, chosen by {n}.",
    "max_length": 64
+  },
+  "rs.passed": {
+   "one": "{n} row passed.",
+   "other": "{n} rows passed.",
+   "description": "Part of the result sentence, after a failing row: how many rows passed. Keep {n} as written; it is filled in. One form per plural category of the language, chosen by {n}.",
+   "max_length": 32
+  },
+  "rs.unchecked_one": {
+   "text": "Row {r} has no number, so I did not check it.",
+   "description": "Part of the result sentence: the one row whose cell is missing or not a number, so it was not checked; said in the first person, UX/U6.md Rule 7. Keep {r} as written; it is filled in.",
+   "max_length": 72
+  },
+  "rs.unchecked": {
+   "text": "Rows {rows} have no number, so I did not check them.",
+   "description": "Part of the result sentence: two or more rows whose cells are missing or not numbers, so they were not checked; said in the first person. {rows} is the list of row numbers built with rs.list_sep and rs.list_and or rs.list_more. Keep {rows} as written.",
+   "max_length": 73
+  },
+  "rs.list_sep": {
+   "text": ", ",
+   "description": "The separator between row numbers in a list of rows that were not checked (for example the comma in 2, 5 and 7), as the language writes a list.",
+   "max_length": 6
+  },
+  "rs.list_and": {
+   "text": "{list} and {r}",
+   "description": "The end of a list of row numbers (2, 5 and 7): {list} is the rows before the last, joined by rs.list_sep; {r} is the last row. Keep {list}, {r} as written.",
+   "max_length": 28
+  },
+  "rs.list_more": {
+   "text": "{list} and {n} more",
+   "description": "A list of the first five row numbers that were not checked, then how many more were not checked (2, 3, 4, 5, 6 and 4 more). Keep {list}, {n} as written; they are filled in.",
+   "max_length": 38
   },
   "pay.headline": {
    "one": "{n} more run for {price} in test money",
@@ -576,14 +602,14 @@
    "max_length": 167
   },
   "a.why_released": {
-   "one": "A public test of 10 files with known answers passed before release; Knos's checker ran it. Not tested: files over {n} row.",
-   "other": "A public test of 10 files with known answers passed before release; Knos's checker ran it. Not tested: files over {n} rows.",
+   "one": "A public test of 14 cases with known answers passed before release; Knos's checker ran it. Not tested: files over {n} row.",
+   "other": "A public test of 14 cases with known answers passed before release; Knos's checker ran it. Not tested: files over {n} rows.",
    "description": "An answer line of the fold How it works: why to believe a released tool. Keep {n} as written; it is filled in. One form per plural category of the language, chosen by {n}.",
    "max_length": 160
   },
   "a.why_unreleased": {
-   "one": "A public test of 10 files with known answers must pass before release; Knos's checker runs it. Not tested: files over {n} row.",
-   "other": "A public test of 10 files with known answers must pass before release; Knos's checker runs it. Not tested: files over {n} rows.",
+   "one": "A public test of 14 cases with known answers must pass before release; Knos's checker runs it. Not tested: files over {n} row.",
+   "other": "A public test of 14 cases with known answers must pass before release; Knos's checker runs it. Not tested: files over {n} rows.",
    "description": "An answer line of the fold How it works: why the tool is not released yet. Keep {n} as written; it is filled in. One form per plural category of the language, chosen by {n}.",
    "max_length": 166
   },
@@ -631,7 +657,7 @@
    "max_length": 93
   },
   "fold.not_do": {
-   "text": "It checks one column against one limit. It does not judge whether the limit is the right one. A row whose value is not a number is counted as unmeasurable.",
+   "text": "It checks one column against one limit. It does not judge whether the limit is the right one. A row with no number is not checked, and the result names it.",
    "description": "A line inside the fold How it works: what the tool does not do.",
    "max_length": 202
   },
@@ -641,10 +667,10 @@
    "max_length": 407
   },
   "fold.test": {
-   "one": "The test that showed it works checks nine made-up files with known answers and the sample. It did not cover files longer than {n} row, or files separated by anything other than commas. <a href=\"{url}\">The test</a> is public.",
-   "other": "The test that showed it works checks nine made-up files with known answers and the sample. It did not cover files longer than {n} rows, or files separated by anything other than commas. <a href=\"{url}\">The test</a> is public.",
+   "one": "The test that showed it works checks eleven made-up files with known answers and the sample. It did not cover files longer than {n} row, or files separated by anything other than commas. <a href=\"{url}\">The test</a> is public.",
+   "other": "The test that showed it works checks eleven made-up files with known answers and the sample. It did not cover files longer than {n} rows, or files separated by anything other than commas. <a href=\"{url}\">The test</a> is public.",
    "description": "A line inside the fold How it works: what the tool's test covered. Keep {n}, {url} as written; they are filled in. Keep the link markup. One form per plural category of the language, chosen by {n}.",
-   "max_length": 293
+   "max_length": 296
   },
   "fold.price": {
    "one": "Runs on the sample are free. Runs on your own file: {free} free a day, then {n} more run for {price} in test money. Today nothing is charged.",

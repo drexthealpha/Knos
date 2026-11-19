@@ -214,7 +214,7 @@ It gives two tools: `tools` lists what Knos can do, and `run` runs one. A worked
 curl -s https://raw.githubusercontent.com/drexthealpha/Knos/v0.4.1/near/agents/job/data/limit/sample.csv | jq -Rs '{id: "limit-check", table: ., column: "capacity_ah", rule: "above", limit: 1.4}' | curl -s -X POST https://knos.onrender.com/api/run -H "Content-Type: application/json" -d @-
 ```
 
-The answer's `result` is `Failed at row 136: 1.399 is not above 1.4. Rows: 135 passed, 33 failed, 0 unmeasurable.` Its `link` opens the result. Through the connector, `run` with the same `id`, `table`, `column`, `rule` and `limit` returns the same answer.
+The answer's `result` is `Failed at row 136: 1.399 is not above 1.4. 135 rows passed.` Its `link` opens the result. Through the connector, `run` with the same `id`, `table`, `column`, `rule` and `limit` returns the same answer.
 
 ## More
 

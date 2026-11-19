@@ -25,7 +25,8 @@ from knos_wanted.qloo_mcp import InProcess, Qloo  # noqa: E402
 
 
 def main() -> int:
-    released = tool_run.ready()
+    # the released program once it is the one released for the claim's locked test (test_limit3.py), else the stand-in
+    released = tool_run.ready() and str(tool_run.released().get("test") or "").endswith("/" + tool_run.CONF["claim_test"])
     if not released:
         standin = REPO / "apps" / "wanted" / "tests" / "limit_standin.py"
         rel = {**tool_run.released(), "sha256": hashlib.sha256(standin.read_bytes()).hexdigest()}

@@ -23,8 +23,8 @@ LINK = re.compile(r"https://knos\.onrender\.com/r/([A-Za-z0-9_-]{12})/")
 
 @pytest.fixture(autouse=True)
 def program(monkeypatch):
-    """The released program when it exists, else the stand-in under tests."""
-    if not tool_run.ready():
+    """The released program when it is the one released for test_limit3.py, else the stand-in under tests."""
+    if not (tool_run.ready() and str(tool_run.released().get("test") or "").endswith("/" + CONF["claim_test"])):
         rel = {**tool_run.released(), "sha256": hashlib.sha256(STANDIN.read_bytes()).hexdigest()}
         monkeypatch.setattr(tool_run, "program_path", lambda: STANDIN)
         monkeypatch.setattr(tool_run, "released", lambda: rel)      # ready() compares the program with released.json
@@ -131,7 +131,7 @@ def test_pasted_table_with_first_line_answers_its_result(tg, bot):
     text = ask(tg, bot, "reading above 3\ncycle,reading\n1,5\n2,6\n3,2\n4,7", chat=-1001)
     lines = text.split("\n")
     assert lines[0] == "reading must stay above 3"
-    assert lines[1] == "Failed at row 3: 2 is not above 3. Rows: 3 passed, 1 failed, 0 unmeasurable."
+    assert lines[1] == "Failed at row 3: 2 is not above 3. 2 rows passed."   # the rows checked before the first failing row (the released program)
     rec = tool_run.load_result(LINK.fullmatch(lines[2]).group(1))
     assert rec["mode"] == "own" and rec["first_failing_row"] == 3
     assert lines[3] == f"Runs left today: {int(CONF['free_runs_a_day']) - 1}"
@@ -139,9 +139,9 @@ def test_pasted_table_with_first_line_answers_its_result(tg, bot):
 
 def test_pasted_table_without_first_line_uses_the_sample_rule_and_limit(tg, bot):
     text = ask(tg, bot, "cycle,capacity_ah\n1,1.6\n2,1.5\n3,1.45")
-    assert text.split("\n")[:2] == ["capacity_ah must stay above 1.4", "Passed: all 3 rows stay above 1.4. Rows: 3 passed, 0 failed, 0 unmeasurable."]
+    assert text.split("\n")[:2] == ["capacity_ah must stay above 1.4", "Passed: all 3 rows stay above 1.4."]
     other = ask(tg, bot, "t,volts,amps\n1,9,0.5\n2,9,0.3")         # no sample column: the last column, as the site
-    assert other.split("\n")[:2] == ["amps must stay above 1.4", "Failed at row 1: 0.5 is not above 1.4. Rows: 0 passed, 2 failed, 0 unmeasurable."]
+    assert other.split("\n")[:2] == ["amps must stay above 1.4", "Failed at row 1: 0.5 is not above 1.4. 0 rows passed."]
 
 
 @pytest.mark.parametrize("text", ["hello", "a,b\nx,y", "volts above 3\nt,amps\n1,2", "one line, only", ""])

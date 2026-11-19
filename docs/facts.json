@@ -717,11 +717,11 @@
   },
   {
    "say": [
-    "10"
+    "14"
    ],
-   "what": "the files the first tool's locked test checks (nine made up and the sample), on the front door's test line",
-   "file": "near/agents/job/test_limit2.py",
-   "has": "Passed: all 10 cases"
+   "what": "the cases the first tool's locked test checks (test_limit3.py, on eleven made-up files and the sample), on the front door's test line",
+   "file": "near/claims/claims.json",
+   "has": "\"locked\": \"fourteen cases on eleven pinned files and the NASA sample"
   }
  ]
 }

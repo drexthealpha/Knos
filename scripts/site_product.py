@@ -749,18 +749,18 @@ def sample() -> str:
 
 
 def sample_result() -> str:
-    """The sample's result sentence as the locked test fixes it (near/agents/job/test_limit2.py, the sample case): the
-    first row whose capacity_ah is at or below 1.4, found the way its separate script finds it (limit_check10.py), and
-    the rows passed, failed and unmeasurable."""
+    """The sample's result sentence as the locked test fixes it (near/agents/job/test_limit3.py, the NASA sample case):
+    the first row whose capacity_ah is at or below 1.4, found the way its separate script finds it (limit_check10.py),
+    and the rows passed (the sample has no row without a number, so no sentence names unchecked rows)."""
     import csv
     import io
     import math
     rows = list(csv.DictReader(io.StringIO(sample())))
     r, row = next((n, x) for n, x in enumerate(rows, 1) if float(x["capacity_ah"]) <= 1.4)
     vals = [float(x["capacity_ah"]) for x in rows]
-    p, u = sum(math.isfinite(v) and v > 1.4 for v in vals), sum(not math.isfinite(v) for v in vals)
-    return (f"Failed at row {r}: {row['capacity_ah']} is not above 1.4. "
-            f"Rows: {p} passed, {len(vals) - p - u} failed, {u} unmeasurable.")
+    assert all(math.isfinite(v) for v in vals), "the sample has a row with no number: its sentence would name it"
+    p = sum(v > 1.4 for v in vals)
+    return f"Failed at row {r}: {row['capacity_ah']} is not above 1.4. {p} row{'' if p == 1 else 's'} passed."
 
 
 def where_you_are() -> str:

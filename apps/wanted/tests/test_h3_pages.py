@@ -199,27 +199,29 @@ def test_the_result_page_has_listen_the_line_for_another_site_and_print(app):
 
 
 # ---- the result sentence, in every language, with no script ----------------------------------------------------------
-SENTENCES = ["Failed at row 37: 2.41 is not above 2.5. Rows: 98 passed, 2 failed, 0 unmeasurable.",
-             "Failed at row 1: 3 is not below 2. Rows: 0 passed, 1 failed, 0 unmeasurable.",
-             "Passed: all 100 rows stay above 1.4. Rows: 100 passed, 0 failed, 0 unmeasurable.",
-             "Passed: all 97 rows stay above 1.4. Rows: 97 passed, 0 failed, 3 unmeasurable.",
-             "Failed at row 50: 1.4 is not above 1.4. Rows: 47 passed, 1 failed, 2 unmeasurable.",
-             "Cannot check: no measurable rows. Rows: 0 passed, 0 failed, 3 unmeasurable."]
+SENTENCES = ["Failed at row 37: 2.41 is not above 2.5. 98 rows passed.",
+             "Failed at row 1: 3 is not below 2. 0 rows passed.",
+             "Passed: all 100 rows stay above 1.4.",
+             "Passed: all 1 row stays above 1.4. Row 2 has no number, so I did not check it.",
+             "Passed: all 97 rows stay above 1.4. Rows 2, 5 and 7 have no number, so I did not check them.",
+             "Failed at row 50: 1.4 is not above 1.4. 47 rows passed. Rows 3 and 9 have no number, so I did not check them.",
+             "Failed at row 10: 1.2 is not above 1.4. 1 row passed. Rows 2, 3, 4, 5, 6 and 3 more have no number, so I did not check them.",
+             "I cannot check: no row has a number."]
 
 
 def test_the_template_reads_every_sentence_the_program_writes():
     for s in SENTENCES:
         m = tool_page.RS.match(s)
         assert m, s
-        # English is the program's sentence, except "Cannot check", said in the first person (UX/U6.md Rule 7)
-        assert tool_page.sentence("en", s, as_html=False) == ("I c" + s[1:] if s.startswith("Cannot check") else s)
+        # English is the program's sentence as written ("I cannot check" is already in the first person, UX/U6.md Rule 7)
+        assert tool_page.sentence("en", s, as_html=False) == s
         for lang in LANGS:
             out = tool_page.sentence(lang, s, as_html=False)
             assert out and (lang == "en" or out != s)
             for n in re.findall(r"\d+(?:\.\d+)?", s):
                 assert n in out, (lang, n, out)                          # every number of the program's sentence is kept
             html_ = tool_page.sentence(lang, s)
-            if lang != "en" and not s.startswith("Cannot check"):   # "Cannot check" quotes no value from the file
+            if lang != "en" and not s.startswith("I cannot check"):   # "I cannot check" quotes no value from the file
                 assert "<bdi>" in html_                                    # values from the file keep their own direction (U7 R2)
     assert tool_page.sentence("ar", "something else") == "something else"   # a sentence the template does not know: as written
 

@@ -352,7 +352,7 @@ def company_line() -> str:
     return f"{companies():,} companies are on a first list. No outside company has bought from Knos."
 
 
-LIMIT = ROOT / "near" / "agents" / "job" / "data" / "limit"   # the first tool's sample and the files its locked test checks
+LIMIT = ROOT / "near" / "agents" / "job" / "data" / "limit"   # the first tool's sample (the files its locked test checks: test_files)
 
 
 def sample_text() -> str:
@@ -377,7 +377,14 @@ def sample_facts() -> dict:
     rows of any file the locked test checks."""
     rows = list(csv.DictReader(io.StringIO(sample_text())))
     return {"first": rows[0]["capacity_ah"], "last": rows[-1]["capacity_ah"], "rows": f"{len(rows):,}",
-            "longest": f"{max(data_rows(f.read_text(encoding='utf-8')) for f in LIMIT.glob('*.csv')):,}"}
+            "longest": f"{max(data_rows(f.read_text(encoding='utf-8')) for f in test_files()):,}"}
+
+
+def test_files() -> list[Path]:
+    """The files the first tool's locked test checks: the "data" list of its claim (test_limit3.py) in claims.json."""
+    claims = json.loads((ROOT / "near" / "claims" / "claims.json").read_text(encoding="utf-8"))["claims"]
+    data = next(c.get("data") or [] for c in claims if c.get("test") == "test_limit3.py")
+    return [ROOT / "near" / "agents" / "job" / rel for rel in data]
 
 
 def job_line() -> str:
@@ -408,10 +415,10 @@ def fill(html: str) -> str:
 
 def run_seconds() -> int:
     """The most seconds one run of the first tool may take, as the server reads it (tool_run, runner_conf.py): the
-    timeout_s of the claim whose locked test is test_limit2.py, else the checker's default. The front door's waiting bar
+    timeout_s of the claim whose locked test is test_limit3.py, else the checker's default. The front door's waiting bar
     counts against it until the server's own answer gives it (limits.max_seconds)."""
     for c in json.loads((ROOT / "near" / "claims" / "claims.json").read_text(encoding="utf-8"))["claims"]:
-        if c.get("test") == "test_limit2.py" and c.get("timeout_s"):
+        if c.get("test") == "test_limit3.py" and c.get("timeout_s"):
             return int(c["timeout_s"])
     conf = (ROOT / "apps" / "wanted" / "knos_wanted" / "runner_conf.py").read_text(encoding="utf-8")
     return int(re.search(r"'checker_default_seconds': (\d+)", conf)[1])
@@ -423,7 +430,7 @@ def released() -> bool:
 
 
 PERIGNON = "https://labordynamicsinstitute.github.io/crress-book/sessions/6/perignon/"
-TEST_URL = "https://github.com/drexthealpha/Knos/blob/main/near/agents/job/test_limit2.py"
+TEST_URL = "https://github.com/drexthealpha/Knos/blob/main/near/agents/job/test_limit3.py"
 NASA_URL = "https://data.nasa.gov/dataset/li-ion-battery-aging-datasets"
 
 

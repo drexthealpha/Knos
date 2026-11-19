@@ -1,9 +1,11 @@
-"""F1 (a column with no numbers passes): the released program, run through the server's real run path (POST /api/run, and
-the connector's run), never passes a column with no measurable row, counts NaN, inf and -inf apart, still fails the
-sample at row 136, and a program file that is not byte for byte the one released.json records is refused.
+"""G1 (every limit-check result names its unchecked rows and has at most two counts): the released program, run through
+the server's real run path (POST /api/run, and the connector's run), says "I cannot check" for a column with no number,
+names the one row it did not check, names the first five of seven and then "and 2 more", still fails the sample at row
+136, and a program file that is not byte for byte the one released.json records is refused (F1e).
 
-These tests run near/agents/job/data/limit/released_solution.py as released (no stand-in): on the first release
-(test_limit.py's contract) the first three fail, and they pass once the program released for test_limit2.py is in place."""
+These tests run near/agents/job/data/limit/released_solution.py as released (no stand-in): on the release for
+test_limit2.py (counts "Rows: ... unmeasurable.") the first four fail, and they pass once the program released for
+test_limit3.py is in place."""
 import json
 import shutil
 import threading
@@ -53,27 +55,37 @@ def mcp_run(base, args):
     return r["result"]
 
 
-def test_a_nan_only_column_cannot_be_checked(app):
-    st, r = run(app, "cycle,capacity_ah\n1,NaN\n2,nan\n3,NAN", "capacity_ah", "b-f1-nan-0001")
+def test_a_column_of_only_nan_cannot_be_checked(app):
+    st, r = run(app, "cycle,reading\n1,NaN\n2,nan\n3,NAN", "reading", "b-g1-nan-0001")
     assert st == 200, r
-    assert r["result"].startswith("Cannot check: no measurable rows"), r["result"]
-    assert r["verdict"] == "unknown" and r["first_failing_row"] is None
-    assert (r["passed"], r["failed"], r["unmeasurable"]) == (0, 0, 3)
+    assert r["result"] == "I cannot check: no row has a number."
+    assert r["verdict"] == "unknown" and r["first_failing_row"] is None and r["passed"] == 0 and r["unchecked"] == [1, 2, 3], r
 
 
-def test_nan_inf_and_minus_inf_are_unmeasurable_and_counted_apart(app):
-    table = "cycle,capacity_ah\n1,1.8\n2,NaN\n3,1.6\n4,inf\n5,1.3\n6,-inf"
-    st, r = run(app, table, "capacity_ah", "b-f1-inf-0001")
+def test_three_numbers_and_one_nan_name_the_row_not_checked(app):
+    table = "cycle,reading\n1,1.8\n2,NaN\n3,1.6\n4,1.3"
+    want = "Failed at row 4: 1.3 is not above 1.4. 2 rows passed. Row 2 has no number, so I did not check it."
+    st, r = run(app, table, "reading", "b-g1-one-0001")
+    assert st == 200 and r["result"] == want, r
+    assert (r["verdict"], r["first_failing_row"], r["passed"], r["unchecked"]) == ("fail", 4, 2, [2]), r
+    got = mcp_run(app, {"id": "limit-check", "table": table, "column": "reading", "rule": "above", "limit": 1.4})
+    assert not got.get("isError") and got["structuredContent"]["result"] == want, got
+    assert got["structuredContent"]["unchecked"] == [2] and got["structuredContent"]["passed"] == 2
+
+
+def test_seven_unchecked_rows_name_five_then_and_2_more(app):
+    table = "cycle,reading\n1,1.9\n2,NaN\n3,x\n4,\n5,inf\n6,-inf\n7,nan\n8,n/a\n9,1.8"
+    st, r = run(app, table, "reading", "b-g1-many-001")
     assert st == 200, r
-    assert r["passed"] + r["failed"] == 3 and r["unmeasurable"] == 3, r
-    assert r["result"] == "Failed at row 5: 1.3 is not above 1.4. Rows: 2 passed, 1 failed, 3 unmeasurable."
+    assert r["result"] == "Passed: all 2 rows stay above 1.4. Rows 2, 3, 4, 5, 6 and 2 more have no number, so I did not check them."
+    assert (r["verdict"], r["first_failing_row"], r["passed"], r["unchecked"]) == ("pass", None, 2, [2, 3, 4, 5, 6, 7, 8]), r
 
 
-def test_the_nasa_sample_still_fails_at_row_136(app):
+def test_the_nasa_sample_fails_at_row_136_with_two_counts_at_most(app):
     st, r = run(app, tool_run.sample(), "capacity_ah", "")
     assert st == 200 and r["mode"] == "sample", r
-    assert r["first_failing_row"] == 136
-    assert r["result"] == "Failed at row 136: 1.399 is not above 1.4. Rows: 135 passed, 33 failed, 0 unmeasurable."
+    assert r["result"] == "Failed at row 136: 1.399 is not above 1.4. 135 rows passed."
+    assert (r["first_failing_row"], r["passed"], r["unchecked"]) == (136, 135, [])
 
 
 def test_a_program_with_one_byte_changed_is_refused(app, monkeypatch, tmp_path):

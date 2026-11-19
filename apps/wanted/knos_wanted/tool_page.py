@@ -182,7 +182,7 @@ ROOT = Path(os.environ.get("KNOS_NEAR_ROOT") or Path(__file__).resolve().parents
 LANGS = ("en", "ar", "hi", "es", "fr", "pt", "zh-Hans", "id", "sw", "ru")
 ISSUES = "https://github.com/drexthealpha/Knos/issues"
 PRICING_FILE = "https://drexthealpha.github.io/Knos/data/pricing.json"
-TEST_URL = "https://github.com/drexthealpha/Knos/blob/main/near/agents/job/test_limit2.py"   # the locked test (tool_run.TEST_URL)
+TEST_URL = "https://github.com/drexthealpha/Knos/blob/main/near/agents/job/test_limit3.py"   # the locked test (tool_run.TEST_URL)
 _tables: dict = {}
 
 
@@ -365,10 +365,14 @@ def h(lang: str, key: str, spans: dict | None = None, **v) -> str:
     return re.sub(r"\{(\w+)\}", one, raw(lang, key, v.get("n")))
 
 
-# the result sentence comes from the released program, in English, from a fixed template (SPEC2); other languages show
-# the same facts through that template's translation, and the fold keeps the program's own words
-RS = re.compile(r"^(?:Failed at row (\d+): (.+?) is not (above|below) (.+?)\.|Passed: all (\d+) rows stay (above|below) (.+?)\."
-                r"|(Cannot check: no measurable rows\.)) Rows: (\d+) passed, (\d+) failed, (\d+) unmeasurable\.$")
+# the result sentence comes from the released program, in English, from a fixed template (test_limit3.py, G1); other
+# languages show the same facts through that template's translation, and the fold keeps the program's own words. Groups:
+# 1-5 a failing row (row, value, rule, limit, rows passed); 6-8 a pass (rows, rule, limit); 9 no row has a number; then
+# the rows not checked: 10 the one row, or 11 the rows before the last (or the first five), 12 the last row (or how many
+# more), 13 " more"
+RS = re.compile(r"^(?:Failed at row (\d+): (.+?) is not (above|below) (.+?)\. (\d+) rows? passed\."
+                r"|Passed: all (\d+) rows? stays? (above|below) (.+?)\.|(I cannot check: no row has a number\.))"
+                r"(?: (?:Row (\d+) has|Rows ([\d, ]+?) and (\d+)( more)? have) no number, so I did not check (?:it|them)\.)?$")
 
 
 # what sets two sentences of the result apart: a space, except in Chinese, which writes them side by side (a rule of the
@@ -380,24 +384,29 @@ def sentence(lang: str, text: str, as_html: bool = True) -> str:
     """The program's result sentence in this language: English as the program wrote it; any other language from the
     fixed template, every count in the language's digits, every value from the file as written there."""
     m = RS.match(text or "")
-    # English shows the program's words, except "Cannot check": a check that is not conclusive says so in the first
-    # person, in every language (UX/U6.md Rule 7, line 92); the API and the fold keep the program's own words
-    if not m or (lang == "en" and not m[8]):
+    # English shows the program's words as they are ("I cannot check: no row has a number." is already in the first
+    # person, UX/U6.md Rule 7); the API and the fold keep them in every language
+    if not m or lang == "en":
         return _e(text) if as_html else str(text or "")
     f = h if as_html else (lambda lg, k, **v: t(lg, k, **v))
     if m[1]:
-        parts = [f(lang, f"rs.fail_{m[3]}", r=int(m[1]), value=Bdi(m[2]), limit=Bdi(m[4]))]
-    elif m[5]:
-        parts = [f(lang, f"rs.pass_{m[6]}", n=int(m[5]), limit=Bdi(m[7]))]
+        parts = [f(lang, f"rs.fail_{m[3]}", r=int(m[1]), value=Bdi(m[2]), limit=Bdi(m[4])), f(lang, "rs.passed", n=int(m[5]))]
+    elif m[6]:
+        parts = [f(lang, f"rs.pass_{m[7]}", n=int(m[6]), limit=Bdi(m[8]))]
     else:
         parts = [f(lang, "rs.cannot")]
-    parts.append(f(lang, "rs.counts", p=int(m[9]), f=int(m[10]), u=int(m[11])))
+    if m[10]:
+        parts.append(f(lang, "rs.unchecked_one", r=int(m[10])))
+    elif m[11]:
+        listed = t(lang, "rs.list_sep").join(nf(lang, int(x)) for x in m[11].split(", "))
+        rows = (t(lang, "rs.list_more", list=listed, n=int(m[12])) if m[13] else t(lang, "rs.list_and", list=listed, r=int(m[12])))
+        parts.append(f(lang, "rs.unchecked", rows=rows))
     return SEP.get(lang, " ").join(parts)
 
 
 # The verdict (U6 Rules 5 to 7, 10, 15 and 20): one of three states, each with its own icon and word; the result
 # sentence first; then the evidence (the rows checked and the test the program passed), or, when no row held a number,
-# the reason; then one next step. A result with no measurable row is "cannot tell" (verdict_of), never a pass.
+# the reason; then one next step. A result in which no row has a number is "cannot tell" (verdict_of), never a pass.
 STATES = ("pass", "fail", "unknown")
 _SHAPES = {"pass": '<circle cx="12" cy="12" r="10"/><path d="M7 12.5l3.5 3.5L17 9"/>',
            "fail": '<rect x="2.5" y="2.5" width="19" height="19" rx="3"/><path d="M8.5 8.5l7 7M15.5 8.5l-7 7"/>',
@@ -405,7 +414,7 @@ _SHAPES = {"pass": '<circle cx="12" cy="12" r="10"/><path d="M7 12.5l3.5 3.5L17 
 
 
 def verdict_of(r: dict) -> str:
-    """pass, fail or unknown: the stored verdict, else the first failing row, else whether any measurable row passed."""
+    """pass, fail or unknown: the stored verdict, else the first failing row, else whether any checked row passed."""
     v = r.get("verdict")
     if v in STATES:
         return v
@@ -426,7 +435,7 @@ def answer_html(lang: str, r: dict, test_url: str = TEST_URL) -> str:
     state = verdict_of(r)
     m = RS.match(r.get("result") or "")
     col = Bdi(r.get("column") or "")
-    lim = Bdi(m[4] if m and m[1] else m[7] if m and m[5] else shown_limit(r.get("limit") or 0))
+    lim = Bdi(m[4] if m and m[1] else m[8] if m and m[6] else shown_limit(r.get("limit") or 0))
     out = f'{icon(lang, state)}<p class="big" id="about">{sentence(lang, r.get("result") or "")}</p>'
     if state == "unknown":
         out += (f'<p data-reason data-uncertain="true">{h(lang, "why.unknown", column=col)}</p>'
@@ -558,12 +567,16 @@ I18N_JS = r"""window.KI = window.KI || (() => {
   const t = (k, v) => raw(k, v).replace(/\{(\w+)\}/g, (m, n) => v && v[n] != null ? val(n, v[n]) : m);
   const html = (k, v) => raw(k, v).replace(/\{(\w+)\}/g, (m, n) => v && v[n] != null ? (bdi.has(n) ? "<bdi>" + esc(val(n, v[n])) + "</bdi>" : esc(val(n, v[n]))) : m);
   const sep = () => L === "zh-Hans" ? "" : " ";   // Chinese sets sentences side by side, with no space (SEP)
-  const RS = /^(?:Failed at row (\d+): (.+?) is not (above|below) (.+?)\.|Passed: all (\d+) rows stay (above|below) (.+?)\.|(Cannot check: no measurable rows\.)) Rows: (\d+) passed, (\d+) failed, (\d+) unmeasurable\.$/;
+  const RS = /^(?:Failed at row (\d+): (.+?) is not (above|below) (.+?)\. (\d+) rows? passed\.|Passed: all (\d+) rows? stays? (above|below) (.+?)\.|(I cannot check: no row has a number\.))(?: (?:Row (\d+) has|Rows ([\d, ]+?) and (\d+)( more)? have) no number, so I did not check (?:it|them)\.)?$/;
   function sentence(text, plain) {
     const m = RS.exec(text || ""), f = plain ? t : html;
-    if (!m || (L === "en" && !m[8])) return plain ? String(text || "") : esc(text || "");   // "Cannot check" in the first person (UX/U6.md Rule 7)
-    const parts = m[1] ? [f("rs.fail_" + m[3], { r: +m[1], value: m[2], limit: m[4] })] : m[5] ? [f("rs.pass_" + m[6], { n: +m[5], limit: m[7] })] : [f("rs.cannot")];
-    parts.push(f("rs.counts", { p: +m[9], f: +m[10], u: +m[11] }));
+    if (!m || L === "en") return plain ? String(text || "") : esc(text || "");   // English: the program's words, already first person (UX/U6.md Rule 7)
+    const parts = m[1] ? [f("rs.fail_" + m[3], { r: +m[1], value: m[2], limit: m[4] }), f("rs.passed", { n: +m[5] })] : m[6] ? [f("rs.pass_" + m[7], { n: +m[6], limit: m[8] })] : [f("rs.cannot")];
+    if (m[10]) parts.push(f("rs.unchecked_one", { r: +m[10] }));
+    else if (m[11]) {
+      const list = m[11].split(", ").map((x) => nf(+x)).join(raw("rs.list_sep"));
+      parts.push(f("rs.unchecked", { rows: m[13] ? t("rs.list_more", { list, n: +m[12] }) : t("rs.list_and", { list, r: +m[12] }) }));
+    }
     return parts.join(sep());
   }
   // a number typed in any of the digit sets people use (U7 R13): Arabic-Indic, Persian, Devanagari and Bengali digits,
@@ -786,7 +799,7 @@ function ask() {
 }
 // the verdict block, as the server writes it (tool_page.answer_html): icon, sentence, evidence or reason, next step
 const icon = (st) => { const x = document.createElement("template"); x.innerHTML = D.icons[st]; return x.content.firstChild; };
-const RSX = /^(?:Failed at row (\d+): (.+?) is not (?:above|below) (.+?)\. Rows:|Passed: all \d+ rows stay (?:above|below) (.+?)\. Rows:)/;
+const RSX = /^(?:Failed at row (\d+): (.+?) is not (?:above|below) (.+?)\. \d+ rows? passed\.|Passed: all \d+ rows? stays? (?:above|below) (.+?)\.(?: |$))/;
 const verdictOf = (r) => /^(pass|fail|unknown)$/.test(r.verdict || "") ? r.verdict : r.first_failing_row ? "fail" : r.passed > 0 ? "pass" : "unknown";
 function part(tag, key, v, attrs) { const e = make(tag); e.innerHTML = KI.html(key, v); for (const a in attrs || {}) e.setAttribute(a, attrs[a]); return e; }
 function answer(r) {
@@ -1054,8 +1067,8 @@ window.addEventListener("pagehide", draftSave);
 })();""".replace("/*TABLE*/", TABLE_JS)
 
 
-SCRIPT_KEYS = sorted(set(keys_in(SCRIPT)) | {"rs.fail_above", "rs.fail_below", "rs.counts", "rs.pass_above", "rs.pass_below",
-                                                "rs.cannot", "chart.label", "chart.label_fail", "chart.row", "fold.listen", "stop",
+SCRIPT_KEYS = sorted(set(keys_in(SCRIPT)) | {"rs.fail_above", "rs.fail_below", "rs.passed", "rs.pass_above", "rs.pass_below",
+                                                "rs.cannot", "rs.unchecked_one", "rs.unchecked", "rs.list_sep", "rs.list_and", "rs.list_more", "chart.label", "chart.label_fail", "chart.row", "fold.listen", "stop",
                                                 "next.pass", "next.fail", "next.unknown", "ev.pass", "ev.fail", "why.unknown", "theme.dark", "theme.light",
                                                 "q.next", "res.input", "tool.paste"}) if (ROOT / "web" / "i18n" / "en.json").is_file() else []
 
@@ -1112,7 +1125,7 @@ def page(tool: dict, base: str, result: dict | None = None, front: str = "https:
     data = {"id": tool["id"], "sample": tool["sample"], "api": base, "limits": tool["limits"], "column": tool["column"],
             "lang": L, "langs": list(LANGS), "t": strings_for(L, SCRIPT_KEYS),
             "icons": {st: icon(L, st) for st in STATES}, "test_url": TEST_URL,
-            "result": result and {**{k: result.get(k) for k in ("result", "first_failing_row", "passed", "failed", "unmeasurable", "shown_by", "link",
+            "result": result and {**{k: result.get(k) for k in ("result", "first_failing_row", "passed", "unchecked", "shown_by", "link",
                                                                  "mode", "chart", "column", "rule", "limit", "input")}, "verdict": verdict_of(result)}}
     ssr, below = sent.get("error_html", ""), ""
     if result:

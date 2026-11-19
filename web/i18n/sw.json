@@ -8,7 +8,8 @@
   "reviewed_by": "",
   "tier": "B (U7 R32: no published human score for current models; a full edit by a native speaker is needed)",
   "same": [
-   "rs.sep"
+   "rs.sep",
+   "rs.list_sep"
   ],
   "same_why": "strings written the same as in English because they are the right words in this language (or a separator)"
  },
@@ -77,7 +78,7 @@
   "btn.type_limit": "Andika kikomo",
   "btn.back": "Rudi kwenye faili yangu",
   "res.private": "Ni watu wenye kiungo hiki tu wanaoweza kuiona.",
-  "res.shown_by": "Imekaguliwa na jaribio la faili 10 zenye majibu yanayojulikana.",
+  "res.shown_by": "Imekaguliwa na jaribio la visa 14 vyenye majibu yanayojulikana.",
   "res.mine": "Tumia data yangu",
   "res.copy": "Nakili kiungo",
   "res.copied": "Imenakiliwa",
@@ -99,8 +100,7 @@
   "chart.row": "Safu {r}",
   "rs.fail_above": "Imeshindwa kwenye safu {r}: {value} si juu ya {limit}.",
   "rs.fail_below": "Imeshindwa kwenye safu {r}: {value} si chini ya {limit}.",
-  "rs.counts": "Safu: {p} zimefaulu, {f} zimeshindwa, {u} hazipimiki.",
-  "rs.cannot": "Siwezi kukagua: hakuna safu zinazopimika.",
+  "rs.cannot": "Siwezi kukagua: hakuna safu yenye namba.",
   "rs.pass_above": {
    "one": "Imefaulu: safu {n} inabaki juu ya {limit}.",
    "other": "Imefaulu: safu zote {n} zinabaki juu ya {limit}."
@@ -109,6 +109,15 @@
    "one": "Imefaulu: safu {n} inabaki chini ya {limit}.",
    "other": "Imefaulu: safu zote {n} zinabaki chini ya {limit}."
   },
+  "rs.passed": {
+   "one": "Safu {n} imefaulu.",
+   "other": "Safu {n} zimefaulu."
+  },
+  "rs.unchecked_one": "Safu {r} haina namba, kwa hiyo sikuikagua.",
+  "rs.unchecked": "Safu {rows} hazina namba, kwa hiyo sikuzikagua.",
+  "rs.list_sep": ", ",
+  "rs.list_and": "{list} na {r}",
+  "rs.list_more": "{list} na {n} zaidi",
   "pay.headline": {
    "one": "Ukaguzi {n} zaidi kwa {price} za pesa za majaribio",
    "other": "Ukaguzi {n} zaidi kwa {price} za pesa za majaribio"
@@ -158,12 +167,12 @@
    "other": "Mfano ni bure. Faili zako: ukaguzi {free} wa bure kwa siku, kisha {price} za pesa za majaribio kwa {n} zaidi, unalipa wewe baada ya kuthibitisha."
   },
   "a.why_released": {
-   "one": "Jaribio la umma la faili 10 zenye majibu yanayojulikana lilifaulu kabla ya kutolewa; kikaguzi cha Knos kiliendesha. Halijajaribiwa: faili zaidi ya safu {n}.",
-   "other": "Jaribio la umma la faili 10 zenye majibu yanayojulikana lilifaulu kabla ya kutolewa; kikaguzi cha Knos kiliendesha. Halijajaribiwa: faili zaidi ya safu {n}."
+   "one": "Jaribio la umma la visa 14 vyenye majibu yanayojulikana lilifaulu kabla ya kutolewa; kikaguzi cha Knos kiliendesha. Halijajaribiwa: faili zaidi ya safu {n}.",
+   "other": "Jaribio la umma la visa 14 vyenye majibu yanayojulikana lilifaulu kabla ya kutolewa; kikaguzi cha Knos kiliendesha. Halijajaribiwa: faili zaidi ya safu {n}."
   },
   "a.why_unreleased": {
-   "one": "Jaribio la umma la faili 10 zenye majibu yanayojulikana lazima lifaulu kabla ya kutolewa; kikaguzi cha Knos huliendesha. Halijajaribiwa: faili zaidi ya safu {n}.",
-   "other": "Jaribio la umma la faili 10 zenye majibu yanayojulikana lazima lifaulu kabla ya kutolewa; kikaguzi cha Knos huliendesha. Halijajaribiwa: faili zaidi ya safu {n}."
+   "one": "Jaribio la umma la visa 14 vyenye majibu yanayojulikana lazima lifaulu kabla ya kutolewa; kikaguzi cha Knos huliendesha. Halijajaribiwa: faili zaidi ya safu {n}.",
+   "other": "Jaribio la umma la visa 14 vyenye majibu yanayojulikana lazima lifaulu kabla ya kutolewa; kikaguzi cha Knos huliendesha. Halijajaribiwa: faili zaidi ya safu {n}."
   },
   "a.tool.who": "Knos inaendesha zana hii na jaribio lake. Hakuna tarehe ya sasisho lijalo. Kupinga matokeo, <a href=\"{issues}\">fungua tatizo la umma</a>.",
   "a.price.get": {
@@ -182,11 +191,11 @@
    "other": "Mfano huu ni wa kubuni: mstari ulionyooka kutoka {first} hadi {last} kwa mizunguko {n}, kwa sababu ukurasa wa NASA hautoi upakuaji kutoka anwani ya nasa.gov. Kikomo chake, {limit}, ni kanuni ya mwisho wa uhai kwenye <a href=\"{url}\">ukurasa wa data ya betri wa NASA</a>."
   },
   "fold.sample_nasa": "Data ya mfano: <a href=\"{url}\">NASA Prognostics Center of Excellence</a>.",
-  "fold.not_do": "Inakagua safu wima moja dhidi ya kikomo kimoja. Haiamui kama kikomo ndicho sahihi. Safu ambayo thamani yake si namba inahesabiwa kuwa haipimiki.",
+  "fold.not_do": "Inakagua safu wima moja dhidi ya kikomo kimoja. Haiamui kama kikomo ndicho sahihi. Safu isiyo na namba haikaguliwi, na matokeo yanaitaja.",
   "fold.file": "Faili yako inakwenda kwenye seva ya Knos, inayoikagua na kuihifadhi pamoja na ukurasa wa matokeo yake, ili kiungo kifanye kazi. Matokeo ya mfano yanaweza kufunguliwa na yeyote. Faili yako mwenyewe inaweza kufunguliwa tu na wenye kiungo chake, na haiorodheshwi kamwe. Seva huhifadhi matokeo hadi itakapojengwa upya tu, kwa hiyo kiungo kinaweza kuacha kufanya kazi.",
   "fold.test": {
-   "one": "Jaribio lililoonyesha kuwa inafanya kazi linakagua faili tisa za kubuni zenye majibu yanayojulikana na mfano. Halikushughulikia faili ndefu kuliko safu {n}, wala faili zilizotenganishwa kwa kitu kingine zaidi ya koma. <a href=\"{url}\">Jaribio</a> ni la umma.",
-   "other": "Jaribio lililoonyesha kuwa inafanya kazi linakagua faili tisa za kubuni zenye majibu yanayojulikana na mfano. Halikushughulikia faili ndefu kuliko safu {n}, wala faili zilizotenganishwa kwa kitu kingine zaidi ya koma. <a href=\"{url}\">Jaribio</a> ni la umma."
+   "one": "Jaribio lililoonyesha kuwa inafanya kazi linakagua faili kumi na moja za kubuni zenye majibu yanayojulikana na mfano. Halikushughulikia faili ndefu kuliko safu {n}, wala faili zilizotenganishwa kwa kitu kingine zaidi ya koma. <a href=\"{url}\">Jaribio</a> ni la umma.",
+   "other": "Jaribio lililoonyesha kuwa inafanya kazi linakagua faili kumi na moja za kubuni zenye majibu yanayojulikana na mfano. Halikushughulikia faili ndefu kuliko safu {n}, wala faili zilizotenganishwa kwa kitu kingine zaidi ya koma. <a href=\"{url}\">Jaribio</a> ni la umma."
   },
   "fold.price": {
    "one": "Ukaguzi wa mfano ni bure. Kwa faili yako mwenyewe: {free} bure kwa siku, kisha ukaguzi {n} zaidi kwa {price} za pesa za majaribio. Leo hakuna kinachotozwa.",

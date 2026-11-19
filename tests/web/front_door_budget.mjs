@@ -39,8 +39,8 @@ const ANSWERS = {
   "/api/near/claim/counters": () => ({ proofs: 231 }),
   "/api/near/totals": () => ({ since_upgrade: { jobs_paid: 15, paid_usd: "140.00", from: "2026-11-14" } }),
   "/api/tools": () => ({ tools: [] }),
-  "/api/run": (b) => ({ id: "r1", mode: "sample", result: "Failed at row 136: 1.399 is not above 1.4. Rows: 135 passed, 33 failed, 0 unmeasurable.", first_failing_row: 136, passed: 135, failed: 33, unmeasurable: 0,
-    shown_by: "Checked by a test of 10 files with known answers.", link: "https://knos.onrender.com/r/r1/", limits: { max_rows: 100000, max_seconds: 20 },
+  "/api/run": (b) => ({ id: "r1", mode: "sample", result: "Failed at row 136: 1.399 is not above 1.4. 135 rows passed.", first_failing_row: 136, passed: 135, unchecked: [],
+    shown_by: "Checked by a test of 14 cases with known answers.", link: "https://knos.onrender.com/r/r1/", limits: { max_rows: 100000, max_seconds: 20 },
     chart: { points: [[1, 1.86], [136, 1.399], [168, 1.29]], fail: [136, 1.399], limit: b.limit, rule: b.rule, n: 168 }, runs_left: null, free_left: null, paid_left: null }),
 };
 const browser = await chromiumOrSkip();
