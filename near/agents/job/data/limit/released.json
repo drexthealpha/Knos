@@ -1,32 +1,32 @@
 {
  "claim": "limit-check",
- "job_id": "job-1119044548",
- "test": "near/agents/job/test_limit2.py",
- "criteria_hash": "aa331daf07d02cbfa8b3172534e90b8658b640aa2a7d2dd0c84753b9d61281e7",
- "release_tx": "AKkgY9rW2YA2XLn9Zh51zRXASNWmyUZr4VRQHaiyBjo",
- "release_url": "https://testnet.nearblocks.io/txns/AKkgY9rW2YA2XLn9Zh51zRXASNWmyUZr4VRQHaiyBjo",
- "post_tx": "EzH4V2DfoHHVhdcVQKPUzgNkRgeRDxKyqNFTAwZHQeWT",
+ "job_id": "job-1119155030",
+ "test": "near/agents/job/test_limit3.py",
+ "test_commit": "3df72a196579adae6153f2f34737376e33826df0",
+ "test_author_saw_a_program": false,
+ "test_author_note": "written by a fresh agent from the words of G1 and G2 and the NASA sample alone; it never opened a limit program or test (research notes, NOTES-TEST.md)",
+ "criteria_hash": "a139353f2ab788e86c5a20225f892b2b1c0bbe991452d5cf03c3d454bfd9e6e5",
+ "release_tx": "85FdcQhHdpA9X9kuZVAuNrZsdC3e9JBbvjaJrxp6tnW",
+ "release_url": "https://testnet.nearblocks.io/txns/85FdcQhHdpA9X9kuZVAuNrZsdC3e9JBbvjaJrxp6tnW",
+ "post_tx": "Az8iAJRn3ivFHJuHWTRfjwpmJSH8WgbdvEW4W3hC2PWV",
  "built_by": "agent-a2.knos-swarm-1105.testnet",
  "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017 on NEAR AI Cloud",
- "model_calls": 2,
  "model_call_ids": [
-  "chatcmpl-fbf8029e-94e2-4782-9fd6-b366a24592ac",
-  "chatcmpl-61c533a1-2d3b-4bc7-b6ad-85d21ebc87bc"
+  "chatcmpl-1006494c-c127-4116-99c1-176ec07b078f",
+  "chatcmpl-e58b2090-c77b-4032-b67d-c1a35da7179a",
+  "chatcmpl-c0a8bf4f-bb49-46f5-a1f4-77b2466c97ee"
  ],
- "model_call_kinds": [
-  "write the program",
-  "review the pass"
- ],
- "posted_at": 1795063523.5822027,
- "paid_at": 1795063598.3287868,
- "posting_to_release_s": 74.7,
- "sha256": "329e7cbb65edc943e950c78986b13206529dcd179e0b2ae80d0d3c6921077d45",
+ "posted_at": 1795103193.2646816,
+ "paid_at": 1795103456.5730739,
+ "posting_to_release_s": 263.3,
+ "sha256": "6240ac16af236255a1589dae4eb3deedc07434236a534eaadec717da916a29ab",
  "code_from": "https://knos.onrender.com/api/near/claim/code?claim=limit-check",
  "replaces": {
-  "job_id": "job-1116141254",
-  "release_url": "https://testnet.nearblocks.io/txns/98aGZMUckf21Xn2ZWojJ3iD7wZJZcGWxjBZowZz362px",
-  "sha256": "302f5ebceccce0021f63c2e6ebd533fc873e4db27f0735aa69a13ab8380652b7",
-  "test": "near/agents/job/test_limit.py",
-  "why": "a column holding only NaN passed (F1)"
- }
+  "job_id": "job-1119044548",
+  "release_url": "https://testnet.nearblocks.io/txns/AKkgY9rW2YA2XLn9Zh51zRXASNWmyUZr4VRQHaiyBjo",
+  "sha256": "329e7cbb65edc943e950c78986b13206529dcd179e0b2ae80d0d3c6921077d45",
+  "test": "near/agents/job/test_limit2.py",
+  "why": "result lines did not name their unchecked rows, and a NaN first row was read as a header (G1, G2)"
+ },
+ "model_calls": 3
 }

@@ -1,54 +1,121 @@
-import csv, io, math
+import csv
+import io
+import math
+
+
+def _is_float(s):
+    try:
+        float(s)
+        return True
+    except Exception:
+        return False
+
+
+def _num(s):
+    try:
+        v = float(s)
+    except Exception:
+        return None
+    if math.isfinite(v):
+        return v
+    return None
+
+
+def _row_word(n):
+    return "row" if n == 1 else "rows"
+
+
+def _stay_word(n):
+    return "stays" if n == 1 else "stay"
+
+
+def _unchecked_clause(rows):
+    n = len(rows)
+    if n == 1:
+        return f"Row {rows[0]} has no number, so I did not check it."
+    if n <= 5:
+        parts = [str(x) for x in rows]
+        return f"Rows {', '.join(parts[:-1])} and {parts[-1]} have no number, so I did not check them."
+    parts = [str(x) for x in rows[:5]]
+    return f"Rows {', '.join(parts)} and {n - 5} more have no number, so I did not check them."
+
 
 def check(table, column, rule, limit):
     rows = list(csv.reader(io.StringIO(table)))
     if not rows:
-        return {"result": "Cannot check: no measurable rows. Rows: 0 passed, 0 failed, 0 unmeasurable.",
-                "first_failing_row": None, "passed": 0, "failed": 0, "unmeasurable": 0, "values": []}
-    def num(s):
-        try:
-            v = float(s)
-        except (ValueError, TypeError):
-            return None
-        if math.isnan(v) or math.isinf(v):
-            return None
-        return v
-    header = any(num(c) is None for c in rows[0])
-    if header:
-        names = rows[0]
-        data = rows[1:]
+        columns = []
+        data = []
     else:
-        names = ["column %d" % (i + 1) for i in range(len(rows[0]))]
-        data = rows
-    try:
-        idx = names.index(column)
-    except ValueError:
-        idx = -1
-    p = f = u = 0
-    first = None
-    firstval = None
+        first = rows[0]
+        header = any(not _is_float(c.strip()) for c in first)
+        if header:
+            columns = [c.strip() for c in first]
+            data = rows[1:]
+        else:
+            ncol = max((len(r) for r in rows), default=0)
+            columns = [f"column {i + 1}" for i in range(ncol)]
+            data = rows
+
+    if column not in columns:
+        return {
+            "result": f"I cannot find a column named {column}. Columns: {', '.join(columns)}.",
+            "first_failing_row": None,
+            "passed": 0,
+            "unchecked": [],
+            "values": [],
+        }
+
+    idx = columns.index(column)
     values = []
+    unchecked = []
+    first_failing_row = None
+    failing_raw = None
+    passed = 0
+
     for i, row in enumerate(data, 1):
-        cell = row[idx] if 0 <= idx < len(row) else None
-        v = num(cell) if cell is not None else None
+        raw = row[idx].strip() if idx < len(row) else ""
+        v = _num(raw)
         if v is None:
-            u += 1
+            unchecked.append(i)
             continue
         values.append(v)
-        bad = (v <= limit) if rule == "above" else (v >= limit)
-        if bad:
-            f += 1
-            if first is None:
-                first = i
-                firstval = cell
-        else:
-            p += 1
-    counts = " Rows: %d passed, %d failed, %d unmeasurable." % (p, f, u)
-    if first is not None:
-        res = "Failed at row %d: %s is not %s %s." % (first, firstval, rule, limit) + counts
-    elif p == 0:
-        res = "Cannot check: no measurable rows." + counts
+        if first_failing_row is None:
+            if rule == "above":
+                ok = v > limit
+            elif rule == "below":
+                ok = v < limit
+            else:
+                ok = True
+            if ok:
+                passed += 1
+            else:
+                first_failing_row = i
+                failing_raw = raw
+
+    if not values:
+        return {
+            "result": "I cannot check: no row has a number.",
+            "first_failing_row": None,
+            "passed": 0,
+            "unchecked": unchecked,
+            "values": values,
+        }
+
+    limit_str = str(limit)
+    if first_failing_row is not None:
+        result = f"Failed at row {first_failing_row}: {failing_raw} is not {rule} {limit_str}. {passed} {_row_word(passed)} passed."
+        if unchecked:
+            result += " " + _unchecked_clause(unchecked)
     else:
-        res = "Passed: all %d rows stay %s %s." % (p, rule, limit) + counts
-    return {"result": res, "first_failing_row": first, "passed": p, "failed": f,
-            "unmeasurable": u, "values": values}
+        n = len(values)
+        result = f"Passed: all {n} {_row_word(n)} {_stay_word(n)} {rule} {limit_str}."
+        if unchecked:
+            result += " " + _unchecked_clause(unchecked)
+
+    return {
+        "result": result,
+        "first_failing_row": first_failing_row,
+        "passed": passed,
+        "unchecked": unchecked,
+        "values": values,
+    }
