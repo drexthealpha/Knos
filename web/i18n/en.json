@@ -1102,6 +1102,31 @@
    "text": "The sample's column {column} holds the battery's capacity in amp hours.",
    "description": "A line inside the fold How it works: the sample's column as the file names it, and what it holds. Keep {column} as written; it is filled in with capacity_ah.",
    "max_length": 93
+  },
+  "ev.range": {
+   "text": "{a} to {b}",
+   "description": "A run of failing row numbers inside the list of failing rows under a failed result (136 to 168). Keep {a}, {b} as written; they are the first and last row numbers.",
+   "max_length": 30
+  },
+  "ev.failing_above": {
+   "text": "Rows {rows} are not above {limit}.",
+   "description": "After the evidence line of a failed result: every row that is not above the limit, named. {rows} is the list of rows and runs (ev.range) built with rs.list_sep and rs.list_and or rs.list_more (five items, then how many more rows). Keep {rows}, {limit} as written.",
+   "max_length": 55
+  },
+  "ev.failing_below": {
+   "text": "Rows {rows} are not below {limit}.",
+   "description": "After the evidence line of a failed result: every row that is not below the limit, named. {rows} is the list of rows and runs (ev.range) built with rs.list_sep and rs.list_and or rs.list_more (five items, then how many more rows). Keep {rows}, {limit} as written.",
+   "max_length": 55
+  },
+  "ev.failing_one_above": {
+   "text": "Only row {r} is not above {limit}.",
+   "description": "After the evidence line of a failed result when one row alone fails: no other row is under the limit. Keep {r}, {limit} as written; they are filled in.",
+   "max_length": 55
+  },
+  "ev.failing_one_below": {
+   "text": "Only row {r} is not below {limit}.",
+   "description": "After the evidence line of a failed result when one row alone fails: no other row is over the limit. Keep {r}, {limit} as written; they are filled in.",
+   "max_length": 55
   }
  }
 }

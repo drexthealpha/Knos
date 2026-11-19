@@ -394,6 +394,11 @@
   "why.unknown_none": "لم أتمكن من مقارنة أي صف بالحدّ، لأنه لا توجد في {column} قيمة هي رقم.",
   "why.unknown_one": "الصف {r} لا يحوي رقمًا في {column}.",
   "tool.sample_column": "الشحنة المخزنة",
-  "fold.column": "يحمل عمود العينة {column} سعة البطارية بالأمبير ساعة."
+  "fold.column": "يحمل عمود العينة {column} سعة البطارية بالأمبير ساعة.",
+  "ev.range": "{a} إلى {b}",
+  "ev.failing_above": "الصفوف {rows} ليست أعلى من {limit}.",
+  "ev.failing_below": "الصفوف {rows} ليست أدنى من {limit}.",
+  "ev.failing_one_above": "الصف {r} وحده ليس أعلى من {limit}.",
+  "ev.failing_one_below": "الصف {r} وحده ليس أدنى من {limit}."
  }
 }

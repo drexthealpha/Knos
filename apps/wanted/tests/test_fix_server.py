@@ -142,8 +142,33 @@ def test_the_tool_works_as_a_form_with_no_script(app):
     assert st == 400 and "Your file is empty" in body and "then press Check my data." in body
     # the sample link with no script: the tool page with the sample in the box, labelled as the sample
     html = page(app, "/t/limit-check/?sample=1")
-    assert re.search(r'<textarea id="list"[^>]*>cycle,capacity_ah\n1,1\.86\n', html) and ">Sample: made-up battery test</label>" in html
+    # F1B: its header names the column in plain words, as the rule line does; sent as it stands, it is the sample
+    assert re.search(r'<textarea id="list"[^>]*>cycle,charge held\n1,1\.86\n', html) and ">Sample: made-up battery test</label>" in html
     assert 'name="sample"' not in html and "placeholder=" not in html
+    shown = re.search(r'<textarea id="list"[^>]*>(.*?)</textarea>', html, re.S).group(1)
+    st, h, _ = form(app, "/t/limit-check/run", {"table": shown, "column": "capacity_ah", "rule": "above", "limit": "1.4", "test": "1"})
+    assert st == 303 and "Failed at row 136: 1.399 is not above 1.4." in page(app, h["Location"])
+
+
+def test_every_failing_row_is_named_after_the_first_ones_evidence(app):
+    # F1B: the sample fails at row 136 and every row after it; the server works the rows out from the program's own
+    # answer and gives them as "failing", beside "result", which is unchanged
+    st, r, _ = call(app, "/api/run", sample_body(mode="sample", browser="", test=True))
+    assert st == 200 and r["result"] == "Failed at row 136: 1.399 is not above 1.4. 135 rows passed." and r["failing"] == [[136, 168]], r
+    a = answer(page(app, "/r/" + r["link"].rstrip("/").rsplit("/", 1)[1] + "/"))
+    ev = re.sub(r"<[^>]+>", "", re.search(r"<p data-evidence>(.*?)</p>", a).group(1))
+    assert ev == "Row 136 of charge held holds 1.399, compared with 1.4. Rows 136 to 168 are not above 1.4.", ev
+    # unchecked rows skipped, a run of two said as two rows, the rows after five counted
+    st, r, _ = own(app, table="c,v\n1,1.8\n2,x\n3,1.6\n4,1.3\n5,1.9\n6,1\n7,y\n8,1\n9,1.2\n10,2", column="v", limit=1.4, browser="b-fix-000010")
+    assert st == 200 and r["failing"] == [[4, 4], [6, 6], [8, 9]] and r["unchecked"] == [2, 7], r
+    ev = re.sub(r"<[^>]+>", "", re.search(r"<p data-evidence>(.*?)</p>", answer(page(app, "/r/" + r["link"].rstrip("/").rsplit("/", 1)[1] + "/"))).group(1))
+    assert ev.endswith(" Rows 4, 6, 8 and 9 are not above 1.4."), ev
+    assert tool_page.failing_html("en", [[1, 2], [4, 5], [7, 9], [11, 11]], "below", "3") == "Rows 1, 2, 4, 5, 7 to 9 and 1 more are not below 3."
+    assert tool_page.failing_html("en", [[2, 2]], "above", tool_page.Bdi("4")) == "Only row 2 is not above <bdi>4</bdi>."
+    assert tool_page.failing_html("fr", [[136, 168]], "above", "1.4") == "Les lignes 136 à 168 ne sont pas au-dessus de 1.4."
+    assert tool_page.failing_html("en", None, "above", "4") == ""        # an answer with no list: the first row's line alone
+    got = {"values": [1.0, 1.3, 2.0], "unchecked": [], "first_failing_row": 2}
+    assert tool_run.failing(got, "above", 1.4) is None        # row 1 would fail first, not the program's row: no list
 
 
 def test_sample_body_still_runs(app):
@@ -163,7 +188,12 @@ def test_a_result_page_opened_from_its_link_shows_the_table_it_checked_in_the_bo
     assert "if (ran && box.value.trim())" in html                  # only the person's own run empties the box
     assert re.search(r'<figure id="k-input" aria-labelledby="k-input-h" hidden><figcaption id="k-input-h">Table checked</figcaption>'
                      r'<pre data-user-content dir="auto" tabindex="0" aria-labelledby="k-input-h">row,reading\n1,5\n2,3\n3,7</pre></figure>', html)
-    assert "if (was && box.value.trim() !== String(was).trim()) checked(was); else unchecked();" in html
+    assert "if (seen && box.value.trim() !== String(seen).trim()) checked(seen); else unchecked();" in html
+    # F1B: a sample's result page shows the sample's header in plain words in the box, as its rule line does
+    st, r, _ = call(app, "/api/run", sample_body(mode="sample", browser="", test=True))
+    html = page(app, "/r/" + r["link"].rstrip("/").rsplit("/", 1)[1] + "/")
+    assert re.search(r'<textarea id="list"[^>]*>cycle,charge held\n1,1\.86\n', html) and "\ncapacity_ah" not in html
+    assert re.search(r'<pre data-user-content dir="auto" tabindex="0" aria-labelledby="k-input-h">cycle,charge held\n', html)
     assert '<h1><label for="list" id="k-name">' in html          # the box's label is the screen's largest text (U1 R5)
 
 

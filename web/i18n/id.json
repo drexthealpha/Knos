@@ -272,6 +272,11 @@
   "why.unknown_none": "Saya tidak bisa membandingkan baris mana pun dengan batas, karena tak ada nilai di {column} yang berupa angka.",
   "why.unknown_one": "Baris {r} tidak berisi angka di {column}.",
   "tool.sample_column": "muatan tersimpan",
-  "fold.column": "Kolom {column} pada sampel berisi kapasitas baterai dalam ampere-jam."
+  "fold.column": "Kolom {column} pada sampel berisi kapasitas baterai dalam ampere-jam.",
+  "ev.range": "{a} sampai {b}",
+  "ev.failing_above": "Baris {rows} tidak di atas {limit}.",
+  "ev.failing_below": "Baris {rows} tidak di bawah {limit}.",
+  "ev.failing_one_above": "Hanya baris {r} yang tidak di atas {limit}.",
+  "ev.failing_one_below": "Hanya baris {r} yang tidak di bawah {limit}."
  }
 }

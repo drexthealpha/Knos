@@ -450,6 +450,47 @@ def why_html(lang: str, rows, column) -> str:
     return h(lang, "why.unknown", rows=rows_list(lang, rows), column=column) if rows else h(lang, "why.unknown_none", column=column)
 
 
+def ranges_list(lang: str, ranges) -> str:
+    """Failing rows as ranges, listed by rows_list's rules: one item, up to five joined by rs.list_sep and rs.list_and,
+    else the first five and rs.list_more, whose count is the rows left out ("4, 9, 12 to 15, 20, 22 and 40 more")."""
+    # each item with the rows it holds; a run of two is two rows ("8 and 9"), a longer one a range ("12 to 15")
+    items: list[tuple[str, int]] = []
+    for a, b in ranges:
+        items += [(nf(lang, x), 1) for x in range(a, b + 1)] if b - a < 2 else [(t(lang, "ev.range", a=nf(lang, a), b=nf(lang, b)), b - a + 1)]
+    sep, words = t(lang, "rs.list_sep"), [x for x, _ in items]
+    if len(items) <= 5:
+        return t(lang, "rs.list_and", list=sep.join(words[:-1]), r=words[-1]) if len(items) > 1 else words[0]
+    return t(lang, "rs.list_more", list=sep.join(words[:5]), n=sum(k for _, k in items[5:]))
+
+
+def failing_ranges(x) -> list[list[int]]:
+    """The answer's "failing" (tool_run.failing): [first, last] row pairs in row order; anything else is no list."""
+    ok = isinstance(x, list) and all(isinstance(p, list) and len(p) == 2 and all(isinstance(v, int) and not isinstance(v, bool) for v in p)
+                                     and 1 <= p[0] <= p[1] for p in x)
+    return [list(p) for p in x] if ok else []
+
+
+def failing_html(lang: str, ranges, rule: str, limit) -> str:
+    """Every failing row, named after the first one's evidence (F1B): "Rows 136 to 168 are not above 1.4.", or "Only row
+    4 is not above 1.4." when no other row fails; empty when the answer carries no list."""
+    rs = failing_ranges(ranges)
+    if not rs or rule not in ("above", "below"):
+        return ""
+    if rs == [[rs[0][0], rs[0][0]]]:
+        return h(lang, f"ev.failing_one_{rule}", r=rs[0][0], limit=limit)
+    return h(lang, f"ev.failing_{rule}", rows=ranges_list(lang, rs), limit=limit)
+
+
+def sample_shown(lang: str, text: str) -> str:
+    """A table as the screen shows it: the sample's own table with its header naming the sample's column in plain words,
+    as the rule line does; a person's own table as it is (F1B). tool_run.form_run reads it back as the sample."""
+    from . import tool_run
+    if not text or not tool_run.is_sample(text):
+        return text
+    head, *rest = text.replace("\r\n", "\n").split("\n")
+    return "\n".join([",".join(column_shown(lang, c.strip()) for c in head.split(","))] + rest)
+
+
 def column_shown(lang: str, column: str, own: bool = False) -> str:
     """A column as the screen names it: the sample's own column in plain words (sample.json column_plain, its
     translation tool.sample_column), its file name kept for the fold; a person's own column as their file has it (F1B)."""
@@ -474,7 +515,9 @@ def answer_html(lang: str, r: dict, test_url: str = TEST_URL) -> str:
         # the first screen holds the verdict and its comparison, the row quoted from the file (U6 Rules 10 and 11); what to
         # do next and the test behind it open the part below it, under a heading (U3 Rule 1a: three controls on the first
         # screen; U2 R3: 40 words a section), still inside the answer, so the source stays the answer's own (U4 R12)
-        out += (f'<p data-evidence><span data-compare data-quote>{ev}</span></p>'
+        more = failing_html(lang, r.get("failing"), m[3], lim) if state == "fail" and m and m[1] else ""
+        more = f'{SEP.get(lang, " ")}<span data-failing>{more}</span>' if more else ""
+        out += (f'<p data-evidence><span data-compare data-quote>{ev}</span>{more}</p>'
                 f'<div class="later"><h2>{_e(t(lang, "res.next_h"))}</h2><p data-next-step>{h(lang, "next." + state, r=int(ffr))}</p>'
                 f'<p><a class="src" href="{_e(test_url)}" data-verified>{_e(t(lang, "res.shown_by"))}</a></p></div>')
     return f'<div class="answer" data-answer data-verdict data-state="{state}">{out}</div>'
@@ -616,6 +659,18 @@ I18N_JS = r"""window.KI = window.KI || (() => {
     if (a.length <= 5) return t("rs.list_and", { list: a.slice(0, -1).map(nf).join(s), r: a[a.length - 1] });
     return t("rs.list_more", { list: a.slice(0, 5).map(nf).join(s), n: a.length - 5 });
   }
+  // every failing row after the first one's evidence, from the answer's "failing" ranges (tool_page.failing_html, F1B)
+  function failing(list, rule, limit) {
+    const a = Array.isArray(list) && list.every((p) => Array.isArray(p) && p.length === 2 && Number.isInteger(p[0]) && Number.isInteger(p[1]) && 1 <= p[0] && p[0] <= p[1]) ? list : [];
+    if (!a.length || !/^(above|below)$/.test(rule || "")) return "";
+    if (a.length === 1 && a[0][0] === a[0][1]) return html("ev.failing_one_" + rule, { r: a[0][0], limit });
+    // each item with the rows it holds; a run of two is two rows ("8 and 9"), a longer one a range ("12 to 15")
+    const items = a.flatMap(([x, y]) => y - x < 2 ? Array.from({ length: y - x + 1 }, (_, i) => [nf(x + i), 1]) : [[t("ev.range", { a: nf(x), b: nf(y) }), y - x + 1]]);
+    const w = items.map((p) => p[0]), s = raw("rs.list_sep");
+    const rows = w.length === 1 ? w[0] : w.length <= 5 ? t("rs.list_and", { list: w.slice(0, -1).join(s), r: w[w.length - 1] })
+      : t("rs.list_more", { list: w.slice(0, 5).join(s), n: items.slice(5).reduce((k, p) => k + p[1], 0) });
+    return html("ev.failing_" + rule, { rows, limit });
+  }
   function why(list, column) {
     const a = (Array.isArray(list) ? list : []).filter((x) => Number.isInteger(x));
     return a.length === 1 ? html("why.unknown_one", { r: a[0], column }) : a.length ? html("why.unknown", { rows: rows(a), column }) : html("why.unknown_none", { column });
@@ -631,7 +686,7 @@ I18N_JS = r"""window.KI = window.KI || (() => {
   const speech = () => L === "zh-Hans" ? "zh-CN" : L;
   const on = [];
   idle(warm);
-  return { set(l, s) { L = l; S = s || S; idle(warm); on.forEach((f) => f()); }, lang: () => L, has: (k) => S[k] != null, t, html, esc, nf, money, plural, sentence, rows, why, num, speech, changed: (f) => on.push(f) };
+  return { set(l, s) { L = l; S = s || S; idle(warm); on.forEach((f) => f()); }, lang: () => L, has: (k) => S[k] != null, t, html, esc, nf, money, plural, sentence, rows, why, failing, num, speech, changed: (f) => on.push(f) };
 })();"""
 
 # the static pages' runtime (the front door and the pricing page on GitHub Pages, written by scripts/site_pages.py): the
@@ -844,14 +899,18 @@ function ask() {
 }
 // the verdict block, as the server writes it (tool_page.answer_html): icon, sentence, evidence or reason, next step
 const icon = (st) => { const x = document.createElement("template"); x.innerHTML = D.icons[st]; return x.content.firstChild; };
-const RSX = /^(?:Failed at row (\d+): (.+?) is not (?:above|below) (.+?)\. \d+ rows? passed\.|Passed: all \d+ rows? stays? (?:above|below) (.+?)\.(?: |$))/;
+const RSX = /^(?:Failed at row (\d+): (.+?) is not (above|below) (.+?)\. \d+ rows? passed\.|Passed: all \d+ rows? stays? (?:above|below) (.+?)\.(?: |$))/;
 // the sample's column in plain words (tool_page.column_shown); a person's own column as their file names it
 const shownColumn = (c, own) => !own && c === D.column ? D.column_plain : c;
+// the sample's own table as the screen shows it, its header in plain words (tool_page.sample_shown), and back
+const norm = (s) => String(s == null ? "" : s).replace(/\r\n/g, "\n").trim();
+const shownTable = (s) => s && norm(s) === norm(D.sample) ? D.sample_shown : s;
+const realTable = (s) => s && norm(s) === norm(D.sample_shown) ? D.sample : s;
 const verdictOf = (r) => /^(pass|fail|unknown)$/.test(r.verdict || "") ? r.verdict : r.first_failing_row ? "fail" : r.passed > 0 ? "pass" : "unknown";
 function part(tag, key, v, attrs) { const e = make(tag); e.innerHTML = KI.html(key, v); for (const a in attrs || {}) e.setAttribute(a, attrs[a]); return e; }
 function answer(r) {
   const st = verdictOf(r), m = RSX.exec(r.result || ""), col = shownColumn(r.column || D.column, r.mode === "own");
-  const lim = m ? (m[1] ? m[3] : m[4]) : String(r.limit);
+  const lim = m ? (m[1] ? m[4] : m[5]) : String(r.limit);
   const a = make("div", null, "answer"); a.dataset.answer = ""; a.dataset.verdict = ""; a.dataset.state = st;
   const big = make("p", null, "big"); big.id = "about"; big.innerHTML = KI.sentence(r.result);
   a.append(icon(st), big);
@@ -865,6 +924,8 @@ function answer(r) {
     c.dataset.compare = ""; c.dataset.quote = "";
     const src = make("a", T("res.shown_by"), "src"); src.href = D.test_url; src.dataset.verified = "";
     ev.append(c);
+    const more = st === "fail" && m && m[1] ? KI.failing(r.failing, m[3], lim) : "";
+    if (more) { const f = make("span"); f.innerHTML = more; f.dataset.failing = ""; ev.append(D.lang === "zh-Hans" ? "" : " ", f); }
     const later = make("div", null, "later"), sp = make("p"); sp.append(src);
     later.append(make("h2", T("res.next_h")), part("p", "next." + st, { r: r.first_failing_row || 0 }, { "data-next-step": "" }), sp);
     a.append(ev, later);
@@ -877,13 +938,13 @@ let kept = null, fresh = false;   // fresh: the box was emptied by a verdict and
 // starter: the tool page's box is empty and untouched, the sample's first rows shown in it as an example (G5)
 let starter = !!D.starter, lastExample = null;
 // the sample in the box, as the sample link puts it there (and Check my data on the untouched box): its column, rule and limit
-function loadSample() { box.value = D.sample; box.placeholder = ""; starter = false; fresh = false; kept = null; lab.textContent = D.sample_label; lab.hidden = false; lab.dataset.checked = ""; $("rule").value = D.rule; $("limit").value = D.limit; if (mineOn) fillColumns(D.column); }
+function loadSample() { box.value = D.sample_shown; box.placeholder = ""; starter = false; fresh = false; kept = null; lab.textContent = D.sample_label; lab.hidden = false; lab.dataset.checked = ""; $("rule").value = D.rule; $("limit").value = D.limit; if (mineOn) fillColumns(D.column); }
 function checked(table) { const k = $("k-input"); if (!k) return; k.querySelector("pre").textContent = table; k.hidden = false; }
 function unchecked() { const k = $("k-input"); if (k) k.hidden = true; }
 function result(r, ran) {
   link = r.link; said = r.result;
   // only the person's own run empties the box (U6 Rule 2); a result opened from its link shows its table in the box (G2 6)
-  if (ran && lastExample && !box.value.trim()) box.value = lastExample;   // the example checked becomes the table checked
+  if (ran && lastExample && !box.value.trim()) box.value = shownTable(lastExample);   // the example checked becomes the table checked
   lastExample = null; if (ran) starter = false;
   if (ran && box.value.trim()) { kept = { table: box.value, col: mineOn ? $("col").value : "", rule: $("rule").value, limit: $("limit").value }; box.value = ""; box.placeholder = ""; lab.textContent = T("tool.paste_own"); lab.hidden = false; delete lab.dataset.checked; }
   const was = kept ? kept.table : D.result && D.result.input;
@@ -905,7 +966,8 @@ function result(r, ran) {
   // the counting question follows a run the person made, not the opening of a result someone shared
   const q = ran ? ask() : null; if (q) nodes.push(q);
   // the table checked stays on the screen, read-only under the result, while the box is empty for the next one (G5)
-  if (was && box.value.trim() !== String(was).trim()) checked(was); else unchecked();
+  const seen = shownTable(was);
+  if (seen && box.value.trim() !== String(seen).trim()) checked(seen); else unchecked();
   const a = answer(r), old = ran ? null : $("about"), fresh_big = a.querySelector("#about");
   if (old && fresh_big && old.textContent.trim() === fresh_big.textContent.trim()) fresh_big.replaceWith(old);   // keep the server's verdict node: the page's largest paint stays on screen
   show(...[a, l].filter(Boolean)); under.replaceChildren(...nodes);
@@ -970,10 +1032,13 @@ function run() {
   // a box a verdict emptied, untouched since: Check my data checks the table just checked again (the copy under the result); a box
   // the person emptied is an empty file
   const again = example ? { table: D.sample, col: D.column } : fresh && !box.value.trim() && (kept || (D.result && D.result.input ? { table: D.result.input, col: D.result.column } : null));
-  const table = again ? again.table : box.value, column = again && again.col ? again.col : mineOn ? $("col").value : D.column, rule = $("rule").value, limit = KI.num($("limit").value);
+  const seen = again ? again.table : box.value, rule = $("rule").value, limit = KI.num($("limit").value);
+  // the sample as the box shows it (its header in plain words, F1B) goes to the program as the file has it
+  const table = realTable(seen), picked = again && again.col ? again.col : mineOn ? $("col").value : D.column;
+  const column = table !== seen && picked === D.column_plain ? D.column : picked;
   // a table this page just checked goes back in the box while it runs, so an error keeps it there; a shared result's table
   // stays under the result (the box is as the person left it)
-  if (again && again === kept) { box.value = table; fresh = false; }
+  if (again && again === kept) { box.value = shownTable(table); fresh = false; }
   if (!table.trim()) return trouble(T("err.empty"), T("btn.back"), edit);
   if (!num(limit)) return trouble(T("err.limit"), T("btn.type_limit"), () => { show(); changeLimit(); });
   const names = columnsOf(table);
@@ -1142,7 +1207,7 @@ window.addEventListener("pagehide", draftSave);
 
 SCRIPT_KEYS = sorted(set(keys_in(SCRIPT)) | {"rs.fail_above", "rs.fail_below", "rs.passed", "rs.pass_above", "rs.pass_below",
                                                 "rs.cannot", "rs.unchecked_one", "rs.unchecked", "rs.list_sep", "rs.list_and", "rs.list_more", "chart.label", "chart.label_fail", "chart.row", "fold.listen", "stop",
-                                                "next.pass", "next.fail", "next.unknown", "ev.pass", "ev.fail", "why.unknown", "why.unknown_one", "why.unknown_none","theme.dark", "theme.light",
+                                                "next.pass", "next.fail", "next.unknown", "ev.pass", "ev.fail", "ev.range", "ev.failing_above", "ev.failing_below", "ev.failing_one_above", "ev.failing_one_below", "why.unknown", "why.unknown_one", "why.unknown_none","theme.dark", "theme.light",
                                                 "q.next", "res.input", "tool.paste"}) if (ROOT / "web" / "i18n" / "en.json").is_file() else []
 
 
@@ -1187,7 +1252,7 @@ def page(tool: dict, base: str, result: dict | None = None, front: str = "https:
     sent = sent or {}
     # a result page opened from its link shows the table it checked in the box (G2 step 6: the same input and result); the
     # box is emptied for the next table only by the person's own run on the page (U6 Rule 2, in the page's script)
-    text = sent["table"] if "table" in sent else (result.get("input") or "") if result else tool["sample"] if sample else ""
+    text = sample_shown(L, sent["table"] if "table" in sent else (result.get("input") or "") if result else tool["sample"] if sample else "")
     shown = bool(result and not sent and text.strip())
     # the empty box of the tool page shows the sample's first rows as an example (U6 Rule 1); pressed while it is empty
     # and untouched, Check my data checks that example (the page's script; tool_run.form_run with no script)
@@ -1202,10 +1267,10 @@ def page(tool: dict, base: str, result: dict | None = None, front: str = "https:
     edit = own or bool(sent)
     f = facts()
     label = t(L, "tool.sample_made_up" if f["made_up"] else "tool.sample_nasa")
-    data = {"id": tool["id"], "sample": tool["sample"], "sample_label": label, "rule": tool["rule"], "limit": shown_limit(tool["limit"]), "starter": starter, "api": base, "limits": tool["limits"], "column": tool["column"], "column_plain": column_shown(L, tool["column"]),
+    data = {"id": tool["id"], "sample": tool["sample"], "sample_label": label, "rule": tool["rule"], "limit": shown_limit(tool["limit"]), "starter": starter, "api": base, "limits": tool["limits"], "column": tool["column"], "column_plain": column_shown(L, tool["column"]), "sample_shown": sample_shown(L, tool["sample"]),
             "lang": L, "langs": list(LANGS), "t": strings_for(L, SCRIPT_KEYS),
             "icons": {st: icon(L, st) for st in STATES}, "test_url": TEST_URL,
-            "result": result and {**{k: result.get(k) for k in ("result", "first_failing_row", "passed", "unchecked", "shown_by", "link",
+            "result": result and {**{k: result.get(k) for k in ("result", "first_failing_row", "passed", "unchecked", "failing", "shown_by", "link",
                                                                  "mode", "chart", "column", "rule", "limit", "input")}, "verdict": verdict_of(result)}}
     ssr, below = sent.get("error_html", ""), ""
     if result:
@@ -1216,7 +1281,7 @@ def page(tool: dict, base: str, result: dict | None = None, front: str = "https:
     items = "".join(f"<li>{x}</li>" for x in fold_items(L, f))
     # the table a result checked, read-only under the result (G5): after the person's own run the box is empty for the
     # next table (U6 Rule 2) and this copy stays; a result page opened from its link holds that table in the box itself
-    checked = (result or {}).get("input") or ""
+    checked = sample_shown(L, (result or {}).get("input") or "")
     copy = (f'<figure id="k-input" aria-labelledby="k-input-h"{"" if checked and not shown else " hidden"}>'
             f'<figcaption id="k-input-h">{_e(t(L, "res.input"))}</figcaption>'
             f'<pre data-user-content dir="auto" tabindex="0" aria-labelledby="k-input-h">{_e(checked)}</pre></figure>')

@@ -299,6 +299,11 @@
   "why.unknown_none": "Sikuweza kulinganisha safu yoyote na kikomo, kwa sababu hakuna thamani katika {column} iliyo namba.",
   "why.unknown_one": "Safu {r} haina namba katika {column}.",
   "tool.sample_column": "chaji iliyohifadhiwa",
-  "fold.column": "Safu wima {column} ya sampuli ina uwezo wa betri kwa ampea-saa."
+  "fold.column": "Safu wima {column} ya sampuli ina uwezo wa betri kwa ampea-saa.",
+  "ev.range": "{a} hadi {b}",
+  "ev.failing_above": "Safu {rows} si juu ya {limit}.",
+  "ev.failing_below": "Safu {rows} si chini ya {limit}.",
+  "ev.failing_one_above": "Safu {r} pekee si juu ya {limit}.",
+  "ev.failing_one_below": "Safu {r} pekee si chini ya {limit}."
  }
 }

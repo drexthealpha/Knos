@@ -299,6 +299,11 @@
   "why.unknown_none": "मैं किसी पंक्ति की सीमा से तुलना नहीं कर सका, क्योंकि {column} में कोई मान संख्या नहीं है।",
   "why.unknown_one": "पंक्ति {r} के {column} में कोई संख्या नहीं है।",
   "tool.sample_column": "रखा गया चार्ज",
-  "fold.column": "नमूने का कॉलम {column} बैटरी की क्षमता एम्पियर-घंटे में रखता है।"
+  "fold.column": "नमूने का कॉलम {column} बैटरी की क्षमता एम्पियर-घंटे में रखता है।",
+  "ev.range": "{a} से {b}",
+  "ev.failing_above": "पंक्तियाँ {rows}, {limit} से ऊपर नहीं हैं।",
+  "ev.failing_below": "पंक्तियाँ {rows}, {limit} से नीचे नहीं हैं।",
+  "ev.failing_one_above": "केवल पंक्ति {r}, {limit} से ऊपर नहीं है।",
+  "ev.failing_one_below": "केवल पंक्ति {r}, {limit} से नीचे नहीं है।"
  }
 }

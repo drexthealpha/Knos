@@ -200,7 +200,7 @@ def test_a_sample_run_gives_the_result_and_a_link_that_opens(app):
     assert m, r["link"]
     st, page, _ = call(app, f"/r/{m.group(1)}/", raw=True)
     text = page.decode()
-    assert st == 200 and r["result"] in text and "cycle,capacity_ah\n1,1.86" in text
+    assert st == 200 and r["result"] in text and "cycle,charge held\n1,1.86" in text   # the sample's header in plain words (F1B)
     assert "Only people with this link" not in outside_fold(text)
 
 

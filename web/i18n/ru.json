@@ -347,6 +347,11 @@
   "why.unknown_none": "Я не смог сравнить ни одну строку с пределом, потому что ни одно значение в {column} не является числом.",
   "why.unknown_one": "В строке {r} нет числа в столбце {column}.",
   "tool.sample_column": "удержанный заряд",
-  "fold.column": "Столбец {column} в образце содержит ёмкость батареи в ампер-часах."
+  "fold.column": "Столбец {column} в образце содержит ёмкость батареи в ампер-часах.",
+  "ev.range": "{a}–{b}",
+  "ev.failing_above": "Строки {rows} не выше {limit}.",
+  "ev.failing_below": "Строки {rows} не ниже {limit}.",
+  "ev.failing_one_above": "Только строка {r} не выше {limit}.",
+  "ev.failing_one_below": "Только строка {r} не ниже {limit}."
  }
 }

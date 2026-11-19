@@ -450,6 +450,30 @@ def _rows(x) -> list[int]:
     return [int(r) for r in x if isinstance(r, int) and not isinstance(r, bool) and r >= 1] if isinstance(x, list) else []
 
 
+def failing(got: dict, rule: str, limit: float) -> list[list[int]] | None:
+    """Every row that fails, as [first, last] runs of row numbers, worked out on the server from the program's own answer
+    (the program is never changed): the data rows numbered from 1, its "unchecked" rows skipped, its "values" in file
+    order, each held to the rule and the limit as the program holds them. None when the answer cannot be read so, or
+    when the first run does not start at the program's first failing row (F1B)."""
+    vals, skip, ffr = got.get("values"), set(_rows(got.get("unchecked"))), got.get("first_failing_row")
+    if not isinstance(vals, list) or not isinstance(ffr, int) or isinstance(ffr, bool):
+        return None
+    out: list[list[int]] = []
+    row = 0
+    for v in vals:
+        row += 1
+        while row in skip:
+            row += 1
+        if not isinstance(v, (int, float)) or isinstance(v, bool) or not math.isfinite(v):
+            return None
+        if fails(float(v), rule, limit):
+            if out and out[-1][1] == row - 1:
+                out[-1][1] = row
+            else:
+                out.append([row, row])
+    return out if out and out[0][0] == ffr else None
+
+
 def save_result(table: str, column: str, rule: str, limit: float, got: dict, sample_run: bool) -> dict:
     rid = secrets.token_urlsafe(9)                     # 12 characters: never a 16-hex demand result's id
     while re.fullmatch(r"[0-9a-f]{12}", rid):          # nor a referral code (/r/<12 hex>, valley.make_referral)
@@ -459,7 +483,7 @@ def save_result(table: str, column: str, rule: str, limit: float, got: dict, sam
            "column": column, "rule": rule, "limit": limit, "result": str(got["result"]),
            "first_failing_row": int(ffr) if isinstance(ffr, int) and not isinstance(ffr, bool) else None,
            "passed": _count(got.get("passed")), "unchecked": _rows(got.get("unchecked")),
-           "chart": chart(got.get("values") or [], rule, limit)}
+           "chart": chart(got.get("values") or [], rule, limit), "failing": failing(got, rule, limit)}
     rec["verdict"] = tool_page.verdict_of(rec)         # fail at a failing row, pass when a row passed, else unknown
     if not sample_run:                                 # a sample result keeps no input: the sample is the tool's
         lines = table.replace("\r\n", "\n").split("\n")
@@ -486,7 +510,7 @@ def load_result(rid: str) -> dict | None:
 def shape(rec: dict, base: str = PUBLIC) -> dict:
     """A stored result as the pages and the run answer show it."""
     return {"id": rec["id"], "mode": rec["mode"], "result": rec["result"], "first_failing_row": rec.get("first_failing_row"),
-            "passed": rec.get("passed"), "unchecked": rec.get("unchecked", []), "verdict": tool_page.verdict_of(rec),
+            "passed": rec.get("passed"), "unchecked": rec.get("unchecked", []), "failing": rec.get("failing"), "verdict": tool_page.verdict_of(rec),
             "program_result": rec.get("program_result") or rec["result"], "shown_by": SHOWN_BY, "link": f"{base}/r/{rec['id']}/",
             "column": rec["column"], "rule": rec["rule"], "limit": rec["limit"], "chart": rec.get("chart"),
             "input": sample() if rec["mode"] == "sample" else rec.get("input", ""),
@@ -532,7 +556,7 @@ def run(body: dict, address: str, base: str = PUBLIC, test: bool = False, connec
                 _keep(key, rec)
         raise
     saved = save_result(table, column, rule, limit, got, sample_run)
-    out = {k: v for k, v in shape(saved, base).items() if k in ANSWER + ("id", "mode", "chart", "column", "rule", "limit", "verdict")}
+    out = {k: v for k, v in shape(saved, base).items() if k in ANSWER + ("failing", "id", "mode", "chart", "column", "rule", "limit", "verdict")}
     out["limits"] = limits()
     if sample_run:
         out.update(runs_left=None, free_left=None, paid_left=None)
@@ -913,6 +937,11 @@ def form_run(h, state, tid: str) -> bool:
     # Check my data checks that example, as the page's script does
     elif f.get("sample") == "1" and not str(f.get("table") or "").strip():
         f["table"], f["column"] = t["sample"], t["column"]
+    # the sample as the box shows it, its header in plain words (tool_page.sample_shown, F1B), is the sample as the file has it
+    elif t["sample"] and lines_of(str(f.get("table") or "")) == lines_of(tool_page.sample_shown(lang, t["sample"])):
+        f["table"] = t["sample"]
+        if f.get("column") in ("", tool_page.column_shown(lang, t["column"])):
+            f["column"] = t["column"]
     sent = {"table": str(f.get("table") or "").replace("\r\n", "\n"), "column": str(f.get("column") or ""),
             "rule": f.get("rule") if f.get("rule") in RULES else "", "limit": str(f.get("limit") or "")}
     try:

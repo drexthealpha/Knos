@@ -325,6 +325,11 @@
   "why.unknown_none": "Não consegui comparar nenhuma linha com o limite, porque nenhum valor de {column} é um número.",
   "why.unknown_one": "A linha {r} não tem número em {column}.",
   "tool.sample_column": "carga retida",
-  "fold.column": "A coluna {column} da amostra guarda a capacidade da bateria em ampères-hora."
+  "fold.column": "A coluna {column} da amostra guarda a capacidade da bateria em ampères-hora.",
+  "ev.range": "{a} a {b}",
+  "ev.failing_above": "As linhas {rows} não estão acima de {limit}.",
+  "ev.failing_below": "As linhas {rows} não estão abaixo de {limit}.",
+  "ev.failing_one_above": "Só a linha {r} não está acima de {limit}.",
+  "ev.failing_one_below": "Só a linha {r} não está abaixo de {limit}."
  }
 }

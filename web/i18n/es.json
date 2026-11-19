@@ -325,6 +325,11 @@
   "why.unknown_none": "No pude comparar ninguna fila con el límite, porque ningún valor de {column} es un número.",
   "why.unknown_one": "La fila {r} no tiene número en {column}.",
   "tool.sample_column": "carga retenida",
-  "fold.column": "La columna {column} de la muestra guarda la capacidad de la batería en amperios hora."
+  "fold.column": "La columna {column} de la muestra guarda la capacidad de la batería en amperios hora.",
+  "ev.range": "{a} a {b}",
+  "ev.failing_above": "Las filas {rows} no están por encima de {limit}.",
+  "ev.failing_below": "Las filas {rows} no están por debajo de {limit}.",
+  "ev.failing_one_above": "Solo la fila {r} no está por encima de {limit}.",
+  "ev.failing_one_below": "Solo la fila {r} no está por debajo de {limit}."
  }
 }
