@@ -691,9 +691,12 @@ details li{margin:6px 0}main>details a{display:inline-block;min-height:44px;min-
 [hidden]{display:none!important}""" + "\n" + SWITCH_CSS
 
 # The table reader and the chart, the same code on the front door (web/door.html): the column names by the program's rule
-# (a first row with any cell that is not a number is the header), and the values as a line, the limit as a straight
+# (a first row with any cell float() cannot read is the header), and the values as a line, the limit as a straight
 # dashed line, the first failing value marked with a ring and its row number. Charts keep left to right (U7 R4).
 TABLE_JS = r"""const num = (s) => { const t = String(s).trim(); return t !== "" && Number.isFinite(Number(t)); };
+// a cell Python's float() reads is data, NaN, inf and -inf included in any case (G2); a first row with any other is the header
+const DATA = /^[+-]?(?:(?:\p{Nd}(?:_?\p{Nd})*(?:\.(?:\p{Nd}(?:_?\p{Nd})*)?)?|\.\p{Nd}(?:_?\p{Nd})*)(?:[eE][+-]?\p{Nd}(?:_?\p{Nd})*)?|inf(?:inity)?|nan)$/iu;
+const isHeader = (row) => row.some((c) => !DATA.test(String(c).trim()));
 function rowsOf(text) {
   const out = []; let row = [], cell = "", q = false;
   for (let i = 0; i < text.length; i++) {
@@ -710,7 +713,7 @@ function rowsOf(text) {
 function columnsOf(text) {
   const rows = rowsOf(text);
   if (!rows.length) return [];
-  if (rows[0].some((c) => !num(c))) return rows[0].map((c) => c.trim());
+  if (isHeader(rows[0])) return rows[0].map((c) => c.trim());
   return Array.from({ length: Math.max(...rows.map((r) => r.length)) }, (_, i) => "column " + (i + 1));
 }
 function chartSvg(c, row) {
@@ -915,9 +918,9 @@ function run() {
   if (!table.trim()) return trouble(T("err.empty"), T("btn.back"), edit);
   if (!num(limit)) return trouble(T("err.limit"), T("btn.type_limit"), () => { show(); changeLimit(); });
   const names = columnsOf(table);
-  if (!names.includes(column)) return trouble(T("err.column", { column, names: names.slice(0, 12).join(", ") }), T("btn.column"), chooseColumn);
+  if (!names.includes(column)) return trouble(T("err.column", { column, names: names.join(", ") }), T("btn.column"), chooseColumn);
   firstAction();
-  const w = working(Math.max(0, rowsOf(table).length - (rowsOf(table)[0].some((c) => !num(c)) ? 1 : 0)));
+  const w = working(Math.max(0, rowsOf(table).length - (isHeader(rowsOf(table)[0]) ? 1 : 0)));
   xhr = new XMLHttpRequest();
   xhr.open("POST", D.api + "/api/run");
   xhr.setRequestHeader("Content-Type", "application/json");

@@ -252,6 +252,9 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
   let ctl = null, last = null, limits = null, pressId = null, mineOn = false, offer = null;
   const show = (el, on) => { el.hidden = !on; };
   const num = (s) => { const t = String(s).trim(); return t !== "" && Number.isFinite(Number(t)); };
+  // a cell Python's float() reads is data, NaN, inf and -inf included in any case (G2); a first row with any other is the header
+  const DATA = /^[+-]?(?:(?:\p{Nd}(?:_?\p{Nd})*(?:\.(?:\p{Nd}(?:_?\p{Nd})*)?)?|\.\p{Nd}(?:_?\p{Nd})*)(?:[eE][+-]?\p{Nd}(?:_?\p{Nd})*)?|inf(?:inity)?|nan)$/iu;
+  const isHeader = (row) => row.some((c) => !DATA.test(String(c).trim()));
   function rowsOf(text) {
     const out = []; let row = [], cell = "", q = false;
     for (let i = 0; i < text.length; i++) {
@@ -265,11 +268,11 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
     row.push(cell); out.push(row);
     return out.filter((r) => r.some((c) => c.trim()));
   }
-  // the column names by the program's rule: a first row with any cell that is not a number is the header
+  // the column names by the program's rule: a first row with any cell float() cannot read is the header
   function columnsOf(text) {
     const rows = rowsOf(text);
     if (!rows.length) return [];
-    if (rows[0].some((c) => !num(c))) return rows[0].map((c) => c.trim());
+    if (isHeader(rows[0])) return rows[0].map((c) => c.trim());
     return Array.from({ length: Math.max(...rows.map((r) => r.length)) }, (_, i) => "column " + (i + 1));
   }
   // the values as a line, the limit as a straight dashed line, the first failing value ringed with its row number;
@@ -309,7 +312,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
   // that exists before the server's, shown at once (U1 R12: partial results as soon as they exist)
   function dataRows(text) {
     const rows = rowsOf(text);
-    return rows.length && rows[0].some((c) => !num(c)) ? rows.length - 1 : rows.length;
+    return rows.length && isHeader(rows[0]) ? rows.length - 1 : rows.length;
   }
   function working(t0, table) {
     // a first change at once: the rows to check; from 1 s a moving sign, the step Knos is on with its seconds, a bar of

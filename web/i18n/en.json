@@ -1019,9 +1019,9 @@
    "max_length": 34
   },
   "err.column": {
-   "text": "I could not find a column called {column} in your file. The columns I found are {names}. Pick one, then press Try it.",
-   "description": "An error shown in place of a result; it speaks as Knos, in the first person, and keeps the person's file: the column asked for is not in the file. Keep {column}, {names} as written; they are filled in.",
-   "max_length": 153
+   "text": "I cannot find a column named {column}. Columns: {names}. Choose one of them and check again.",
+   "description": "An error shown in place of a result, the program's own words: the column asked for is not in the file; {names} is every column name of the file, joined by a comma and a space. It speaks as Knos, in the first person, and keeps the person's file; the Choose the column button follows it. Keep {column}, {names} as written; they are filled in.",
+   "max_length": 120
   },
   "btn.column": {
    "text": "Choose the column",

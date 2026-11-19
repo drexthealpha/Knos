@@ -283,7 +283,7 @@
    "one": "Safu {n} ya kukagua",
    "other": "Safu {n} za kukagua"
   },
-  "err.column": "Sikupata safu wima inayoitwa {column} kwenye faili yako. Safu wima nilizopata ni {names}. Chagua moja, kisha bonyeza Jaribu.",
+  "err.column": "Siwezi kupata safu wima inayoitwa {column}. Safu wima: {names}. Chagua mojawapo na ukague tena.",
   "btn.column": "Chagua safu wima",
   "act.why": "Imerekodiwa kwa sababu ulibonyeza Ndiyo, rekodi. Hakuna kilichotozwa.",
   "act.undo": "Tendua",

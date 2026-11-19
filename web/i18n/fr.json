@@ -309,7 +309,7 @@
    "many": "{n} de lignes à vérifier",
    "other": "{n} lignes à vérifier"
   },
-  "err.column": "Je n'ai pas trouvé de colonne nommée {column} dans votre fichier. Les colonnes trouvées sont {names}. Choisissez-en une, puis appuyez sur Essayer.",
+  "err.column": "Je ne trouve pas de colonne nommée {column}. Colonnes : {names}. Choisissez-en une et vérifiez à nouveau.",
   "btn.column": "Choisir la colonne",
   "act.why": "Enregistré parce que vous avez appuyé sur Oui, enregistrer. Rien n'a été facturé.",
   "act.undo": "Annuler",

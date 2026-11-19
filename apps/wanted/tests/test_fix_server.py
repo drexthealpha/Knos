@@ -109,7 +109,7 @@ def test_the_tool_works_as_a_form_with_no_script(app):
     assert st == 303 and re.fullmatch(r"/r/[A-Za-z0-9_-]{12}/\?test=1", h["Location"]), h["Location"]
     assert "Failed at row " in page(app, h["Location"])
     st, _, body = form(app, "/t/limit-check/run", {"table": "when,volts\n1,3", "column": "capacity_ah", "rule": "above", "limit": "2"})
-    assert st == 400 and "I could not find a column called capacity_ah in your file." in body
+    assert st == 400 and "I cannot find a column named capacity_ah. Columns: when, volts." in body
     assert ">when,volts\n1,3</textarea>" in body and 'role="alert"' in body          # the person's table is kept
 
 

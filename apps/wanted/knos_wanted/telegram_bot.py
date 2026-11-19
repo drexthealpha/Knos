@@ -47,8 +47,7 @@ NOT_TABLE = ("I could not read a table in your message. Please paste a header an
 
 
 def no_column(column: str, names: list[str]) -> str:
-    return (f"I could not find a column called \"{column[:40]}\" in your table. The columns I found are: "
-            f"{', '.join(names[:12])}. Put one of them on the first line, like this: {names[-1][:40]} above "
+    return (f"{tool_run.no_column(column, names)}\nPut one of them on the first line, like this: {names[-1][:40]} above "
             f"{tool_page.shown_limit(CONF['sample_limit'])}")
 
 
@@ -107,7 +106,7 @@ def parse(text: str) -> tuple[str, str, str, float] | str:
         return no_column(column, names)
     i = names.index(column)
     rows = [r for r in csv.reader(io.StringIO(table)) if any(c.strip() for c in r)]
-    data = rows[1:] if rows and any(tool_run._num(c) is None for c in rows[0]) else rows
+    data = rows[1:] if rows and tool_run.header_row(rows[0]) else rows
     if not any(i < len(r) and tool_run._num(r[i]) is not None for r in data):
         return no_numbers(column)
     return table, column, rule, limit

@@ -256,7 +256,7 @@
   "next.fail": "Buka berkas Anda di baris {r}, baris pertama yang gagal.",
   "next.unknown": "Pilih kolom yang setiap barisnya berisi angka, lalu tekan Coba.",
   "work.rows": "{n} baris untuk diperiksa",
-  "err.column": "Saya tidak menemukan kolom bernama {column} di berkas Anda. Kolom yang saya temukan adalah {names}. Pilih satu, lalu tekan Coba.",
+  "err.column": "Saya tidak menemukan kolom bernama {column}. Kolom: {names}. Pilih salah satunya lalu periksa lagi.",
   "btn.column": "Pilih kolomnya",
   "act.why": "Dicatat karena Anda menekan Ya, catat. Tidak ada yang ditagih.",
   "act.undo": "Batalkan",

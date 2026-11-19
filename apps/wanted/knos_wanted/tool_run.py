@@ -226,13 +226,33 @@ def _num(cell: str) -> float | None:
     return v if math.isfinite(v) else None
 
 
+def is_data(cell: str) -> bool:
+    """A cell float() can read is a data cell, NaN, inf and -inf included in any case (G2): never a header's."""
+    try:
+        float(str(cell).strip())
+    except ValueError:
+        return False
+    return True
+
+
+def header_row(row: list[str]) -> bool:
+    """The program's rule (SPEC2, G2): a first row with any cell float() cannot read is the header."""
+    return any(not is_data(c) for c in row)
+
+
+def no_column(column, names: list[str]) -> str:
+    """The program's own words for an unknown column (G2), answered before it runs, then one next step (UX/U6.md
+    Rules 16 and 17: a refusal names what to do, in at least 12 words)."""
+    return f"I cannot find a column named {column}. Columns: {', '.join(names)}. Choose one of them and check again."
+
+
 def columns(table: str) -> tuple[list[str], int]:
     """The file's column names and its number of data rows, by the program's own rule (SPEC2): a first row with any
-    cell that is not a number is the header; otherwise the columns are "column 1", "column 2" and so on."""
+    cell float() cannot read is the header; otherwise the columns are "column 1", "column 2" and so on."""
     rows = [r for r in csv.reader(io.StringIO(table)) if any(c.strip() for c in r)]
     if not rows:
         return [], 0
-    if any(_num(c) is None for c in rows[0]):
+    if header_row(rows[0]):
         return [c.strip() for c in rows[0]], len(rows) - 1
     return [f"column {i + 1}" for i in range(max(len(r) for r in rows))], len(rows)
 
@@ -284,8 +304,7 @@ def inputs(body: dict) -> tuple[str, str, str, float]:
     if n > int(CONF["max_rows"]):
         raise Refusal(413, too_big())
     if not isinstance(column, str) or column not in names:
-        shown = ", ".join(names[:12])
-        raise Refusal(400, {"error": f"I could not find a column called \"{str(column)[:40]}\" in your file. The columns I found are: {shown}. Please pick one."})
+        raise Refusal(400, {"error": no_column(column, names)})
     if n == 0:
         raise Refusal(400, {"error": "Your file has a header but no rows under it, so I have nothing to check. Please add rows, then press Try it."})
     # a whole limit goes to the program as a whole number, so its sentence prints it as given: 3, not 3.0 (SPEC2)
@@ -859,7 +878,7 @@ def _refused_html(lang: str, code: int, body: dict, sent: dict) -> str:
     names = columns(sent.get("table") or "")[0]
     if code == 400:
         msg = (T(lang, "err.empty") if not str(sent.get("table") or "").strip()
-               else T(lang, "err.column", column=sent.get("column") or "", names=", ".join(names[:12])) if sent.get("column") not in names
+               else T(lang, "err.column", column=sent.get("column") or "", names=", ".join(names)) if sent.get("column") not in names
                else T(lang, "err.limit") if _num(_form_limit(sent.get("limit"))) is None else T(lang, "err.bad"))
     elif code == 402:
         f = tool_page.facts()

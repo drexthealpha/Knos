@@ -309,7 +309,7 @@
    "many": "{n} de filas por comprobar",
    "other": "{n} filas por comprobar"
   },
-  "err.column": "No encontré una columna llamada {column} en tu archivo. Las columnas que encontré son {names}. Elige una y pulsa Pruébalo.",
+  "err.column": "No encuentro una columna llamada {column}. Columnas: {names}. Elige una de ellas y vuelve a comprobar.",
   "btn.column": "Elegir la columna",
   "act.why": "Registrado porque pulsaste Sí, regístralo. No se cobró nada.",
   "act.undo": "Deshacer",

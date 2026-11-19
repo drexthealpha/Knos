@@ -309,7 +309,7 @@
    "many": "{n} de linhas para verificar",
    "other": "{n} linhas para verificar"
   },
-  "err.column": "Não encontrei uma coluna chamada {column} no seu arquivo. As colunas que encontrei são {names}. Escolha uma e toque em Experimente.",
+  "err.column": "Não encontro uma coluna chamada {column}. Colunas: {names}. Escolha uma delas e verifique de novo.",
   "btn.column": "Escolher a coluna",
   "act.why": "Registrado porque você tocou em Sim, registrar. Nada foi cobrado.",
   "act.undo": "Desfazer",

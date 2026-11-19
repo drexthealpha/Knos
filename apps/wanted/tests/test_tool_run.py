@@ -324,6 +324,8 @@ def test_every_refusal_is_a_full_first_person_sentence(app):
                              ("/api/run", {"id": "nope", "table": SMALL}, 404),
                              ("/api/pay", {"browser": "b-x-00000001"}, 400)):
         st, r, _ = call(app, path, body)
+        if body.get("column") == "nope":      # G2's sentence word for word, then its next step (U6 Rules 16 and 17)
+            assert r["error"].startswith("I cannot find a column named nope. Columns: row, reading. "), r
         assert st == code and words(r["error"]) >= 12 and first_person(r["error"]), r
 
 
