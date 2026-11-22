@@ -41,14 +41,3 @@ def test_no_page_stylesheet_defines_a_palette_or_a_typeface():
             assert not re.search(r"--(paper|ink|accent|bg|surface|muted)\s*:\s*#", block), (css.name, block[:80])
         assert not re.search(r"font(-family)?\s*:[^;]*(-apple-system|Segoe UI|Helvetica)", s.replace("var(--text)", "")), css.name
         assert ".mark {" not in s and "nav.roles" not in s and ".ux-fab {" not in s, css.name
-
-
-def test_the_hero_is_one_box_on_both_front_doors():
-    for page in sync_brand.HEROES:
-        s = page.read_text(encoding="utf-8")
-        hero = s[s.index("<!-- k-hero -->"):s.index("<!-- /k-hero -->")]
-        hero = re.sub(r"(<script\b[^>]*>).*?(</script>)", r"\1\2", hero, flags=re.S)   # an inline script's text is not markup
-        # one box, with the reader's optional guess of a launch city above it
-        assert hero.count("<form") == 1 and hero.count("<input") == 3 and 'id="k-who"' in hero and 'id="k-guess"' in hero and 'id="k-mission"' in hero, page.name
-        said = re.sub(r'<p class="k-vision"[^>]*>.*?</p>', "", hero, flags=re.S)      # the two vision lines under it are fixed text
-        assert "see who would" in said.lower() and "buy it first." in said.lower() and "valley" not in said.lower(), page.name   # the promise, as the headline

@@ -2,6 +2,7 @@
 """Round 13 FIX-SERVER: the verdict on the tool and result pages (U6), "cannot tell" when no row held a number, the undo
 of a test payment (U6 Rule 22), the speed a counted visitor's browser sends (U1 R13) and the tool as a form that works
 with no script (U7 R21). The app is the one test_tool_run.py starts; the program is the released one."""
+import html as _html
 import re
 import urllib.error
 import urllib.parse
@@ -85,6 +86,7 @@ def test_every_language_writes_the_verdict(app, lang):
     st, r, _ = own(app, table=ALL_SKIPPED, column="v", limit=2, browser="b-fix-000003")
     html = page(app, "/r/" + r["link"].rstrip("/").rsplit("/", 1)[1] + f"/?lang={lang}")
     a = answer(html)
+    a, html = _html.unescape(a), _html.unescape(html)                 # the page escapes an apostrophe (uz) as an entity
     assert tool_page.t(lang, "rs.cannot").split()[0] in a and tool_page.t(lang, "v.unknown") in html
 
 

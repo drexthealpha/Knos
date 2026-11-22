@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -9,6 +10,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"sort"
 	"strings"
 )
@@ -31,16 +33,30 @@ var stateOrder = []string{StateLinked, StateCovered, StateGenerated, StateUnveri
 
 // ScanResult is what `scan --json` prints.
 type ScanResult struct {
-	Files      int                       `json:"files"`
-	Changed    int                       `json:"changed"`
-	Counts     map[string]map[string]int `json:"counts"`
-	Candidates []Candidate               `json:"candidates"`
+	Files         int                       `json:"files"`
+	Changed       int                       `json:"changed"`
+	Counts        map[string]map[string]int `json:"counts"`
+	Candidates    []Candidate               `json:"candidates"`
+	PeakMemoryMiB uint64                    `json:"peak_memory_mib"`
+	MemoryCapMiB  uint64                    `json:"memory_cap_mib"`
+}
+
+// defaultMemCapMiB is a quarter of an 8 GB PC's memory, the budget rule SYNC/P5.md reads in CBM; the 8 GB Windows PC
+// is the hardest target and is tested first (SYNC/P1.md).
+const defaultMemCapMiB = 2048
+
+// memoryLine says the run's peak memory against its cap; over is true when the peak passed the cap.
+func memoryLine(peak, capMiB uint64) (string, bool) {
+	if peak == 0 {
+		return fmt.Sprintf("peak memory: not readable on this system; cap %d MiB", capMiB), false
+	}
+	return fmt.Sprintf("peak memory: %d MiB of a %d MiB cap", peak>>20, capMiB), peak > capMiB<<20
 }
 
 // scopeFiles lists README.md, every .md under docs/ and every .html under web/, sorted, as slash paths.
 func scopeFiles(root string, c *Facts) ([]string, error) {
 	var out []string
-	if exists(filepath.Join(root, "README.md")) {
+	if p := filepath.Join(root, "README.md"); exists(p) && optedIn(p, c) {
 		out = append(out, "README.md")
 	}
 	for _, top := range []string{"docs", "web"} {
@@ -63,7 +79,7 @@ func scopeFiles(root string, c *Facts) ([]string, error) {
 				return err
 			}
 			rel = filepath.ToSlash(rel)
-			if inScope(rel, c.Skip) {
+			if inScope(rel, c.Skip) && optedIn(p, c) {
 				out = append(out, rel)
 			}
 			return nil
@@ -76,16 +92,30 @@ func scopeFiles(root string, c *Facts) ([]string, error) {
 	return out, nil
 }
 
+// OptInMarker opts one file in when sync/facts.json sets opt_in: teams opt in file by file (SYNC/P6.md finding 14).
+const OptInMarker = "knos-sync: on"
+
+// optedIn: every file in scope is read, unless opt_in is set; then only a file that holds the marker.
+func optedIn(p string, c *Facts) bool {
+	if !c.OptIn {
+		return true
+	}
+	content, err := os.ReadFile(p)
+	return err == nil && bytes.Contains(content, []byte(OptInMarker))
+}
+
+// docLines reads a doc's lines as a reader sees them: Markdown for .md, visible text for HTML.
+func docLines(rel string, content []byte) []lineText {
+	if strings.HasSuffix(strings.ToLower(rel), ".md") {
+		return markdownLines(content)
+	}
+	return htmlLines(content)
+}
+
 // candidatesOf extracts a file's candidates, before their state is known.
 func candidatesOf(rel string, content []byte) []Candidate {
-	var lines []lineText
-	if strings.HasSuffix(strings.ToLower(rel), ".md") {
-		lines = markdownLines(content)
-	} else {
-		lines = htmlLines(content)
-	}
 	var out []Candidate
-	for _, lt := range lines {
+	for _, lt := range docLines(rel, content) {
 		for _, c := range extractLine(lt) {
 			c.File = rel
 			out = append(out, c)
@@ -267,7 +297,7 @@ func runScan(root string, c *Facts, st *State, full bool) (*ScanResult, error) {
 					cands[i].Value, cands[i].Text = "(withheld)", "(withheld)"
 				}
 			}
-			if err := st.storeFile(rel, sha, len(content), cands); err != nil {
+			if err := st.storeFile(rel, sha, content, cands); err != nil {
 				return nil, err
 			}
 		}
@@ -294,9 +324,14 @@ func cmdScan(args []string) (int, error) {
 	list := set.Bool("list", false, "print every candidate")
 	asJSON := set.Bool("json", false, "print JSON")
 	full := set.Bool("full", false, "read every file again, ignoring stored hashes")
+	capMiB := set.Uint64("mem-cap-mib", defaultMemCapMiB, "the memory cap in MiB: a soft limit for the collector, and exit 1 when the peak passes it")
 	if err := set.Parse(args); err != nil {
 		return 2, err
 	}
+	if *capMiB == 0 {
+		return 2, fmt.Errorf("the memory cap must be above 0 MiB")
+	}
+	defer debug.SetMemoryLimit(debug.SetMemoryLimit(int64(*capMiB << 20)))
 	root, err := resolveRoot(*rootF)
 	if err != nil {
 		return 2, err
@@ -315,15 +350,22 @@ func cmdScan(args []string) (int, error) {
 	if err != nil {
 		return 2, err
 	}
+	peak := peakMemory()
+	memLine, over := memoryLine(peak, *capMiB)
+	res.PeakMemoryMiB, res.MemoryCapMiB = peak>>20, *capMiB
+	code := 0
+	if over {
+		code = 1
+	}
 	if *asJSON {
 		out, err := encodeJSON(res, "")
 		if err != nil {
 			return 2, err
 		}
 		fmt.Println(string(out))
-		return 0, nil
+		return code, nil
 	}
-	fmt.Printf("knos-sync scan: %d files read, %d changed since the last scan\n\n", res.Files, res.Changed)
+	fmt.Printf("knos-sync scan: %d files read, %d changed since the last scan\n%s\n\n", res.Files, res.Changed, memLine)
 	fmt.Printf("%-10s", "kind")
 	for _, s := range stateOrder {
 		fmt.Printf(" %12s", s)
@@ -351,5 +393,5 @@ func cmdScan(args []string) (int, error) {
 			fmt.Printf("%s:%d  %s  %s  %s%s\n", cd.File, cd.Line, cd.Kind, cd.State, cd.Value, by)
 		}
 	}
-	return 0, nil
+	return code, nil
 }

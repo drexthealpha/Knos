@@ -1,5 +1,5 @@
 // The quality numbers of a build: Lighthouse (mobile and desktop, its four categories) and axe-core (in light and in
-// dark) on the front door, claims/, prove/, agents/ and labs/ (this build, served from its folder). Written to <site>/quality/quality.json with the commit and the time; no page draws them since the site was cut to the product pages, and the file is public.
+// dark) on the front door, claims/, prove/ and agents/ (this build, served from its folder). Written to <site>/quality/quality.json with the commit and the time; no page draws them since the site was cut to the product pages, and the file is public.
 // Run by the pages workflow before the site is published, with lighthouse, chrome-launcher, axe-core and playwright
 // installed for that step only.
 //   node scripts/quality_run.mjs <site dir> <commit sha>
@@ -26,7 +26,7 @@ const server = createServer((q, r) => {
 });
 await new Promise((ok) => server.listen(8090, "127.0.0.1", ok));
 const BASE = "http://127.0.0.1:8090/Knos/";
-const PAGES = [["landing", BASE], ["claims", BASE + "claims/"], ["prove", BASE + "prove/"], ["agents", BASE + "agents/"], ["labs", BASE + "labs/"]];
+const PAGES = [["landing", BASE], ["claims", BASE + "claims/"], ["prove", BASE + "prove/"], ["agents", BASE + "agents/"]];
 const CATS = ["performance", "accessibility", "best-practices", "seo"];
 const out = { commit: SHA, at: new Date().toISOString().replace(/\.\d+Z$/, "Z"), lighthouse: [], axe: [],
   how: "Lighthouse 12 (mobile and desktop presets, simulated throttling) on this build served by the workflow; axe-core in Chromium, light and dark" };

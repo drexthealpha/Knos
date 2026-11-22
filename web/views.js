@@ -18,5 +18,4 @@ export const ADDED = {
   payee: { file: "./payee.js", draw: "renderPayee", nav: "Collect payout" },
   vendor: { file: "./vendor.js", draw: "renderVendor", nav: "Vendor pages" },
   apps: { file: "./apps.js", draw: "renderApps", nav: "Research products" },
-  demand: { file: "./demand.js", draw: "renderDemand", nav: "Is it wanted?" },
 };

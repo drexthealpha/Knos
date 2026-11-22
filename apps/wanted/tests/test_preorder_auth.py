@@ -11,8 +11,6 @@ from http.server import ThreadingHTTPServer
 import pytest
 
 from knos_wanted import auth, preorder, server
-from knos_wanted.qloo_mcp import InProcess, Qloo
-from knos_wanted.qloo_rest import Client
 
 REC = {"claim_id": "knos-idea:" + "a" * 32}
 
@@ -95,7 +93,7 @@ def test_passkey_register_and_login():
 @pytest.fixture
 def app(tmp_path, monkeypatch):
     monkeypatch.delenv("KNOS_WANTED_REFEREE_KEYS", raising=False)
-    state = server.State(Qloo(InProcess(), mode="mock", sleep=lambda s: None), Client(key="", base="https://example.test", folder=tmp_path))
+    state = server.State()
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.make_handler(state))
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
     yield f"http://127.0.0.1:{httpd.server_address[1]}"
@@ -122,7 +120,7 @@ def test_check_without_key_cannot_decide_and_preorder_is_gated(app):
     assert st in (400, 503)
     st, s = call(app, "/api/status")
     assert s["preorders"]["available"] is False and s["preorders"]["why"] == "holding money is unavailable on this server"
-    assert s["qloo_rest"]["rest"] is False and s["qloo_rest"]["reason"] == "no Qloo API key on this server"
+    assert s["mode"] == "offline" and s["label"] == "OPEN SIGNALS"
     assert call(app, "/api/report?hash=" + r["hash"])[1]["hash"] == r["hash"]
 
 

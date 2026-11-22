@@ -20,9 +20,9 @@
    "max_length": 12
   },
   "goal": {
-   "text": "The goal: Knos turns any research into a product billions of people use, in days, not years.",
-   "description": "The first line of the menu: the goal Knos works to.",
-   "max_length": 120
+   "text": "Knos is a research checker that helps anyone test a result.",
+   "description": "The one sentence that says what Knos is: the front door's title and link preview, and the line at the foot of the other pages (L02).",
+   "max_length": 83
   },
   "nav.claims": {
    "text": "Claims",
@@ -39,11 +39,6 @@
    "description": "A link in the menu at the foot of the front door, pricing and status pages: to the page for builders.",
    "max_length": 24
   },
-  "nav.labs": {
-   "text": "Labs",
-   "description": "A link in the menu at the foot of the front door, pricing and status pages: to the page for labs.",
-   "max_length": 12
-  },
   "nav.prs": {
    "text": "Code checker",
    "description": "A link in the menu at the foot of the front door, pricing and status pages: to the page that checks pull requests.",
@@ -58,6 +53,11 @@
    "text": "Status",
    "description": "A link in the menu at the foot of the front door, pricing and status pages: to the status page.",
    "max_length": 18
+  },
+  "nav.teardown": {
+   "text": "Teardown",
+   "description": "A link in the menu of every page: to the page that takes one car battery apart and prices its raw materials.",
+   "max_length": 24
   },
   "nav.source": {
    "text": "Source",
@@ -85,9 +85,172 @@
    "max_length": 63
   },
   "door.headline": {
-   "text": "What can you do with Knos?",
-   "description": "The front door: the one heading at the top of the page.",
+   "text": "Ask anything about research",
+   "description": "The front door: the one heading at the top of the page, which is also the label of the one box.",
+   "max_length": 49
+  },
+  "ask.prove_it": {
+   "text": "Prove it",
+   "description": "The front door: the link under an answer that found no record, which opens the page to have a paper's claim checked.",
+   "max_length": 24
+  },
+  "survey.thanks": {
+   "text": "Thank you. Answers are counted, with no name or id.",
+   "description": "The front door: shown after an optional question is answered.",
+   "max_length": 72
+  },
+  "survey.skip": {
+   "text": "Skip",
+   "description": "The front door: the button that leaves the optional question unanswered.",
+   "max_length": 12
+  },
+  "survey.r_pr": {
+   "text": "Check a pull request",
+   "description": "An answer button to: Which task do you want most? A pull request's checks.",
+   "max_length": 40
+  },
+  "survey.r_paper": {
+   "text": "Check a paper's claim",
+   "description": "An answer button to: Which task do you want most? A paper's claim checked by a locked test.",
+   "max_length": 38
+  },
+  "survey.r_file": {
+   "text": "Check a test file",
+   "description": "An answer button to: Which task do you want most? The limit check of a table.",
+   "max_length": 34
+  },
+  "survey.not": {
+   "text": "Not at all",
+   "description": "An answer button to: How disappointed would you be without Knos?",
+   "max_length": 30
+  },
+  "survey.somewhat": {
+   "text": "Somewhat",
+   "description": "An answer button to: How disappointed would you be without Knos?",
+   "max_length": 24
+  },
+  "survey.very": {
+   "text": "Very",
+   "description": "An answer button to: How disappointed would you be without Knos?",
+   "max_length": 12
+  },
+  "survey.rank": {
+   "text": "Which task do you want most?",
+   "description": "The front door, after a second result: one optional question, asked once, with three tasks to pick from.",
+   "max_length": 51
+  },
+  "survey.disappointed": {
+   "text": "How disappointed would you be without Knos?",
+   "description": "The front door, after a second result: one optional question, asked once.",
+   "max_length": 69
+  },
+  "survey.without": {
+   "text": "Would you do this without Knos?",
+   "description": "The front door, after a second result: one optional question, asked once.",
+   "max_length": 50
+  },
+  "survey.again": {
+   "text": "Would you choose Knos again for this?",
+   "description": "The front door, after a second result: one optional question, asked once.",
+   "max_length": 60
+  },
+  "status.not_known": {
+   "text": "not known yet",
+   "description": "The status page: shown in place of a count the data file does not hold yet (never 0).",
+   "max_length": 26
+  },
+  "status.first_result_7d": {
+   "text": "People who got a first result, last 7 days",
+   "description": "The status page: the first count, how many people reached a first result in the last 7 days.",
+   "max_length": 68
+  },
+  "ask.pr_go": {
+   "text": "Check this pull request",
+   "description": "The front door: the link under that answer, which opens the pull request's check.",
+   "max_length": 42
+  },
+  "ask.pr": {
+   "text": "A pull request: Knos checks it on its own page",
+   "description": "The front door: the answer when the box holds a pull request's link.",
+   "max_length": 74
+  },
+  "loop.play": {
+   "text": "Play",
+   "description": "The front door, below the first screen: the button that starts the short animation again.",
+   "max_length": 12
+  },
+  "loop.pause": {
+   "text": "Pause",
+   "description": "The front door, below the first screen: the button that stops the short animation.",
+   "max_length": 15
+  },
+  "loop.label": {
+   "text": "Test money goes out, three helpers try, and it lands on the one whose work passed",
+   "description": "The front door: the spoken description of the short wordless animation, for a screen reader.",
+   "max_length": 106
+  },
+  "loop.h": {
+   "text": "How it works, in 6 seconds",
+   "description": "The front door, below the first screen: the heading over a short wordless animation of a piece of work being paid.",
    "max_length": 47
+  },
+  "live.lost": {
+   "text": "{amount} test dollars lost",
+   "description": "The front door, below the first screen: test money lost, from the public record's counters.",
+   "max_length": 47
+  },
+  "live.up": {
+   "text": "Up {up} of {all} checks in the last 7 days",
+   "description": "The front door, below the first screen: how many of the checks of the last 7 days found the server up.",
+   "max_length": 68
+  },
+  "live.tried": {
+   "one": "{n} of Knos's own test helpers tried",
+   "other": "{n} of Knos's own test helpers tried",
+   "description": "The front door, below the first screen: a live number, how many of Knos's own test helpers have tried work.",
+   "max_length": 58
+  },
+  "live.settled": {
+   "one": "{n} piece of work paid",
+   "other": "{n} pieces of work paid",
+   "description": "The front door, below the first screen: a live number, how many pieces of work passed their locked test and were paid.",
+   "max_length": 42
+  },
+  "live.paid": {
+   "text": "{amount} test dollars paid for passed work",
+   "description": "The front door, below the first screen: a live number, the test money paid out for work whose locked test passed.",
+   "max_length": 68
+  },
+  "live.h": {
+   "text": "On the public record",
+   "description": "The front door, below the first screen: the heading over three live numbers, each a link to the public test network record.",
+   "max_length": 40
+  },
+  "door.stars": {
+   "one": "{n} star",
+   "other": "{n} stars",
+   "description": "The front door, below the first screen: how many people starred the code on GitHub when the page was built.",
+   "max_length": 27
+  },
+  "door.fork": {
+   "text": "Fork it on GitHub",
+   "description": "The front door, below the first screen: the button that opens the page to copy the code on GitHub.",
+   "max_length": 34
+  },
+  "door.mit": {
+   "text": "MIT licensed",
+   "description": "The front door, below the first screen: the plain line that says the code's licence.",
+   "max_length": 24
+  },
+  "door.video": {
+   "text": "Watch it work",
+   "description": "The front door, just under the box: the link to the short video recorded from the product itself (L34).",
+   "max_length": 26
+  },
+  "door.go": {
+   "text": "Check",
+   "description": "The front door: the one main button under the box, which checks what is in the box (a table, a question or a link).",
+   "max_length": 15
   },
   "tool.title": {
    "text": "Check a test file against a limit",
@@ -443,6 +606,11 @@
    "text": "Not now",
    "description": "The pay screen the tool shows when the free runs are used up; the money is test money: the button that closes the screen.",
    "max_length": 21
+  },
+  "pay.cancel": {
+   "text": "Cancel",
+   "description": "The pay box on the tool page: the button that closes it with nothing recorded or charged.",
+   "max_length": 18
   },
   "pay.confirm": {
    "one": "This records a {price} test payment for {n} more run. Nothing is charged.",
@@ -1127,6 +1295,186 @@
    "text": "Only row {r} fails.",
    "description": "After the evidence line of a failed result when one row alone fails: no other row is over the limit. Keep {r}, {limit} as written; they are filled in.",
    "max_length": 38
+  },
+  "err.where_file": {
+   "text": "Where to fix it: in the box above. Then press Check my data again.",
+   "description": "An error shown in place of a result, under the line that says what failed: where the person fixes it.",
+   "max_length": 93
+  },
+  "err.where_server": {
+   "text": "Where to fix it: nowhere on your side. Your file is fine; the fault is on the Knos server.",
+   "description": "An error shown in place of a result when the server failed: tells the person their file needs no change.",
+   "max_length": 117
+  },
+  "res.csv": {
+   "text": "Download CSV",
+   "description": "The result area, after a run: the button that downloads the result and its table as a CSV file.",
+   "max_length": 24
+  },
+  "res.json": {
+   "text": "Download JSON",
+   "description": "The result area, after a run: the button that downloads the result and its evidence as a JSON file.",
+   "max_length": 26
+  },
+  "res.version": {
+   "text": "Checked with version {v} at {at}.",
+   "description": "Under a result: the tool version and the time it ran. Keep {v} and {at} as written; they are filled in.",
+   "max_length": 53
+  },
+  "res.older": {
+   "text": "Checked on an older version of this tool.",
+   "description": "Under a result made by an earlier version of the tool than the one running now.",
+   "max_length": 66
+  },
+  "res.opens": {
+   "text": "Opened by others: {n}",
+   "description": "Under a result, seen only by the person who made it: how many other browsers opened it. Keep {n}.",
+   "max_length": 38
+  },
+  "hist.h": {
+   "text": "Your history",
+   "description": "The heading over the list of this browser's own past checks, kept in the browser only.",
+   "max_length": 24
+  },
+  "hist.reset": {
+   "text": "Guest reset",
+   "description": "The button that clears everything this browser kept for Knos, for a shared phone.",
+   "max_length": 22
+  },
+  "hist.reset_done": {
+   "text": "Cleared. This browser keeps nothing from Knos now.",
+   "description": "The line shown after the guest reset button cleared this browser.",
+   "max_length": 80
+  },
+  "voice.speak": {
+   "text": "Speak instead of typing",
+   "description": "The name of the microphone button inside the box: say the request instead of typing it.",
+   "max_length": 42
+  },
+  "src.checked": {
+   "text": "Checked on {date}: the passage says this.",
+   "description": "Above the passage copied from the source of the sample's limit. Keep {date}; it is filled in.",
+   "max_length": 66
+  },
+  "pay.terms": {
+   "text": "{price} in test US dollars goes to Knos as soon as you press Yes. Undo gives it back while none of these runs is used.",
+   "description": "The pay box, test money only: the amount, who receives it, when, and the undo rule. Keep {price}.",
+   "max_length": 154
+  },
+  "pay.unknown": {
+   "text": "Do not pay again yet. I am checking whether your payment was recorded.",
+   "description": "The pay box when the answer about a test payment did not arrive: warns against paying twice.",
+   "max_length": 98
+  },
+  "pay.check": {
+   "text": "Check my payment",
+   "description": "The pay box, after an unclear answer: the button that reads whether the payment was recorded.",
+   "max_length": 32
+  },
+  "ch.button": {
+   "text": "Challenge this result",
+   "description": "Under a result: the button that opens a short form to say the result is wrong.",
+   "max_length": 38
+  },
+  "ch.label": {
+   "text": "What is wrong with this result?",
+   "description": "The label of the box where the person writes what is wrong with the result.",
+   "max_length": 50
+  },
+  "ch.send": {
+   "text": "Send challenge",
+   "description": "The button that sends the challenge of a result to Knos.",
+   "max_length": 28
+  },
+  "ch.open": {
+   "text": "Challenge recorded inside Knos. Its status is open.",
+   "description": "The line after a challenge was recorded: where it is kept and its status.",
+   "max_length": 72
+  },
+  "del.button": {
+   "text": "Delete from the server",
+   "description": "Under a result from the person's own file: deletes the result and its table from the server now.",
+   "max_length": 40
+  },
+  "del.done": {
+   "text": "Deleted from the Knos server. Its link no longer works.",
+   "description": "The line after the delete button removed the result from the server.",
+   "max_length": 77
+  },
+  "offline.kept": {
+   "text": "You are offline. This page is the copy kept at {time}.",
+   "description": "Under the tool's name with no network: the kept page and when it was kept. Keep {time}; it is filled in.",
+   "max_length": 76
+  },
+  "offline.waiting": {
+   "text": "Your check waits here and goes out once you are back online.",
+   "description": "With no network, after the person pressed the check: the check is waiting to be sent once.",
+   "max_length": 84
+  },
+  "rem.q": {
+   "text": "When will you do this each day?",
+   "description": "After the first result: the one question that sets a daily reminder, answered by a choice below.",
+   "max_length": 50
+  },
+  "rem.at8": {
+   "text": "At 8:00",
+   "description": "A choice under the daily reminder question: every morning at eight o'clock.",
+   "max_length": 21
+  },
+  "rem.coffee": {
+   "text": "After my coffee",
+   "description": "A choice under the daily reminder question: right after the person's morning coffee.",
+   "max_length": 30
+  },
+  "rem.got": {
+   "text": "Your reminder is in the file. Open it to add it to your calendar.",
+   "description": "After a reminder choice: the calendar file was given; nothing is sent by Knos.",
+   "max_length": 91
+  },
+  "streak.n": {
+   "text": "Days in a row: {n}",
+   "description": "After a result: how many days in a row this browser ran a check. Keep {n}; it is filled in.",
+   "max_length": 36
+  },
+  "streak.week": {
+   "text": "Day 7: a full week in a row.",
+   "description": "After a result on the seventh day in a row: the milestone of a full week.",
+   "max_length": 51
+  },
+  "streak.repair": {
+   "text": "Repair my streak",
+   "description": "After a missed day: the button that keeps the streak and adds the return bonus.",
+   "max_length": 32
+  },
+  "streak.missed": {
+   "text": "You missed a day. That happens. Welcome back with extra free runs: {n}",
+   "description": "After a missed day, with no blame: the return bonus of extra free runs. Keep {n}; it is filled in.",
+   "max_length": 98
+  },
+  "inv.copy": {
+   "text": "Copy this check",
+   "description": "Under a result: copies a link that opens the tool with the same column, rule and limit.",
+   "max_length": 30
+  },
+  "inv.invite": {
+   "text": "Invite someone",
+   "description": "Under a result: shares an invite link; both people get extra free runs.",
+   "max_length": 28
+  },
+  "inv.line": {
+   "text": "When they check their first file, you both get extra free runs: {n}",
+   "description": "Beside the invite button: what both people get when the invited person checks a file. Keep {n}.",
+   "max_length": 94
+  },
+  "today.h": {
+   "text": "New today",
+   "description": "The heading over today's short list of claims a person can check, new each day.",
+   "max_length": 27
+  },
+  "today.send": {
+   "text": "Send",
+   "description": "Beside one item of today's list: sends that item's link to one person through the share sheet.",
+   "max_length": 12
   }
  }
 }

@@ -27,13 +27,12 @@ from pathlib import Path
 import pytest
 
 from knos_wanted import server, tool_page, tool_run, usage, valley
-from knos_wanted.qloo_mcp import InProcess, Qloo
 
 REPO = Path(__file__).resolve().parents[3]
 JOB = REPO / "near" / "agents" / "job"
 STANDIN = Path(__file__).parent / "limit_standin.py"
 PLAIN = ("tx", "hash", "testnet", "devnet", "mainnet", "proof", "prove", "verify", "contract", "token", "wallet", "agent",
-         "job", "oracle", "LMSR", "NEAR", "Solana", "IRIS", "MCP", "API", "JSON")
+         "job", "oracle", "LMSR", "NEAR", "Solana", "MCP", "API", "JSON")
 FRONT = "https://drexthealpha.github.io"
 SMALL = "row,reading\n1,5\n2,6\n3,7"
 
@@ -66,7 +65,7 @@ def app(monkeypatch):
     monkeypatch.setattr(usage, "chain_count", lambda url=None: (_ for _ in ()).throw(OSError("no network in tests")))
     monkeypatch.setattr(tool_run, "_mem", {})
     monkeypatch.setitem(tool_run._measured, "v", None)
-    state = server.State(Qloo(InProcess(), mode="mock", sleep=lambda s: None))
+    state = server.State()
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.make_handler(state))
     t = threading.Thread(target=httpd.serve_forever, daemon=True)
     t.start()

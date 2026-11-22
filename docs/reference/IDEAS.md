@@ -77,9 +77,8 @@ knos idea state idea.commit.json                     # what the chain holds per 
 knos idea preorder idea.json 5 --wallet buyer.json --mint <test mint>
 ```
 
-**Demand evidence.** The demand check of [DEMAND_CHECK.md](DEMAND_CHECK.md) runs on the product the idea would become,
-through Qloo's official MCP harness. Without `QLOO_API_KEY` it runs Knos's MOCK server, and the result says MOCK.
-Directional demand evidence, not a sales forecast.
+**Demand evidence.** A demand check ran on the product the idea would become. Directional demand evidence, not a
+sales forecast.
 
 **Pull commitments, released in stages.** A buyer commits to buy N units at price P if the result is verified (the
 advance market commitment pattern). The N x P is locked as one private knos_pay order per **stage**, stage k being

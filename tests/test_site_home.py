@@ -34,10 +34,8 @@ def test_the_snapshot_cards_are_the_ones_its_rows_draw():
 
 def test_the_old_first_screen_holds_the_products_with_three_one_tap_actions_each():
     home = _section("view-home")
-    # the first screen names its buyer and has one box (web/brand/hero.html, scripts/sync_brand.py); the products follow
-    mission = "See who would buy it first."
-    assert re.sub(r"<[^>]+>", "", re.search(r'<h[12] id="k-mission" class="k-mission">(.*?)</h[12]>', home, re.S)[1]) == mission and len(_words(mission)) <= 6
-    assert '<input id="k-q" name="q"' in home and '<h2 id="home-h">Open for backing</h2>' in home
+    # the first screen is every face's first line (web/brand/first.html), then the products: no box of its own
+    assert '<h1 class="k-first" id="k-first">' in home and "<form" not in home and '<h2 id="home-h">Open for backing</h2>' in home
     cards = re.findall(r'<li class="hp" data-slug="([a-z0-9-]+)">(.*?)</li>', home, re.S)
     assert 1 <= len(cards) <= 3
     for slug, body in cards:

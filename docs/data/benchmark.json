@@ -1,0 +1,231 @@
+{
+ "name": "Knos's limit check against a plain spreadsheet formula",
+ "lock": {
+  "file": "bench/limit-vs-sheet/lock.json",
+  "sha256": "28044f9a2c277523d27368028cef853cae4117c46a89315100472d590ca40bcf",
+  "locked_at": "2026-11-22T14:58:11+00:00"
+ },
+ "run_at": "2026-11-22T15:01:04+00:00",
+ "machine": "the founder's Windows PC, one run",
+ "cases": 20,
+ "methods": {
+  "knos": {
+   "correct": 19,
+   "seconds": 26.934,
+   "cost": {
+    "money": 0,
+    "model_calls": 0,
+    "basis": "both run on one computer with no paid service and no model call",
+    "person_minutes": null,
+    "person_minutes_note": "not measured: the time a person takes to set up the formula"
+   },
+   "wrong": [
+    "h15"
+   ]
+  },
+  "sheet": {
+   "correct": 20,
+   "seconds": 1.05,
+   "cost": {
+    "money": 0,
+    "model_calls": 0,
+    "basis": "both run on one computer with no paid service and no model call",
+    "person_minutes": null,
+    "person_minutes_note": "not measured: the time a person takes to set up the formula"
+   },
+   "wrong": [],
+   "formula": "=IF(ISNUMBER(B2), B2<=limit, FALSE) in each row, then =MATCH(TRUE, C2:Cn, 0)"
+  }
+ },
+ "verdict": "sheet",
+ "per_case": [
+  {
+   "id": "h01",
+   "what": "a clean fall",
+   "expected": 120,
+   "knos": 120,
+   "sheet": 120,
+   "knos_right": true,
+   "sheet_right": true
+  },
+  {
+   "id": "h02",
+   "what": "a value equal to the limit",
+   "expected": 77,
+   "knos": 77,
+   "sheet": 77,
+   "knos_right": true,
+   "sheet_right": true
+  },
+  {
+   "id": "h03",
+   "what": "a file that never breaks the limit",
+   "expected": null,
+   "knos": null,
+   "sheet": null,
+   "knos_right": true,
+   "sheet_right": true
+  },
+  {
+   "id": "h04",
+   "what": "blank cells before the break",
+   "expected": 90,
+   "knos": 90,
+   "sheet": 90,
+   "knos_right": true,
+   "sheet_right": true
+  },
+  {
+   "id": "h05",
+   "what": "NaN cells before the break",
+   "expected": 50,
+   "knos": 50,
+   "sheet": 50,
+   "knos_right": true,
+   "sheet_right": true
+  },
+  {
+   "id": "h06",
+   "what": "words in number cells",
+   "expected": 60,
+   "knos": 60,
+   "sheet": 60,
+   "knos_right": true,
+   "sheet_right": true
+  },
+  {
+   "id": "h07",
+   "what": "inf and -inf cells",
+   "expected": 101,
+   "knos": 101,
+   "sheet": 101,
+   "knos_right": true,
+   "sheet_right": true
+  },
+  {
+   "id": "h08",
+   "what": "a temperature column with the rule below",
+   "expected": 33,
+   "knos": 33,
+   "sheet": 33,
+   "knos_right": true,
+   "sheet_right": true
+  },
+  {
+   "id": "h09",
+   "what": "numbers in scientific notation",
+   "expected": 40,
+   "knos": 40,
+   "sheet": 40,
+   "knos_right": true,
+   "sheet_right": true
+  },
+  {
+   "id": "h10",
+   "what": "spaces around numbers",
+   "expected": 64,
+   "knos": 64,
+   "sheet": 64,
+   "knos_right": true,
+   "sheet_right": true
+  },
+  {
+   "id": "h11",
+   "what": "numbers in quotes",
+   "expected": 45,
+   "knos": 45,
+   "sheet": 45,
+   "knos_right": true,
+   "sheet_right": true
+  },
+  {
+   "id": "h12",
+   "what": "no header row",
+   "expected": 25,
+   "knos": 25,
+   "sheet": 25,
+   "knos_right": true,
+   "sheet_right": true
+  },
+  {
+   "id": "h13",
+   "what": "semicolons and decimal commas",
+   "expected": 70,
+   "knos": 70,
+   "sheet": 70,
+   "knos_right": true,
+   "sheet_right": true
+  },
+  {
+   "id": "h14",
+   "what": "tabs between columns",
+   "expected": 55,
+   "knos": 55,
+   "sheet": 55,
+   "knos_right": true,
+   "sheet_right": true
+  },
+  {
+   "id": "h15",
+   "what": "a long log of 100,001 rows",
+   "expected": 90000,
+   "knos": {
+    "refused": 413,
+    "said": "Your file is too big. The limit is 100,000 rows. I kept your file in the box; try a shorter one."
+   },
+   "sheet": 90000,
+   "knos_right": false,
+   "sheet_right": true
+  },
+  {
+   "id": "h16",
+   "what": "a units row under the header",
+   "expected": 31,
+   "knos": 31,
+   "sheet": 31,
+   "knos_right": true,
+   "sheet_right": true
+  },
+  {
+   "id": "h17",
+   "what": "the first row breaks the limit",
+   "expected": 1,
+   "knos": 1,
+   "sheet": 1,
+   "knos_right": true,
+   "sheet_right": true
+  },
+  {
+   "id": "h18",
+   "what": "Windows line endings",
+   "expected": 88,
+   "knos": 88,
+   "sheet": 88,
+   "knos_right": true,
+   "sheet_right": true
+  },
+  {
+   "id": "h19",
+   "what": "a byte-order mark, the checked column first",
+   "expected": 47,
+   "knos": 47,
+   "sheet": 47,
+   "knos_right": true,
+   "sheet_right": true
+  },
+  {
+   "id": "h20",
+   "what": "negative numbers, limit -10",
+   "expected": 58,
+   "knos": 58,
+   "sheet": 58,
+   "knos_right": true,
+   "sheet_right": true
+  }
+ ],
+ "limits": [
+  "the held-out files are made up by bench/limit-vs-sheet/make_cases.py, not measured battery data",
+  "the formula is evaluated by bench/limit-vs-sheet/sheet.py, not inside a spreadsheet program",
+  "seconds are one run on one computer; Knos's include starting a fresh Python for each file"
+ ]
+}

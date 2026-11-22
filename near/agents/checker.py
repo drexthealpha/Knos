@@ -24,7 +24,7 @@ from pathlib import Path
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 
-from common import CONFIG, HERE, JOB_DIR, JOB_TEST, call, sha256_file, tests, view
+from common import CONFIG, HERE, JOB_DIR, JOB_TEST, call, confirm_final, sha256_file, tests, view
 
 # the hosted app signs with its own checker key (KNOS_CHECKER_PEM_FILE, KNOS_CHECKER_KID), which 2 owners set and can remove
 KEY = Path(os.environ.get("KNOS_CHECKER_PEM_FILE") or Path.home() / ".knos-checker" / "checker.pem")
@@ -78,6 +78,20 @@ def run_test(output: Path, test: str = JOB_TEST) -> tuple[bool, str, float]:
         return p.returncode == 0, line, time.time() - t0
 
 
+def settled(r: dict) -> dict:
+    """A release counts as paid only when two RPC providers agree it is final with every receipt succeeded
+    (common.confirm_final); otherwise it is not ok, and says "releasing" (not final on both yet) or "failed"."""
+    if not r.get("ok"):
+        return r
+    c = confirm_final(r["tx"], CONFIG["relayer"])
+    r["final"] = c
+    if not c["paid"]:
+        r["ok"] = False
+        r["said"] = ("releasing: not yet final on two RPC providers, so not marked paid" if c["state"] == "releasing"
+                     else "a receipt of the payment failed on NEAR: not paid")
+    return r
+
+
 def release_one(job_id: str, payee: str, output_sha256: str, criteria_hash: str, model: dict | None = None) -> dict:
     """Sign the token for the agent whose output passed and send the release: the one step a visitor waits for. With a
     NEAR AI Cloud signature of the model call that wrote that output ({text, signature, signer}) from a signer the owners
@@ -93,14 +107,15 @@ def release_one(job_id: str, payee: str, output_sha256: str, criteria_hash: str,
             verified = str(model["signer"]).lower().removeprefix("0x") in signers
         except Exception:  # noqa: BLE001 - an older contract or an unread view: the plain release
             verified = False
-    # every receipt executed, the payment callback included; finality follows within seconds
+    # paid only once final: send_tx waits for FINAL, then two RPC providers must each see every receipt succeeded
     if verified:
         claims["model_text"] = model["text"]
         r = call(CONFIG["relayer"], CONFIG["contract"], "release_job_verified",
                  {"id": job_id, "token": sign(claims), "model_text": model["text"], "model_signature": model["signature"]},
-                 gas="150 Tgas", wait="EXECUTED_OPTIMISTIC")
+                 gas="150 Tgas", wait="FINAL")
     else:
-        r = call(CONFIG["relayer"], CONFIG["contract"], "release_job", {"id": job_id, "token": sign(claims)}, gas="150 Tgas", wait="EXECUTED_OPTIMISTIC")
+        r = call(CONFIG["relayer"], CONFIG["contract"], "release_job", {"id": job_id, "token": sign(claims)}, gas="150 Tgas", wait="FINAL")
+    r = settled(r)
     r["model_verified"] = verified
     r["seconds"] = round(time.time() - t0, 1)
     return r
@@ -131,7 +146,7 @@ def check(job_id: str, release: bool = True) -> dict:
                           "jti": str(uuid.uuid4()), "job": job_id, "payee": a["agent"], "output_sha256": a["output_sha256"],
                           "criteria_hash": job["criteria_hash"]}
                 t0 = time.time()
-                r["release"] = call(CONFIG["relayer"], CONFIG["contract"], "release_job", {"id": job_id, "token": sign(claims)}, gas="120 Tgas")
+                r["release"] = settled(call(CONFIG["relayer"], CONFIG["contract"], "release_job", {"id": job_id, "token": sign(claims)}, gas="120 Tgas"))
                 r["release"]["seconds"] = round(time.time() - t0, 1)
                 job["state"] = "Paying" if r["release"]["ok"] else job["state"]
         out["attempts"].append(r)

@@ -51,15 +51,15 @@ class _Wallet:
 def action(report: dict, base: str) -> dict:
     d = report.get("decision") or {}
     plan = d.get("plan") or {}
-    if d.get("verdict") != "OPEN":
+    if d.get("verdict") != "OPEN" or not plan:
         return {"type": "action", "icon": base + "/static/icon.svg", "title": "Knos pre-order", "label": "Closed", "disabled": True,
-                "description": "Pre-orders open only on a report whose decision is OPEN.", "error": {"message": "not open"}}
+                "description": "Pre-orders open only on a report whose decision is OPEN with a pre-order target.", "error": {"message": "not open"}}
     href = f"/api/actions/preorder?report={report['hash']}"
     who = plan.get("who") or {}
     return {"type": "action", "icon": base + "/static/icon.svg", "title": f"Pre-order: {report['idea'][:80]}",
             "description": (f"For {(who.get('age') or '').replace('_', ' ')} {who.get('gender') or ''}; launching in "
                             f"{', '.join(plan.get('where') or []) or 'its first cities'}. {plan.get('unit_price')} test units per unit "
-                            f"({plan.get('tier')} tier, set by Qloo). Held on Solana devnet until the milestone check passes, then released to the maker. Test money."),
+                            f"({plan.get('tier')} tier). Held on Solana devnet until the milestone check passes, then released to the maker. Test money."),
             "label": "Pre-order",
             "links": {"actions": [{"type": "transaction", "label": f"Pre-order 5 units ({5 * int(plan.get('unit_price') or 1)} test units)",
                                    "href": href + "&units=5"},
@@ -78,8 +78,8 @@ def preorder_tx(report: dict, account: str, units: int, label: str = "wallet") -
     from knos.ideas import commit as C
     from knos.settle.v2 import pay
     d = report.get("decision") or {}
-    if d.get("verdict") != "OPEN":
-        raise ValueError("pre-orders open only on a report whose decision is OPEN")
+    if d.get("verdict") != "OPEN" or not isinstance(d.get("target_units"), int):
+        raise ValueError("pre-orders open only on a report whose decision is OPEN with a pre-order target")
     price = int((d.get("plan") or {}).get("unit_price") or preorder.PRICE)
     if isinstance(units, bool) or not isinstance(units, int) or not 5 <= units <= min(1000, d["target_units"]):
         raise ValueError(f"units: 5 to {min(1000, d['target_units'])}")

@@ -165,8 +165,8 @@ def agent_prompt(brief: dict, milestone_key: str, criteria_hash: str | None = No
              CHAIN_OF_DRAFT, SKETCH[sketch_paradigm(brief)], CONFIDENCE_FIRST, STOP_RULE,
              "Intermediate work as JSON, equations or code sketches, never prose."]
     lines += [f"Skill: {k}" for k in skills_for(brief, patterns)]
-    if grounding:                    # Qloo's facts about who buys and where, so the work is aimed, not guessed
-        lines.append("Grounding (Qloo): " + json.dumps(grounding, separators=(",", ":"), ensure_ascii=False))
+    if grounding:                    # facts about who buys and where, so the work is aimed, not guessed
+        lines.append("Grounding: " + json.dumps(grounding, separators=(",", ":"), ensure_ascii=False))
     return {"milestone": milestone_key, "criteria_hash": h, "effort": rt["effort"], "token_budget": rt["token_budget"],
             "difficulty": rt["difficulty"], "paradigm": sketch_paradigm(brief), "prompt": "\n".join(lines), "intent": sk}
 

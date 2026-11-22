@@ -19,5 +19,64 @@
       "source": "not from a law: a starting value to be tested"
     }
   },
-  "sample_runs": "free and not counted (ROUND13-ITEMS C1)"
+  "sample_runs": "free and not counted (ROUND13-ITEMS C1)",
+  "window": {
+    "_": "L14 (IQ PLAN.md, MISSION Project_P_Master_Blueprint.md:604): the price window C / (1 - m) <= price <= B - R - S. A value that is not measured is null, and the pricing page shows it as not known yet, never 0.",
+    "cost_per_run": {
+      "value": null,
+      "unit": "US dollars one run costs Knos, failed runs included, over the latest runs",
+      "source": "not measured yet: the run records' time and model tokens (apps/wanted tool_run.py) do not reach this file yet"
+    },
+    "margin": {
+      "value": null,
+      "unit": "share of the price Knos keeps, from 0 to 1",
+      "source": "not set: the founder's choice"
+    },
+    "person_cost": {
+      "value": null,
+      "unit": "US dollars a person spends today to check one test file against a limit",
+      "source": "not measured",
+      "url": null
+    },
+    "person_hours": {
+      "value": null,
+      "unit": "hours a person spends today to check one test file against a limit",
+      "source": "not measured",
+      "url": null
+    },
+    "risk": {
+      "value": null,
+      "unit": "US dollars of risk a person takes by moving the check to Knos",
+      "source": "not measured"
+    },
+    "switching": {
+      "value": null,
+      "unit": "US dollars it costs a person to switch to Knos",
+      "source": "not measured"
+    },
+    "trend": []
+  },
+  "plans": {
+    "_": "L33: one paid tier, a flat monthly plan by default and a yearly plan, priced by region, in test money. The prices are the founder's choice: null until set.",
+    "monthly": {
+      "price": null,
+      "default": true
+    },
+    "yearly": {
+      "price": null
+    },
+    "regions": [],
+    "covers": {
+      "low": 10,
+      "high": 20,
+      "unit": "free users one payer's plan should cover",
+      "source": "LAWS/DISTRIBUTION/D10.md:60"
+    },
+    "paying_share": {
+      "low": 3,
+      "high": 5,
+      "unit": "percent of users expected to pay",
+      "source": "LAWS/DISTRIBUTION/D10.md:156"
+    }
+  }
 }

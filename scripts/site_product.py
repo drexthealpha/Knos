@@ -17,7 +17,6 @@ REPO = "https://github.com/drexthealpha/Knos"
 JOBS = "jobs.knos-swarm-1105.testnet"
 MARKET = "market.knos-swarm-1105.testnet"
 EXPLORER = "https://testnet.nearblocks.io/address/"
-GOAL = "The goal: Knos turns any research into a product billions of people use, in days, not years."
 HEADER_CSS = ""   # the one header's styles, set by scripts/site_pages.py before it writes these pages
 
 
@@ -32,10 +31,43 @@ def _tool_page():
 
 TP = _tool_page()
 
+# L09 (IQ PLAN.md, DISTRIBUTION/CHECKED-F8-G3.md:746): the published site ships every locale file of web/i18n/, the
+# server's ten first, then the rest in this order (most speakers first). This copy of tool_page is the site's own (loaded
+# by path above, not knos_wanted.tool_page), so its language control, its runtime's list and the head script of
+# scripts/site_pages.py offer them all; the server's pages (tool_page.LANGS) offer the same list.
+SITE_ORDER = ("bn", "ur", "de", "ja", "mr", "te", "tr", "ta", "vi", "ko", "fa", "it", "th", "gu", "pa", "kn", "fil", "am",
+              "ms", "pl", "uk", "ml", "uz", "ro", "nl", "az", "el", "hu", "cs", "he", "zh-Hant")
+
+
+def site_langs() -> tuple:
+    have = {p.stem for p in (ROOT / "web" / "i18n").glob("*.json")}
+    rest = [c for c in SITE_ORDER if c in have] + sorted(have - set(TP.LANGS) - set(SITE_ORDER))
+    return tuple(c for c in TP.LANGS if c in have) + tuple(c for c in rest if c not in TP.LANGS)
+
+
+TP.LANGS = site_langs()
+# a browser tag names a language by its base, except Chinese, whose script follows the region (zh-TW, zh-HK and zh-MO
+# read Traditional characters), and the old tags iw, in, tl and ji; the same rule in the head script (site_pages.HEAD_JS)
+MATCH_ZH = 'if (b === "zh") return "zh-Hans";'
+MATCH_ALL = ('if (b === "zh") return /-(hant|tw|hk|mo)\\b/.test(t) && L.some((l) => (l.code || l) === "zh-Hant") ? "zh-Hant" : "zh-Hans"; '
+             'const old = { iw: "he", in: "id", tl: "fil", ji: "yi" }; if (old[b] && L.some((l) => (l.code || l) === old[b])) return old[b];')
+
+
+def static_runtime(base: str, used: list | None = None) -> str:
+    """tool_page.static_runtime with the site's language list and the tag rule above."""
+    js = TP.static_runtime(base, used)
+    assert js.count(MATCH_ZH) == 1, "tool_page.STATIC_JS no longer matches a language tag as site_product expects"
+    return js.replace(MATCH_ZH, MATCH_ALL.replace("L.some", "LANGS.some"))
+
 
 def en(key: str, **v) -> str:
     """One English string of web/i18n/en.json as plain text (a page of the build is written in English first)."""
     return TP.t("en", key, **v)
+
+
+# L02: the one sentence of what Knos is, the same on every surface (the front door's title and link preview, the foot of
+# the other pages); no mission line, no other contest
+GOAL = en("goal")
 
 CSS = """body { margin: 0; background: var(--paper); color: var(--ink); font: 400 17px/1.55 var(--text); }
 a { color: var(--accent); }
@@ -139,7 +171,7 @@ def page(header: str, up: str, title: str, desc: str, body: str, script: str = "
 
 LIVE_JS = """const HOSTED = "__HOSTED__";
 const $ = (id) => document.getElementById(id);
-const usd = (n) => (n === null || n === undefined || n === "" || !isFinite(+n)) ? "unknown" : (+n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " test dollars";   // test money: never a dollar sign; a missing amount is unknown, not 0
+const usd = (n) => (n === null || n === undefined || n === "" || !isFinite(+n)) ? "not known" : (+n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " test dollars";   // test money: never a dollar sign; a missing amount is unknown, not 0
 // the board and the counters are also files of this site, written by every Pages build (data/): a live answer within
 // 1.2 s is used, else the file is shown at once, with its own read time, so a press never waits on a sleeping server
 const LOGO = document.querySelector("#kh .logo"), SITE_ROOT = LOGO && LOGO.href ? LOGO.href : new URL(LOGO && LOGO.dataset.root || "./", location).href, CACHED = { "/api/near/claims": "board.json", "/api/near/claim/counters": "counters.json" };
@@ -313,14 +345,14 @@ def claim_page(header: str, c: dict) -> str:
             '<p class="row"><button class="btn2" id="verify" type="button">Check the test file</button> '
             '<button class="btn2" id="tamper" type="button">Change one byte and check again</button></p>\n'
             '<p id="verdict" role="status"></p>\n'
-            '<h2>What people predict, in test dollars</h2>\n<table><tbody><tr><th>Does it hold?</th><td><span id="truth2">reading</span><span class="row" data-trade="truth"></span></td></tr>'
+            '<h2>Forecasts, in test dollars</h2>\n<p class="fine">A forecaster\'s price is a guess, not demand: demand is only test money put behind the claim.</p>\n<table><tbody><tr><th>Does it hold?</th><td><span id="truth2">reading</span><span class="row" data-trade="truth"></span></td></tr>'
             '<tr><th>100 test dollars behind it within 7 days?</th><td><span id="demand">reading</span><span class="row" data-trade="demand"></span></td></tr></tbody></table>\n'
             '<p id="traded" role="status"></p>\n'
             + usdc_section(c) +
             f'<p>Prices in test dollars move with each trade. Nothing real is charged. The first market settles by the locked test, the '
             f'second by the public record of what was put behind the claim.</p>\n'
             f'<h2>Backers</h2>\n<p id="backed">Reading every backer from the public record...</p>\n'
-            f'<table id="backers" data-market="{MARKET}" hidden><thead><tr><th>When (UTC)</th><th>Backer</th><th class="n">Test dollars</th></tr></thead><tbody></tbody></table>\n'
+            f'<table id="backers" data-market="{MARKET}" hidden><thead><tr><th>When (UTC)</th><th>Who</th><th>Role</th><th class="n">Test dollars</th><th>Can affect the outcome?</th></tr></thead><tbody></tbody></table>\n'
             f'<h2>Receipts</h2>\n<p id="proofs">Reading the public record...</p>\n<table id="receipts" hidden><thead><tr><th>When (UTC)</th>'
             f'<th class="n">Knos\'s fee, test dollars (48 of 49 parts before 12 Nov, 1 in 10 since)</th><th>Knos\'s fee transfer</th></tr></thead><tbody></tbody></table>\n'
             f'<h2>The record</h2>\n<p>Jobs: <a href="{EXPLORER}{JOBS}">{JOBS}</a>. Claim records: <a href="{EXPLORER}{MARKET}">{MARKET}</a>. '
@@ -371,8 +403,12 @@ def claim_page(header: str, c: dict) -> str:
       for (const [at, amount, who, own] of rows) {
         const tr = document.createElement("tr"), a = Object.assign(document.createElement("a"), { href: "https://testnet.nearblocks.io/address/" + who, textContent: own ? "Knos (test seed)" : who });
         if (!own) outside += +amount / 1e6;
-        tr.append(Object.assign(document.createElement("td"), { textContent: day(at) }), Object.assign(document.createElement("td"), {}), Object.assign(document.createElement("td"), { className: "n", textContent: (+amount / 1e6).toFixed(2) }));
-        tr.children[1].append(a); tb.append(tr);
+        // L31: each backer's role, and a flag when the backer can affect the outcome it backed: Knos owns and checks every
+        // claim; Knos's test helpers submit the work
+        const conflict = own ? "Yes: Knos owns and checks this claim" : AGENTS.includes(who) ? "Yes: submits the work for this claim" : "None recorded";
+        tr.append(Object.assign(document.createElement("td"), { textContent: day(at) }), Object.assign(document.createElement("td"), {}), Object.assign(document.createElement("td"), { textContent: "Backer" }),
+          Object.assign(document.createElement("td"), { className: "n", textContent: (+amount / 1e6).toFixed(2) }), Object.assign(document.createElement("td"), { textContent: conflict }));
+        tr.children[1].append(a); tr.dataset.conflict = conflict === "None recorded" ? "no" : "yes"; tb.append(tr);
       }
       const early = all.length - rows.length, earlyUsd = all.slice(0, Math.max(0, early)).reduce((s, x) => s + +x[1] / 1e6, 0);
       $("backed").textContent = `${outside.toFixed(2)} test dollars from outside backers, ${rows.filter((x) => x[3]).length} ${rows.filter((x) => x[3]).length === 1 ? "backing" : "backings"} by Knos (test seed).` +
@@ -430,6 +466,47 @@ def claim_page(header: str, c: dict) -> str:
     return page(header, "../../", f"Knos: does {short} hold?", c["plain"], body, script, f"claim/{c['name']}/", css=WALK_CSS)   # a title under 52 characters
 
 
+def reproduced() -> dict:
+    """docs/data/reproduced.json (scripts/site_reproduced.py): per claim, whether a paid run of its locked test is on the
+    public record."""
+    try:
+        return json.loads((DATA / "reproduced.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {"claims": {}}
+
+
+def paper_link(c: dict) -> str:
+    """The paper's own public page, where its authors and their addresses are listed (its DOI, else its arXiv page, else
+    the page the claim was read from)."""
+    if c.get("doi"):
+        return "https://doi.org/" + c["doi"]
+    if c.get("arxiv"):
+        return "https://arxiv.org/abs/" + c["arxiv"]
+    return c.get("url") or ""
+
+
+def papers_page(header: str, cs: list[dict]) -> str:
+    """L16: the Papers page. For each paper: whether its result was reproduced by a locked test (docs/data/reproduced.json,
+    read from the public record), and how to ask its authors (the paper's own public page, which names them)."""
+    r = reproduced()
+    seen = r.get("claims") or {}
+    rows = []
+    for c in cs:
+        done = bool((seen.get(c["name"]) or {}).get("reproduced"))
+        link = paper_link(c)
+        rows.append(f'<tr data-paper="{e(c["name"])}"><td><a href="../claim/{e(c["name"])}/">{e(c["paper"])}</a><br>'
+                    f'<span class="fine">{e(c["authors"])}, {e(c["year"])}</span></td>'
+                    f'<td data-reproduced="{"yes" if done else "no"}">{"Reproduced" if done else "Not reproduced yet"}</td>'
+                    f'<td>' + (f'<a href="{e(link)}" data-authors>Ask the authors</a>' if link else "") + '</td></tr>')
+    at = r.get("read_at")
+    body = ("<h1>Papers</h1>\n<p>Each paper's result, and whether a test locked before any work reproduced it.</p>\n"
+            '<table id="papers"><thead><tr><th>Paper</th><th>Reproduced?</th><th>Its authors</th></tr></thead>\n<tbody>' + "".join(rows) + "</tbody></table>\n"
+            f'<p class="fine">Read from the public record{" at " + e(at.replace("T", " ").replace("Z", " UTC")) if at else ""}. '
+            "Ask the authors opens the paper's own page, which names them.</p>\n"
+            '<p><a class="btn" href="../prove/">Check a paper\'s claim</a></p>')
+    return page(header, "../", "Knos papers", "Each paper's result, and whether a test locked before any work reproduced it.", body, "", "papers/", css=WALK_CSS)
+
+
 def agents_page(header: str) -> str:
     flow = (f'curl -X POST {HOSTED}/api/near/claim/flow -H "Content-Type: application/json" \\\n'
             '  -d \'{"url": "https://doi.org/10.46298/dmtcs.3545", "amount": 10}\'')
@@ -476,6 +553,26 @@ def usage() -> dict:
     return json.loads((DATA / "usage.json").read_text(encoding="utf-8"))
 
 
+def bench_html() -> str:
+    """L15: the locked comparison (bench/limit-vs-sheet/), each number read from docs/data/benchmark.json as it came out,
+    win or lose; nothing when the file is missing."""
+    p = DATA / "benchmark.json"
+    if not p.is_file():
+        return ""
+    b = json.loads(p.read_text(encoding="utf-8"))
+    k, s = b["methods"]["knos"], b["methods"]["sheet"]
+    won = {"tie": "A tie", "knos": "Knos won", "sheet": "The spreadsheet won"}[b["verdict"]]
+    row = lambda name, d: (f'<tr><th>{name}</th><td class="n">{d["correct"]} of {b["cases"]}</td>'   # noqa: E731
+                           f'<td class="n">{d["seconds"]:.2f} s</td><td class="n">{d["cost"]["money"]}</td></tr>')
+    wrong = ", ".join(r["what"] for r in b["per_case"] if not r["knos_right"])
+    return (f'<h2 id="bench">Knos against a spreadsheet formula</h2>\n<p>{won}. Test locked {e(b["lock"]["locked_at"][:10])}, '
+            f'run {e(b["run_at"][:16].replace("T", " "))} UTC.</p>\n'
+            '<table><thead><tr><th></th><th>Right</th><th>Time</th><th>Money</th></tr></thead><tbody>'
+            + row("Knos", k) + row("Formula", s) + "</tbody></table>\n"
+            + (f"<p>Knos missed: {e(wrong)}.</p>\n" if wrong else "")
+            + f'<p class="fine">Made-up files; a person\'s minutes not measured. <a href="{REPO}/tree/main/bench/limit-vs-sheet">The files and the lock</a></p>\n')
+
+
 SITE = "https://drexthealpha.github.io/Knos/"
 
 
@@ -514,6 +611,61 @@ HOW_CSS = (".how summary { display: inline-flex; align-items: center; min-height
            "main code, main pre { font-size: 16px; }\n")
 
 
+NOT_KNOWN = "not known yet"   # L14, L32: a value that is not measured is shown so, never as 0
+
+
+def price_window(d: dict | None = None) -> dict:
+    """L14: the price window C / (1 - m) <= price <= B - R - S (MISSION Project_P_Master_Blueprint.md:604) from
+    docs/data/pricing.json "window": its floor, its ceiling and whether the price sits inside; None for each that a
+    missing value leaves unknown."""
+    w = (d or pricing()).get("window") or {}
+    v = lambda k: (w.get(k) or {}).get("value")   # noqa: E731
+    c, m, b, r, sw = v("cost_per_run"), v("margin"), v("person_cost"), v("risk"), v("switching")
+    low = None if c is None or m is None or not 0 <= m < 1 else c / (1 - m)
+    high = None if None in (b, r, sw) else b - r - sw
+    return {"low": low, "high": high, "fits": None if low is None or high is None else low <= high}
+
+
+def covers(d: dict | None = None) -> float | None:
+    """L33: how many free users one payer's monthly plan covers: the plan's price over what a free user's runs cost Knos in
+    a month at the measured cost per run (L14) and the free runs a day. None while the price or the cost is unknown."""
+    d = d or pricing()
+    c = ((d.get("window") or {}).get("cost_per_run") or {}).get("value")
+    price = ((d.get("plans") or {}).get("monthly") or {}).get("price")
+    free = d["numbers"]["free_runs_per_day"]["value"]
+    if c is None or price is None or c <= 0:
+        return None
+    return price / (c * free * 30)
+
+
+def cost_html(d: dict) -> str:
+    """The pricing page's fold, in English (marked so): the real cost beside the price (L14) and the one paid tier (L33)."""
+    w, pl = d.get("window") or {}, d.get("plans") or {}
+    shown = lambda x, unit="": NOT_KNOWN if x is None else f"{x:,.4g}{unit}"   # noqa: E731
+    pw = price_window(d)
+    person = w.get("person_cost") or {}
+    person_cell = (f'{shown(person.get("value"))} <a href="{e(person["url"])}">source</a>' if person.get("url") and person.get("value") is not None
+                   else "not measured")
+    rows = [("One run costs Knos, failed runs included", shown((w.get("cost_per_run") or {}).get("value"))),
+            ("A person's cost today, in dollars", person_cell),
+            ("A person's time today, in hours", "not measured" if (w.get("person_hours") or {}).get("value") is None else shown(w["person_hours"]["value"])),
+            ("Knos's price", "the pack above, in test money"),
+            ("The price window", NOT_KNOWN if pw["fits"] is None else ("the price fits" if pw["fits"] else "the price does not fit")),
+            ("Cost per run, over time", NOT_KNOWN if not w.get("trend") else ", ".join(f'{e(t["date"])} {t["value"]:,.4g}' for t in w["trend"]))]
+    cov, c = covers(d), pl.get("covers") or {}
+    share = pl.get("paying_share") or {}
+    plan = lambda x: "not set yet" if (x or {}).get("price") is None else f'{x["price"]:,.4g} test dollars'   # noqa: E731
+    prow = [("Monthly plan, the default", plan(pl.get("monthly"))), ("Yearly plan", plan(pl.get("yearly"))),
+            ("By region", "not set yet" if not pl.get("regions") else ", ".join(f'{e(r["region"])} {r["monthly"]:,.4g}' for r in pl["regions"])),
+            (f'Free users one payer covers (target {c.get("low")} to {c.get("high")})', NOT_KNOWN if cov is None else f"{cov:,.1f}"),
+            ("Expected paying share", f'{share.get("low")} to {share.get("high")} percent' if share else NOT_KNOWN)]
+    table = lambda rs, tid: f'<table id="{tid}"><tbody>' + "".join(f"<tr><th>{e(a)}</th><td>{b}</td></tr>" for a, b in rs) + "</tbody></table>"   # noqa: E731
+    return ('<div lang="en" dir="ltr"><h2>The real cost</h2>' + table(rows, "cost")
+            + "<p>The price fits when the cost of a run over one minus the margin is at most the price, and the price is at most "
+              "the person's cost less the risk and the cost of switching.</p>"
+            + "<h2>One paid tier</h2>" + table(prow, "plans") + "</div>")
+
+
 def pricing_page(header: str) -> str:
     """Round 13, C6: every number on this page is read from docs/data/pricing.json, each in a span named for it. Plain
     words outside the closed How it works fold (the PLAIN-WORDS rule); prices in dollars, never tokens or credits.
@@ -538,11 +690,11 @@ def pricing_page(header: str) -> str:
             + TP.five("en", answers)
             + f'<p>{comp("price.f1", {"url": "../data/pricing.html"})}</p>'
             f"<p>{e(en('price.f2'))}</p>"
-            f'<p>{comp("price.f3", {"url": REPO + "/blob/main/docs/PRICING.md"})}</p><p data-mt hidden></p></details>')
+            f'<p>{comp("price.f3", {"url": REPO + "/blob/main/docs/PRICING.md"})}</p><p data-mt hidden></p>' + cost_html(pricing()) + '</details>')
     # Round 13 WALK 1: the pricing file opens as a page of the site (numbers_page), not as the raw file
     body = body.replace(TP.PRICING_FILE, SITE + "data/pricing.html")
     out = page(header, "../", en("price.title"), "Sample runs are free; runs on your own file have a free daily allowance, then a pack in test money.", body,
-               TP.static_runtime("../i18n/"), "pricing/", FOOT("../") if FOOT else "")
+               static_runtime("../i18n/"), "pricing/", FOOT("../") if FOOT else "")
     return out.replace("</style>", HOW_CSS + TP.SWITCH_CSS + "\n" + SCREEN_PAGE_CSS + "</style>", 1)
 
 
@@ -589,6 +741,73 @@ main .btn:focus-visible, main summary:focus-visible, main a:focus-visible { outl
 """
 
 
+RAW_OPENS = {"tools_opened"}   # L36: a raw open count is not shown (DISTRIBUTION/E3.md:110)
+
+
+def changes() -> list[dict]:
+    """docs/data/changes.json (L38): what changed because of the answers, newest first."""
+    try:
+        return json.loads((DATA / "changes.json").read_text(encoding="utf-8")).get("changes") or []
+    except (OSError, ValueError):
+        return []
+
+
+def weekly() -> list[dict]:
+    """docs/data/weekly.json (L48, scripts/site_weekly_log.py): one entry per ISO week from git log, newest first."""
+    try:
+        return json.loads((DATA / "weekly.json").read_text(encoding="utf-8")).get("weeks") or []
+    except (OSError, ValueError):
+        return []
+
+
+QUESTIONS = [("again", "Would you choose Knos again for this?"), ("without", "Would you do this without Knos?"),
+             ("disappointed", "How disappointed would you be without Knos?"), ("rank", "Which task do you want most?")]   # L38
+
+
+def depth_html(u: dict) -> str:
+    """The status page's fold, in English (marked so): L36's measures each against its target line and the law line it comes
+    from, the activation action and deadline, L37's measures, L38's answers and what changed because of them, L48's newest
+    weekly entry, and L32's money lines (filled live). A measure the file does not hold reads "not known yet"."""
+    import site_usage
+    lead, depth, survey = u.get("lead") or {}, u.get("depth") or {}, u.get("survey") or {}
+
+    def val(x) -> str:
+        if x is None:
+            return "not known yet"
+        if isinstance(x, dict):
+            return ", ".join(f"{e(k)} {n:,}" for k, n in sorted(x.items())) or "none yet"
+        return f"{x:,g}"
+    rows = "".join(f'<tr><th>{e(label)}</th><td class="n" data-lead-full="{k}">{val(lead.get(k))}</td><td>{e(target) if target else "no number in the law"}</td>'
+                   f'<td><code>{e(src)}</code></td></tr>' for k, label, target, src in site_usage.LEAD)
+    deep = "".join(f'<tr><th>{e(label)}</th><td data-depth="{k}">{val(depth.get(k))}</td><td><code>{e(src)}</code></td></tr>' for k, label, src in site_usage.DEPTH)
+    asked = "".join(f'<tr><th>{e(q)}</th><td data-survey="{k}">{val(survey.get(k))}</td></tr>' for k, q in QUESTIONS)
+    done = changes()
+    changed = ("<ul>" + "".join(f'<li><time datetime="{e(c.get("date", ""))}">{e(c.get("date", ""))}</time>: {e(c.get("what", ""))}</li>' for c in done) + "</ul>") if done else "<p>Nothing yet.</p>"
+    w = weekly()
+    week = (f'<p id="weekly">Week {e(w[0]["week"])}, {e(w[0]["from"])} to {e(w[0]["to"])}: {w[0]["changes"]:,} changes merged. '
+            f'<a href="{e(w[0]["history"])}">The changes</a></p>') if w else '<p id="weekly">No week logged yet.</p>'
+    return ("<h2>Who got a result</h2>\n<p>Activation: a first result within 7 days of the first visit.</p>\n"
+            f'<table id="lead"><thead><tr><th>Measure</th><th class="n">Now</th><th>Target</th><th>From</th></tr></thead><tbody>{rows}</tbody></table>\n'
+            f'<h2>In depth</h2>\n<table id="depth"><tbody>{deep}</tbody></table>\n'
+            f'<h2>Answers after a result</h2>\n<table id="survey"><tbody>{asked}</tbody></table>\n'
+            f'<h2>Changed because of the answers</h2>\n{changed}\n'
+            f'<h2>This week</h2>\n{week}\n'
+            '<h2>Money, read now</h2>\n<table id="money"><tbody><tr><td>reading</td></tr></tbody></table>\n'
+            '<p class="fine">Money held in open jobs can be refunded, so it is never counted as revenue.</p>\n')
+
+
+# L32: the money lines from the jobs contract's get_totals, by web/money.js's rules
+MONEY_JS = """
+(async () => {
+  const tb = document.querySelector("#money tbody"); if (!tb) return;
+  let t = null; try { t = (await nearView("__JOBS__", "get_totals", {}))["knos-usdc-1102.testnet"] || null; } catch (e) { t = null; }
+  tb.replaceChildren(...KnosMoney.moneyRows(t).map(([label, v]) => { const tr = document.createElement("tr");
+    tr.append(Object.assign(document.createElement("th"), { textContent: label }), Object.assign(document.createElement("td"), { className: "n", textContent: KnosMoney.cell(v) }));
+    return tr; }));
+})();
+""".replace("__JOBS__", JOBS)
+
+
 def status_page(header: str) -> str:
     """Round 13, D3: each use count with its label, from docs/data/usage.json, written into the page at build time (a 0
     is shown as 0; a measure with too few browsers says so). The live service lines sit in the closed How it works fold:
@@ -599,7 +818,15 @@ def status_page(header: str) -> str:
     # action, when they were read; the three measures (still "not enough browsers yet") and the live lines in the fold.
     # Every label is a key of web/i18n/en.json, shown in the browser's language; the live lines stay English, marked so.
     # each label is its key of web/i18n/en.json (status.<name>), the words the script shows in every language
-    rows = "".join(f'<tr><th>{e(en("status." + k))}</th><td class="n" data-count="{k}">{int(u["totals"].get(k) or 0):,}</td></tr>' for k, _ in site_usage.COUNTS)
+    lead = u.get("lead") or {}
+    first = lead.get("first_result_7d")
+    # L36: the first line is the people who reached a first result in the last 7 days; no raw open count (tools_opened is
+    # one outsiders can inflate, DISTRIBUTION/E3.md:110); a count the file does not hold is "not known yet", never 0
+    rows = (f'<tr><th>{e(en("status.first_result_7d"))}</th><td class="n" data-lead="first_result_7d">'
+            + (e(en("status.not_known")) if first is None else f"{first:,g}") + "</td></tr>")
+    rows += "".join(f'<tr><th>{e(en("status." + k))}</th><td class="n" data-count="{k}">'
+                    + (f'{u["totals"][k]:,}' if isinstance(u["totals"].get(k), int) else e(en("status.not_known"))) + "</td></tr>"
+                    for k, _ in site_usage.COUNTS if k not in RAW_OPENS)
     meas = "".join(f'<tr><th>{e(en("status." + k))}</th><td class="n" data-measure="{k}">'
                    + (e(en("status.too_few")) if u["measures"].get(k) is None else f'{u["measures"][k]:,}') + "</td></tr>" for k, _ in site_usage.MEASURES)
     # the time keeps its own left-to-right order inside a right-to-left sentence (U7 R2): a left-to-right isolate around it
@@ -612,6 +839,7 @@ def status_page(header: str) -> str:
             # company's product (the WALK counts names inside the fold too)
             f'<table id="meas"><tbody>{meas}</tbody></table>\n<p><a href="../data/usage.html">{e(en("status.file"))}</a></p><p data-mt hidden></p>\n'
             '<div lang="en" dir="ltr">\n'
+            + depth_html(u) + bench_html() +
             "<p>Is Knos up right now? Each line is read live.</p>\n<table id=\"st\"><tbody>"
             "<tr><th>The proof service</th><td id=\"svc\">reading</td></tr>"
             "<tr><th>Live proofs today</th><td id=\"today\">reading</td></tr>"
@@ -624,13 +852,14 @@ def status_page(header: str) -> str:
             "<p class=\"fine\">Each line is read now, from Knos's server, the test network and Knos's public code record.</p>\n"
             "<p class=\"fine\">The jobs count adds up each agent's passes in the jobs "
             "contract's <code>get_agent_record</code>; the money paid out is its <code>get_totals</code>.</p></div></details>")
-    script = LIVE_JS + """// R13 WALK 2: the counts come from the published data file when the page loads (the file is refreshed between
+    script = LIVE_JS + (ROOT / "web" / "money.js").read_text(encoding="utf-8") + MONEY_JS + """// R13 WALK 2: the counts come from the published data file when the page loads (the file is refreshed between
 // builds); the copy written in at build time stays when the file cannot be read. "Counted to" is the time of
 // whichever copy is shown.
 fetch("../data/usage.json", { cache: "no-store" }).then((r) => r.ok ? r.json() : null).then((u) => {
   if (!u || !u.totals || !u.read_at) return;
   const n = (x) => Number(x).toLocaleString("en-US");
   document.querySelectorAll("[data-count]").forEach((td) => { const v = u.totals[td.dataset.count]; if (Number.isInteger(v) && v >= 0) td.textContent = n(v); });
+  document.querySelectorAll("[data-lead]").forEach((td) => { const v = (u.lead || {})[td.dataset.lead]; td.textContent = typeof v === "number" ? n(v) : KI.t("status.not_known"); });
   document.querySelectorAll("[data-measure]").forEach((td) => { const v = (u.measures || {})[td.dataset.measure]; td.textContent = v == null ? KI.t("status.too_few") : n(v); });
   const at = "\\u2066" + String(u.read_at).replace("T", " ").slice(0, 16) + " UTC\\u2069", v = { at };
   $("use-when").innerHTML = "<!--k:status.when " + JSON.stringify(v) + "-->" + KI.html("status.when", v) + "<!--/k-->";
@@ -660,7 +889,7 @@ fetch("../data/usage.json", { cache: "no-store" }).then((r) => r.ok ? r.json() :
     tr.append(th, td); return tr; }));
 })();"""
     return page(header, "../", en("status.title"), "How the tool is used, each count from the data file, zeros shown as 0.", body,
-                TP.static_runtime("../i18n/") + "\n" + script, "status/", FOOT("../") if FOOT else "").replace(
+                static_runtime("../i18n/") + "\n" + script, "status/", FOOT("../") if FOOT else "").replace(
         "</style>", HOW_CSS + TP.SWITCH_CSS + "\n" + SCREEN_PAGE_CSS + "</style>", 1)
 
 
@@ -700,9 +929,13 @@ def privacy_page(header: str) -> str:
 
     def ul(lines: list[str]) -> str:
         return "<ul>\n" + "".join(f"<li>{t}</li>\n" for t in lines) + "</ul>"
-    body = (f"<h1>Privacy and terms</h1>\n<h2>This site</h2>\n{ul(site)}\n<h2>The server</h2>\n{ul(server)}\n"
-            f"<h2>Terms</h2>\n{ul(terms)}")
-    return page(header, "", "Knos privacy and terms", "No cookies; an anonymous daily visit id and no IP stored; test money on NEAR testnet.", body, "", "privacy.html")
+    # L20 (UX/U2.md:27): the words outside the fold stay within 250; every event a page sends sits in one closed fold
+    short = site[:2] + ["Each page sends Knos small events of an anonymous visit."] + site[11:13] + site[14:16]
+    events = [x for x in site if x not in short]
+    body = (f"<h1>Privacy and terms</h1>\n<h2>This site</h2>\n{ul(short)}\n"
+            f'<details class="how"><summary>Every event a page sends</summary>\n{ul(events)}\n</details>\n'
+            f"<h2>The server</h2>\n{ul(server)}\n<h2>Terms</h2>\n{ul(terms)}")
+    return page(header, "", "Knos privacy and terms", "No cookies; an anonymous daily visit id and no IP stored; test money on NEAR testnet.", body, "", "privacy.html", css=WALK_CSS)
 
 
 def write(out: Path, header) -> list[str]:
@@ -718,6 +951,7 @@ def write(out: Path, header) -> list[str]:
     for c in cs:
         put(f"claim/{c['name']}/index.html", claim_page(header("../../", ""), c))
     put("agents/index.html", agents_page(header("../", "agents/")))
+    put("papers/index.html", papers_page(header("../", "papers/"), cs))
     put("pricing/index.html", pricing_page(header("../", "", True, True)))
     put("status/index.html", status_page(header("../", "", True, True)))
     put("data/pricing.html", numbers_page(header("../", ""), "pricing"))   # the two files behind them, as pages (R13 WALK 1)
@@ -733,7 +967,7 @@ def sitemap_xml(cs: list[dict]) -> str:
     base = "https://drexthealpha.github.io/Knos/"
     # each page with the source file it is made from: scripts/sitemap_dates.py writes that file's last commit date
     pages = [("", "web/door.html"), ("claims/", "near/claims/claims.json"), *[(f"claim/{c['name']}/", "near/claims/claims.json") for c in cs],
-             ("prove/", "near/web/index.html"), ("agents/", "scripts/site_product.py"), ("labs/", "web/iris/index.html"),
+             ("prove/", "near/web/index.html"), ("papers/", "docs/data/reproduced.json"), ("agents/", "scripts/site_product.py"),
              ("pricing/", "scripts/site_product.py"), ("status/", "scripts/site_product.py"), ("privacy.html", "scripts/site_product.py"),
              ("check/", "web/check-v0328/index.html")]
     return ('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
@@ -793,7 +1027,6 @@ def llms_txt(cs: list[dict]) -> str:
         f"- [Claims]({base}claims/): every claim, sorted by the test USDC behind it\n"
         f"- [Prove]({base}prove/): run the check of a claim and get the verdict, the verified code and the receipt\n"
         f"- [For agents]({base}agents/): the one-call API and the terminal tool\n"
-        f"- [For labs]({base}labs/): the same check inside InterSystems IRIS\n"
         f"- [Check pull requests]({base}check/): the pull request check, the same Knos built earlier on Solana devnet (Colosseum, tag v0.3.28)\n\n"
         f"## Claims\n\n{claims_md}\n"
         f"## For agents\n\n`POST {HOSTED}/api/near/claim/flow` with `{call}`: the verdict, the code and the receipt.\n\n"

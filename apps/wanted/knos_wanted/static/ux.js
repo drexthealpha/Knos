@@ -138,7 +138,7 @@
   window.fetch = function (input, init) {
     const url = String(input && input.url || input);
     // a stream or a presence poll is not "talking to the server": it never ends, and the pill stayed up for good
-    const loud = /api\.devnet\.solana\.com|\/api\//.test(url) && !/\/stream|\/presence|\/api\/vectors|\/api\/proof|\/api\/(check|cross|match|report|receipts|counter|usage|qloo\/status|qloo-diff)/.test(url);   // the check's own box says its progress under the input (hero.js): no pill over the bar
+    const loud = /api\.devnet\.solana\.com|\/api\//.test(url) && !/\/stream|\/presence|\/api\/vectors|\/api\/proof|\/api\/(check|cross|report|receipts|counter|usage)/.test(url);   // the check's own box says its progress under the input (hero.js): no pill over the bar
     let done = false, shown = 0;
     const end = () => { clearTimeout(shown); if (!done && loud) { done = true; if (--busyN <= 0) { busyN = 0; const p = pill(); if (p) p.hidden = true; } } };
     if (loud) {
@@ -148,7 +148,7 @@
     }
     return rawFetch(input, init).finally(end);
   };
-  const PREFETCH = { "#projects": "/api/projects", "#teams": "/api/companies", "#buy": "/api/products" };
+  const PREFETCH = { "#projects": "/api/projects", "#teams": "/api/companies" };
   document.addEventListener("pointerdown", (e) => {
     const a = e.target.closest && e.target.closest("a[href^='#']");
     const u = a && PREFETCH[a.getAttribute("href")];

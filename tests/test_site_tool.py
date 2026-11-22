@@ -2,7 +2,7 @@
 against a limit", and the pages around it, on a build of the site (scripts/build_site.sh).
 
   A  tests/web/tool.mjs in headless Chromium at 360 by 800 with no stored state, the hosted server answered by a stand-in
-     that keeps SPEC2.md's interface: the first screen's words (40 or fewer, none of the PLAIN-WORDS rule), "Check my data" and a
+     that keeps SPEC2.md's interface: the first screen's words (13 or fewer, L02; none of the PLAIN-WORDS rule), "Check my data" and a
      sentence that starts "Failed at row " or "Passed: all ", "Use my data" with file 2 of A8 and "Failed at row 37"
   C  the same script runs own-data runs until the free runs end and checks the pay screen's strings against
      docs/data/pricing.json; here, every number on the pricing page and the pay screen equals that file
@@ -35,7 +35,7 @@ DATA = ROOT / "docs" / "data"
 BROWSERS = "/opt/pw-browsers"
 LAWS = Path(os.environ.get("KNOS_PRIVATE_DIR", ROOT.parent / ("knos-v1" + "-private"))) / "v0328" / "research" / "LAWS" / "DISTRIBUTION"   # outside the repository
 PLAIN = ["tx", "hash", "testnet", "devnet", "mainnet", "proof", "prove", "verify", "contract", "token", "wallet", "agent", "job",
-         "oracle", "LMSR", "NEAR", "Solana", "IRIS", "MCP", "API", "JSON"]
+         "oracle", "LMSR", "NEAR", "Solana", "MCP", "API", "JSON"]
 NUMBER = re.compile(r"\d[\d,]*(?:\.\d+)?")
 
 
@@ -106,7 +106,7 @@ def node_run(args: list[str], timeout: int) -> str:
 
 def test_a_stranger_runs_the_sample_then_their_own_list_then_pays_with_test_money(site: Path) -> None:
     out = node_run([str(site)], 170)
-    for line in ("the first screen is 40 words or fewer", "none of the PLAIN-WORDS rule's words", 'starts with "Failed at row " or "Passed: all "',
+    for line in ("the first screen is 13 words or fewer", "none of the PLAIN-WORDS rule's words", 'starts with "Failed at row " or "Passed: all "',
                  'file 2 of A8 reads "Failed at row 37"', "pay screen's headline is the pack", "one more run after the test payment", "all passed"):
         assert line in out, line
 
@@ -126,7 +126,9 @@ def test_every_number_on_the_pricing_page_and_the_pay_screen_is_pricing_json(sit
     page = (site / "pricing" / "index.html").read_text(encoding="utf-8")
     text = seen(page, "body")
     shown = {float(x.replace(",", "")) for x in NUMBER.findall(seen(page.replace("<details", "<details open")))}
-    assert shown == {float(v) for v in n.values()}, (shown, n)                      # every number on the page, the fold too
+    # L33: the one paid tier's target lines (docs/data/pricing.json "plans", each with its law line) are numbers of the file too
+    plan = {float(x) for part in ("covers", "paying_share") for k, x in doc["plans"][part].items() if k in ("low", "high")}
+    assert shown == {float(v) for v in n.values()} | plan, (shown, n, plan)          # every number on the page, the fold too
     for k, v in n.items():
         assert f'<span data-n="{k}">{v:,}</span>' in page, k
     assert f"{n['free_runs_per_day']} free a day" in text and f"{n['pack_runs']} more runs for ${n['pack_price']} in test money" in text
@@ -166,7 +168,14 @@ def test_the_status_page_shows_every_count_of_usage_json(site: Path) -> None:
     page = (site / "status" / "index.html").read_text(encoding="utf-8")
     for key, label in site_usage.COUNTS:
         m = re.search(rf'<tr><th>{re.escape(label)}</th><td class="n" data-count="{key}">([\d,]+)</td></tr>', page.replace("&#x27;", "'"))
+        if key == "tools_opened":                                                   # L36: no raw open count
+            assert not m and 'data-count="tools_opened"' not in page, key
+            continue
         assert m and int(m.group(1).replace(",", "")) == u["totals"][key], key
+    # L36: the first line is the people who reached a first result in the last 7 days ("not known yet" until measured)
+    first = (u.get("lead") or {}).get("first_result_7d")
+    m = re.search(r'<table id="use"><tbody><tr><th>People who got a first result, last 7 days</th><td class="n" data-lead="first_result_7d">([^<]+)</td>', page)
+    assert m and m.group(1) == ("not known yet" if first is None else f"{first:,g}"), m
     for key, label in site_usage.MEASURES:
         m = re.search(rf'data-measure="{key}">([^<]+)</td>', page)
         want = "not enough browsers yet" if u["measures"][key] is None else f"{u['measures'][key]:,}"
@@ -204,19 +213,24 @@ def test_the_company_count_on_a_public_page_is_the_scorecard_summary(site: Path)
         assert int(m.group(1).replace(",", "")) == summary["rows"], m.group(0)
 
 
-def test_the_front_door_has_one_h1_and_keeps_the_question_box_below_the_tool(site: Path) -> None:
+def test_the_front_door_is_one_box_whose_example_is_the_tools_sample(site: Path) -> None:
+    """L01 (IQ PLAN.md): one box, "Ask anything about research"; a pasted table runs the limit check, and the tool's
+    sample is the box's one example (kept in a template, checked when the box is empty)."""
     door = (site / "index.html").read_text(encoding="utf-8")
-    assert door.count("<h1") == 1 and "<h1><label for=\"list\" id=\"k-name\">What can you do with Knos?</label></h1>" in door
-    assert door.index('id="tool"') < door.index('id="ask-box"') and 'id="paper"' in door and 'id="sample"' in door
-    assert '<p class="kgoal">The goal: ' in door                                      # the goal, one press away: the menu
+    assert door.count("<h1") == 1 and "<h1><label for=\"list\" id=\"k-name\">Ask anything about research</label></h1>" in door
+    assert 'id="ask-box"' not in door and 'id="paper"' not in door                    # one box: the question box is the tool's box
+    assert door.index('id="tool"') < door.index('id="ask-out"') < door.index('id="k-live"')
+    assert '<p class="kgoal">' not in door and "The goal: " not in door                # L02: no mission line, the menu too
     assert '<h2 id="t-title">Check a test file against a limit</h2>' in door
     who = re.search(r'<p class="who" id="who">([^<]+)</p>', door).group(1)
     assert who == "For anyone who tests batteries, motors, parts or machines."
     sample = (ROOT / "near" / "agents" / "job" / "data" / "limit" / "sample.csv").read_text(encoding="utf-8").replace("\r\n", "\n").strip("\n")
     box = re.search(r'<textarea id="list"[^>]*>(.*?)</textarea>', door, re.S).group(1)
-    assert html.unescape(box) == sample                                               # the job's sample, written in at build time
+    assert box == ""                                                                  # the box starts empty
+    kept = re.search(r'<template id="k-sample" data-sample>(.*?)</template>', door, re.S).group(1)
+    assert html.unescape(kept) == sample                                              # the job's sample, written in at build time
     conf = ast.literal_eval(re.search(r"CONF = (\{.*\})", (ROOT / "apps" / "wanted" / "knos_wanted" / "runner_conf.py").read_text(encoding="utf-8"), re.S).group(1))
-    assert f'<label for="list" id="list-label">{conf["sample_label"]}</label>' in door      # the same label as the server's tool page
+    assert f'<label for="list" id="list-label" hidden>{conf["sample_label"]}</label>' in door   # the same label as the server's tool page
     # F1B: the rule line says the sample's column in plain words; the file's name for it is the form's and the fold's
     assert '<span id="colname">charge held</span>' in door and '<input type="hidden" name="column" value="capacity_ah" dir="auto">' in door
     assert re.search(r'<details class="how".*The sample\'s column <bdi>capacity_ah</bdi> holds', door, re.S)

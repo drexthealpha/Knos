@@ -1,5 +1,5 @@
 """Round 9B: the stack, load-bearing and labelled: receipts (finality + verifier + USDC wording), the x402 paid route,
-the record anchor, the memory store's tiers (HOT plan, REFERENCE shelf, conflict refusal, FTS search), the harness proxy at /mcp,
+the record anchor, the memory store's tiers (HOT plan, REFERENCE shelf, conflict refusal, FTS search), the tools at /mcp,
 and the hosted MCP registration. SYNTHETIC fixtures; no network, no chain."""
 import base64
 import json
@@ -10,10 +10,9 @@ from http.server import ThreadingHTTPServer
 from pathlib import Path
 
 import pytest
-from test_check import IDEA, FakeQloo
+from test_check import IDEA, use_signals
 
 from knos_wanted import agent, escrow, preorder, research, server, x402
-from knos_wanted.qloo_mcp import MOCK_LABEL, InProcess, Qloo
 
 ROOT = Path(server.__file__).resolve().parents[3]
 
@@ -65,7 +64,7 @@ def test_x402_challenge_and_settlement(monkeypatch):
 
 @pytest.fixture
 def app():
-    st = server.State(Qloo(InProcess(), mode="mock", sleep=lambda s: None), FakeQloo())
+    st = server.State()
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.make_handler(st))
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
     yield f"http://127.0.0.1:{httpd.server_address[1]}", st
@@ -102,7 +101,7 @@ def _card(ref, product=None, **k):
 
 def test_sibyl_is_the_shared_memory_with_tiers_and_conflict_refusal(monkeypatch):
     pytest.importorskip("sibyl_memory_client")
-    st = server.State(Qloo(InProcess(), mode="mock", sleep=lambda s: None), FakeQloo())
+    st = server.State()
     monkeypatch.setattr(research, "research_card", lambda ref, product=None, **k: _card(ref, product))
     job = agent.start(st, ref="10.0/x", wait=True)
     titles = [s_["title"] for s_ in job["steps"]]
@@ -128,29 +127,19 @@ def test_sibyl_is_the_shared_memory_with_tiers_and_conflict_refusal(monkeypatch)
     assert any("Synthetic landmark" in json.dumps(r, default=str) for r in got["rows"]), got["said"]
 
 
-def test_memory_search_over_http_and_the_harness_proxy(app, monkeypatch):
+def test_memory_search_over_http_and_the_tools_at_mcp(app):
     base, _ = app
     assert call(base, "/api/memory/search")[0] == 400
     st, lst = call(base, "/mcp", {"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
-    assert not [t for t in lst["result"]["tools"] if t["name"].startswith("qloo_")]          # no agent key: no Qloo tool
-    from knos_wanted import agent, agentkeys
-    monkeypatch.setattr(agent, "_agent", lambda: {"kind": "agent", "agent_key": "k1"})       # an agent key's caller
-    monkeypatch.setattr(agentkeys, "take_qloo", lambda kid: None)
-    st, lst = call(base, "/mcp", {"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
-    qloo_tools = [t for t in lst["result"]["tools"] if t["name"].startswith("qloo_")]
-    assert len(qloo_tools) == 10 and all("MOCK" in t["description"] for t in qloo_tools)   # labelled: this state is mock
-    st, x = call(base, "/mcp", {"jsonrpc": "2.0", "id": 2, "method": "tools/call",
-                                "params": {"name": "qloo_find_tags", "arguments": {"query": "coffee"}}})
-    sc = x["result"]["structuredContent"]
-    assert sc.get("_mock") == MOCK_LABEL                                   # a mock answer says so in the envelope
-    assert call(base, "/mcp", {"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "qloo_nope"}})[1]["error"]["code"] == -32602
+    names = [t["name"] for t in lst["result"]["tools"]]
+    assert all(n.startswith("knos_") or n in ("tools", "run") for n in names)              # every tool is Knos's own
+    assert call(base, "/mcp", {"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "knos_nope"}})[1]["error"]["code"] == -32602
 
 
-def test_the_hosted_mcp_is_registered_and_the_report_states_qloos_limits():
+def test_the_hosted_mcp_is_registered_and_the_report_says_what_it_does_not_know(monkeypatch):
     doc = json.loads((ROOT / "server.hosted.json").read_text(encoding="utf-8"))   # the hosted server, by its own name
     assert doc["remotes"] == [{"type": "streamable-http", "url": "https://knos.onrender.com/mcp"}]
-    rep = __import__("knos_wanted.check", fromlist=["demand_check"]).demand_check(IDEA, client=FakeQloo())
-    assert "no prices, no market sizes" in rep["limits"] and "willingness to pay" in rep["limits"]
-    assert rep["persona"] and rep["ladder"] and rep["tag_families"]
-    plan = rep["decision"]["plan"]
-    assert plan["persona"] and plan["ladder"][0]["name"] and plan["venue_price_level"] == 3
+    use_signals(monkeypatch)
+    rep = __import__("knos_wanted.check", fromlist=["demand_check"]).demand_check(IDEA)
+    assert rep["rules"]["audience"].startswith("none") and rep["rules"]["cities"].startswith("none")
+    assert rep["decision"]["verdict"] == "OPEN" and rep["decision"]["target_units"] is None

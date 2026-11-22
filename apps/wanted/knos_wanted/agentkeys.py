@@ -33,7 +33,6 @@ TOKEN_PREFIX = "knos_at_"
 TOKEN_S = 3600
 SCOPE = "knos.solve"
 MAX_CLAIMS, MAX_SPEND, MAX_DAYS = 50, 10_000, 90
-QLOO_CALLS = 100           # the qloo_* tools an agent key may call over the hosted MCP, in its whole life: its own budget
 KIND = "agentkeys"
 PUBLIC = "https://knos.onrender.com"
 _KEY = re.compile(r"knos_ak_([0-9a-f]{16})_([A-Za-z0-9_-]{43})")
@@ -246,18 +245,6 @@ def can_spend(kid: str, units: int) -> dict:
         raise valley.Refused(f"agent key {kid}: a payout of {units} test units is over its spend cap "
                              f"({rec['units_spent']} of {rec['max_spend_units']} used)")
     return rec
-
-
-def take_qloo(kid: str) -> dict:
-    """Count one qloo_* call on this key's own budget (refused once QLOO_CALLS are used): the public MCP lends no
-    one Knos's Qloo key, and a key's calls never come out of the others'."""
-    with _lock:
-        rec = _live(valley._load(KIND, kid))
-        used = int(rec.get("qloo_calls") or 0)
-        if used >= QLOO_CALLS:
-            raise valley.Refused(f"agent key {kid}: its Qloo calls are used ({used} of {QLOO_CALLS})")
-        rec["qloo_calls"] = used + 1
-        return valley._save(KIND, kid, rec)
 
 
 def spent(kid: str, units: int) -> None:

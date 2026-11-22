@@ -1,5 +1,4 @@
-"""One front door. The Pages root is web/door.html; web/home.html, the demand check, stays only for the app's own
-build (one h1, the box, the chips, the card's place, five steps). Older pages send a visitor on; check/ is the
+"""One front door. The Pages root is web/door.html. Older pages send a visitor on; check/ is the
 Colosseum checker under the one header. The app's home holds none of the money or company tools, which are its
 money page (/paid). Every description of the package is a sentence of docs/facts.json."""
 from __future__ import annotations
@@ -33,19 +32,6 @@ def built(tmp_path_factory):
                        capture_output=True, text=True, env=env, check=False)
     assert r.returncode == 0, r.stderr[-2000:]
     return out
-
-
-def test_the_root_is_the_demand_check_alone(built):
-    # the demand check left the published product (its source page stays, web/home.html, for the app's own build)
-    page = raw((ROOT / "web" / "home.html").read_text(encoding="utf-8"))
-    h1 = re.findall(r"<h1\b[^>]*>(.*?)</h1>", page, re.S)
-    assert [re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", h)).strip() for h in h1] == [MISSION]
-    assert 'id="k-q"' in page and len(re.findall(r'class="k-chip"', page)) == 6 and "data-more-chips" in page and 'id="k-card"' in page
-    steps = re.search(r'<ol class="k-step-list">(.*?)</ol>', page, re.S).group(1)
-    assert len(re.findall(r"<li\b", steps)) == 5 and "How do I see it work?" in page
-    for gone in ('id="view-check"', 'id="front-door"', "Check an AI agent's pull request", 'id="view-records"', 'id="view-fund"', 'id="hero-fact"'):
-        assert gone not in page, gone
-    assert 'href="./check/#sample" id="steps-check"' in page                     # the steps' link goes to the check's own page
 
 
 def test_one_app_app_html_sends_old_links_on_and_the_check_is_its_own_page(built):

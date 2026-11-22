@@ -63,15 +63,17 @@ def ask(prompt: str, check_hash: str, provider=None) -> str:
 
 
 def follow_up(rep: dict, question: str, provider=None) -> dict:
-    """One question about a result, answered from the card's own data and calls only, citing them as [call N]."""
+    """One question about a result, answered from the card's own data and sources only, citing them as [source N]."""
     q = " ".join(str(question or "").split())[:400]
     if not q:
         raise Refused("Ask one question about this result.")
-    calls = [f"[call {c.get('n')}] {c.get('what')}: {str(c.get('out') or c.get('error') or '')[:160]}" for c in (rep.get("calls") or [])[:40]]
-    card = {k: rep.get(k) for k in ("idea", "decision", "audiences", "places", "cities", "price", "terms", "taste", "who")}
-    prompt = ("Answer one question about this demand check using only the data below. Cite every fact as [call N] with the "
-              "call it came from; say plainly when the data does not answer it.\n\nCARD: " + json.dumps(card, default=str)[:6000]
-              + "\n\nCALLS:\n" + "\n".join(calls) + f"\n\nQUESTION: {q}")
+    rows = (rep.get("open_demand") or {}).get("rows") or []
+    sources = [f"[source {i}] {r.get('name')}: {r.get('value')} {r.get('unit')}" + (f" ({r['link']})" if r.get("link") else "")
+               for i, r in enumerate(rows[:20], 1)]
+    card = {k: rep.get(k) for k in ("idea", "place", "decision")}
+    prompt = ("Answer one question about this demand check using only the data below. Cite every fact as [source N] with the "
+              "source it came from; say plainly when the data does not answer it.\n\nCARD: " + json.dumps(card, default=str)[:6000]
+              + "\n\nSOURCES:\n" + "\n".join(sources) + f"\n\nQUESTION: {q}")
     text = ask(prompt, str(rep.get("hash") or ""), provider)
-    cites = sorted({int(n) for n in re.findall(r"\[call (\d+)\]", text)})
+    cites = sorted({int(n) for n in re.findall(r"\[source (\d+)\]", text)})
     return {"answer": text.strip(), "cites": cites, "model": "stub" if provider else MODEL}

@@ -28,7 +28,6 @@ h1 { font-size: 28px; } a { color: var(--accent); } .muted { color: var(--muted)
   <nav id="nav" aria-label="Knos">
     <a href="./" data-nav="home">Home</a>
     <a href="./prove/" data-nav="near">NEAR app</a>
-    <a href="./labs/" data-nav="iris">IRIS</a>
     <a href="./claims/" data-nav="proof" data-proof>Proof</a>
   </nav>
   <div class="tools">
@@ -48,7 +47,7 @@ h1 { font-size: 28px; } a { color: var(--accent); } .muted { color: var(--muted)
 <script>
 "use strict";
 const APP = "https://knos.onrender.com";
-const PAGES = ["/app/", "/with-without", "/qloo-safe-use", "/invite", "/verify", "/trace.html", "/fields", "/money", "/companies"];
+const PAGES = ["/app/", "/invite", "/verify", "/trace.html", "/fields", "/money", "/companies"];
 const start = Date.now();
 async function ping() {
   try {

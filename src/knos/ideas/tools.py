@@ -42,8 +42,7 @@ MCP_TOOLS: list[dict[str, Any]] = [
                     "(inside `untrusted`). Shows the iD exists; owning it is 'sign in with ORCID'. Sends nothing.",
      "properties": {"who": {"type": "string", "description": "orcid:0000-0000-0000-0000 or github:login"}}, "required": ["who"]},
     {"name": "knos_idea_wanted", "title": "Is the idea wanted? Demand + pull commitment plan",
-     "description": "Step 2 (wall 1): Knos's demand check on the product the idea would become (Qloo via its "
-                    "official MCP harness; a labelled MOCK until QLOO_API_KEY) and the plan of a pull commitment: a buyer locks test "
+     "description": "Step 2 (wall 1): the demand evidence for the idea (money locked for it) and the plan of a pull commitment: a buyer locks test "
                     "money on Solana devnet to buy `units` at `price`, held in one knos_pay order per stage and released "
                     "stage by stage at named milestones (preprint posted, trial registered, results posted, referee pass, lab QC...). Returns each "
                     "stage's amount and deadline, with the fees of config/fees.yaml; it signs and sends nothing (`knos idea commit` locks it).",

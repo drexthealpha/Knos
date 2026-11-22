@@ -81,7 +81,9 @@ def test_the_build_writes_every_string_from_the_english_file(site: Path):
 def test_the_goal_line_is_the_english_files(site: Path):
     sys.path.insert(0, str(ROOT / "scripts"))
     import site_product
-    assert EN["goal"] == site_product.GOAL and EN["goal"].startswith("The goal: ")
+    # IQ PLAN.md:25-27 (L02, UX/UX-SOTA-2026-11-06.md:45): the line is the one sentence "Knos is a [category] that helps
+    # [anyone] [get X done]", under 125 characters, no longer a "The goal: " mission line (WIN/WIN-LAW.md:20)
+    assert EN["goal"] == site_product.GOAL and re.match(r"^Knos is an? .+ that helps .+", EN["goal"]) and len(EN["goal"]) < 125
 
 
 def test_every_screen_in_every_language(site: Path):

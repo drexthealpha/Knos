@@ -34,7 +34,7 @@
   {
    "source": "docs/STORY.md",
    "block": 1,
-   "sha256": "eb3aac2501cefd852457f32989adee5ae4bdaa0a1ceed073688cfc6635465ff0",
+   "sha256": "4dc097910ad40e00367693014ec38cba48f676042679f7faa1e2f05320f5fb86",
    "svg": "docs/diagrams/docs-story-1.svg"
   },
   {
@@ -76,14 +76,8 @@
   {
    "source": "docs/reference/DIAGRAMS.md",
    "block": 3,
-   "sha256": "994336eb3ea6822a05f7cafa37171d58371032197b0aa48dd118bdee7d4ee9ab",
-   "svg": "docs/diagrams/docs-reference-diagrams-3.svg"
-  },
-  {
-   "source": "docs/reference/DIAGRAMS.md",
-   "block": 4,
    "sha256": "a3792676c7768be0a831c4d3732c1b6a87f67f4fa6b2ae782f6dcadef341c15d",
-   "svg": "docs/diagrams/docs-reference-diagrams-4.svg"
+   "svg": "docs/diagrams/docs-reference-diagrams-3.svg"
   },
   {
    "source": "docs/reference/GOVERNANCE.md",

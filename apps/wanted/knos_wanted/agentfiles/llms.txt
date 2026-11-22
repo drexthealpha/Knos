@@ -2,11 +2,11 @@
 
 > The goal: Knos carries research across the valley of death.
 
-This server runs the demand check of Knos: Qloo taste data names who would buy a product and where. A Ready brief fixes the terms, and a program on Solana devnet holds test money until the milestone check passes. The same Knos proves research claims with agents on NEAR testnet: https://drexthealpha.github.io/Knos/prove/. Test money, no customers yet.
+This server runs the demand check of Knos: free public signals say whether people want a product. A Ready brief fixes the terms, and a program on Solana devnet holds test money until the milestone check passes. The same Knos proves research claims with agents on NEAR testnet: https://drexthealpha.github.io/Knos/prove/. Test money, no customers yet.
 
 ## Start here
 
-- [The app]({base}/app/): type an idea or a paper's DOI and see who wants it and where
+- [The app]({base}/app/): type an idea or a paper's DOI and see whether people want it
 - [Check from a link]({base}/app/?q=a%20late%20night%20ramen%20spot): the app runs the check named in `q`
 - [Front door](https://drexthealpha.github.io/Knos/): what Knos is, and the goal
 
@@ -20,8 +20,6 @@ This server runs the demand check of Knos: Qloo taste data names who would buy a
 
 ## Evidence
 
-- [Qloo today]({base}/status/qloo): calls, cache hits and the last 429, as this server met them
-- [Trace pages]({base}/trace.html): each Qloo call behind a verdict, with a Markdown twin at `/trace.md?hash=`
 - [Claims](https://drexthealpha.github.io/Knos/claims/): each research claim Knos has proved on NEAR testnet, with its locked test
 
 ## Docs

@@ -1,0 +1,11 @@
+{
+ "id": "limit-check",
+ "title": "Check a test file against a limit",
+ "line": "Names the first row of a table that breaks a limit.",
+ "inputs": ["table", "column", "rule", "limit"],
+ "program": "near/agents/job/data/limit/released_solution.py",
+ "test": "near/agents/job/test_limit3.py",
+ "data": ["near/agents/job/data/limit3", "near/agents/job/data/limit/sample.csv"],
+ "sample": "near/agents/job/data/limit/sample.csv",
+ "timeout_s": 60
+}

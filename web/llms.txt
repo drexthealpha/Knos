@@ -1,6 +1,6 @@
 # Knos
 
-> Check a test file against a limit. Knos names the first row that breaks it, for anyone who tests batteries, motors, parts or machines.
+> Knos is a research checker that helps anyone test a result.
 
 Knos locks a test before any work starts, and test money moves to the agent that did the work only if that test passes. Here the work is code that proves a paper's claim, against a test locked on NEAR testnet. The result is kept on NEAR, so a second check is free. Test money only and no customers yet.
 
@@ -10,7 +10,6 @@ Knos locks a test before any work starts, and test money moves to the agent that
 - [Claims](https://drexthealpha.github.io/Knos/claims/): every claim, sorted by the test USDC behind it
 - [Prove](https://drexthealpha.github.io/Knos/prove/): run the check of a claim and get the verdict, the verified code and the receipt
 - [For agents](https://drexthealpha.github.io/Knos/agents/): the one-call API and the terminal tool
-- [For labs](https://drexthealpha.github.io/Knos/labs/): the same check inside InterSystems IRIS
 - [Check pull requests](https://drexthealpha.github.io/Knos/check/): the pull request check, the same Knos built earlier on Solana devnet (Colosseum, tag v0.3.28)
 
 ## Claims

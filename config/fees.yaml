@@ -61,7 +61,7 @@ fees:
     note: "Checking stays free for public repositories and on your own runners; this is the Meter line of the price book."
   demand_check:
     status: "decided"
-    what: "a demand check: an idea or a paper checked against Qloo demand evidence"
+    what: "a demand check: an idea or a paper checked against demand evidence"
     free_a_month: 10
     beyond: "not set by the decision"
     today: "free; the monthly count is not enforced yet"

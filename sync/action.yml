@@ -1,0 +1,38 @@
+name: knos-sync
+description: Runs knos-sync on the repository, by default `knos-sync check --markdown` into the run summary.
+
+# One workflow file is enough (SYNC/P6.md finding 12): a job checks the repository out and adds
+#   - uses: drexthealpha/Knos/sync@<commit>
+# No server, no account. The program is built from this folder with the Go of sync.yml.
+
+inputs:
+  args:
+    description: the knos-sync command and its flags
+    required: false
+    default: check --markdown
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+      with:
+        go-version: "1.27.4"
+        cache: false
+    - name: build knos-sync
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: |
+        go mod tidy
+        go mod verify
+        go build -trimpath -o "$RUNNER_TEMP/knos-sync-bin/knos-sync$( [ "$RUNNER_OS" = Windows ] && echo .exe )" .
+    - name: knos-sync
+      shell: bash
+      env:
+        ARGS: ${{ inputs.args }}
+      run: |
+        set -o pipefail
+        exe="$RUNNER_TEMP/knos-sync-bin/knos-sync"
+        [ "$RUNNER_OS" = Windows ] && exe="$exe.exe"
+        # ARGS is split into words on purpose: it holds a command and its flags
+        # shellcheck disable=SC2086
+        "$exe" $ARGS | tee -a "$GITHUB_STEP_SUMMARY"

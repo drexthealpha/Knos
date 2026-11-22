@@ -44,6 +44,35 @@ CREATE TABLE IF NOT EXISTS failures(
   at TEXT NOT NULL,
   PRIMARY KEY(entry, file, stated, actual)
 );
+CREATE TABLE IF NOT EXISTS nodes(
+  id INTEGER PRIMARY KEY,
+  kind TEXT NOT NULL,
+  key TEXT NOT NULL,
+  file TEXT NOT NULL DEFAULT '',
+  blob TEXT NOT NULL DEFAULT '',
+  start_line INTEGER NOT NULL DEFAULT 0,
+  end_line INTEGER NOT NULL DEFAULT 0,
+  UNIQUE(kind, key)
+);
+CREATE TABLE IF NOT EXISTS edges(
+  src INTEGER NOT NULL,
+  dst INTEGER NOT NULL,
+  kind TEXT NOT NULL,
+  confidence REAL NOT NULL,
+  source TEXT NOT NULL,
+  PRIMARY KEY(src, dst, kind)
+);
+CREATE INDEX IF NOT EXISTS edges_src ON edges(src, dst);
+CREATE INDEX IF NOT EXISTS edges_dst ON edges(dst, src);
+CREATE TABLE IF NOT EXISTS blobs(
+  sha256 TEXT PRIMARY KEY,
+  data BLOB NOT NULL
+);
+CREATE TABLE IF NOT EXISTS traces(
+  entry TEXT PRIMARY KEY,
+  inputs TEXT NOT NULL,
+  result TEXT NOT NULL
+);
 `
 
 // State is the SQLite working state: file hashes, the candidates found in each file, the last value each entry's
@@ -118,10 +147,15 @@ func (s *State) cachedCandidates(path string) ([]Candidate, error) {
 	return out, rows.Err()
 }
 
-// storeFile keeps a file's hash and its candidates, in one transaction.
-func (s *State) storeFile(path, sha string, size int, cands []Candidate) error {
+// storeFile keeps a file's hash, its content once as a compressed blob, and its candidates, in one transaction: each
+// file goes to disk as it is read (SYNC/P5.md: stream results to disk per file).
+func (s *State) storeFile(path, sha string, content []byte, cands []Candidate) error {
 	if s == nil {
 		return nil
+	}
+	packed, err := compress(content)
+	if err != nil {
+		return err
 	}
 	tx, err := s.db.Begin()
 	if err != nil {
@@ -139,7 +173,14 @@ func (s *State) storeFile(path, sha string, size int, cands []Candidate) error {
 	}
 	if _, err := tx.Exec(`INSERT INTO files(path, sha256, size, seen) VALUES(?, ?, ?, ?)
 		ON CONFLICT(path) DO UPDATE SET sha256 = excluded.sha256, size = excluded.size, seen = excluded.seen`,
-		path, sha, size, now()); err != nil {
+		path, sha, len(content), now()); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`INSERT OR IGNORE INTO blobs(sha256, data) VALUES(?, ?)`, sha, packed); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`INSERT INTO nodes(kind, key, file, blob) VALUES(?, ?, ?, ?)
+		ON CONFLICT(kind, key) DO UPDATE SET blob = excluded.blob`, NodeFile, path, path, sha); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -174,7 +215,9 @@ func (s *State) forget(keep map[string]bool) error {
 			return err
 		}
 	}
-	return nil
+	// a blob no file has any more (a file changed or gone) is dropped
+	_, err = s.db.Exec(`DELETE FROM blobs WHERE sha256 NOT IN (SELECT sha256 FROM files)`)
+	return err
 }
 
 func (s *State) recordValue(entry, actual, source string) {

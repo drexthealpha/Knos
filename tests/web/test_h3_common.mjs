@@ -5,7 +5,7 @@
 // Vary: Accept-Language as the server sends it. The hosted API is a stand-in that keeps SPEC2's answer.
 //   import { serveScreens } from "./test_h3_common.mjs"
 import { createServer } from "node:http";
-import { readFileSync, existsSync, statSync, mkdtempSync, rmSync, cpSync, writeFileSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync, statSync, mkdtempSync, rmSync, cpSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { join, extname, dirname, resolve } from "node:path";
 import { tmpdir } from "node:os";
@@ -21,10 +21,17 @@ const localeFile = (lang) => { const d = JSON.parse(readFileSync(join(ROOT, "web
   return d; };
 
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
-export const LANGS = ["en", "ar", "hi", "es", "fr", "pt", "zh-Hans", "id", "sw", "ru"];
 export const RID = "H3resultAAAA";
 export const RESULT = "Failed at row 136: 1.399 is not above 1.4. 135 rows passed.";
 const PY = process.env.PYTHON || "python3";
+const PY_ENV = { ...process.env, PYTHONPATH: [join(ROOT, "apps", "wanted"), join(ROOT, "src")].join(process.platform === "win32" ? ";" : ":"), PYTHONIOENCODING: "utf-8" };
+// L09: the languages the server serves, in its order (tool_page.LANGS), which must be every locale file of web/i18n
+export const LANGS = JSON.parse(execFileSync(PY, ["-c", "import json; from knos_wanted import tool_page; print(json.dumps(tool_page.LANGS))"], { env: PY_ENV, encoding: "utf8" }));
+export const RTL = ["ar", "fa", "ur", "he"];
+{
+  const files = readdirSync(join(ROOT, "web", "i18n")).filter((f) => f.endsWith(".json")).map((f) => f.slice(0, -5)).sort();
+  if (LANGS.length < 40 || JSON.stringify([...LANGS].sort()) !== JSON.stringify(files)) throw new Error(`tool_page.LANGS (${LANGS.length}) is not every locale file of web/i18n (${files.length})`);
+}
 
 // the server's pages, in every language, by its own code (a result made from the sample, as /api/run would store it)
 const WRITE = String.raw`
@@ -44,8 +51,10 @@ for lang in tool_page.LANGS:
 `;
 
 const pick = (q, accept) => {
-  const m = (tag) => { const t = String(tag || "").trim().toLowerCase(); if (!t) return null; for (const l of LANGS) if (l.toLowerCase() === t) return l;
-    const b = t.split(/[-_]/)[0]; return b === "zh" ? "zh-Hans" : LANGS.includes(b) ? b : null; };
+  // tool_page.match: Chinese by its script or region, the old tags iw, in, tl and ji by their new ones
+  const m = (tag) => { const t = String(tag || "").trim().toLowerCase().replace(/_/g, "-"); if (!t) return null; for (const l of LANGS) if (l.toLowerCase() === t) return l;
+    let b = t.split("-")[0]; if (b === "zh") return /-(hant|tw|hk|mo)\b/.test(t) && LANGS.includes("zh-Hant") ? "zh-Hant" : "zh-Hans";
+    b = { iw: "he", in: "id", tl: "fil", ji: "yi" }[b] || b; return LANGS.includes(b) ? b : null; };
   return m(q) || String(accept || "").split(",").map((p) => p.split(";")[0]).map(m).find(Boolean) || "en";
 };
 
@@ -91,7 +100,7 @@ export async function serveScreens(given) {
   });
   await new Promise((r) => server.listen(0, "127.0.0.1", r));
   base = `http://127.0.0.1:${server.address().port}`;
-  const env = { ...process.env, PYTHONPATH: [join(ROOT, "apps", "wanted"), join(ROOT, "src")].join(process.platform === "win32" ? ";" : ":"), PYTHONIOENCODING: "utf-8" };
+  const env = PY_ENV;
   execFileSync("node", ["-e", "require('fs').mkdirSync(process.argv[1],{recursive:true})", pages]);
   execFileSync(PY, ["-c", WRITE, pages, base, RID, RESULT], { env, stdio: ["ignore", "ignore", "inherit"] });
   writeFileSync(join(made, "base.txt"), base);

@@ -86,7 +86,7 @@ async function board(fresh) {
 const pct = (a, b) => (b ? Math.max(2, Math.min(100, Math.round((100 * a) / b))) : 0);
 function card(p) {
   const where = (p.where || []).join(", ");
-  return `<li class="card hp-card" data-slug="${esc(p.slug)}"><p class="small muted"${where ? " data-qloo" : ""}>${esc([p.tech_name, p.paper, where].filter(Boolean).join(" · "))}${where ? (window.KnosDemand ? KnosDemand.src("", p.report) : "") : ""}</p>
+  return `<li class="card hp-card" data-slug="${esc(p.slug)}"><p class="small muted">${esc([p.tech_name, p.paper, where].filter(Boolean).join(" · "))}</p>
     <h2 class="hp-t">${esc(p.title)}</h2>
     <div class="meter" aria-hidden="true"><span style="width:${pct(p.backed_units, p.reserve_units)}%"></span></div>
     <p class="small"><b>${esc(p.backed_units)}</b> ${t("of")} ${esc(p.reserve_units)} ${t("backed_l")}${p.held_units ? ` · <b>${esc(p.held_units)}</b> ${t("held_l")}` : ""}${p.maker ? "" : ` · ${t("maker_wanted")}`}</p>
@@ -144,17 +144,15 @@ async function passkeyUse() {
 // payment. Nothing here needs an account anywhere. (A company signs in with its own SSO on /companies.)
 
 // ---- researcher
-const KIND = { memory: "Memory", paper: "Paper", qloo: "Qloo", decision: "Decision" };
+const KIND = { memory: "Memory", paper: "Paper", signals: "Signals", decision: "Decision" };
 function stepHtml(s) {
-  // a Qloo call, or a decision made from Qloo's answers (who, where, the price tier, the hold): each links to its trace
-  return `<li class="step ${esc(s.kind)}"${s.kind === "qloo" || s.kind === "decision" ? ` data-qloo data-call="${esc(s.call || "")}"` : ""}><div class="row"><span class="tag">${KIND[s.kind] || s.kind}</span><b>${esc(s.title)}</b><span class="muted small">${esc(s.at)}</span></div>` +
+  return `<li class="step ${esc(s.kind)}"><div class="row"><span class="tag">${KIND[s.kind] || s.kind}</span><b>${esc(s.title)}</b><span class="muted small">${esc(s.at)}</span></div>` +
     (s.tool ? `<p class="small mono muted">${esc(s.tool)}</p>` : "") + (s.output ? `<p>${esc(s.output)}</p>` : "") +
     (s.effect ? `<p class="effect">→ ${esc(s.effect)}</p>` : "") +
     (s.input && typeof s.input === "object" ? `<details class="small"><summary>input</summary><pre>${esc(JSON.stringify(s.input, null, 1))}</pre></details>` : "") + "</li>";
 }
 async function cross() {
-  const body = { ref: $("ref").value.trim() || undefined, idea: $("idea").value.trim() || undefined, product: $("product").value.trim() || undefined, place: $("place").value.trim() || undefined,
-    ...(window.KnosDemand ? KnosDemand.values($("demandOpts")) : {}) };     // the Qloo families' options (static/demand_opts.js)
+  const body = { ref: $("ref").value.trim() || undefined, idea: $("idea").value.trim() || undefined, product: $("product").value.trim() || undefined, place: $("place").value.trim() || undefined };
   const j = await api("/api/cross", body);
   $("timeline").hidden = false; $("steps").innerHTML = ""; $("outcome").innerHTML = ""; $("timeline").scrollIntoView({ behavior: "smooth" });
   $("stepsBox").open = true;                         // the log is open while the crossing runs, folded once the verdict is in
@@ -182,27 +180,15 @@ async function cross() {
     await new Promise((res) => setTimeout(res, 900));
   }
 }
-// each live Qloo step, once the report exists: its link to the trace (the redacted request, the result, the limit)
-function linkSteps(r) {
-  if (!window.KnosDemand || !r || !r.hash) return;
-  for (const li of document.querySelectorAll("#steps li.step[data-qloo]")) {
-    if (!li.querySelector("a[data-trace]")) li.insertAdjacentHTML("beforeend", `<p class="small muted">aggregate taste, not causal, not about a person ·${KnosDemand.src("", r.hash, li.dataset.call)}</p>`);
-  }
-}
 function outcome(r) {
-  linkSteps(r);
   $("stepsBox").open = false;
-  const d = r.decision || {}, p = d.plan;
-  const word = d.verdict === "OPEN" ? t("open_v") : d.verdict === "REFUSE" ? t("refuse") : t("cannot");
-  const src = window.KnosDemand ? KnosDemand.src("", r.hash) : "";
-  $("outcome").innerHTML = `<div class="decision ${esc((d.verdict || "").toLowerCase())}"><h3 data-qloo>${esc(word)}${src}</h3>` +
-    (p ? `<p data-qloo><b>${t("for_l")}:</b> ${esc((p.who.age || "").replace(/_/g, " "))}, ${esc(p.who.gender)} · ${esc((p.who.segments || []).slice(0, 3).join(", "))}${(window.KnosDemand ? KnosDemand.src("", r.hash) : "")}</p>
-      <p data-qloo><b>${t("where_l")}:</b> ${esc((p.where || []).join(", ") || "-")}${(window.KnosDemand ? KnosDemand.src("", r.hash) : "")}</p><p data-qloo><b>${t("price_l")}:</b> ${p.unit_price} ${esc(status.money_word || "test units")} (${esc(p.tier)})${(window.KnosDemand ? KnosDemand.src("", r.hash) : "")}</p>
-      <p data-qloo><b>${t("goal_l")}:</b> ${p.target_units} · ${t("reserve")} ${p.reserve_units}${(window.KnosDemand ? KnosDemand.src("", r.hash) : "")}</p>
-      <p><a class="button" href="#buy=${r.hash}">${t("open_product")}</a></p>` : `<ul>${(d.reasons || []).map((x) => `<li data-qloo>${esc(x)}${src}</li>`).join("")}</ul>`) + "</div>" +
-    (window.KnosDemand ? KnosDemand.answers(r, "") : "") +
+  const d = r.decision || {}, fb = r.open_demand || {};
+  const word = fb.head || (d.verdict === "OPEN" ? t("open_v") : d.verdict === "REFUSE" ? t("refuse") : t("cannot"));
+  $("outcome").innerHTML = `<div class="decision ${esc((d.verdict || "").toLowerCase())}"><h3>${esc(word)}</h3>` +
+    `<ul>${(fb.rows || []).map((x) => `<li>${esc(x.name)}: ${x.link ? `<a href="${esc(x.link)}" target="_blank" rel="noopener">` : ""}${esc(x.value)} ${esc(x.unit)}${x.link ? "</a>" : ""}</li>`).join("")}</ul>` +
+    `<p class="small muted">${esc([fb.line, fb.rule].filter(Boolean).join(" "))}</p></div>` +
     `<p><button type="button" class="ghost" id="toBrief">Write a Ready brief from this check</button></p>`;
-  $("toBrief").onclick = () => {       // the brief's project keeps this report: its Qloo facts ground the brief
+  $("toBrief").onclick = () => {       // the brief's project keeps this report: its signals ground the brief
     try { sessionStorage.setItem("knos.report", r.hash); } catch (e) { /* private window: the brief is still written */ }
     location.hash = "#projects";
   };
@@ -222,11 +208,10 @@ async function loadProduct(h) {
     const r = await api("/api/report?hash=" + h); report = r;
     const d = r.decision || {}, p = d.plan || {}, rs = r.research;
     $("productCard").innerHTML = `<p class="small muted">${esc(r.label)}</p><h1>${esc(r.idea)}</h1>` +
-      (rs ? `<p class="small">${esc(rs.title)} (${esc(rs.year)}; cited ${esc(rs.cited_by_count)})${rs.regulator ? ` · <b>${esc(rs.regulator)}</b>` : ""} <a href="${esc(rs.proven_result.source || "#")}" target="_blank" rel="noopener">→</a> <span class="muted" data-source="openalex">paper data: OpenAlex and Crossref, not Qloo</span></p>` : "") +
-      (p.who ? `<div class="grid"><div data-qloo><h3>${t("for_l")}</h3><p>${esc((p.who.age || "").replace(/_/g, " "))}, ${esc(p.who.gender)}</p><p class="small muted">${esc((p.who.segments || []).join(", "))}</p>${(window.KnosDemand ? KnosDemand.src("", r.hash) : "")}</div>
-        <div data-qloo><h3>${t("where_l")}</h3><p>${esc((p.where || []).join(", "))}${(window.KnosDemand ? KnosDemand.src("", r.hash) : "")}</p></div><div data-qloo><h3>${t("price_l")}</h3><p>${p.unit_price} / ${esc(p.tier)}${(window.KnosDemand ? KnosDemand.src("", r.hash) : "")}</p></div>
-        <div data-qloo><h3>${t("goal_l")}</h3><p>${t("target")} ${p.target_units} · ${t("reserve")} ${p.reserve_units}${(window.KnosDemand ? KnosDemand.src("", r.hash) : "")}</p></div></div>` +
-        (p.unserved_audience && p.unserved_audience.length ? `<p class="small" data-qloo>${t("unserved_l")}: ${esc(p.unserved_audience.join(", "))}${(window.KnosDemand ? KnosDemand.src("", r.hash) : "")}</p>` : "")
+      (rs ? `<p class="small">${esc(rs.title)} (${esc(rs.year)}; cited ${esc(rs.cited_by_count)})${rs.regulator ? ` · <b>${esc(rs.regulator)}</b>` : ""} <a href="${esc(rs.proven_result.source || "#")}" target="_blank" rel="noopener">→</a> <span class="muted" data-source="openalex">paper data: OpenAlex and Crossref</span></p>` : "") +
+      (p.who ? `<div class="grid"><div><h3>${t("for_l")}</h3><p>${esc((p.who.age || "").replace(/_/g, " "))}, ${esc(p.who.gender)}</p></div>
+        <div><h3>${t("where_l")}</h3><p>${esc((p.where || []).join(", "))}</p></div><div><h3>${t("price_l")}</h3><p>${p.unit_price} / ${esc(p.tier)}</p></div>
+        <div><h3>${t("goal_l")}</h3><p>${t("target")} ${p.target_units} · ${t("reserve")} ${p.reserve_units}</p></div></div>`
         : `<div class="decision ${esc((d.verdict || "").toLowerCase())}">${esc((d.reasons || []).join("; "))}</div>`);
     $("buyBox").hidden = d.verdict !== "OPEN";
     // no maker has claimed it yet: a buyer commits (an allowance, released only when it is made) instead of pre-ordering
@@ -236,10 +221,6 @@ async function loadProduct(h) {
     $("noMaker").hidden = !noMaker; $("preBtn").hidden = noMaker;
     loadWallet();
     if (r.limits) $("productCard").insertAdjacentHTML("beforeend", `<p class="small muted">${esc(r.limits)}</p>`);
-    const all = [...(r.matches || []).map((m) => ({ ...m, kept: true })), ...(r.unrelated || []).map((u) => ({ name: u.name, kept: false }))];
-    if (all.length) $("productCard").insertAdjacentHTML("beforeend",
-      `<details class="small"><summary>Show all Qloo matches (${all.length})</summary>` +
-      all.map((m) => `<p class="small" data-qloo>${esc(m.name)} <span class="muted">${m.kept ? "counted" : "left out: " + esc(m.why || "shares too few of the idea's words")}</span>${(window.KnosDemand ? KnosDemand.src("", r.hash, 1) : "")}</p>`).join("") + "</details>");
     if (r.fees && r.fees.text) $("feeLine").textContent = r.fees.text + ".";
     const action = `${location.origin}/api/actions/preorder?report=${r.hash}`;
     $("blinkLink").href = "https://dial.to/?action=" + encodeURIComponent("solana-action:" + action) + "&cluster=devnet";
@@ -440,11 +421,9 @@ async function boot() {
   setSession(session);
   try {
     status = await api("/api/status");
-    const rest = status.qloo_rest || {};
-    // live only while Qloo answers: its 429 pause (GET /api/qloo/status, this server's own traffic) says limited
-    const limited = rest.rest && (await api("/api/qloo/status").catch(() => ({}))).limited === true;
-    $("modeBadge").textContent = limited ? t("status_limited") : rest.rest ? t("status_live") : t("status_off");
-    $("modeBadge").className = "badge " + (rest.rest && !limited ? "live" : "off");
+    const live = status.mode === "live";          // the open sources are asked on this server
+    $("modeBadge").textContent = live ? t("status_live") : t("status_off");
+    $("modeBadge").className = "badge " + (live ? "live" : "off");
     const a = status.auth || {};
     if (!a.passkey || !window.PublicKeyCredential) { $("pkNew").disabled = $("pkUse").disabled = true; $("pkNote").textContent = t("pk_none"); }
   } catch (e) { err(e); }
@@ -458,8 +437,6 @@ $("pkNew").onclick = () => busy($("pkNew"), t("loading"), passkeyNew);
 $("pkUse").onclick = () => busy($("pkUse"), t("loading"), passkeyUse);
 document.querySelectorAll(".chip").forEach((c) => c.onclick = () => { $("ref").value = c.dataset.ref; });
 $("crossForm").onsubmit = (ev) => { ev.preventDefault(); busy($("crossBtn"), t("cross_busy"), cross); };
-// the demand options draw once the deferred script is there (DOMContentLoaded runs after every deferred script)
-document.addEventListener("DOMContentLoaded", () => { if (window.KnosDemand) KnosDemand.mount($("demandOpts"), ""); });
 $("walletBtn").onclick = () => busy($("walletBtn"), t("loading"), walletPreorder);
 $("preBtn").onclick = () => busy($("preBtn"), t("loading"), async () => {
   if (!session) { $("signin").hidden = false; throw new Error(t("err_signin")); }

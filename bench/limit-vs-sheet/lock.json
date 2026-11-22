@@ -1,0 +1,39 @@
+{
+ "locked_at": "2026-11-22T14:58:11+00:00",
+ "heldout": {
+  "cases.json": "70ed530bde080cbc6612c9da29dfd447c3541b308a00f3563eb5c2b5d165735b",
+  "h01.csv": "ea2182b72c754ae9aa3a0a4a9dc0262228b245b83ea7be5a67a682691067b6a3",
+  "h02.csv": "84d8a6749d9d0ca18ebed8bcb58be125635f9dc84a958cafab91c00a782e6221",
+  "h03.csv": "78061fe74bb8305a3a9f43c4bc1d3cafc356c4af39a4480aab254825563e7046",
+  "h04.csv": "dd7488ee4430a61b9e1ae91a71ac2014c16ed98d2dbccaa2eaabfaeaedc4e4ac",
+  "h05.csv": "e46974c3334ec8c617dd209241374c36bff8e28f574cc435e7ac4188f6985280",
+  "h06.csv": "c47b90328d5a9b5f9cbf39e60f800c54d53a9d2a63926734078ba431c5da2d3d",
+  "h07.csv": "2100124beb91cb09a6cbd8b8a9c7d216b8a3b7e6c8dc6c91963f2d2dc7518031",
+  "h08.csv": "af690d43e4d98e7b218b65b0a151e7f0a1c883273aafc8d5b8212ecb65e396e8",
+  "h09.csv": "27338244158607eeb40636510a7cda5a35f9e32084a78915e975fcadbdf42ad8",
+  "h10.csv": "403056a7f1a011577d4af9386431f3f1143c3059b7d8af6a46d506f3c138c4e3",
+  "h11.csv": "3cf91a450c639374404ee9b5c2bdec5df0021ee45727361c64378a9d0362aafb",
+  "h12.csv": "99297a351cc41e83fec308dc79121911f8f925c6cf282186f6f5c6c1c3a6f120",
+  "h13.csv": "74d90ba4c70903b7de98c33e5fa88b54fc77bdb452420b7cbf3e7685c5cc0f57",
+  "h14.csv": "ec3755b2de0b35392ab49aa6abd46c71c9ffadd4eaf5bac4adf208fb28c92fb2",
+  "h15.csv": "19e84a12bcb654e6b52e5796f484adfccd583a7509155a1cd77f54170649108d",
+  "h16.csv": "595209b26111f3d7f040728d2672c3eb729ecd91ac8c252cc5e61e3eef273055",
+  "h17.csv": "eacae6b4086c15057b5399d3209e60158e62b4a8fc26fbe668ceabdb464cbf8b",
+  "h18.csv": "099cfcfcd2466e5db32e28abbad88f7e96db12507e1c3904de0c71d6d7a35da9",
+  "h19.csv": "3f53e37b643014932a4389ce9f07b9832f8ad838f5713a5e0fe66597e124bb62",
+  "h20.csv": "cda8fb4d6ed79a693cfed282d442281327568e6fae452108c1260d1985dfc9ed"
+ },
+ "sheet_method": {
+  "file": "bench/limit-vs-sheet/sheet.py",
+  "sha256": "6ebd247e729b5413f7ae5a004c970e645e8fa9040bb3e65d2a6e2d61f6d35c64",
+  "formula_above": "=IF(ISNUMBER(B2), B2<=limit, FALSE) in each row, then =MATCH(TRUE, C2:Cn, 0)",
+  "formula_below": "=IF(ISNUMBER(B2), B2>=limit, FALSE) in each row, then =MATCH(TRUE, C2:Cn, 0)"
+ },
+ "knos_method": {
+  "program": "near/agents/job/data/limit/released_solution.py",
+  "sha256": "6240ac16af236255a1589dae4eb3deedc07434236a534eaadec717da916a29ab",
+  "entry": "apps/wanted/knos_wanted/tool_run.py inputs() then run_program(), as POST /api/run runs it"
+ },
+ "score": "a case is right when the method names the case's expected first failing row (or no row when the file passes); a refusal or an error is wrong. Correct count first; time and cost are reported beside it, not scored.",
+ "publish": "the result is written to docs/data/benchmark.json as it comes out, win or lose"
+}

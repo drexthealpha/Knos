@@ -8,9 +8,9 @@ import time
 import pytest
 from test_round9 import STATIC, app, call  # noqa: F401 - the fixture
 
-from knos_wanted import agent, front, mock_mcp, valley
+from knos_wanted import agent, check, front, valley
 
-LIVE = "LIVE Qloo data (Qloo REST API, read for this report)"
+LIVE = check.LABEL
 
 
 def _report(st, h, verdict="OPEN", label=LIVE, idea="A fitness watch with a sweat glucose sensor"):
@@ -38,16 +38,16 @@ def fresh():
     front._seeded.clear()
 
 
-def test_the_list_holds_only_open_decisions_on_live_qloo_and_the_seeds_come_first(app):  # noqa: F811
+def test_the_list_holds_only_open_decisions_on_open_signals_and_the_seeds_come_first(app):  # noqa: F811
     base, st = app
     seed = _report(st, "a" * 64)
     front._seeded["sweat-glucose-watch"] = {"report": seed["hash"], "state": "open",
                                             "project": front._project_for(seed["hash"], seed["idea"], "hardware_prototype")}
     _job(_report(st, "b" * 64, idea="A cozy game"))
     _job(_report(st, "c" * 64, verdict="REFUSE"))
-    _job(_report(st, "d" * 64, label=mock_mcp.MOCK_LABEL))
+    _job(_report(st, "d" * 64, label="a report of another kind"))
     b = front.board(st)
-    assert [p["slug"] for p in b["products"]] == ["sweat-glucose-watch", "b" * 16]           # REFUSE and MOCK are never listed
+    assert [p["slug"] for p in b["products"]] == ["sweat-glucose-watch", "b" * 16]           # REFUSE and another kind of report are never listed
     p = b["products"][0]
     assert p["project"] and p["first_milestone"] and p["maker"] is False and p["backed_units"] == 0 and p["reserve_units"] == 48
     assert p["paper"] == "Nature, 2016" and p["actions"] == {"back": "#back=sweat-glucose-watch", "fund": "#fund=sweat-glucose-watch",
@@ -76,7 +76,7 @@ def test_api_front_answers_github_pages_with_cors(app):  # noqa: F811
     assert s == 404
 
 
-def test_seeds_cross_on_live_qloo_and_open_a_project_only_when_open(app, monkeypatch):  # noqa: F811
+def test_seeds_cross_and_open_a_project_only_when_open(app, monkeypatch):  # noqa: F811
     base, st = app
     reps = {"sweat-glucose-watch": "OPEN", "air-water-bottle": "REFUSE"}
 

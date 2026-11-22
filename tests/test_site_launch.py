@@ -197,7 +197,7 @@ def test_each_privacy_line_agrees_with_the_code() -> None:
     hosts = set(re.findall(r'fetch\(\s*[`"](https://[A-Za-z0-9.-]+)', code))                # whom the pages fetch from
     # (every host a page asks is also refused and counted in the browser: tests/web/launch.mjs "nothing outside the site")
     # and the Knos app ("Sends what you type to the Knos app on Check"): /check/ also reads its newest payout, sending nothing
-    # and the site's own host: web/brand/hero.js reads the program_ids.json each Pages build ships (the app on Render has no copy)
+    # and the site's own host: the program_ids.json each Pages build ships (the app on Render has no copy)
     assert hosts <= {"https://api.github.com", "https://api.devnet.solana.com", "https://knos.onrender.com", "https://drexthealpha.github.io"}, hosts
     for tracker in ("google-analytics", "googletagmanager", "plausible", "segment.com", "posthog", "mixpanel", "sentry"):
         assert tracker not in code.lower(), tracker

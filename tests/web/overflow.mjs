@@ -8,7 +8,7 @@
 import { createServer } from "node:http";
 import { createRequire } from "node:module";
 import { readFileSync, existsSync, mkdirSync } from "node:fs";
-import { join, extname } from "node:path";
+import { join, extname, delimiter } from "node:path";
 
 export const WIDTHS = [320, 360, 390, 768, 1280];
 export const ROW_MAX = 400;
@@ -54,11 +54,13 @@ export async function chromiumOrSkip() {
   let pw;
   try { pw = await import("playwright"); } catch {
     // an install outside this tree (NODE_PATH, which `import` does not read)
-    const paths = (process.env.NODE_PATH || "").split(":").filter(Boolean);
+    const paths = (process.env.NODE_PATH || "").split(delimiter).filter(Boolean);   // ":" on POSIX, ";" on Windows
     try { pw = createRequire(import.meta.url)(createRequire(import.meta.url).resolve("playwright", { paths })); } catch { skip("the playwright package is not installed"); }
   }
   const { chromium } = pw.default || pw;
-  try { return await chromium.launch(); } catch (e) { skip(`no Chromium to start: ${String(e.message).split("\n")[0]}`); }
+  // a browser installed outside playwright (CHROME_PATH: its path, as on a machine with Chrome and no playwright download)
+  const executablePath = process.env.CHROME_PATH || undefined;
+  try { return await chromium.launch(executablePath ? { executablePath } : {}); } catch (e) { skip(`no Chromium to start: ${String(e.message).split("\n")[0]}`); }
 }
 
 // What runs off the side of the page: how far, and the first few elements that do it.

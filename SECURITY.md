@@ -27,6 +27,26 @@ deployment:
 
 There has been no outside review, and `knos mainnet-check` fails on that line until there is one.
 
+## Unaudited
+
+No outside firm has audited any part of Knos. Each part below is unaudited; its tests and the author's own review are
+all that stand behind it:
+
+- the NEAR contracts: `near/contract/` (jobs, milestones, the RS256 proof check), `near/market/` and `near/mock-usdc/`
+- the Solana programs: `programs/`, `programs-v2/` and the transfer hook in `programs-hook/`
+- the hosted app in `apps/wanted/`, which signs testnet transactions with its own capped accounts
+- the Python package in `src/knos/` and the command line it installs
+- the GitHub workflows a repository installs (the author's review of them is in
+  [docs/reference/SECURITY.md](docs/reference/SECURITY.md), and it is not an audit)
+
+## Try to break it
+
+Please do. Everything runs on NEAR testnet and Solana devnet with test money, so a break costs nobody real funds. Try to
+take a payout you did not earn, spend past an agent's cap, release a job twice or read a key. The attacks already tried
+on testnet, and what the contract answered, are in `near/scripts/attack_testnet.py` and in
+[docs/reference/NEAR.md](docs/reference/NEAR.md). Keep to the test accounts Knos owns or ones you made yourself, and
+report what works through the private channel at the top of this page.
+
 Keys and tokens are kept out of the repository: `python scripts/secret_scan.py --history` reads every blob ever
 committed and names each kind of key it finds, never its value. The one real key ever committed is listed, with why it
 is spent, in [`scripts/secret_scan.py`](scripts/secret_scan.py) (`REVIEWED`).

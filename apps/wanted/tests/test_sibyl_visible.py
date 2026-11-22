@@ -6,13 +6,12 @@ import re
 from pathlib import Path
 
 from knos_wanted import agent, valley
-from knos_wanted.qloo_mcp import InProcess, Qloo
 
 ROOT = Path(__file__).resolve().parents[3]
 
 
 class State:
-    q = Qloo(InProcess(), mode="mock")
+    reports: dict = {}
 
 
 def test_knos_memory_search_hands_on_sibyls_verdict_unchanged(monkeypatch):

@@ -23,7 +23,7 @@ flowchart TB
 | page | what it answers |
 |---|---|
 | [STORY.md](STORY.md) | an earlier run on Solana in six steps, each with its evidence |
-| [START.md](START.md) | five minutes: a paper's claim on NEAR first, then the same Knos on Solana and IRIS |
+| [START.md](START.md) | five minutes: a paper's claim on NEAR first, then the same Knos on Solana |
 | [PRICING.md](PRICING.md) | what it costs: the check is free; the fee each chain takes |
 | [TRUST.md](TRUST.md) | who holds the keys today, how to ask for one, and what is tested |
 | [NUMBERS.md](NUMBERS.md) | the three measures written before anyone uses the tool, each with a pass and a stop line |

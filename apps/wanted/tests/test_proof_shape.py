@@ -1,29 +1,23 @@
-"""The proof the front doors draw first holds `calls` as a list and `n_calls` as their count. On 26 Oct 2026 the
-snapshot held the count in `calls` ({"calls": 18}) and the card's calls panel threw "(r.calls || []).map is not a
-function", so the chips did nothing. A proof saved in that shape is read back as a list; the page guards the draw."""
+"""The proof the front doors draw first: the last Open check on open signals, its rows with their links and never the
+words a person typed. The page guards the draw and asks for it only when "Try a sample" opens."""
 import re
 from pathlib import Path
 
-from knos_wanted import vectors
+from knos_wanted import check, vectors
 
 ROOT = Path(__file__).resolve().parents[3]
-BAD = {"hash": "ab" * 32, "idea": "a SYNTHETIC tea", "decision": {"verdict": "OPEN"}, "calls": 18}
+ROWS = [{"name": "Wikipedia", "value": 296, "unit": "views a day (last 60 days)", "link": "https://en.wikipedia.org/wiki/Tea", "counts": True},
+        {"name": "Money down", "value": 0.0, "unit": "test money, 0 pre-orders here", "counts": False}]
 
 
-def test_the_card_of_a_report_holds_its_calls_as_a_list_and_their_count():
-    rep = {"hash": "cd" * 32, "idea": "x", "calls": [{"n": 1, "call": "GET /search", "params": {"query": "x"}, "cached": True,
-                                                     "ms": 12, "body_digest": "d", "out": {"answer": "never public"}}]}
+def test_the_card_of_a_report_holds_its_rows_and_its_rule():
+    rep = {"hash": "cd" * 32, "idea": "x", "label": check.LABEL, "decision": {"verdict": "OPEN", "reasons": ["a", "b", "c"]},
+           "open_demand": {"rows": ROWS, "line": "Sources: Wikipedia, pre-orders here.", "rule": "People want it when 2 of these pass."}}
     card = vectors._card(rep)
-    assert card["calls"] == [{"n": 1, "call": "GET /search", "params": {"query": "x"}, "cached": True, "ms": 12}] and card["n_calls"] == 1
+    assert card["signals"] == ROWS and card["decision"] == {"verdict": "OPEN", "reasons": ["a", "b"]} and card["rule"].startswith("People")
 
 
-def test_a_proof_saved_with_a_count_is_read_back_as_a_list():
-    p = vectors.shape(dict(BAD))
-    assert p["calls"] == [] and p["n_calls"] == 18 and isinstance(p["calls"], list)
-
-
-def test_the_card_reads_calls_only_as_a_list_and_draws_the_past_result_last_inside_try():
-    js = (ROOT / "web" / "brand" / "hero.js").read_text(encoding="utf-8")
-    assert "(r.calls || []).map" not in js and "Array.isArray(r.calls)" in js
+def test_the_card_draws_the_past_result_last_inside_try():
+    js = (ROOT / "apps" / "wanted" / "knos_wanted" / "static" / "brand" / "hero.js").read_text(encoding="utf-8")
     tail = js[js.index('root.addEventListener("click"'):]
-    assert re.search(r"try \{ draw\(r\); \} catch", tail) and 'samples.addEventListener("toggle"' in tail and 'get("/api/proof")' in tail and "k-proof\"" not in js   # asked when "Try a sample" opens: no answer in the page
+    assert re.search(r"try \{ draw\(r\); \} catch", tail) and 'samples.addEventListener("toggle"' in tail and 'get("/api/proof")' in tail   # asked when "Try a sample" opens: no answer in the page

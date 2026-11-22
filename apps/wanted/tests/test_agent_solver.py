@@ -16,7 +16,6 @@ import pytest
 from solders.keypair import Keypair
 
 from knos_wanted import agentkeys, auth, server, tasks, valley
-from knos_wanted.qloo_mcp import InProcess, Qloo
 
 BRIEF = {"milestones": [{"key": "m1", "name": "Login under 300 ms", "target": "p95 under 300 ms on test_login",
                          "verifier": {"kind": "machine", "check": "ci / test_login"}, "deadline_days": 7}]}
@@ -24,7 +23,7 @@ BRIEF = {"milestones": [{"key": "m1", "name": "Login under 300 ms", "target": "p
 
 @pytest.fixture
 def app():
-    state = server.State(Qloo(InProcess(), mode="mock", sleep=lambda s: None))
+    state = server.State()
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.make_handler(state))
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
     yield f"http://127.0.0.1:{httpd.server_address[1]}"

@@ -15,11 +15,11 @@ H, P = "14d68eb782caff051897a9799ed592e7a6875bce6559c1c19fa67b0be41899c0", "7b4e
 MS = {"project": P, "milestone": "preorders"}
 # a GET route's query: name -> example (a required name is in REQUIRED); a value {"from": ...} is read from another call
 FROM_CROSS = {"from": {"method": "POST", "path": "/api/cross", "body": {"ref": "10.1038/nature16521"}, "pick": "id"}}
-PARAMS = {"/api/report": {"hash": H}, "/api/trace": {"hash": H}, "/api/receipts": {"id": H[:16]}, "/api/pool": {"hash": H},
+PARAMS = {"/api/report": {"hash": H}, "/api/receipts": {"id": H[:16]}, "/api/pool": {"hash": H},
           "/api/quote": {"hash": H, "units": 5}, "/api/x402/report": {"hash": H}, "/api/project": {"id": P}, "/api/project/prompt": MS,
           "/api/project/route": MS, "/api/commitments": {"take": 5}, "/api/crossings": {"take": 5}, "/api/receivables": {"take": 5},
           "/api/company/export": {"project": P, "format": "xero"}, "/api/actions/preorder": {"report": H}, "/api/price": {"pair": "EUR/USD"},
-          "/api/ready/card": {"hash": "0" * 64}, "/api/memory/search": {"q": "kombucha"}, "/api/taste/movie": {"title": "Inception", "year": 2010},
+          "/api/ready/card": {"hash": "0" * 64}, "/api/memory/search": {"q": "kombucha"}, 
           "/api/attest": {**MS, "attempt": "46088348e3"}, "/api/track": {"wallet": "EZi57B4aT661Nwf9oZyPN5ronZMMgtgGUfe68aGff4Gf"},
           "/api/sns": {"name": "knos.sol"}, "/api/projects": {"take": 10}, "/api/cross": {"id": FROM_CROSS, "since": 0},
           "/api/cross/stream": {"id": FROM_CROSS},
@@ -28,10 +28,10 @@ PARAMS = {"/api/report": {"hash": H}, "/api/trace": {"hash": H}, "/api/receipts"
           "/api/project/evidence": {"id": {"from": {"method": "GET", "path": "/api/project?id=" + P, "pick": "milestones.0.attempts.0.evidence"}}},
           "/api/prize/evidence": {"id": {"from": {"method": "GET", "path": "/api/tasks", "pick": "rounds.0.prize.id"}}},
           "/api/front": {"slug": {"from": {"method": "GET", "path": "/api/front", "pick": "products.0.slug"}}}}
-REQUIRED = {"/api/report": {"hash"}, "/api/trace": {"hash"}, "/api/receipts": {"id"}, "/api/pool": {"hash"}, "/api/quote": {"hash"},
+REQUIRED = {"/api/report": {"hash"}, "/api/receipts": {"id"}, "/api/pool": {"hash"}, "/api/quote": {"hash"},
             "/api/x402/report": {"hash"}, "/api/project": {"id"}, "/api/project/prompt": {"project", "milestone"},
             "/api/project/route": {"project", "milestone"}, "/api/company/export": {"project"}, "/api/actions/preorder": {"report"},
-            "/api/ready/card": {"hash"}, "/api/memory/search": {"q"}, "/api/taste/movie": {"title", "year"}, "/api/attest": {"project", "milestone", "attempt"},
+            "/api/ready/card": {"hash"}, "/api/memory/search": {"q"}, "/api/attest": {"project", "milestone", "attempt"},
             "/api/track": {"wallet"}, "/api/sns": {"name"}, "/api/cross": {"id"}, "/api/cross/stream": {"id"}, "/api/commitment": {"id"},
             "/api/referee/session": {"id"}, "/api/project/evidence": {"id"}, "/api/prize/evidence": {"id"}}
 BRIEF = {"title": "A check", "milestones": [{"name": "Tests pass", "target": "pytest exits 0 on the repository", "verifier": {"kind": "machine", "check": "pytest"}, "deadline_days": 3}]}
@@ -40,7 +40,7 @@ BODIES = {"/api/research": ({"ref": "string", "product": "string"}, {"ref": "10.
           "/api/open-signals": ({"idea": "string", "place": "string"}, {"idea": "a cold brew coffee shop", "place": "Austin"}),
           "/api/ready": ({"brief": "object"}, {"brief": BRIEF})}
 READ_POSTS = {"/api/research", "/api/open-signals", "/api/ready", "/api/check"}
-HTML = {"/app/", "/fields", "/money", "/with-without", "/companies", "/verify", "/status/qloo", "/qloo-safe-use", "/trace.html", "/r/{code}"}
+HTML = {"/app/", "/fields", "/money", "/companies", "/verify", "/r/{code}"}
 CONTENT = {"/sw.js": "application/javascript", "/manifest.webmanifest": "application/manifest+json", "/api/proofs/cosign.pub": "text/plain",
            "/api/proofs/signature": "application/json", "/api/cross/stream": "text/event-stream", "/api/company/export": "text/csv"}
 MOVED = {"/": "https://drexthealpha.github.io/Knos/", "/app": "/app/", "/quality": "https://drexthealpha.github.io/Knos/",
@@ -89,8 +89,6 @@ def document(base: str = "https://knos.onrender.com") -> dict:
             op["x-read-only"] = True
         if method == "GET" and path == "/api/x402/report":
             op["responses"]["402"] = {"description": "payment required: the x402 price, in the PAYMENT-REQUIRED header"}
-        if method == "GET" and path == "/api/taste/movie":
-            op["responses"]["503"] = {"description": "Qloo did not answer, with the reason in `error`"}
         if signed:
             op["security"] = [{"session": []}]
             op["responses"]["401"] = {"description": "sign in first"}
@@ -109,18 +107,16 @@ def document(base: str = "https://knos.onrender.com") -> dict:
             props, example = BODIES.get(path, (fields, None))
             op["requestBody"] = {"required": True, "content": {"application/json": {"schema": {
                 "type": "object", "properties": {k: TYPES.get(t, {"type": "string"}) for k, t in props.items()}}, **({"example": example} if example else {})}}}
-        if method == "POST" and path in DEMAND_BODIES:      # the demand check: every Qloo family field, typed, with an example
+        if method == "POST" and path in DEMAND_BODIES:      # the demand check: the idea and the market, with an example
             op["requestBody"] = {"required": True, "content": {"application/json": {"schema": demand_body(path),
-                                 "examples": {"who-and-where": {"summary": "Who and where",
-                                              "value": {"idea": "trail running shoes for ultramarathons", "age": "24_and_younger", "near": "Austin", "radius": 5000}},
-                                              "price-and-brand": {"summary": "Price tier and who serves it",
-                                              "value": {"idea": "a cold brew coffee shop", "near": "Seattle", "price_level": "1", "references_brand": "Starbucks"}}}}}}
+                                 "examples": {"idea-and-market": {"summary": "An idea and its market",
+                                              "value": {"idea": "trail running shoes for ultramarathons", "place": "United States"}}}}}}
         if params:
             op["parameters"] = params
         paths.setdefault(path, {})[method.lower()] = op
     return {"openapi": "3.1.0",
             "info": {"title": "Knos", "version": _version(),
-                     "description": "The goal: Knos carries research across the valley of death. Demand checks on Qloo, Ready briefs, milestone "
+                     "description": "The goal: Knos carries research across the valley of death. Demand checks on open signals, Ready briefs, milestone "
                                     "money held on Solana devnet until the milestone check passes, and research claims proved by agents on NEAR testnet; test money, no customers yet. Agents: the same tools over MCP at /mcp."},
             "servers": [{"url": base}],
             "components": {"securitySchemes": {"session": {"type": "http", "scheme": "bearer",
@@ -132,15 +128,13 @@ DEMAND_BODIES = {"/api/check": "idea", "/api/cross": "ref or idea"}
 
 
 def demand_body(path: str) -> dict:
-    """The body of a demand check: the idea (or paper), the market, and every family field of knos.qloo_families."""
-    from knos import qloo_families as Q
+    """The body of a demand check: the idea (or paper) and the market."""
     props = {"idea": {"type": "string", "description": "the product idea, 3 to 500 characters", "examples": ["a cold brew coffee shop"]},
              "place": {"type": "string", "description": "the launch market (city or country)", "examples": ["Austin"]},
              "leader": {"type": "string", "description": "the market leader to compare against", "examples": ["Starbucks"]}}
     if path == "/api/cross":
         props = {"ref": {"type": "string", "description": "a paper id (DOI, arXiv, PubMed, OpenAlex, patent)", "examples": ["10.1038/nature16521"]},
                  **props, "product": {"type": "string", "description": "the product phrase"}}
-    props.update({k: Q.schema(k) for k in Q.FIELDS})
     return {"type": "object", "properties": props, **({"required": ["idea"]} if path == "/api/check" else {}), "additionalProperties": False}
 
 

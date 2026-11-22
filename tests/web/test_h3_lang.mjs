@@ -3,7 +3,7 @@
 // the tool page /t/<id>/, the result page /r/<id>/ and the pricing page (tests/web/test_h3_common.mjs serves them).
 // The automatic checks of U7 (v0328 research LAWS/UX/U7.md) that these screens can run, as each "Automatic check:"
 // line describes them:
-//   R1  every screen in Arabic: html dir="rtl" and lang="ar"; no sideways scroll at 320 and 360 px; no element crosses
+//   R1  every screen in Arabic, Persian, Urdu and Hebrew: html dir="rtl" and its lang; no sideways scroll at 320 and 360 px; no element crosses
 //       the screen's edge
 //   R2  every input and textarea has dir="auto"
 //   R5  the front door with every string padded by IBM's allowance (x3 up to 10 characters, down to x1.3) at 320 px: no
@@ -23,7 +23,7 @@
 // browser's speech recognition (a stand-in), and is not shown where the browser has none.
 import { execFileSync } from "node:child_process";
 import { chromiumOrSkip } from "./overflow.mjs";
-import { serveScreens, LANGS, ROOT } from "./test_h3_common.mjs";
+import { serveScreens, LANGS, RTL, ROOT } from "./test_h3_common.mjs";
 
 let fails = 0;
 const check = (name, cond, detail) => { if (cond) console.log("ok  ", name); else { fails++; console.error("FAIL", name, detail === undefined ? "" : JSON.stringify(detail).slice(0, 600)); } };
@@ -87,7 +87,7 @@ for (const lang of LANGS) {
       return { lang: de.lang, dir: de.dir, texts, inputs, dt, mt, switcher: sw ? { top: sb.top, bottom: sb.bottom, w: sb.width, h: sb.height, text: sw.querySelector("summary").textContent.trim() } : null,
         wide: de.scrollWidth - innerWidth, slashDate: /\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/.test(document.body.innerText) };
     });
-    check(`${at} html lang is ${lang}${lang === "ar" ? ', dir="rtl"' : ""} (R1, R17)`, m.lang === lang && m.dir === (lang === "ar" ? "rtl" : "ltr"), [m.lang, m.dir]);
+    check(`${at} html lang is ${lang}${RTL.includes(lang) ? ', dir="rtl"' : ""} (R1, R17)`, m.lang === lang && m.dir === (RTL.includes(lang) ? "rtl" : "ltr"), [m.lang, m.dir]);
     if (screen === "tool" || screen === "result") check(`${at} the server answers in that language with Vary: Accept-Language (R17)`, /Accept-Language/i.test(resp.headers()["vary"] || ""), resp.headers());
     check(`${at} the language control is on the first screen, 44 by 44 px or more, with a word (R18)`, m.switcher && m.switcher.bottom <= 800 && m.switcher.w >= 44 && m.switcher.h >= 44 && m.switcher.text === file._meta.name, m.switcher);
     check(`${at} every input and box keeps the direction of what is typed (R2)`, m.inputs.length === 0, m.inputs);
@@ -108,8 +108,8 @@ for (const lang of LANGS) {
   }
 }
 
-// ---- R1 at 320 px in Arabic and English: nothing crosses the edge ---------------------------------------------------
-for (const lang of ["en", "ar"]) for (const [screen, url] of SCREENS) {
+// ---- R1 at 320 px in English and the right-to-left languages (Arabic, Persian, Urdu, Hebrew): nothing crosses the edge ---------------------------------------------------
+for (const lang of ["en", ...RTL]) for (const [screen, url] of SCREENS) {
   const { ctx, page } = await open(lang, url, { width: 320, height: 712 });
   if (screen === "door") await pressRun(page);
   const out = await page.evaluate(() => ({ wide: document.documentElement.scrollWidth - innerWidth,
@@ -145,6 +145,9 @@ for (const [screen, url] of SCREENS) {
   const plain = await open("ar-EG", url);
   check(`R17 ${screen}: a browser in ar-EG with nothing stored gets Arabic`, await plain.page.evaluate(() => document.documentElement.lang) === "ar");
   await plain.ctx.close();
+  const tw = await open("zh-TW", url, { expect: "zh-Hant" });   // L09: Chinese of Taiwan reads Traditional characters
+  check(`R17 ${screen}: a browser in zh-TW gets Traditional Chinese (zh-Hant)`, await tw.page.evaluate(() => document.documentElement.lang) === "zh-Hant");
+  await tw.ctx.close();
   const none = await open("xx", url, { expect: "en" });
   check(`R17 ${screen}: a language Knos does not ship gets English`, await none.page.evaluate(() => document.documentElement.lang) === "en");
   await none.ctx.close();
@@ -182,13 +185,17 @@ for (const lang of ["en", "ar", "hi", "zh-Hans"]) for (const screen of ["door", 
 }
 for (const lang of ["en", "fr"]) {
   const { ctx, page } = await open(lang, S.screens.door, { init: SPEECH });
-  await page.evaluate(() => { document.getElementById("ask-box").open = true; });   // the question box's fold
+  await page.focus("#list");   // L01: the one box; its microphone shows once the box has the focus (L08)
   const vis = await page.evaluate(() => !document.getElementById("speak").hidden);
+  // every label the button shows from the press on, recorded as it changes: the stand-in's recognition ends 50 ms after it
+  // starts, sooner than a read made after page.click returns (88 to 137 ms measured), so a single read could miss it
+  await page.evaluate(() => { const b = document.getElementById("speak"); window.__labels = []; new MutationObserver(() => window.__labels.push(b.textContent)).observe(b, { childList: true, characterData: true, subtree: true }); });
   await page.click("#speak");
-  const label = await page.evaluate(() => document.getElementById("speak").textContent);
-  await page.waitForFunction(() => document.getElementById("paper").value !== "", null, { timeout: 3000 }).catch(() => {});
-  const filled = await page.evaluate(() => document.getElementById("paper").value);
-  check(`H3 b ${lang}: Speak shows on the question box and fills it from the browser's speech recognition`, vis && filled === "Does HyperLogLog count visitors?" && label === S.file(lang).strings["ask.listening"], { vis, label, filled });
+  await page.waitForFunction(() => document.getElementById("list").value !== "", null, { timeout: 3000 }).catch(() => {});
+  await page.waitForFunction((idle) => document.getElementById("speak").textContent === idle, S.file(lang).strings["ask.speak"], { timeout: 3000 }).catch(() => {});
+  const { filled, labels } = await page.evaluate(() => ({ filled: document.getElementById("list").value, labels: window.__labels }));
+  check(`H3 b ${lang}: Speak shows in the one box, says it is listening once pressed, fills the box from the browser's speech recognition, then reads Speak again`,
+    vis && filled === "Does HyperLogLog count visitors?" && labels[0] === S.file(lang).strings["ask.listening"] && labels[labels.length - 1] === S.file(lang).strings["ask.speak"], { vis, labels, filled });
   await ctx.close();
 }
 {

@@ -266,13 +266,11 @@ def handle_post(h, state, path: str) -> bool:
                 return h._send(403, {"error": "the operator's X-Knos-Admin key opens, funds and claims these projects"}) or True
             return h._send(200, _operator(b)) or True
         if path == "/api/project" and isinstance(b.get("report"), str):
-            # the project's Grounding (Qloo) line reads its report from disk (valley.grounding); a crossing recalled from
+            # the project's Grounding line reads its report from disk (valley.grounding); a crossing recalled from
             # memory was kept only in this server's memory, so it is written there now
             rep = state.report(b["report"])
             if rep is not None:
                 state.keep_check(rep)
-                from . import trace
-                trace.keep(state, rep["hash"])             # its Grounding line links to this trace: kept on devnet too
         return h._send(200, _post(path, b, user or {}, h)) or True
     except preorder.Settled as why:
         return h._send(409, {"error": str(why)[:300]}) or True
@@ -440,10 +438,10 @@ MCP_TOOLS = [
      "description": "For a milestone whose verifier is knos-referee:<round>: claims it for you if you have no attempt yet (an agent key: "
      "paid at its payout wallet, one claim of its cap), sends your whole train.py to that round's sealed referee, and when the "
      "verdict meets the target the held money is released to you with no human step. knos_tasks links the round's README. With kind observation or oru and a brief, it checks a lab's "
-     "proof inside the same rules referee IRIS runs, and returns the decision only. " + _CONFIRM,
+     "proof with the rules referee (knos.referee_rules), and returns the decision only. " + _CONFIRM,
      "inputSchema": _obj({"project": _S, "milestone": _S, "code": {"type": "string", "description": "the whole train.py"},
                           "wallet": _S, "session": _S,
-                          "kind": {"type": "string", "enum": ["observation", "oru"], "description": "a lab's proof instead of code: a FHIR Observation or an HL7 ORU message, checked by the rules referee IRIS runs too (the decision only; nothing moves)"},
+                          "kind": {"type": "string", "enum": ["observation", "oru"], "description": "a lab's proof instead of code: a FHIR Observation or an HL7 ORU message, checked by the rules referee (the decision only; nothing moves)"},
                           "proof": {"description": "the Observation (an object) or the ORU message (a string)"},
                           "brief": {"type": "object", "description": "the locked brief the lab proof answers"}}, ())},
     {"name": "knos_openapi", "title": "This server's OpenAPI document", "description": "The same API as REST: /openapi.json.",

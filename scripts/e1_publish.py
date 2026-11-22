@@ -48,23 +48,6 @@ def mutants() -> dict:
             "per_operator": d["per_operator"], "raw": ["docs/reference/e1_mutants.json"]}
 
 
-def qloo() -> list[dict]:
-    w = json.loads((REF / "where_truth.json").read_text(encoding="utf-8"))
-    t = json.loads((REF / "taste_truth.json").read_text(encoding="utf-8"))
-    lift = json.loads((REF / "qloo_lift_ranked.json").read_text(encoding="utf-8"))
-    diff = json.loads((REF / "e1_qloo_diff.json").read_text(encoding="utf-8"))
-    return [
-        {"test": "the verdict against a free-data baseline", "made": diff["made"], "result": f"changed on {diff['summary']['verdict']} of {diff['summary']['rows']} ideas",
-         "said": "Qloo changed the verdict", "raw": "docs/reference/e1_qloo_diff.json (from https://knos.onrender.com/api/qloo-diff)"},
-        {"test": "where demand is (Census business counts)", "made": w["made"], "result": f"{w['mean_overlap']['knos_with_qloo']} with Qloo against {w['mean_overlap']['claude_alone']} for the model alone, "
-         f"difference {w['difference']} (95% interval {w['bootstrap']['interval_95'][0]} to {w['bootstrap']['interval_95'][1]})", "said": "Qloo lost", "raw": "docs/reference/where_truth.json"},
-        {"test": "taste (film fans)", "made": t["made"], "result": f"{t['mean_overlap']['knos_with_qloo']} against {t['mean_overlap']['claude_alone']}, difference {t['difference']} "
-         f"(95% interval {t['bootstrap']['interval_95'][0]} to {t['bootstrap']['interval_95'][1]})", "said": "a tie", "raw": "docs/reference/taste_truth.json"},
-        {"test": "a public dataset of crowdfunded product launches", "made": lift["made"], "result": f"rank correlation {lift['spearman']['open_signals_qloo']} with Qloo against "
-         f"{lift['spearman']['open_signals']} without, difference {lift['difference']} (95% interval {lift['bootstrap']['interval_95'][0]} to {lift['bootstrap']['interval_95'][1]})",
-         "said": "no lift", "raw": "docs/reference/qloo_lift_ranked.json"}]
-
-
 def _get(path: str) -> dict:
     with urllib.request.urlopen(urllib.request.Request(APP + path, headers={"User-Agent": "knos-e1"}), timeout=120) as r:
         return json.loads(r.read())
@@ -98,8 +81,8 @@ def build(read_preorders: bool) -> dict:
     old = json.loads(OUT.read_text(encoding="utf-8")) if OUT.exists() else {}
     c = plan_commit()
     return {"plan": "docs/reference/evidence_plan.md", "plan_commit": c, "plan_url": BLOB.format(commit=c, path="docs/reference/evidence_plan.md"),
-            "idt": idt(), "proof_checking": mutants(), "qloo": qloo(),
-            "preorders": preorders() if read_preorders else old.get("preorders"), "qloo_calls_spent": 0}
+            "idt": idt(), "proof_checking": mutants(),
+            "preorders": preorders() if read_preorders else old.get("preorders")}
 
 
 def main(argv: list[str]) -> int:

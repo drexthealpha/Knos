@@ -8,10 +8,9 @@ import urllib.request
 from http.server import ThreadingHTTPServer
 
 import pytest
-from test_check import IDEA, FakeQloo
+from test_check import IDEA, use_signals
 
-from knos_wanted import agent, auth, blink, check, research, server
-from knos_wanted.qloo_mcp import InProcess, Qloo
+from knos_wanted import agent, auth, blink, research, server
 
 CARD = {"hash": "c" * 64, "title": "A synthetic landmark paper", "year": 2016, "cited_by_count": 5000, "retraction": {"retracted": False},
         "nobel": None, "proven_result": {"quote": "We present a sensor.", "source": "https://doi.org/10.0/x"}, "topics": ["Sweat"],
@@ -20,40 +19,25 @@ CARD = {"hash": "c" * 64, "title": "A synthetic landmark paper", "year": 2016, "
 
 @pytest.fixture
 def st(monkeypatch):
-    s = server.State(Qloo(InProcess(), mode="mock", sleep=lambda s: None), FakeQloo())
+    s = server.State()
+    use_signals(monkeypatch)
     monkeypatch.setattr(research, "research_card", lambda ref, product=None, **k: {**CARD, "product": product or CARD["product"]})
     return s
 
 
-def test_the_crossing_streams_steps_sets_the_plan_and_remembers(st):
+def test_the_crossing_streams_steps_decides_and_remembers(st):
     job = agent.start(st, ref="10.0/x", place="Lagos", wait=True)
     assert job["status"] == "done", job.get("error")
     kinds = [s["kind"] for s in job["steps"]]
-    assert kinds[0] == "memory" and "paper" in kinds and kinds.count("qloo") >= 8 and "decision" in kinds
-    q = [s for s in job["steps"] if s["kind"] == "qloo"]
-    assert all(s["tool"].startswith("GET /") and s["effect"] and s["output"] for s in q)          # every Qloo step: call, output, effect
-    assert any(s["title"].startswith("launch cities") for s in q) and any("semantic" in s["title"] for s in q)
+    assert kinds[0] == "memory" and "paper" in kinds and kinds.count("signals") == 4 and "decision" in kinds
+    sig = [s for s in job["steps"] if s["kind"] == "signals"]
+    assert all(s["tool"] and s["effect"] and s["output"] for s in sig)          # every source step: where, output, effect
     rep = st.report(job["report"])
-    plan = rep["decision"]["plan"]
-    assert plan["tier"] in ("budget", "mid", "premium") and plan["unit_price"] in (1, 2, 4) and plan["where"] and plan["who"]["age"]
-    assert plan["held_target"] == plan["target_units"] * plan["unit_price"]
-    titles = [s["title"] for s in job["steps"]]
-    assert "WHO: the target audience" in titles and "PRICE: the tier" in titles and "HELD: target and reserve" in titles
+    assert rep["decision"]["verdict"] == "OPEN" and "plan" not in rep["decision"]
+    assert "DECISION: OPEN" in [s["title"] for s in job["steps"]]
     again = agent.start(st, ref="10.0/x", place="Lagos", wait=True)                 # Sibyl: the agent's memory of this paper
     remembered = next(s for s in again["steps"] if s["title"] == "the agent remembers this paper")   # after the HOT plan step (round 9B)
     assert "decision OPEN" in remembered["output"]
-
-
-def test_price_tier_from_spending_segments():
-    seg = lambda n, lift, premium: {"name": n, "lift": lift, "premium": premium, "src": 3}   # noqa: E731
-    # the spending-habit segments scored like the audience: a premium segment's lift minus Discount Shoppers'
-    assert check.price_tier([seg("Gourmand Fine Dining", 0.02, True), seg("Discount Shoppers", 0.0, False)])["tier"] == "premium"
-    assert check.price_tier([seg("Gourmand Fine Dining", -0.01, True), seg("Discount Shoppers", 0.0, False)])["tier"] == "budget"
-    assert check.price_tier([seg("Gourmand Fine Dining", 0.001, True), seg("Discount Shoppers", 0.0, False)])["tier"] == "mid"
-    # without both lifts, the places' median price level decides
-    assert check.price_tier([seg("Discount Shoppers", 0.0, False)], [3, 4, 2])["tier"] == "premium"
-    assert check.price_tier([], [1, 1, 2])["tier"] == "budget" and check.price_tier([]) is None
-    assert check.price_tier([seg("Gourmand Fine Dining", 0.02, True), seg("Discount Shoppers", 0.0, False)], [3, 4, 2])["venue_check"] == "agrees"
 
 
 @pytest.fixture
@@ -119,10 +103,10 @@ def test_the_blink(http):
     c, rules, h = get(base, "/actions.json")
     assert c == 200 and rules["rules"][0]["pathPattern"] == "/api/actions/**" and h["Access-Control-Allow-Origin"] == "*"
     c, a, h = get(base, f"/api/actions/preorder?report={job['report']}")
-    assert c == 200 and a["type"] == "action" and a["links"]["actions"][0]["href"].endswith("&units=5") and h["X-Action-Version"]
-    assert "set by Qloo" in a["description"] and h["X-Blockchain-Ids"].startswith("solana:")
+    assert c == 200 and a["type"] == "action" and h["X-Action-Version"] and h["X-Blockchain-Ids"].startswith("solana:")
+    assert a["disabled"] and "pre-order target" in a["description"]            # OPEN on open signals sets no target: closed
     c, e, _ = post(base, f"/api/actions/preorder?report={job['report']}&units=5", {"account": "So11111111111111111111111111111111111111112"})
-    assert c == 400 and "holding money is unavailable" in e["message"]                          # no vault keys in tests: refused plainly
+    assert c == 400 and "pre-order target" in e["message"]                          # no target on open signals: refused plainly
 
 
 def test_solana_pay_funds_a_milestone_from_any_wallet(http):

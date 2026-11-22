@@ -16,7 +16,6 @@ from http.server import ThreadingHTTPServer
 import pytest
 
 from knos_wanted import server, tool_run, usage
-from knos_wanted.qloo_mcp import InProcess, Qloo
 
 MISMATCH = "This tool's program does not match its release."
 
@@ -25,7 +24,7 @@ MISMATCH = "This tool's program does not match its release."
 def app(monkeypatch):
     monkeypatch.setattr(usage, "chain_count", lambda url=None: (_ for _ in ()).throw(OSError("no network in tests")))
     monkeypatch.setattr(tool_run, "_mem", {})
-    state = server.State(Qloo(InProcess(), mode="mock", sleep=lambda s: None))
+    state = server.State()
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.make_handler(state))
     t = threading.Thread(target=httpd.serve_forever, daemon=True)
     t.start()

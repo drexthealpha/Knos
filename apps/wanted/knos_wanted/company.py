@@ -1,14 +1,14 @@
 """The company side of the demand check: what Knos records and what Knos charges.
 
 Record (knos.record, Sibyl WARM/COLD, anchored on Solana devnet):
-  demand report  WARM  claim `demand:<report hash 40>` (its state: lean, mode, steps, pre-orders so far)
-                 COLD  `experiment`: the report hash, the hash of the request-to-result trail, the tools called
+  demand report  WARM  claim `demand:<report hash 40>` (its state: verdict, target, reserve, pre-orders so far)
+                 COLD  `experiment`: the report hash, the sources that answered, the verdict
   pre-order      COLD  `funding`: order address, devnet signature, amount, the fee lines below
                  WARM  the claim again with the pool's new state
   anchor         the Merkle root of every unanchored line in one devnet Memo transaction (knos.record.anchor), signed
                  by the app's devnet TEST wallet; after each pre-order, or `python -m knos_wanted anchor`.
 The record is public, so a line holds hashes, statuses, tool names, addresses and amounts: never the maker's idea
-text (only its sha256), never a buyer's tastes, never a Qloo result (Qloo data is never stored in public).
+text (only its sha256), never a buyer's tastes.
 
 Fees: from config/fees.yaml through knos.money.fees_config, nothing typed here:
   funding     0 when the pre-order is locked (knos_pay holds the payout fee with the money)
@@ -58,27 +58,6 @@ def _safe(fn, *a, **kw) -> dict:
         return {"recorded": False, "why": f"the Knos record's memory store is not installed ({why.name or why})"}
     except Exception as why:  # noqa: BLE001 - a refused or failed record never hides the report; it says so
         return {"recorded": False, "why": f"{type(why).__name__}: {str(why)[:200]}"}
-
-
-def record_report(rep: dict, store=None) -> dict:
-    rec = _record()
-    if rec is None:
-        return {"recorded": False, "why": "the knos package is not installed"}
-
-    def go():
-        cid = claim_id(rep["hash"])
-        steps = [{"tool": t["tool"], "status": t["status"]} for t in rep["trail"]]
-        state = {"what": "Knos demand check report", "report_hash": rep["hash"], "idea_sha256": sha(rep["idea"]),
-                 "mode": rep["mode"], "synthetic": rep["mode"] != "live", "lean": rep["lean"]["word"], "steps": steps,
-                 "trail_sha256": sha(rep["trail"]), "framing": rep["framing"], "aggregate": rep["aggregate"],
-                 "preorders": {"orders": 0, "units": 0}}
-        r = root()
-        warm = rec.claim(cid, state, domain=DOMAIN, root=r, store=store)
-        cold = rec.append("experiment", {"report_hash": rep["hash"], "trail_sha256": state["trail_sha256"], "calls": sum(1 for s in steps if s["tool"]), "confirmations": sum(1 for s in steps if not s["tool"]),
-                                         "tools": sorted({s["tool"] for s in steps if s["tool"]}), "mode": rep["mode"],
-                                         "synthetic": state["synthetic"]}, claim=cid, domain=DOMAIN, root=r, store=store)
-        return {"recorded": True, "claim": cid, "warm_seq": warm["seq"], "cold_seq": cold["seq"], "anchored": False}
-    return _safe(go)
 
 
 def record_preorder(report_hash: str, res: dict, quote: dict, synthetic_report: bool, store=None) -> dict:
@@ -165,26 +144,14 @@ def record_check(rep: dict, store=None) -> dict:
         d = rep.get("decision") or {}
         state = {"what": "Knos demand check decision", "report_hash": rep["hash"], "idea_sha256": sha(rep.get("idea")),
                  "verdict": d.get("verdict"), "target_units": d.get("target_units"), "reserve_units": d.get("reserve_units"),
-                 "live": str(rep.get("label", "")).startswith("LIVE"), "research": (rep.get("research") or {}).get("hash"),
+                 "live": rep.get("label") == "OPEN SIGNALS", "research": (rep.get("research") or {}).get("hash"),
                  "preorders": {"orders": 0, "units": 0, "list": []}, "released": []}
         warm = rec.claim(cid, state, domain=DOMAIN, root=r, store=store)
-        cold = rec.append("experiment", {"report_hash": rep["hash"], "calls": len(rep.get("calls") or []),
-                                         "endpoints": sorted({c["call"] for c in rep.get("calls") or []}), "verdict": d.get("verdict")},
+        answered = [x["name"] for x in (rep.get("open_demand") or {}).get("rows") or [] if x.get("link")]
+        cold = rec.append("experiment", {"report_hash": rep["hash"], "calls": len(answered),
+                                         "endpoints": sorted(answered), "verdict": d.get("verdict")},
                           claim=cid, domain=DOMAIN, root=r, store=store)
         return {"recorded": True, "claim": cid, "warm_seq": warm["seq"], "cold_seq": cold["seq"]}
-    return _safe(go)
-
-
-def record_queued(idea: str, reset: str, store=None) -> dict:
-    """COLD `queued_check`: a picked reading Qloo could not answer, waiting for Qloo's reset (the idea's sha256, no text)."""
-    rec = _record()
-    if rec is None:
-        return {"recorded": False, "why": "the knos package is not installed"}
-
-    def go():
-        cold = rec.append("queued_check", {"idea_sha256": sha(idea), "until": reset, "why": "Qloo's monthly limit"},
-                          claim=claim_id(sha(idea)), domain=DOMAIN, root=root(), store=store)
-        return {"recorded": True, "queued": True, "cold_seq": cold["seq"]}
     return _safe(go)
 
 

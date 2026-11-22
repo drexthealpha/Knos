@@ -29,7 +29,9 @@ try {
           new PerformanceObserver((l) => { for (const e of l.getEntries()) if (!e.hadRecentInput) window.__cls += e.value; }).observe({ type: "layout-shift", buffered: true });
         });
         await page.goto(url + "?t=" + Date.now(), { waitUntil: "networkidle", timeout: 120000 }).catch(() => null);
-        await page.waitForTimeout(2500);
+        // the past result comes from the app at view time (the front door stores no answer): up to 15 s for it
+        await page.waitForFunction(() => /Wanted|Open for pre-orders|Not yet|Not enough evidence/.test(
+          (document.querySelector("#k-card") || document.body).innerText || ""), null, { timeout: 15000 }).catch(() => null);
         const first = await page.evaluate((vh) => {
           const c = document.querySelector("#k-card .k-card, #k-card article, .k-hero [data-past], .k-hero article");
           if (!c) return { found: false };

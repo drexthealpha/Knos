@@ -13,6 +13,8 @@
 //	knos-sync fix [<id>...]                     write the true value into every stale place
 //	knos-sync accept <id>                       the text was edited to the true value: record it in sync/facts.json
 //	knos-sync value <command...>                print what a command gives, as check reads it
+//	knos-sync coverage                          public code names no doc mentions
+//	knos-sync hook                              the pre-commit hook: exit 1 when any stated fact is stale
 //
 // No language model is called, and the network is read only by entries whose source says so (and names with
 // --network). Exit code 1 only when a stale entry is of a kind that may block (version, hash or count), its kind
@@ -29,9 +31,9 @@ import (
 
 const usage = `knos-sync: stated facts that stay true
 
-  knos-sync scan [--list] [--json] [--full]
-  knos-sync check [--unconfirmed] [--json] [--markdown] [--network] [--reread-wait 60s] [<id>...]
-  knos-sync report --base BASE.json --head HEAD.json
+  knos-sync scan [--list] [--json] [--full] [--mem-cap-mib 2048]
+  knos-sync check [--unconfirmed] [--json] [--markdown] [--network] [--reread-wait 60s] [--full] [<id>...]
+  knos-sync report --base BASE.json --head HEAD.json [--record]
   knos-sync link --id ID --kind KIND --subject TEXT --place FILE:LINE --says VALUE [--text TEXT]
                  [--comparator equal] [--tolerance 0.1] [--convert OPS] [--source repo] -- COMMAND...
   knos-sync link --id ID --place FILE:LINE --says VALUE [--text TEXT]      (one more place for an entry)
@@ -41,6 +43,8 @@ const usage = `knos-sync: stated facts that stay true
   knos-sync fix [<id>...]
   knos-sync accept <id>
   knos-sync value COMMAND...
+  knos-sync coverage
+  knos-sync hook
 
 Every command takes --root DIR (default: the repository that holds the working folder).
 `
@@ -78,6 +82,10 @@ func run(args []string) int {
 		code, err = cmdAccept(rest)
 	case "value":
 		code, err = cmdValue(rest)
+	case "coverage":
+		code, err = cmdCoverage(rest)
+	case "hook":
+		code, err = cmdHook(rest)
 	default:
 		fmt.Fprintf(os.Stderr, "knos-sync: I do not know the command %q.\n\n%s", cmd, usage)
 		return 2

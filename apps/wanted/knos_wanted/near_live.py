@@ -9,6 +9,7 @@ a replay. Keys: KNOS_NEAR_KEYS_FILE and KNOS_CHECKER_PEM_FILE, secret files on t
 """
 from __future__ import annotations
 
+import calendar
 import json
 import os
 import sys
@@ -148,6 +149,13 @@ def _test_text(claim: str) -> str:
 
 
 def _write_until_pass(claim: str, visitor: str = "") -> dict:
+    """_write_attempts under one model budget (L46); inside claim_prove the check's own budget is kept."""
+    from . import near_ai
+    with near_ai.run_budget():
+        return _write_attempts(claim, visitor)
+
+
+def _write_attempts(claim: str, visitor: str = "") -> dict:
     """Agent A's code from the model, run against the claim's locked test here before any job is posted: when it fails,
     the model gets the test's own error message, up to near_ai.ATTEMPTS writes in all. The answer keeps every attempt
     (call id, tokens, the test's line) and the last code; `passed_here` says whether that code passed."""
@@ -364,12 +372,44 @@ def since_upgrade() -> dict | None:
         usd = lambda k: f"{int(t.get(k) or 0) / 1_000_000:.2f}"   # noqa: E731
         _chain["out"] = {"from": "2026-11-14", "jobs_paid": sum(int(r.get("passes") or 0) for r in recs.values()),
                          "paid_usd": usd("paid"), "refunded_usd": usd("refunded"), "open_usd": usd("open"), "conserved": bool(t.get("conserved")),
-                         "agents": {a: int(r.get("passes") or 0) for a, r in recs.items()}, "contract": JOBS,
+                         "agents": {a: int(r.get("passes") or 0) for a, r in recs.items()},
+                         "tried": sum(1 for r in recs.values() if sum(int(r.get(k) or 0) for k in ("passes", "fails", "rejected")) > 0),
+                         "contract": JOBS,
                          "read_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
     except Exception as e:  # noqa: BLE001 - the last good read stays; none before the first
         print("near_live since_upgrade:", str(e)[:160], file=sys.stderr, flush=True)
     _chain["at"] = time.time()
     return _chain.get("out")
+
+
+# The scheduled uptime check (ledger.yml) appends one line per check to uptime.jsonl on the gh-pages branch. The server
+# reads it, so a visitor's browser asks only Knos; the last 7 days, kept 10 minutes.
+UPTIME_URL = "https://raw.githubusercontent.com/drexthealpha/Knos/gh-pages/uptime.jsonl"
+_uptime: dict = {}
+
+
+def uptime() -> dict:
+    if _uptime.get("at") and time.time() - _uptime["at"] < 600:
+        return _uptime["out"]
+    out: dict = {"days": 7, "source": UPTIME_URL}
+    try:
+        with urllib.request.urlopen(urllib.request.Request(UPTIME_URL, headers={"User-Agent": "knos-uptime"}), timeout=10) as r:
+            text = r.read().decode("utf-8", "replace")
+        since = time.time() - 7 * 86400
+        rows = []
+        for line in text.splitlines():
+            try:
+                x = json.loads(line)
+                at = calendar.timegm(time.strptime(str(x["at"])[:19], "%Y-%m-%dT%H:%M:%S"))
+            except (ValueError, KeyError, TypeError):
+                continue
+            if at >= since:
+                rows.append(bool(x.get("up")))
+        out.update({"up": sum(rows), "all": len(rows)})
+    except Exception as e:  # noqa: BLE001 - no line rather than a guessed one
+        out["error"] = str(e)[:160]
+    _uptime.update({"at": time.time(), "out": out})
+    return out
 
 
 def _refresh() -> None:
@@ -882,6 +922,13 @@ def ai_line(ai: dict | None) -> str:
 
 
 def claim_prove(agent: bool = False, claim: str = SAMPLE, visitor: str = "") -> dict:
+    """One run of the check under one model budget (L46: near_ai.run_budget, at most near_ai.RUN_CAP_USD of model calls)."""
+    from . import near_ai
+    with near_ai.run_budget():
+        return _claim_prove(agent, claim, visitor)
+
+
+def _claim_prove(agent: bool = False, claim: str = SAMPLE, visitor: str = "") -> dict:
     """The check: the readied job's locked test, both agents' reruns, the test money moved to the one that passed, the
     verdict beside the paper's own number, and the claim's market settled by the job."""
     import re
@@ -1618,3 +1665,30 @@ def tests_status() -> dict:
         print("near_live tests:", str(e)[:160], file=sys.stderr, flush=True)
         _tests["failed"] = time.time()
     return _tests.get("out") or {"why": "the test record could not be read just now"}
+
+
+def stop_job(job_id: str) -> dict:
+    """Stop a job and send its money back to the payer (L13), by the jobs contract's own refund_job (no contract change):
+    the contract refunds an open job once its deadline has passed, and refuses before. The answer says which: refunded
+    with the transaction's link, or not yet with the deadline, or the job's state when it is no longer open. Testnet only."""
+    import re as _re
+    if not _re.fullmatch(r"[A-Za-z0-9_.:-]{1,80}", job_id or ""):
+        raise ValueError("send the job's id")
+    _jobs()
+    from common import EXPLORER, call, view
+    job = view(JOBS, "get_job", {"id": job_id})
+    if not job:
+        return {"ok": False, "state": "none", "why": "there is no job with this id on the jobs contract"}
+    state = str(job.get("state") or "")
+    if state != "Open":
+        return {"ok": False, "state": state, "why": f"the job is {state.lower()}, so there is nothing to stop"}
+    deadline_s = int(str((job.get("deadline_ns") or 0))) / 1e9
+    if time.time() < deadline_s:
+        return {"ok": False, "state": state, "deadline": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime(deadline_s)),
+                "why": "the contract refunds a job only after its deadline; press Stop again then"}
+    if not (os.environ.get("KNOS_NEAR_LIVE") == "on" and os.environ.get("KNOS_NEAR_KEYS_FILE")):
+        return {"ok": False, "state": state, "why": "the live switch is off on this server, so no transaction was sent"}
+    with _lock:
+        r = call(LIVE, JOBS, "refund_job", {"id": job_id}, gas="100 Tgas")
+    return {"ok": bool(r["ok"]), "state": "Refunded" if r["ok"] else state, "tx": r["tx"], "url": r.get("url") or EXPLORER + str(r["tx"]),
+            **({} if r["ok"] else {"why": str(r.get("said") or "")[:200]})}

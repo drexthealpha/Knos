@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Every test job on the Knos jobs contract on NEAR testnet: funding, proof, payout and refund, each with its transaction. Read-only, with a CSV.">
+<title>Knos receipts</title>
+<link rel="stylesheet" href="../brand/tokens.css">
+<style>
+* { box-sizing: border-box; }
+html, body { overflow-x: clip; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 400 18px/1.5 var(--text); }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+main { max-width: 1100px; margin: 0 auto; padding: 32px 16px 64px; display: grid; gap: 24px; }
+h1 { font: 600 clamp(32px, 4.4vw, 44px)/1.1 var(--head); margin: 0; }
+.fine { color: var(--ink-2); font-size: 16px; margin: 0; }
+.nums { display: flex; flex-wrap: wrap; gap: 16px 40px; margin: 0; padding: 0; list-style: none; }
+.nums b { display: block; font: 400 clamp(32px, 4vw, 44px)/1.1 var(--serif); font-variant-numeric: tabular-nums; }
+.go { justify-self: start; display: inline-flex; align-items: center; min-height: 48px; padding: 12px 24px; border-radius: 999px;
+  background: var(--accent); color: var(--accent-fg); font: 600 18px/1.2 var(--text); text-decoration: none; }
+.wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 16px; font-variant-numeric: tabular-nums; }
+th { text-align: left; font-weight: 500; color: var(--ink-2); padding: 8px; border-bottom: 1px solid var(--line); }
+td { padding: 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+td a, .fine a { display: inline-flex; align-items: center; min-height: 48px; }
+.id { font-family: var(--code); overflow-wrap: anywhere; }
+.ok { color: var(--ok); font-weight: 600; } .bad { color: var(--bad); font-weight: 600; }
+</style>
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+</head>
+<body>
+<main>
+  <h1>Receipts</h1>
+  <p class="fine" id="read">Test money on NEAR testnet.</p>
+  <ul class="nums" id="nums"></ul>
+  <a class="go" href="receipts.csv" download="knos-receipts.csv">Download CSV</a>
+  <p class="fine" id="controls"></p>
+  <p class="fine" id="match"></p>
+  <div class="wrap">
+    <table>
+      <thead><tr><th scope="col">Job</th><th scope="col">State</th><th scope="col">Test USDC</th><th scope="col">Funded</th><th scope="col">Paid</th><th scope="col">Refunded</th></tr></thead>
+      <tbody id="rows"><tr><td colspan="6">Loading.</td></tr></tbody>
+    </table>
+  </div>
+</main>
+<script>
+"use strict";
+(async () => {
+  const $ = (id) => document.getElementById(id);
+  const el = (tag, props = {}, kids = []) => { const e = Object.assign(document.createElement(tag), props); for (const k of [].concat(kids)) if (k != null) e.append(k); return e; };
+  const usd = (u) => (Number(u || 0) / 1e6).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });   // the test token has 6 decimals
+  const link = (url, text) => url ? el("a", { href: url, textContent: text, target: "_blank", rel: "noopener" }) : "";
+  const d = await fetch("receipts.json", { cache: "no-store" }).then((r) => r.ok ? r.json() : null).catch(() => null);
+  if (!d) { $("rows").replaceChildren(el("tr", {}, el("td", { colSpan: 6, textContent: "The record did not load. The CSV still downloads." }))); return; }
+  const jobs = d.jobs || [];
+  const n = (s) => jobs.filter((j) => j.state === s).length;
+  $("read").replaceChildren("Test money on NEAR testnet, read ", d.read_at.replace("T", " ").replace("Z", " UTC"), " from ", link("https://testnet.nearblocks.io/address/" + d.contract, d.contract), ".");
+  $("nums").replaceChildren(...[[jobs.length, "jobs"], [n("Paid"), "paid"], [n("Refunded"), "refunded"], [jobs.length - n("Paid") - n("Refunded"), "open"]]
+    .map(([v, k]) => el("li", {}, [el("b", { textContent: v.toLocaleString() }), k])));
+  // hold_over 0 means the agent has no hold line: none is shown for it
+  const holds = Object.entries(d.hold_line || {}).filter(([, r]) => Number(r.hold_over) > 0).map(([a, r]) => `${a.split(".")[0]} over ${usd(r.hold_over)}`).join(", ");
+  $("controls").replaceChildren(el("span", { className: d.paused ? "bad" : "ok", textContent: d.paused ? "Paused by the owners." : "Not paused." }),
+    holds ? ` Hold line: ${holds}${d.approver ? `, released by ${d.approver}` : ""}.` : " No hold line set.");
+  const tot = Object.values(d.totals || {}).find((t) => Number(t.locked)) || null;
+  $("match").textContent = tot && d.counted_since
+    ? `The jobs since ${d.counted_since.slice(0, 10)} add up to the contract's own totals in test USDC: ${usd(tot.paid)} paid, ${usd(tot.refunded)} refunded, ${usd(tot.open)} open.`
+    : "The jobs do not add up to the contract's own totals in this read.";
+  const body = $("rows");
+  body.replaceChildren(...jobs.map((j) => el("tr", {}, [
+    el("td", { className: "id", textContent: j.job }),
+    el("td", { textContent: (j.state || "").toLowerCase() }),
+    el("td", { textContent: usd(j.amount) }),
+    el("td", {}, link(j.funded_tx, j.funded.slice(0, 10))),
+    el("td", {}, link(j.released_tx, j.released.slice(0, 10))),
+    el("td", {}, link(j.refunded_tx, j.refunded.slice(0, 10))),
+  ])));
+})();
+</script>
+</body>
+</html>

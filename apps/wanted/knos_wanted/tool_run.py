@@ -26,6 +26,7 @@ allowance alone, held in this process's memory under a keyed hash, never written
 connector, a form sent with no script) is held the same way under a keyed hash of its address."""
 from __future__ import annotations
 
+import base64
 import csv
 import datetime as dt
 import hashlib
@@ -40,7 +41,10 @@ import sys
 import tempfile
 import threading
 import time
+import zipfile
+from collections import Counter
 from pathlib import Path
+from xml.etree import ElementTree
 
 from . import tool_page, valley
 from .runner_conf import CONF
@@ -59,6 +63,8 @@ PREVIEW_UA = re.compile(r"bot|crawl|spider|facebookexternalhit|whatsapp|telegram
 ID = re.compile(r"[A-Za-z0-9_-]{8,64}")
 RID = re.compile(r"[A-Za-z0-9_-]{12}")
 RESULTS, BROWSERS, PRESSES, USAGE = "tool-results", "tool-browsers", "tool-presses", "tool-usage"
+CHALLENGES, INVITES = "tool-challenges", "tool-invites"
+KEY = re.compile(r"[A-Za-z0-9_-]{16,64}")      # a result's own key (L17, L42): only the browser that ran it holds it
 FIELDS = ("tools_opened", "sample_runs", "own_runs", "results_opened_elsewhere", "test_payments", "link_previews", "connector_runs",
           "test_payments_undone", "first_starter", "first_typed", "first_pasted")
 FIRST = ("starter", "typed", "pasted")     # where a browser's first action came from (first_action, U3 Rule 11)
@@ -113,6 +119,23 @@ def program() -> str:
 
 def program_sha256() -> str:
     return hashlib.sha256(program_path().read_bytes()).hexdigest()
+
+
+def tool_version() -> str:
+    """The version a result was checked with (L19): the released job and the first 12 hex of the released program's sha256
+    (released.json), so a result names the exact program that answered it."""
+    r = released()
+    sha = str(r.get("sha256") or "")[:12]
+    return f"{r.get('job_id') or 'unreleased'}/{sha or 'none'}"
+
+
+def test_sha256() -> str:
+    """The sha256 of the locked test that decided the program works (released.json's "test", near/agents/job/test_limit3.py)."""
+    rel = str(released().get("test") or f"near/agents/job/{CONF['claim_test']}")
+    try:
+        return hashlib.sha256((root() / rel).read_bytes()).hexdigest()
+    except OSError:
+        return ""
 
 
 _sample: dict = {}
@@ -202,8 +225,32 @@ def tool(tid: str) -> dict | None:
             "limits": limits(), "fold": fold()}
 
 
+REPO = Path(os.environ.get("KNOS_NEAR_ROOT") or HERE.parents[2])   # /app in the image (Dockerfile copies tools/ there)
+_listed: dict = {}
+_listed_lock = threading.Lock()
+
+
+def manifest_ids() -> list[str]:
+    """The ids scripts/tool_manifest.py listed() lists (IQ L49): a check whose locked test passed in an empty folder.
+    Run once per process (the locked test takes about 2 s); a missing manifest runner lists nothing."""
+    with _listed_lock:
+        if "ids" not in _listed:
+            ids: list[str] = []
+            path = REPO / "scripts" / "tool_manifest.py"
+            if path.is_file():
+                import importlib.util
+                spec = importlib.util.spec_from_file_location("knos_tool_manifest", path)
+                m = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(m)
+                ok, _refused = m.listed(REPO)
+                ids = [t["id"] for t in ok]
+            _listed["ids"] = ids
+        return _listed["ids"]
+
+
 def tools_doc() -> dict:
-    return {"tools": [{"id": TOOL_ID, "title": TITLE, "sample": sample()}]}
+    """The listed checks this app can run: publicly only the limit check, and only while its manifest lists it."""
+    return {"tools": [{"id": TOOL_ID, "title": TITLE, "sample": sample()}] if TOOL_ID in manifest_ids() else []}
 
 
 first_sentence = tool_page.first_sentence    # "Failed at row 37: 1.38 is not above 1.4.": og:description and the link image
@@ -257,6 +304,68 @@ def columns(table: str) -> tuple[list[str], int]:
     return [f"column {i + 1}" for i in range(max(len(r) for r in rows))], len(rows)
 
 
+DEC_COMMA = re.compile(r"^\s*[+-]?\d+,\d+\s*$")
+
+
+def normalize(table: str) -> str:
+    """A tab file or a semicolon file as the comma file the program reads (L26): the separator is read from the first
+    line that holds any text, and only when that line has no comma; in a semicolon file a number written with a decimal
+    comma (1,4) is read as 1.4. A comma file comes back unchanged."""
+    first = next((x for x in str(table).replace("\r\n", "\n").split("\n") if x.strip()), "")
+    sep = "\t" if "\t" in first and "," not in first else ";" if ";" in first and "," not in first else None
+    if sep is None:
+        return table
+    out = io.StringIO()
+    w = csv.writer(out, lineterminator="\n")
+    for row in csv.reader(io.StringIO(str(table).replace("\r\n", "\n")), delimiter=sep):
+        w.writerow([c.strip().replace(",", ".") if sep == ";" and DEC_COMMA.match(c) else c for c in row])
+    return out.getvalue().rstrip("\n")
+
+
+XLSX_MAX = 40_000_000     # the most bytes a workbook may unpack to: a small file that unpacks without end is refused
+
+
+def xlsx_to_csv(data: bytes) -> str:
+    """The first sheet of a spreadsheet workbook (.xlsx) as comma text (L26: a one-step import), read with the standard
+    library: shared strings, inline strings and numbers, each cell put in its own column by its reference (B3)."""
+    try:
+        z = zipfile.ZipFile(io.BytesIO(data))
+        if sum(i.file_size for i in z.infolist()) > XLSX_MAX:
+            raise Refusal(413, too_big())
+        names = z.namelist()
+        ns = {"m": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+        shared = []
+        if "xl/sharedStrings.xml" in names:
+            for si in ElementTree.fromstring(z.read("xl/sharedStrings.xml")).findall("m:si", ns):
+                shared.append("".join(t.text or "" for t in si.iter("{%s}t" % ns["m"])))
+        sheets = sorted((n for n in names if re.fullmatch(r"xl/worksheets/sheet\d+\.xml", n)), key=lambda n: int(re.sub(r"\D", "", n)))
+        if not sheets:
+            raise ValueError("no sheet")
+        rows: list[list[str]] = []
+        for r in ElementTree.fromstring(z.read(sheets[0])).iter("{%s}row" % ns["m"]):
+            row: list[str] = []
+            for c in r.findall("m:c", ns):
+                ref = re.match(r"([A-Z]+)", c.get("r") or "")
+                col = 0
+                for ch in (ref.group(1) if ref else ""):
+                    col = col * 26 + ord(ch) - 64
+                col = col - 1 if col else len(row)
+                kind, v = c.get("t"), c.find("m:v", ns)
+                text = ("".join(t.text or "" for t in c.iter("{%s}t" % ns["m"])) if kind == "inlineStr"
+                        else shared[int(v.text)] if kind == "s" and v is not None and (v.text or "").isdigit() and int(v.text) < len(shared)
+                        else (v.text or "") if v is not None else "")
+                row += [""] * (col + 1 - len(row))
+                row[col] = text
+            rows.append(row)
+    except Refusal:
+        raise
+    except (zipfile.BadZipFile, ElementTree.ParseError, KeyError, ValueError):
+        raise Refusal(400, {"error": "I could not read this spreadsheet. Please save it as a comma separated file and choose it again."}) from None
+    out = io.StringIO()
+    csv.writer(out, lineterminator="\n").writerows(r for r in rows if any(x.strip() for x in r))
+    return out.getvalue().rstrip("\n")
+
+
 # ---- the run -----------------------------------------------------------------------------------------------------------
 _slots = threading.BoundedSemaphore(int(CONF["runs_at_once"]))
 KEPT = "I kept your file in the box; try a shorter one."
@@ -292,7 +401,8 @@ def inputs(body: dict) -> tuple[str, str, str, float]:
     table, column, rule, limit = body.get("table"), body.get("column"), body.get("rule"), body.get("limit")
     if not isinstance(table, str) or not table.strip():
         raise Refusal(400, {"error": "Your file is empty, so I have nothing to check yet. Choose a file or paste a table, then press Check my data."})
-    if rule not in RULES:
+    table = normalize(table)                       # a tab or semicolon file is read as the comma file it holds (L26)
+    if not isinstance(rule, str) or rule not in RULES:   # a crafted rule is data, never code: only the two words pass (L42)
         raise Refusal(400, {"error": "I need to know whether the values must stay above or below the limit. Please choose one, then press Check my data."})
     try:
         lim = float(limit) if not isinstance(limit, bool) else math.nan
@@ -417,7 +527,13 @@ def _fresh(rec: dict) -> dict:
 
 
 def _left(rec: dict) -> tuple[int, int]:
-    return max(0, int(CONF["free_runs_a_day"]) - int(rec.get("used") or 0)), max(0, int(rec.get("paid_left") or 0))
+    """(free, paid): free is today's free runs left plus the extra free runs an invite or a return gave (L23, L25)."""
+    return (max(0, int(CONF["free_runs_a_day"]) - int(rec.get("used") or 0)) + max(0, int(rec.get("bonus") or 0)),
+            max(0, int(rec.get("paid_left") or 0)))
+
+
+def _daily_left(rec: dict) -> int:
+    return max(0, int(CONF["free_runs_a_day"]) - int(rec.get("used") or 0))
 
 
 def pay_offer() -> dict:
@@ -474,12 +590,23 @@ def failing(got: dict, rule: str, limit: float) -> list[list[int]] | None:
     return out if out and out[0][0] == ffr else None
 
 
-def save_result(table: str, column: str, rule: str, limit: float, got: dict, sample_run: bool) -> dict:
+def _hash_key(k: str) -> str:
+    return hashlib.sha256(b"knos-result-key|" + str(k).encode()).hexdigest()
+
+
+def owns(rec: dict, k) -> bool:
+    """Whether k is the result's own key (L17, L42): a result's key goes only to the browser whose run made it."""
+    return bool(isinstance(k, str) and KEY.fullmatch(k) and rec.get("owner") and secrets.compare_digest(rec["owner"], _hash_key(k)))
+
+
+def save_result(table: str, column: str, rule: str, limit: float, got: dict, sample_run: bool, owner: str = "") -> dict:
     rid = secrets.token_urlsafe(9)                     # 12 characters: never a 16-hex demand result's id
     while re.fullmatch(r"[0-9a-f]{12}", rid):          # nor a referral code (/r/<12 hex>, valley.make_referral)
         rid = secrets.token_urlsafe(9)
     ffr = got.get("first_failing_row")
-    rec = {"id": rid, "tool": TOOL_ID, "mode": "sample" if sample_run else "own", "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    rec = {"id": rid, "tool": TOOL_ID, "mode": "sample" if sample_run else "own", "at": at, "created_at": at,
+           "tool_version": tool_version(), "test_sha256": test_sha256(), "owner": owner, "opens": 0,
            "column": column, "rule": rule, "limit": limit, "result": str(got["result"]),
            "first_failing_row": int(ffr) if isinstance(ffr, int) and not isinstance(ffr, bool) else None,
            "passed": _count(got.get("passed")), "unchecked": _rows(got.get("unchecked")),
@@ -514,7 +641,11 @@ def shape(rec: dict, base: str = PUBLIC) -> dict:
             "program_result": rec.get("program_result") or rec["result"], "shown_by": SHOWN_BY, "link": f"{base}/r/{rec['id']}/",
             "column": rec["column"], "rule": rec["rule"], "limit": rec["limit"], "chart": rec.get("chart"),
             "input": sample() if rec["mode"] == "sample" else rec.get("input", ""),
-            "lines": rec.get("lines"), "cut": rec.get("cut", False), "shown_lines": rec.get("shown_lines")}
+            "lines": rec.get("lines"), "cut": rec.get("cut", False), "shown_lines": rec.get("shown_lines"),
+            # the exact version that answered (L19): a result from another version says so on its page
+            "tool_version": rec.get("tool_version") or "", "test_sha256": rec.get("test_sha256") or "",
+            "created_at": rec.get("created_at") or rec.get("at"), "older": (rec.get("tool_version") or "") != tool_version(),
+            "opens": int(rec.get("opens") or 0)}
 
 
 ANSWER = ("result", "first_failing_row", "passed", "unchecked", "shown_by", "link")
@@ -537,27 +668,40 @@ def run(body: dict, address: str, base: str = PUBLIC, test: bool = False, connec
                 rec["exhausted"] = True
                 _keep(key, rec)
                 raise Refusal(402, pay_offer())
-            took = "free" if free else "paid"
+            took = "free" if _daily_left(rec) else "bonus" if free else "paid"
             if took == "free":
                 rec["used"] = int(rec.get("used") or 0) + 1
+            elif took == "bonus":
+                rec["bonus"] = int(rec.get("bonus") or 0) - 1
             else:
                 rec["paid_left"] = paid - 1
             _keep(key, rec)
+    t0 = time.monotonic()
     try:
         got = run_program(table, column, rule, limit)
+        cost_record(time.monotonic() - t0, True, test)
     except Refusal:
+        cost_record(time.monotonic() - t0, False, test)
+        bump("runs_failed", test)
         if key:                                          # nothing was checked: the run goes back
             with _lock:
                 rec = _fresh(_rec(key))
                 if took == "free":
                     rec["used"] = max(0, int(rec.get("used") or 0) - 1)
+                elif took == "bonus":
+                    rec["bonus"] = int(rec.get("bonus") or 0) + 1
                 else:
                     rec["paid_left"] = int(rec.get("paid_left") or 0) + 1
                 _keep(key, rec)
         raise
-    saved = save_result(table, column, rule, limit, got, sample_run)
-    out = {k: v for k, v in shape(saved, base).items() if k in ANSWER + ("failing", "id", "mode", "chart", "column", "rule", "limit", "verdict")}
+    own_key = secrets.token_urlsafe(18)                 # the result's own key, given to this caller alone (L17, L42)
+    saved = save_result(table, column, rule, limit, got, sample_run, owner=_hash_key(own_key))
+    out = {k: v for k, v in shape(saved, base).items() if k in ANSWER + ("failing", "id", "mode", "chart", "column", "rule", "limit", "verdict",
+                                                                          "tool_version", "test_sha256", "created_at")}
+    out["key"] = own_key
     out["limits"] = limits()
+    if key and not sample_run and isinstance(body.get("invite"), str):
+        invited(body["invite"], key)
     if sample_run:
         out.update(runs_left=None, free_left=None, paid_left=None)
     else:
@@ -571,6 +715,9 @@ def run(body: dict, address: str, base: str = PUBLIC, test: bool = False, connec
                 first = dt.date.fromisoformat(rec["first"])
                 if (dt.date.fromisoformat(today) - first).days <= 7 and today not in rec["days"]:
                     rec["days"].append(today)
+                seen = rec.setdefault("seen", [])          # every day with an own run, the last 120 (L36, L37)
+                if today not in seen:
+                    rec["seen"] = (seen + [today])[-120:]
                 if free == 0:
                     rec["exhausted"] = True
             _keep(key, rec)
@@ -588,7 +735,16 @@ def pay(body: dict, address: str, test: bool = False) -> dict:
         raise Refusal(400, {"error": "I could not record this test payment because the press had no id. Nothing was charged. Please press Pay with test money again."})
     key = _key(body.get("browser"), address, body.get("runs"))
     pid = hashlib.sha256(f"press|{press}".encode()).hexdigest()[:32]
-    payload = hashlib.sha256(json.dumps({"who": key, "body": {k: v for k, v in body.items() if k not in ("press", "undo")}},
+    if body.get("check") is True:                       # an unclear outcome is read before any retry (L12): never a payment
+        seen = valley._safe_load(PRESSES, pid)
+        return {"status": "recorded" if seen and not seen.get("undone") else "undone" if seen else "none",
+                **({"runs_left": seen["answer"].get("runs_left")} if seen and not seen.get("undone") else {})}
+    # a payment asking for more than the one pack is refused before anything is recorded (L42: no spend past the cap)
+    if ("amount" in body and str(body["amount"]).lstrip("US$ ") != str(CONF["pack_price"]).lstrip("US$ ")) or \
+            ("pack_runs" in body and body["pack_runs"] != int(CONF["pack_runs"])):
+        raise Refusal(400, {"error": f"I record only one pack of {CONF['pack_runs']} runs for {CONF['pack_price']} in test money, so I "
+                                     "recorded nothing. Nothing was charged."})
+    payload = hashlib.sha256(json.dumps({"who": key, "body": {k: v for k, v in body.items() if k not in ("press", "undo", "check")}},
                                         sort_keys=True, default=str).encode()).hexdigest()
     if body.get("undo") is True:
         return undo(pid, key, payload, test)
@@ -639,6 +795,7 @@ def undo(pid: str, key: str, payload: str, test: bool = False) -> dict:
 
 VITALS = ("lcp", "inp", "cls")
 SCREENS = ("door", "tool", "result", "price", "status")     # the five screens that send their speed
+DEVICES = ("phone", "desktop")
 
 
 def first_action(body: dict, test: bool = False) -> dict:
@@ -676,6 +833,14 @@ def vitals(body: dict, test: bool = False) -> dict:
             for k, x in got.items():
                 if len(row[k]) < 500:
                     row[k].append(x)
+            # phones and desktops apart (L40): the page says which it is from its own screen and pointer, never from an id
+            dev = body.get("device") if body.get("device") in DEVICES else None
+            if dev:
+                d = row.setdefault("by_device", {}).setdefault(dev, {"n": 0, **{k: [] for k in VITALS}})
+                d["n"] += 1
+                for k, x in got.items():
+                    if len(d[k]) < 500:
+                        d[k].append(x)
             cut = (dt.datetime.now(dt.timezone.utc).date() - dt.timedelta(days=120)).isoformat()
             for d in [d for d in days if d < cut]:
                 del days[d]
@@ -687,6 +852,45 @@ def vitals(body: dict, test: bool = False) -> dict:
 
 def _p75(xs: list) -> float | None:
     return sorted(xs)[max(0, math.ceil(0.75 * len(xs)) - 1)] if xs else None
+
+
+def percentile(xs: list, q: float = 75) -> float | None:
+    """The q-th percentile by linear interpolation between ranks (numpy.percentile's default), None for no values."""
+    s = sorted(float(x) for x in xs)
+    if not s:
+        return None
+    pos = (len(s) - 1) * q / 100
+    lo = math.floor(pos)
+    hi = min(lo + 1, len(s) - 1)
+    return round(s[lo] + (s[hi] - s[lo]) * (pos - lo), 4)
+
+
+GOOD = {"lcp": 2500, "inp": 200, "cls": 0.1}     # good at the 75th percentile: LCP 2.5 s, INP 200 ms, CLS 0.1 (L40)
+
+
+def field_speed(days: int = 28, doc: dict | None = None) -> dict:
+    """Real visitors' speed at the 75th percentile over the last `days` UTC days, phones and desktops apart (L40), with
+    whether each is inside good; "no field data yet" for a class with no values."""
+    doc = doc if doc is not None else (valley._safe_load("pages", USAGE) or {})
+    cut = (dt.datetime.now(dt.timezone.utc).date() - dt.timedelta(days=days - 1)).isoformat()
+    vals: dict = {d: {k: [] for k in VITALS} for d in DEVICES}
+    for day, screens in (doc.get("vitals") or {}).items():
+        if day < cut:
+            continue
+        for row in screens.values():
+            for dev, r in (row.get("by_device") or {}).items():
+                if dev in vals:
+                    for k in VITALS:
+                        vals[dev][k] += [x for x in r.get(k) or [] if isinstance(x, (int, float))]
+    out = {}
+    for dev, v in vals.items():
+        if not any(v.values()):
+            out[dev] = {"status": "no field data yet"}
+            continue
+        p = {k: percentile(v[k]) for k in VITALS}
+        out[dev] = {**{f"{k}_p75": p[k] for k in VITALS}, **{f"{k}_n": len(v[k]) for k in VITALS},
+                    "good": all(p[k] is None or p[k] <= GOOD[k] for k in VITALS)}
+    return {"days": days, "by_device": out, "good_at_p75": GOOD}
 
 
 # ---- the counts (D2) and the measures (D1) -------------------------------------------------------------------------------
@@ -716,11 +920,147 @@ def measures(today: dt.date | None = None) -> dict:
     return out
 
 
+# ---- L36, L37: the status page's lead and depth, from real records only ----------------------------------------------------
+LEAD_DEFINED = {
+    "source": "own-data runs of browsers that said yes to being counted, Knos's own test browsers left out (tool-browsers "
+              "records: the first day and every day with a run); the visit beacon's first views for the splits and minutes",
+    "first_result_7d": "browsers whose first own run with a result was in the last 7 UTC days, today included",
+    "activation_7d": "not measured: a visit id resets every day and a counted browser's id is not sent with its visits, so "
+                     "no record links a new visit to a result days later",
+    "dau": "browsers with an own run yesterday (the last whole UTC day)",
+    "dau_mau": "yesterday's browsers over those with a run in the 30 days to yesterday, browsers first seen 14 or more days "
+               "before yesterday, percent",
+    "dau_wau": "yesterday's browsers over those with a run in the 7 days to yesterday, percent",
+    "return_dN": "of browsers whose first run was N or more days ago, the share with a run on exactly day N, percent",
+    "week2_use": "of browsers first seen 14 or more days ago, the share with a run on days 7 to 13, percent",
+    "zero": "every value is null (not known) while no real record exists; a share is null while its group is empty",
+}
+DEPTH_DEFINED = {
+    "core_users": "browsers with 7 or more days with a run in the last 30",
+    "resurrected": "browsers first seen 14 or more days ago with a run in the last 7 days and none in the 7 before",
+    "active_days_28": "browsers with a run in the last 28 days on fewer than 4 of them",
+    "week4_active": "of browsers first seen 28 or more days ago, the share with a run on days 21 to 27, percent",
+    "minutes_to_result": "median minutes from a new browser's first view (0 days since its first visit) to its first result that day",
+    "run_success": "runs that gave a verdict over every run the program started, last 28 days, percent",
+    "by_language": "results by the screen's language, last 28 days", "by_device": "results by phone or desktop, last 28 days",
+    "by_region": "results by the region the browser's time zone names, last 28 days (no IP address is read)",
+    "invites": "invite links made, and new browsers that ran a check from one",
+    "arrival_source": "not measured: the beacon sends no referrer",
+    "shared_opens": "results by how many times another browser opened them",
+    "l7": "browsers with a run in the last 7 days, by how many of the 7 days had one",
+}
+
+
+def _days_of(b: dict) -> set:
+    return {dt.date.fromisoformat(d) for d in set(b.get("seen") or []) | set(b.get("days") or [])}
+
+
+def _pct(a: int, b: int) -> float | None:
+    return round(100 * a / b, 1) if b else None
+
+
+def lead_depth(today: dt.date | None = None, rows: list | None = None) -> tuple[dict, dict]:
+    """The L36 lead and the browser half of the L37 depth from the counted browsers' records."""
+    day = today or dt.datetime.now(dt.timezone.utc).date()
+    if rows is None:
+        rows = [b for b in valley._all(BROWSERS) if b.get("first") and not b.get("test")]
+    lead = {k: None for k in ("first_result_7d", "activation_7d", "dau", "dau_mau", "dau_wau", "return_d1", "return_d3",
+                              "return_d7", "return_d14", "return_d30", "week2_use")}
+    depth = {k: None for k in ("core_users", "resurrected", "active_days_28", "week4_active", "invites", "shared_opens", "l7", "run_success")}
+    if not rows:
+        return lead, depth
+    br = [(dt.date.fromisoformat(b["first"]), _days_of(b)) for b in rows]
+    yday = day - dt.timedelta(days=1)
+    within = lambda ds, lo, hi: {d for d in ds if lo <= d <= hi}   # noqa: E731
+    lead["first_result_7d"] = sum(1 for f, _ in br if 0 <= (day - f).days <= 6)
+    lead["dau"] = sum(1 for _, ds in br if yday in ds)
+    old = [(f, ds) for f, ds in br if (yday - f).days >= 14]
+    lead["dau_mau"] = _pct(sum(1 for _, ds in old if yday in ds), sum(1 for _, ds in old if within(ds, yday - dt.timedelta(days=29), yday)))
+    lead["dau_wau"] = _pct(lead["dau"], sum(1 for _, ds in br if within(ds, yday - dt.timedelta(days=6), yday)))
+    for n in (1, 3, 7, 14, 30):
+        cohort = [(f, ds) for f, ds in br if (day - f).days >= n]
+        lead[f"return_d{n}"] = _pct(sum(1 for f, ds in cohort if f + dt.timedelta(days=n) in ds), len(cohort))
+    c14 = [(f, ds) for f, ds in br if (day - f).days >= 14]
+    lead["week2_use"] = _pct(sum(1 for f, ds in c14 if within(ds, f + dt.timedelta(days=7), f + dt.timedelta(days=13))), len(c14))
+    last = lambda ds, n: within(ds, day - dt.timedelta(days=n - 1), day)   # noqa: E731
+    depth["core_users"] = sum(1 for _, ds in br if len(last(ds, 30)) >= 7)
+    depth["resurrected"] = sum(1 for f, ds in br if (day - f).days >= 14 and last(ds, 7)
+                               and not within(ds, day - dt.timedelta(days=13), day - dt.timedelta(days=7)))
+    depth["active_days_28"] = sum(1 for _, ds in br if 0 < len(last(ds, 28)) < 4)
+    c28 = [(f, ds) for f, ds in br if (day - f).days >= 28]
+    depth["week4_active"] = _pct(sum(1 for f, ds in c28 if within(ds, f + dt.timedelta(days=21), f + dt.timedelta(days=27))), len(c28))
+    l7 = Counter(len(last(ds, 7)) for _, ds in br if last(ds, 7))
+    depth["l7"] = {str(k): l7[k] for k in range(1, 8)} if l7 else None
+    return lead, depth
+
+
+def _depth_records(doc: dict) -> dict:
+    """The parts of the L37 depth read from the tool's own store: run success, invites, shared results' openings."""
+    cut = (dt.datetime.now(dt.timezone.utc).date() - dt.timedelta(days=27)).isoformat()
+    rows = [r for d, r in (doc.get("days") or {}).items() if d >= cut]
+    ok = sum(int(r.get(k) or 0) for r in rows for k in ("sample_runs", "own_runs", "connector_runs"))
+    failed = sum(int(r.get("runs_failed") or 0) for r in rows)
+    invites = valley._all(INVITES)
+    opens = Counter(min(int(r.get("opens") or 0), 3) for r in valley._all(RESULTS) if int(r.get("opens") or 0) > 0)
+    return {"run_success": _pct(ok, ok + failed),
+            "invites": {"made": len(invites), "joined": sum(int(i.get("joined") or 0) for i in invites)} if invites else None,
+            "shared_opens": {("3 or more" if k == 3 else str(k)): n for k, n in sorted(opens.items())} if opens else None}
+
+
+# ---- L14: what one run costs Knos, from the server's own run records --------------------------------------------------------
+COSTS = "tool-costs"
+COSTS_KEPT = 1000
+
+
+def cost_record(seconds: float, ok: bool, test: bool) -> None:
+    """One run's record for the cost per run: its program time, its model tokens (this tool calls no model: 0) and
+    whether it gave a verdict; the latest COSTS_KEPT runs, failed runs included. Never fails a request."""
+    try:
+        with _lock:
+            doc = valley._safe_load("pages", COSTS) or {"runs": []}
+            doc["runs"] = (doc.get("runs") or [])[-(COSTS_KEPT - 1):] + [
+                {"s": round(max(0.0, seconds), 4), "tokens_in": 0, "tokens_out": 0, "ok": bool(ok), "test": bool(test), "day": _today()}]
+            valley._save("pages", COSTS, doc, chain=False)
+    except Exception as why:  # noqa: BLE001
+        print(f"knos tool cost: not kept: {type(why).__name__}: {str(why)[:120]}", flush=True)
+
+
+def cost(doc: dict | None = None) -> dict:
+    """The cost per run over the latest runs (failed included): the host's share of each run's program seconds at
+    CONF["host_usd_per_month"] plus its model tokens at near_ai.PRICE's dearest model. Null while no run is recorded."""
+    runs = (doc if doc is not None else (valley._safe_load("pages", COSTS) or {})).get("runs") or []
+    host = CONF.get("host_usd_per_month")
+    base = {"runs": len(runs), "host_usd_per_month": host, "host_source": CONF.get("host_usd_per_month_source"),
+            "failed": sum(1 for r in runs if not r.get("ok")), "kept": COSTS_KEPT}
+    if not runs:
+        return {**base, "seconds_per_run": None, "tokens_per_run": None, "usd_per_run": None, "source": "not measured yet: no run recorded"}
+    from .near_ai import PRICE
+    pin, pout = max(PRICE.values(), key=lambda p: p[0] + p[1])
+    secs = sum(float(r.get("s") or 0) for r in runs) / len(runs)
+    tin = sum(int(r.get("tokens_in") or 0) for r in runs) / len(runs)
+    tout = sum(int(r.get("tokens_out") or 0) for r in runs) / len(runs)
+    usd = None if host is None else secs * float(host) / (30 * 86400) + tin * pin + tout * pout
+    return {**base, "seconds_per_run": round(secs, 4), "tokens_per_run": round(tin + tout, 1),
+            "usd_per_run": None if usd is None else round(usd, 8),
+            "source": f"apps/wanted tool_run.py: the latest {len(runs)} runs' program time and model tokens, failed runs included"}
+
+
 def usage() -> dict:
     doc = valley._safe_load("pages", USAGE) or {"since": None, "days": {}, "test_days": {}}
     speed = {d: {s: {"n": r.get("n", 0), **{f"{k}_p75": _p75(r.get(k) or []) for k in VITALS}} for s, r in row.items()}
              for d, row in (doc.get("vitals") or {}).items()}
+    from . import visits
+    lead, depth = lead_depth()
+    depth.update(_depth_records(doc))
+    try:
+        depth.update(visits.depth())
+    except Exception:  # noqa: BLE001 - the visit side unread: its parts stay not known
+        depth.update({k: None for k in ("by_language", "by_device", "by_region", "minutes_to_result")})
+    depth["arrival_source"] = None
     return {"days": doc.get("days") or {}, "test_days": doc.get("test_days") or {}, "measures": measures(), "vitals": speed,
+            "field_speed": field_speed(doc=doc),
+            "lead": lead, "depth": depth, "survey": visits.survey_counts(), "cost": cost(),
+            "lead_defined": LEAD_DEFINED, "depth_defined": DEPTH_DEFINED,
             "tool_counts_since": doc.get("since"),
             "tool_counted": "per UTC day. tools_opened: GET /t/<id>/ and GET /api/tools; sample_runs and own_runs: runs not through /mcp that "
                             "returned a result; results_opened_elsewhere: GET /r/<id>/ with no referrer or one from another "
@@ -734,6 +1074,131 @@ def usage() -> dict:
                             "many pages browsers that said yes to being counted measured, and the 75th percentile of their "
                             "largest paint (lcp, ms), slowest press (inp, ms) and layout shift (cls)",
             "tool_store": "the server's disk, which Render empties on every deploy: counts restart from that day"}
+
+
+# ---- a result's owner: download, delete; anyone with its link: challenge (L06, L13, L17, L42) ------------------------------
+def export(rid: str, ext: str, k) -> tuple[int, bytes, str]:
+    """A result's download: (status, body, type). A sample's result is open to anyone with its link, as its page is; a
+    result from a person's own file only to the browser that ran it, by the result's own key (X-Knos-Key)."""
+    from . import exports
+    rec = load_result(rid)
+    if rec is None:
+        return 404, json.dumps({"error": "I have no result at this address. It may have been deleted, or replaced after the server was updated."}).encode(), "application/json"
+    if rec["mode"] == "own" and not owns(rec, k):
+        return 403, json.dumps({"error": "I give a result from someone's own file only to the browser that checked it, so I sent nothing."}).encode(), "application/json"
+    r = {**shape(rec), "tool": rec["tool"]}
+    if ext == "csv":
+        return 200, exports.tool_csv(r).encode("utf-8"), "text/csv; charset=utf-8"
+    return 200, json.dumps(exports.tool_json(r), indent=1, ensure_ascii=False).encode("utf-8"), "application/json"
+
+
+def delete(rid: str, k) -> dict:
+    """The result and its kept table removed from the server now (L17), by the browser that ran it (its key)."""
+    rec = load_result(rid)
+    if rec is None:
+        raise Refusal(404, {"error": "I have no result at this address, so there was nothing to delete."})
+    if not owns(rec, k):
+        raise Refusal(403, {"error": "Only the browser that checked this file can delete its result, so I deleted nothing."})
+    with _lock:
+        (valley._dir(RESULTS) / f"{rid}.json").unlink(missing_ok=True)
+    return {"deleted": True, "id": rid}
+
+
+def opened(rid: str) -> None:
+    """One more opening of a result by someone else (L25): its maker sees the count on the result's page."""
+    with _lock:
+        rec = load_result(rid)
+        if rec is not None:
+            rec["opens"] = int(rec.get("opens") or 0) + 1
+            valley._save(RESULTS, rid, rec, chain=False)
+
+
+CHALLENGE_STATES = ("open", "upheld", "rejected")
+
+
+def challenge(body: dict) -> dict:
+    """A challenge of a result, recorded inside Knos (L13): what the person says is wrong, kept with the result's id;
+    its status starts open and is read back at GET /api/challenge/<id>. Nothing that says who sent it is kept."""
+    rid = str(body.get("id") or "")
+    if load_result(rid) is None:
+        raise Refusal(404, {"error": "I have no result at this address, so there is nothing to challenge."})
+    why = str(body.get("why") or "").strip()[:500]
+    if len(why) < 3:
+        raise Refusal(400, {"error": "Please say in a few words what you think is wrong with this result, then send it again."})
+    cid = secrets.token_urlsafe(9)
+    rec = {"id": cid, "result": rid, "why": why, "status": "open", "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+    with _lock:
+        valley._save(CHALLENGES, cid, rec, chain=False)
+        _prune(CHALLENGES, int(CONF["challenges_kept"]))
+    return {"challenge": cid, "status": "open", "result": rid}
+
+
+def challenge_status(cid: str) -> dict | None:
+    if not RID.fullmatch(cid or ""):
+        return None
+    rec = valley._safe_load(CHALLENGES, cid)
+    return {k: rec.get(k) for k in ("id", "result", "status", "at")} if rec else None
+
+
+def invite(body: dict, address: str) -> dict:
+    """An invite code for this browser (L25): when a new browser that opened the invite link runs its first check on its
+    own file, both browsers get CONF["invite_runs"] more free runs."""
+    key = _key(body.get("browser"), address, body.get("runs"))
+    code = hashlib.sha256(b"invite|" + key.encode()).hexdigest()[:12]
+    with _lock:
+        if not valley._safe_load(INVITES, code):
+            valley._save(INVITES, code, {"by": key, "joined": 0}, chain=False)
+            _prune(INVITES, int(CONF["browsers_kept"]))
+    return {"invite": code, "runs_each": int(CONF["invite_runs"])}
+
+
+def invited(code: str, key: str) -> bool:
+    """A new browser's first own run with an invite code: both get the extra free runs, once per new browser, never for
+    an invite of one's own."""
+    if not re.fullmatch(r"[0-9a-f]{12}", code or ""):
+        return False
+    with _lock:
+        inv = valley._safe_load(INVITES, code)
+        rec = _fresh(_rec(key))
+        if not inv or inv.get("by") == key or rec.get("invited_by"):
+            return False
+        n = int(CONF["invite_runs"])
+        rec["invited_by"], rec["bonus"] = code, int(rec.get("bonus") or 0) + n
+        _keep(key, rec)
+        them = _fresh(_rec(inv["by"]))
+        them["bonus"] = int(them.get("bonus") or 0) + n
+        _keep(inv["by"], them)
+        inv["joined"] = int(inv.get("joined") or 0) + 1
+        valley._save(INVITES, code, inv, chain=False)
+    return True
+
+
+def bonus(body: dict, address: str) -> dict:
+    """A small return bonus after a missed day (L23): CONF["return_bonus_runs"] more free runs, at most once a UTC day
+    for one browser; never a guilt message, never a notification."""
+    if body.get("why") != "return":
+        raise Refusal(400, {"error": "I give extra runs only for coming back after a missed day, so I gave none."})
+    key = _key(body.get("browser"), address, body.get("runs"))
+    with _lock:
+        rec = _fresh(_rec(key))
+        if rec.get("bonus_day") != _today():
+            rec["bonus_day"] = _today()
+            rec["bonus"] = int(rec.get("bonus") or 0) + int(CONF["return_bonus_runs"])
+            _keep(key, rec)
+        free, paid = _left(rec)
+    return {"runs_left": free + paid, "free_left": free, "bonus": int(CONF["return_bonus_runs"])}
+
+
+def convert(body: dict) -> dict:
+    """A spreadsheet (.xlsx, sent as base64) as the comma text the box takes (L26)."""
+    try:
+        data = base64.b64decode(str(body.get("xlsx") or ""), validate=True)
+    except ValueError:
+        raise Refusal(400, {"error": "I could not read this spreadsheet. Please save it as a comma separated file and choose it again."}) from None
+    table = xlsx_to_csv(data)
+    if columns(table)[1] > int(CONF["max_rows"]):
+        raise Refusal(413, too_big())
+    return {"table": table}
 
 
 # ---- routes --------------------------------------------------------------------------------------------------------------
@@ -816,6 +1281,29 @@ def handle_get(h, state, u, qs) -> bool:
     if p == "/api/tools":
         bump("tools_opened", _marked(h, qs))
         return h._send(200, tools_doc(), headers={"Cache-Control": "no-store"}) or True
+    m = re.fullmatch(r"/api/run/([A-Za-z0-9_-]{12})\.(csv|json)", p)
+    if m:                                                 # L06: the result, its inputs and its evidence, no account
+        code, data, ctype = export(m.group(1), m.group(2), h.headers.get("X-Knos-Key"))
+        extra = {"Content-Disposition": f'attachment; filename="knos-{m.group(1)}.{m.group(2)}"'} if code == 200 else {}
+        return h._send(code, data, ctype, extra) or True
+    m = re.fullmatch(r"/api/challenge/([A-Za-z0-9_-]{12})", p)
+    if m:
+        got = challenge_status(m.group(1))
+        return h._send(200 if got else 404, got or {"error": "I have no challenge at this address."}) or True
+    if p == "/api/remind.ics":                            # L23: the daily reminder, built from the person's own answer
+        from . import remind
+        try:
+            body = remind.ics(qs.get("at", [""])[0], qs.get("cue", [""])[0], _base(h) + f"/t/{TOOL_ID}/")
+        except ValueError as why:
+            return h._send(400, {"error": str(why)}) or True
+        return h._send(200, body.encode("utf-8"), "text/calendar; charset=utf-8",
+                       {"Content-Disposition": 'attachment; filename="knos-daily-check.ics"'}) or True
+    if p == "/api/today":                                 # L24: today's short list, never more than five
+        from . import today
+        return h._send(200, today.today_list(), headers={"Cache-Control": "public, max-age=600"}) or True
+    if p == "/api/sources":                               # L10: each source with its checked passage and date
+        from . import sources
+        return h._send(200, sources.summary(), headers={"Cache-Control": "public, max-age=600"}) or True
     m = re.fullmatch(r"/t/([a-z0-9-]{1,40})(/?)", p)
     if m:
         t = tool(m.group(1))
@@ -962,9 +1450,10 @@ def handle_post(h, state, path: str) -> bool:
     m = re.fullmatch(r"/t/([a-z0-9-]{1,40})/run", path)
     if m:
         return form_run(h, state, m.group(1))
-    if path not in ("/api/run", "/api/pay", "/api/vitals", "/api/first_action"):
+    if path not in ("/api/run", "/api/pay", "/api/vitals", "/api/first_action", "/api/challenge", "/api/invite", "/api/bonus",
+                    "/api/convert", "/api/opened"):
         return False
-    if not state.allow(h._client(), "tool" if path == "/api/run" else "tool_pay"):
+    if not state.allow(h._client(), "tool" if path in ("/api/run", "/api/convert") else "tool_pay"):
         return h._send(429, {"error": "I have had a great many requests from your network in the last few minutes. Please wait a minute and try again."}) or True
     try:
         body = _body(h)
@@ -975,7 +1464,35 @@ def handle_post(h, state, path: str) -> bool:
             return h._send(200, vitals(body, test)) or True
         if path == "/api/first_action":
             return h._send(200, first_action(body, test)) or True
+        if path == "/api/challenge":
+            return h._send(200, challenge(body)) or True
+        if path == "/api/invite":
+            return h._send(200, invite(body, h._client())) or True
+        if path == "/api/bonus":
+            return h._send(200, bonus(body, h._client())) or True
+        if path == "/api/convert":
+            return h._send(200, convert(body)) or True
+        if path == "/api/opened":                         # L25: another browser opened a shared result (its page sends it once)
+            rid = str(body.get("id") or "")
+            if load_result(rid) is None:
+                raise Refusal(404, {"error": "I have no result at this address."})
+            if not test:
+                opened(rid)
+            return h._send(200, {"counted": not test}) or True
         return h._send(200, pay(body, h._client(), test)) or True
+    except Refusal as r:
+        return h._send(r.code, r.body) or True
+
+
+def handle_delete(h, state, path: str) -> bool:
+    """DELETE /api/run/<id> with the result's own key (X-Knos-Key): the result is gone from the server at once (L17)."""
+    m = re.fullmatch(r"/api/run/([A-Za-z0-9_-]{12})", path)
+    if not m:
+        return False
+    if not state.allow(h._client(), "tool_pay"):
+        return h._send(429, {"error": "I have had a great many requests from your network in the last few minutes. Please wait a minute and try again."}) or True
+    try:
+        return h._send(200, delete(m.group(1), h.headers.get("X-Knos-Key"))) or True
     except Refusal as r:
         return h._send(r.code, r.body) or True
 
@@ -1003,12 +1520,12 @@ MCP_TOOLS = [
 
 def mcp_call(name: str, args: dict) -> dict:
     """The connector's answer, the same JSON as the site's routes. A refusal raises ValueError with its message."""
-    from . import outside, qloo_rest
+    from . import outside, usage
     if name == "tools":
         return tools_doc()
     headers = getattr(outside.CTX, "headers", None)
     test = bool(headers is not None and headers.get("X-Knos-Test") == "1")
-    who = qloo_rest.current_visitor() or "connector"
+    who = usage.current_visitor() or "connector"
     try:
         got = run({k: args.get(k) for k in ("id", "table", "column", "rule", "limit")}, "mcp:" + who, PUBLIC, test, connector=True)
     except Refusal as r:

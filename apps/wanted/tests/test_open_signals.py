@@ -1,5 +1,5 @@
-"""The open signals (knos_wanted.open_signals): the no-Qloo baseline's rules, each source named, nothing invented, and a
-city's coordinates from Wikidata. The network is a fake: each public API answers what a test sets."""
+"""The open signals (knos_wanted.open_signals): the baseline's rules, each source named, nothing invented, and
+nothing asked off the hosted app. The network is a fake: each public API answers what a test sets."""
 from knos_wanted import open_signals as o
 
 
@@ -27,6 +27,7 @@ ANSWERS = {
 def test_the_baseline_counts_attention_and_names_every_source(monkeypatch):
     monkeypatch.setattr(o, "_get", fake(ANSWERS))
     monkeypatch.setattr(o.time, "sleep", lambda s: None)
+    monkeypatch.setenv("KNOS_OPEN_SIGNALS", "on")
     r = o.baseline("a perovskite solar roof tile for homes")
     assert r["phrase"] == "perovskite solar"
     by = {s["source"]: s for s in r["signals"]}
@@ -42,6 +43,7 @@ def test_the_baseline_counts_attention_and_names_every_source(monkeypatch):
 def test_no_answer_is_cannot_decide_and_little_attention_is_refuse(monkeypatch):
     monkeypatch.setattr(o, "_get", fake({}))
     monkeypatch.setattr(o.time, "sleep", lambda s: None)
+    monkeypatch.setenv("KNOS_OPEN_SIGNALS", "on")
     r = o.baseline("a thing nobody writes about")
     assert r["verdict"] == "CANNOT_DECIDE" and r["price_tier"] is None and not any(s["answered"] for s in r["signals"])
     quiet = {**ANSWERS, "pageviews/per-article": {"items": [{"views": 3}]}, "api.gdeltproject.org": {"timeline": [{"data": []}]}, "api.openalex.org": {"meta": {"count": 10}}}
@@ -49,15 +51,9 @@ def test_no_answer_is_cannot_decide_and_little_attention_is_refuse(monkeypatch):
     assert o.baseline("a perovskite solar roof tile")["verdict"] == "REFUSE"
 
 
-def test_a_city_is_put_on_the_map_from_wikidata_once(monkeypatch):
-    calls = []
-
-    def get(url, timeout=4.0):
-        calls.append(url)
-        if "wbsearchentities" in url:
-            return {"search": [{"id": "Q18094"}]}
-        return {"entities": {"Q18094": {"claims": {"P625": [{"mainsnak": {"datavalue": {"value": {"latitude": 21.30694, "longitude": -157.85833}}}}]}}}}
-    monkeypatch.setattr(o, "_get", get)
-    o._cache.clear()
-    assert o.coords("Honolulu", "US") == (21.3069, -157.8583)
-    assert o.coords("Honolulu", "US") == (21.3069, -157.8583) and len(calls) == 2
+def test_off_the_hosted_app_no_source_is_asked(monkeypatch):
+    monkeypatch.setattr(o, "_get", lambda *a, **k: (_ for _ in ()).throw(AssertionError("a source was asked")))
+    r = o.baseline("a perovskite solar roof tile")
+    assert r["verdict"] == "CANNOT_DECIDE" and not any(s["answered"] for s in r["signals"])
+    fb = o.fallback("a perovskite solar roof tile")
+    assert fb["verdict"] == "CANNOT_DECIDE" and [x["name"] for x in fb["rows"]] == ["Money down"]

@@ -80,18 +80,13 @@ async function openProject(sandbox) {
     : await api("/api/project", { template: tpl, title: $("pTitle").value.trim(), regulatory: regs, team: $("pTeam").value.trim() });
   location.hash = "#projects=" + p.id;
 }
-// the brief's "Grounding (Qloo)" line: the Qloo facts of the demand check this project came from (who, where, price
-// tier, comparables), the same facts every agent working on a milestone is handed
+// the brief's Grounding line: the open signals of the demand check this project came from, the same facts every agent
+// working on a milestone is handed
 function groundingLine(p) {
   const g = p.grounding;
-  if (!g) return "";
-  const a = g.audience || {}, who = [a.age && String(a.age).replace(/_/g, " "), a.gender, ...(a.segments || [])].filter(Boolean).join(", ");
-  const bits = [who && "who: " + who, (g.launch_cities || []).length && "where: " + g.launch_cities.join(", "), g.price_tier && "price tier: " + g.price_tier,
-    (g.comparables || []).length && "comparables: " + g.comparables.join(", "),
-    // what the person asked Qloo (the demand options), apart from what Qloo answered for the product overall
-    Object.keys(g.asked || {}).length && "asked: " + Object.entries(g.asked).map(([k, v]) => `${k.replace(/_/g, " ")} ${Array.isArray(v) ? v.join(", ") : String(v).replace(/_/g, " ")}`).join("; ")].filter(Boolean);
-  const src = window.KnosDemand && p.report ? KnosDemand.src("", p.report) : "";       // the trace kept for this project's report
-  return bits.length ? `<p class="small" id="grounding" data-qloo><b>Grounding (Qloo)</b>: ${esc(bits.join(" · "))}${src}</p>` : "";
+  if (!g || !(g.signals || []).length) return "";
+  const bits = g.signals.map((x) => `${x.name} ${x.value} ${x.unit}`);
+  return `<p class="small" id="grounding"><b>Grounding</b>: ${esc(bits.join(" · "))}</p>`;
 }
 // the project's credits (Token-2022 with the knos_hook transfer hook): they move only into this project's holding account
 function creditsLine(p) {
@@ -369,7 +364,7 @@ function renderBriefForm() {
   $("bLock").onclick = () => busy($("bLock"), "Opening", async () => {
     if (!session) { $("signin").hidden = false; throw new Error("Sign in with your passkey first."); }
     const r = await checkBrief(); if (!r.ready) throw new Error("Not ready to fund yet.");
-    // a brief written from a demand check carries its report: its Qloo facts become the brief's "Grounding (Qloo)" line
+    // a brief written from a demand check carries its report: its signals become the brief's Grounding line
     let report; try { report = sessionStorage.getItem("knos.report") || undefined; } catch (e) { report = undefined; }
     const p = await api("/api/project", { template: "custom", title: $("pTitle").value.trim() || $("bName").value.trim(), brief: briefFromForm(), report });
     try { sessionStorage.removeItem("knos.report"); } catch (e) { /* private window */ }

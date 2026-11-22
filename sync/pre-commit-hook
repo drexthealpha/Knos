@@ -1,0 +1,4 @@
+#!/bin/sh
+# knos-sync's pre-commit hook: the commit stops when a stated fact in sync/facts.json is stale, whatever its kind.
+# Install it with: cp sync/pre-commit-hook .git/hooks/pre-commit
+exec knos-sync hook "$@"

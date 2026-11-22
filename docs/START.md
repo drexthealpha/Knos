@@ -53,12 +53,7 @@ step was fixed by hand.
 
 To do the same run in a repository of your own, follow [Run it yourself](../examples/witnessed/README.md).
 
-## 4. The same Knos for lab steps
-
-[Knos on IRIS](../iris/README.md) runs inside a lab's own InterSystems IRIS. Each step of lab work is paid in play
-money only when its test passed, and above $50 a person approves.
-
-## 5. Add Knos to your coding agent
+## 4. Add Knos to your coding agent
 
 Knos's MCP server is hosted. Add it to Claude Code with one command:
 
@@ -71,8 +66,7 @@ Other agents and editors, one line each, are in [the install guide](reference/IN
 ## Before the NEAR entry
 
 Until November 2026 the front door started with a demand check and a Ready brief, and backers put test money on a
-milestone. The [demand check](reference/DEMAND_CHECK.md) still works in [the app](https://knos.onrender.com/app/),
-and `knos demand` runs it from a terminal.
+milestone.
 
 ## Where next
 

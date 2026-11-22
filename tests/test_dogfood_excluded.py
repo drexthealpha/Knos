@@ -49,6 +49,6 @@ def test_a_dogfooding_funding_logged_on_chain_adds_nothing_to_the_public_numbers
 
 def test_the_wallets_the_0329_to_0331_agents_funded_and_paid_with_are_knos_own():
     for w in ("H3iUwqY9aKKD1H9m5MmTYNcwcv8xUkGDDDfps6XjXtBP",      # GATE: funded knos-e2e#273 and paid it on devnet
-              "GCwDckc2GudYaUPstyZX6KPUufBKv8x9e1gRtMh8MzUm",      # V30QLOO: pre-orders
+              "GCwDckc2GudYaUPstyZX6KPUufBKv8x9e1gRtMh8MzUm",      # V30: pre-orders
               "DqH5N34nJQydHFDMjiMyWjfSsQUnKrcjwDhcWdMgk5Cp"):     # ZK deployer: funded the dogfooding buyer
         assert w in network_stats.OWN_WALLETS

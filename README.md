@@ -11,16 +11,24 @@ Knos locks a test before any work starts, and test money moves to the agent that
 The problem: research takes about 17 years to reach people ([Morris, Wooding and Grant, 2011](https://doi.org/10.1258/jrsm.2011.110180)),
 and checking that a result really works is one slow, costly step on that road.
 
+Video: [one real check on the live site](near/web/knos-near.mp4), recorded 14 Nov 2026.
+
+Watch it work: [a pasted table checked, paid in test money, answered](web/media/knos-demo.mp4), recorded on a local build.
+
 | You judge for | The same loop, used for | Read | Try it live |
 |---|---|---|---|
 | From NEAR HACKATHON | a research paper's claim, its test locked on NEAR | [Knos on NEAR](#from-near-hackathon) | https://drexthealpha.github.io/Knos/ |
-| From the InterSystems contest | a test result's criteria, checked in IRIS | [Knos on IRIS](iris/README.md) | [the video](https://raw.githubusercontent.com/drexthealpha/Knos/main/iris/media/knos-iris.mp4) or one command on your machine (the online demo is offline during voting) |
 | From Colosseum | a pull request's checks, paid on Solana | [The ten-second check](#from-colosseum) | https://drexthealpha.github.io/Knos/check/ |
 
 Test money only: test USDC on NEAR testnet and Solana devnet. No customers yet.
 
 <!-- entry:near -->
 ## From NEAR HACKATHON
+
+Built at NEAR HACKATHON. The public post: https://x.com/getknos/status/2121724184380182623
+
+Who pays, and for what: the person or agent that asks for a check puts in the test dollars, and Knos keeps 1 part in 10
+(10%) of each paid job; the other 9 parts go to the agent whose code passed.
 
 A visitor enters a paper's link and asks Knos to check its claim. NEAR locks the claim's test by its sha256 in a jobs
 contract before any agent starts, and refuses any agent step over its spending cap.
@@ -34,16 +42,17 @@ checks on 14 Nov ran the fixed program; the receipt and the release transaction 
 
 ### Judge it in 2 minutes
 
-1. Open https://drexthealpha.github.io/Knos/ and press **Sample question** - see "Yes, the claim holds" and "Checked by
-   a test set before any work started."; How it works holds test_hll.py and its job. The test file's sha256 is one
-   tap on: press **The claim** and see "The test
-   file's sha256, its fingerprint".
-2. Open **How it works**, press **Run the check yourself**, then **Run the check with 10 test dollars** - see "1. The test is locked", "2. Two agents ran
+1. Open https://drexthealpha.github.io/Knos/, open **Ask about research** and press **Sample question** - see "Count a
+   huge crowd of visitors in a tiny memory." and "Its test is locked before any work starts." Open **How it works**
+   under it - see test_hll.py, **Run the check yourself** and **The claim**.
+2. Press **The claim**, then open **How it works** on that page - see "The test file's sha256, its fingerprint". Go back.
+3. Press **Run the check yourself** - the Prove page opens with the paper's link filled in: see "Check this claim now"
+   and the button **Run the check with 10 test dollars**. Press it - see "1. The test is locked", "2. Two agents ran
    the paper’s result against the locked test", "3. The spending cap blocked an over-budget step" with NEAR's refusal,
    then "4. Answer: Yes, the claim holds": 15 to 80 s when a job is ready (checks on 14 Nov), 1 to 2 min when one is not. The check
    uses test money only. To see every step and the receipt without running one, open
    [one finished check](https://drexthealpha.github.io/Knos/prove/receipt/) (job-1114145004, 14 Nov), saved as the page showed it.
-3. In step 2, see "Agent A's code was written by" with the model and its call id, or "Agent A's code: a fixed program"
+4. In step 3, see "Agent A's code was written by" with the model and its call id, or "Agent A's code: a fixed program"
    and why. Then see "Receipt for proof job-..." with "9.00 to the agent whose code passed, 1.00 to Knos's test account" and "The
    jobs contract held it with the job", each transaction read from NEAR's RPC in your browser, with no explorer and no
    bot check ([the saved check's release](https://drexthealpha.github.io/Knos/tx/?h=CZPCygBuzzpqXm3SuDAdXUhFCwKjCjzmZBjp7yRor6DH):
@@ -51,7 +60,7 @@ checks on 14 Nov ran the fixed program; the receipt and the release transaction 
    From a terminal, `curl -s https://archival-rpc.testnet.near.org -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"tx","params":["CZPCygBuzzpqXm3SuDAdXUhFCwKjCjzmZBjp7yRor6DH","live.knos-swarm-1105.testnet"]}'`
    shows the same transaction.
    After a live run (the saved page does not have it), press **Check the same claim again** - see "Free: Yes".
-4. Optional, about 2 minutes more, from a clone (`git clone https://github.com/drexthealpha/Knos && cd Knos`). On Windows, use Git Bash and write
+5. Optional, about 2 minutes more, from a clone (`git clone https://github.com/drexthealpha/Knos && cd Knos`). On Windows, use Git Bash and write
    `py -3` where the commands say `python3`:
 
    ```bash
@@ -65,14 +74,52 @@ checks on 14 Nov ran the fixed program; the receipt and the release transaction 
      job-1112053239), then `Passed: 9.2% of 100,000 keys moved going from 10 to 11 buckets (the ideal: 9.1%), all to
      the new one, the fullest bucket 1.5% over the mean, nothing stored.`
 
-Video, 51 s: one real check on the live site on 14 Nov (job-1114200906), where the private model on NEAR AI Cloud wrote agent A's code and the jobs contract paid 9.00 and 1.00: [near/web/knos-near.mp4](near/web/knos-near.mp4) (the 12 Nov cut: [knos-near-2026-11-12.mp4](near/web/knos-near-2026-11-12.mp4)). An agent runs the same flow in
-one call:
+The video at the top is job-1114200906, where the private model on NEAR AI Cloud wrote agent A's code and the jobs
+contract paid 9.00 and 1.00 (the 12 Nov cut: [knos-near-2026-11-12.mp4](near/web/knos-near-2026-11-12.mp4)). An agent
+runs the same flow in one call:
 
 ```bash
 curl -X POST https://knos.onrender.com/api/near/claim/flow -H "Content-Type: application/json" -d '{"url": "https://doi.org/10.46298/dmtcs.3545", "amount": 10}'
 ```
 
 It answers with `verdict`, `code`, `cap`, `paid`, `settled` and `receipt`.
+
+### When it fails
+
+- Every agent's code fails the locked test: nobody is paid.
+- No agent passes before the deadline: the jobs contract refunds the account that put the money in.
+- An agent asks to spend over its cap: the jobs contract refuses it on chain, with its own reason.
+- The AI review rejects code that passed: nobody is paid; a review can never turn a fail into a pass.
+
+### Why sealed hardware
+
+The model that writes agent A's code runs in NEAR AI Cloud's sealed hardware (a TEE). Knos checks the hardware's
+attestation and each answer's signature, and the jobs contract recovers the signer with `ecrecover` before it pays.
+Knos does not prove the model's computation itself.
+
+### What is tested
+
+| What | Count | Run it |
+|---|---|---|
+| The limit check's locked test | 14 known-answer cases; 14 of 14 pass (95% Wilson interval 78% to 100%) | `python3 near/agents/job/test_limit3.py` beside `solution.py` |
+| The NEAR contracts | 223 tests, 155 of them attacks | `bash near/scripts/verify.sh` |
+| Everything else | every push to main | `pytest -q -n auto` ([tests.yml](https://github.com/drexthealpha/Knos/actions/workflows/tests.yml)) |
+
+### For judges: where to look
+
+| Criterion | Where to look |
+|---|---|
+| Technical implementation | `near/contract/src/jobs.rs` (`release_job`) and `bash near/scripts/verify.sh` |
+| Design | https://drexthealpha.github.io/Knos/prove/, steps 1 to 4 above |
+| Impact | the problem line at the top; test money only, no customers yet |
+| Originality | the claim's test is locked by its sha256 on NEAR before any agent starts (step 2) |
+| Sustainability | "Who pays, and for what" at the top of this section |
+
+What the jobs contract has held and paid, read from NEAR testnet:
+
+```bash
+curl -s https://rpc.testnet.fastnear.com -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"call_function","finality":"final","account_id":"jobs.knos-swarm-1105.testnet","method_name":"get_totals","args_base64":"e30="}}' | python3 -c 'import json,sys; print(bytes(json.load(sys.stdin)["result"]["result"]).decode())'
+```
 
 ### What NEAR does here
 
@@ -121,61 +168,6 @@ Everything else (every claim and how to check it, the accounts on NEAR testnet, 
 yourself): [docs/reference/NEAR.md](docs/reference/NEAR.md).
 <!-- /entry:near -->
 
-<!-- entry:iris -->
-## From the InterSystems contest
-
-An InterSystems IRIS production pays each step of lab work only when its test passed: an AI Hub agent reads the result,
-a rule decides, and above $50 a person approves.
-
-- **The online demo is offline during voting.** It ran in a GitHub codespace, whose free hours ran out on 14 Nov at
-  about 21:20 UTC. Watch the video, or run Knos with one command on your machine (below).
-- Video: 43 s, a narrated live run on 13 Nov 2026 from the online demo, downloadable with no login: [knos-iris.mp4](https://raw.githubusercontent.com/drexthealpha/Knos/main/iris/media/knos-iris.mp4).
-- Community idea: it implements [DPI-I-689](https://ideas.intersystems.com/ideas/DPI-I-689), each decision step an
-  interoperability message.
-- [Judge it in 2 minutes](#judge-it-in-2-minutes-on-iris): with the video, no login and no key.
-
-### Judge it in 2 minutes on IRIS
-
-The online demo is offline during voting, so these steps use the video; the next section runs it on your machine.
-
-1. Open [knos-iris.mp4](https://raw.githubusercontent.com/drexthealpha/Knos/main/iris/media/knos-iris.mp4) (43 s) - see
-   the production running in the IRIS portal and one sample decided by the AI Hub agent on NEAR AI Cloud.
-2. Watch on - see that decision's trace, then the same session in Visual Trace.
-
-### Run it on your machine (about 6 minutes)
-
-You need Docker with about 4 GB free; the first build takes about 4 minutes, as in CI. This one-command edition is the
-public IRIS for Health Community image (2026.2), which has no AI Hub: its samples replay the AI Hub agent's answers
-recorded in the online demo, and the rules referee decides anything else.
-
-1. Run:
-
-   ```sh
-   git clone https://github.com/drexthealpha/Knos && cd Knos/iris
-   docker compose -f docker-compose.public.yml up -d --build && bash scripts/ready.sh
-   ```
-
-   - see `READY: open http://localhost:52773/knos/ and press a sample button`. [CI runs it from a fresh checkout](https://github.com/drexthealpha/Knos/actions/workflows/iris-public.yml).
-2. Open http://localhost:52773/knos/ and press **A passing test, $20** - see it marked paid: "Paid in play money".
-3. Open http://localhost:52773/csp/sys/UtilHome.csp, sign in as `_SYSTEM` with `knos-public-demo`, then Interoperability >
-   Production - see `Knos.Iris.Production` and each decision's Visual Trace.
-
-**The contest entry: build 154 with AI Hub.** With the image file from the
-[AI Hub Early Access portal](https://evaluation.intersystems.com/Eval/early-access/AIHub) (an InterSystems login):
-`bash scripts/load-image.sh <the tar>`, `bash scripts/env-secrets.sh && docker compose up -d --build`, then
-`bash scripts/ready.sh`. There the AI Hub agent can decide on a model.
-
-The live run of 12 Nov, the contest task part by part, the bonuses and troubleshooting:
-[docs/reference/IRIS.md](docs/reference/IRIS.md).
-
-**Why a payout step in a lab workflow.** A lab funds outside work in steps, so the last step of the decision is to pay
-the one whose test passed. In replay mode PAY runs a devnet simulation of that payout: it proves the gate reached PAY
-and the payout path ran end to end, and no money moves.
-
-**Why I built this.** A solo founder, building Knos since 1 Sep 2026. IRIS and its Docker build would not fit on an 8 GB laptop, so every IRIS build and test moved to one GitHub
-Codespace ([the problems I hit](https://github.com/drexthealpha/Knos/blob/main/docs/reference/IRIS.md#problems-i-hit-and-how-i-fixed-them)).
-<!-- /entry:iris -->
-
 <!-- entry:colosseum -->
 ## From Colosseum
 
@@ -217,7 +209,7 @@ The answer's `result` is `Failed at row 136: 1.399 is not above 1.4. 135 rows pa
 
 ## More
 
-[Why](docs/WHY.md) Knos exists. The full reference: [docs/reference/NEAR.md](docs/reference/NEAR.md), [docs/reference/IRIS.md](docs/reference/IRIS.md) and
+[Why](docs/WHY.md) Knos exists. The full reference: [docs/reference/NEAR.md](docs/reference/NEAR.md) and
 [docs/reference/COLOSSEUM.md](docs/reference/COLOSSEUM.md). MIT licence. Built by drexthealpha, a
 solo founder.
 

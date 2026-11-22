@@ -3,7 +3,7 @@ accessibility of 90 or more on a phone: every view and module page of the older 
 web/front.js MOUNTS; web/index.html, which the Pages build no longer publishes at the root), four named HTML files, and
 every view of the app (apps/wanted static/app.js VIEWS). A view added to those lists without a line in lighthouserc.js
 fails this test. The pages the Pages build publishes from scripts/site_pages.py (the front door web/door.html,
-claims/, prove/, agents/, labs/, pricing/, status/) are not in these lists, and nothing here checks that they are."""
+claims/, prove/, agents/, pricing/, status/) are not in these lists, and nothing here checks that they are."""
 from __future__ import annotations
 
 import functools

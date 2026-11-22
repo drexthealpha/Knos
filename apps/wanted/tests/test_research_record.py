@@ -51,8 +51,6 @@ def test_walls_are_flagged_only_with_evidence(paper):
     assert none[0]["flag"] is True and "25 years" in none[0]["evidence"] and "Nobel Physiology or Medicine 2025" in none[0]["evidence"]
     assert none[1]["flag"] is True and "Immunology" in none[1]["evidence"]
     assert none[2] == {"wall": "failed attempts", "flag": False, "evidence": "no evidence"}
-    small = research.why_never_crossed(card, {"hash": "a" * 64, "matches": [{"name": "Tiny Water Co", "popularity": 0.1}]}, TODAY)
-    assert small[0]["flag"] is False and small[2]["flag"] is True and "Tiny Water Co" in small[2]["evidence"]
     phys = {**card, "field": "Physics and Astronomy", "topic": "Optics", "topics": [], "product": "a faster camera"}
     assert research.why_never_crossed(phys, {"matches": []}, TODAY)[1]["flag"] is False
 
@@ -76,7 +74,7 @@ def test_every_nobel_row_cites_its_press_release():
 # ---- the Record (its memory store) is read before money moves ------------------------------------------------------------------
 pytest.importorskip("sibyl_memory_client")
 
-REP = {"hash": "b" * 64, "idea": "x", "label": "LIVE Qloo data", "calls": [{"call": "GET /search"}],
+REP = {"hash": "b" * 64, "idea": "x", "label": "OPEN SIGNALS",
        "decision": {"verdict": "OPEN", "target_units": 100, "reserve_units": 30}}
 
 
@@ -106,8 +104,6 @@ def test_a_second_release_is_refused_by_the_chain_over_http(monkeypatch):
     from http.server import ThreadingHTTPServer
 
     from knos_wanted import auth, escrow, server
-    from knos_wanted.qloo_mcp import InProcess, Qloo
-    from knos_wanted.qloo_rest import Client
     order = "So11111111111111111111111111111111111111112"
     # this server's file still says "locked" and Sibyl remembers nothing: only the closed order account on chain refuses
     preorder._save({"order": order, "report": REP["hash"], "status": "locked", "claim_id": "knos-idea:" + "0" * 32, "units": 40,
@@ -121,7 +117,7 @@ def test_a_second_release_is_refused_by_the_chain_over_http(monkeypatch):
     monkeypatch.setattr(preorder, "_need", lambda: None)
     monkeypatch.setattr(escrow, "ledger", lambda: Led())
     monkeypatch.setattr(preorder, "verify", lambda *a, **k: (_ for _ in ()).throw(AssertionError("evidence was fetched")))
-    st = server.State(Qloo(InProcess(), mode="mock", sleep=lambda s: None), Client(key=""))
+    st = server.State()
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.make_handler(st))
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
     tok = auth.issue("passkey:maker-t", "passkey", "t")["token"]      # the maker who owns it: only the chain refuses

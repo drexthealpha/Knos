@@ -1,22 +1,20 @@
 """The files agents and AI search read on knos.onrender.com: llms.txt, robots.txt, the sitemap, the AI catalog, the MCP
-Server Card, the HTML 404, the /start redirect, IndexNow, and the server-rendered and Markdown twins of a trace page.
+Server Card, the HTML 404, the /start redirect and IndexNow.
 
 Every route function is pure and returns (status, body, content type, headers): body is bytes, or a dict the server
 sends as JSON. The server wires each one to its path (knos_wanted.server).
 
     GET /llms.txt                      llms_txt(base)              https://llmstxt.org/
     GET /robots.txt                    robots_txt(base)
-    GET /sitemap.xml                   sitemap_xml(base, hashes)   https://www.sitemaps.org/protocol.html
+    GET /sitemap.xml                   sitemap_xml(base)           https://www.sitemaps.org/protocol.html
     GET /.well-known/ai-catalog.json   ai_catalog(base)            SEP-2127 discovery (AI Catalog)
     GET /mcp/server-card               server_card(base, ...)      SEP-2127 Server Card
     GET /start, /start/                start_redirect()
     GET /<key>.txt                     key_file(key)               IndexNow key file
-    GET /trace.md?hash=                trace_markdown(trace)
     any unknown path, Accept text/html not_found_html(path)
 """
 from __future__ import annotations
 
-import html
 import json
 import re
 import urllib.error
@@ -41,7 +39,6 @@ BOTS = ("OAI-SearchBot", "Claude-SearchBot", "Claude-User", "ChatGPT-User", "Goo
 PRIVATE = ("/api/", "/auth/", "/oauth/")
 DISCOVERY_HEADERS = {"Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET",
                      "Access-Control-Allow-Headers": "Content-Type, If-None-Match", "Cache-Control": "public, max-age=3600"}
-_HASH = re.compile(r"[0-9a-f]{64}")
 _KEY = re.compile(r"[A-Za-z0-9-]{8,128}")
 
 
@@ -72,14 +69,10 @@ def robots_txt(base: str = BASE):
 
 # 3. sitemap.xml ------------------------------------------------------------------------------------------------------
 
-def sitemap_xml(base: str = BASE, trace_hashes=(), lastmod: str | None = None):
-    """trace_hashes: hashes, or (hash, lastmod) pairs; a lastmod is a W3C date (YYYY-MM-DD or full ISO time)."""
+def sitemap_xml(base: str = BASE, lastmod: str | None = None):
+    """The public pages; a lastmod is a W3C date (YYYY-MM-DD or full ISO time)."""
     b, day = _base(base), (lastmod or _today())
-    urls = [(b + "/app/", day), (b + "/status/qloo", day), (PAGES + "/proof/", day)]
-    for item in trace_hashes or ():
-        h, when = (item if isinstance(item, (tuple, list)) else (item, None))
-        if isinstance(h, str) and _HASH.fullmatch(h):
-            urls.append((f"{b}/trace.html?hash={h}", str(when or day)[:25]))
+    urls = [(b + "/app/", day), (PAGES + "/proof/", day)]
     rows = "".join(f"  <url><loc>{_xml_escape(loc)}</loc><lastmod>{_xml_escape(mod)}</lastmod></url>\n" for loc, mod in urls)
     body = ('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
             f"{rows}</urlset>\n")
@@ -123,7 +116,7 @@ def supported_protocol_versions(fallback: str = FALLBACK_PROTOCOL) -> list[str]:
 def server_card(base: str = BASE, version: str = "0.0.0", protocol_versions: list[str] | None = None):
     b = _base(base)
     card = {"name": SERVER_CARD_NAME, "title": "Knos", "version": str(version),
-            "description": "Knos: see who would buy a research product first, from Qloo taste data; devnet test money.",
+            "description": "Knos: see who would buy a research product first, from free public signals; devnet test money.",
             "websiteUrl": b + "/app/", "repository": {"url": REPO, "source": "github"},
             "icons": [{"src": b + "/static/icon.svg", "mimeType": "image/svg+xml", "sizes": ["any"]}],
             "remotes": [{"type": "streamable-http", "url": b + "/mcp", "supportedProtocolVersions": list(protocol_versions or supported_protocol_versions())}]}
@@ -185,85 +178,8 @@ def indexnow_send(body: dict, endpoint: str = INDEXNOW_ENDPOINT, opener=urllib.r
         return 0
 
 
-# 9. Trace twins ------------------------------------------------------------------------------------------------------
-
-def _calls(t: dict) -> list[dict]:
-    out = []
-    for c in t.get("calls") or []:
-        if not isinstance(c, dict):
-            continue
-        live = c.get("live") is True
-        day = str(c.get("at") or t.get("made") or "")[:10]
-        out.append({"n": c.get("n"), "endpoint": c.get("endpoint") or "", "at": c.get("at") or "",
-                    "state": "live" if live else (f"recorded {day}" if day else "recorded"), "live": live})
-    return out
-
-
-def trace_numbers(t: dict) -> dict:
-    cs = _calls(t)
-    live = sum(c["live"] for c in cs)
-    return {"calls": len(cs), "live": live, "recorded": len(cs) - live, "reasons": len((t.get("decision") or {}).get("reasons") or [])}
-
-
-def _verdict(t: dict) -> str:
-    return str((t.get("decision") or {}).get("verdict") or "No verdict")
-
-
-def _reasons(t: dict) -> list[str]:
-    return [str(r) for r in ((t.get("decision") or {}).get("reasons") or [])]
-
-
-def _md(s) -> str:
-    return re.sub(r"([\\`*_\[\]<>|])", r"\\\1", str(s if s is not None else "")).replace("\n", " ")
-
-
-def trace_markdown(t: dict, base: str = BASE):
-    b, num = _base(base), trace_numbers(t)
-    lines = [f"# {_md(t.get('idea') or 'Demand check')}", "", f"**Verdict:** {_md(_verdict(t))}", ""]
-    if _reasons(t):
-        lines += ["## Reasons", ""] + [f"- {_md(r)}" for r in _reasons(t)] + [""]
-    lines += [f"## Qloo calls: {num['calls']}", "", f"Live: {num['live']}. Recorded: {num['recorded']}.", "",
-              "| n | endpoint | at | state |", "|---|---|---|---|"]
-    lines += [f"| {_md(c['n'])} | {_md(c['endpoint'])} | {_md(c['at'])} | {c['state']} |" for c in _calls(t)]
-    lines += ["", f"Page: {b}/trace.html?hash={t.get('hash') or ''}", ""]
-    return 200, "\n".join(lines).encode("utf-8"), "text/markdown; charset=utf-8", {"Cache-Control": "public, max-age=300"}
-
-
-def trace_jsonld(t: dict, base: str = BASE) -> dict:
-    b, num, h = _base(base), trace_numbers(t), str(t.get("hash") or "")
-    return {"@context": "https://schema.org", "@type": "Dataset",
-            "name": f"Qloo trace: {t.get('idea') or 'demand check'}",
-            "description": f"Verdict: {_verdict(t)}",
-            "url": f"{b}/trace.html?hash={h}", "identifier": h, "dateCreated": t.get("made"),
-            "creator": {"@type": "Organization", "name": "Knos", "url": b + "/app/"},
-            "isAccessibleForFree": True,
-            "distribution": [{"@type": "DataDownload", "encodingFormat": "text/markdown", "contentUrl": f"{b}/trace.md?hash={h}"},
-                             {"@type": "DataDownload", "encodingFormat": "application/json", "contentUrl": f"{b}/api/trace?hash={h}"}],
-            "variableMeasured": [{"@type": "PropertyValue", "name": "Verdict", "value": _verdict(t)},
-                                 {"@type": "PropertyValue", "name": "Qloo calls", "value": num["calls"]},
-                                 {"@type": "PropertyValue", "name": "Live calls", "value": num["live"]},
-                                 {"@type": "PropertyValue", "name": "Recorded calls", "value": num["recorded"]},
-                                 {"@type": "PropertyValue", "name": "Reasons", "value": num["reasons"]}]}
-
-
 def _ld_script(doc) -> str:
     return '<script type="application/ld+json">' + json.dumps(doc, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/") + "</script>"
-
-
-def trace_html_head(t: dict, base: str = BASE) -> dict:
-    """{"head": the Markdown alternate link and the JSON-LD script, for <head>; "section": the verdict, reasons and calls
-    as server-rendered HTML, for <body>, so a reader without JavaScript sees them}."""
-    h, num, e = html.escape(str(t.get("hash") or "")), trace_numbers(t), html.escape
-    head = f'<link rel="alternate" type="text/markdown" href="/trace.md?hash={h}">\n{_ld_script(trace_jsonld(t, base))}'
-    reasons = "".join(f"<li>{e(r)}</li>" for r in _reasons(t))
-    rows = "".join(f"<tr><td>{e(str(c['n'] if c['n'] is not None else ''))}</td><td>{e(c['endpoint'])}</td>"
-                   f"<td><time>{e(str(c['at']))}</time></td><td>{e(c['state'])}</td></tr>" for c in _calls(t))
-    section = (f'<section id="k-trace-ssr" aria-label="Verdict">\n<h2>{e(_verdict(t))}</h2>\n'
-               + (f"<ul>{reasons}</ul>\n" if reasons else "")
-               + f"<p>Qloo calls: {num['calls']}. Live: {num['live']}. Recorded: {num['recorded']}.</p>\n"
-               + (f"<table><thead><tr><th>n</th><th>endpoint</th><th>at</th><th>state</th></tr></thead><tbody>{rows}</tbody></table>\n" if rows else "")
-               + "</section>")
-    return {"head": head, "section": section}
 
 
 # 10. /app/ JSON-LD ---------------------------------------------------------------------------------------------------

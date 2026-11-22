@@ -32,10 +32,10 @@ const TABLE = "cycle,reading\n1,3.2\n2,3.1\n3,2.9\n4,2.7";
   const p = await env.open("tool"); await ownForm(p, "tool");
   const at = await toPay(p);
   const step = async (label) => { const before = await p.evaluate(() => document.body.innerHTML.length + "|" + (document.getElementById("pay") || {}).innerHTML); await p.click(`button:has-text('${label}')`, { timeout: 3000 }).catch(() => {}); await p.waitForTimeout(400); const after = await p.evaluate(() => document.body.innerHTML.length + "|" + (document.getElementById("pay") || {}).innerHTML); return before !== after; };
-  const a = at ? await step("Not now") : false;
+  const a = at ? await step("Cancel") : false;
   let b = false, c = false;
   if (at) { await p.click("#go"); await settled(p); b = await step("Pay with test money"); c = await step("Yes, record it"); }
-  check("1 every control produces a visible result: the pay screen (Not now, Pay with test money, Yes, record it)", at && a && b && c, at ? `Not now ${a}, Pay with test money ${b}, Yes, record it ${c}` : "the pay screen did not appear after the free runs");
+  check("1 every control produces a visible result: the pay screen (Cancel, Pay with test money, Yes, record it)", at && a && b && c, at ? `Cancel ${a}, Pay with test money ${b}, Yes, record it ${c}` : "the pay screen did not appear after the free runs");
   await p.context().close();
 }
 

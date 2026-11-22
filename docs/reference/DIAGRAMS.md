@@ -1,6 +1,6 @@
 # Knos diagrams
 
-The source of each picture in [COLOSSEUM.md](COLOSSEUM.md), [NEAR.md](NEAR.md) and [IRIS.md](IRIS.md). Pages that cannot draw Mermaid (Open Exchange, PyPI) show the picture, drawn by `python scripts/diagrams.py render`.
+The source of each picture in [COLOSSEUM.md](COLOSSEUM.md) and [NEAR.md](NEAR.md). Pages that cannot draw Mermaid (PyPI) show the picture, drawn by `python scripts/diagrams.py render`.
 
 ## How it worked in the Colosseum entry (tag v0.3.28)
 
@@ -26,24 +26,6 @@ flowchart TB
 ```
 
 *Nothing is paid on a promise. A missed deadline sends the money back.*
-
-## Run it on IRIS
-
-```mermaid
-flowchart LR
-    gh["Check run (webhook or poller)"] --> pin["ProofIn"]
-    lab["FHIR Observation or HL7 ORU"] --> pin
-    ver["Referee verdict"] --> pin
-    pin --> bp["ProofDecision (BPL)"]
-    bp --> hash["Brief hash vs lock (Knos, Embedded Python)"]
-    bp --> ref["Referee: AI Hub agent on a local model"]
-    bp --> gate["PayoutGate"]
-    gate -->|HUMAN| wf["Workflow: PayoutApprovers"]
-    gate -->|PAY| sol["SolanaRead, then SolanaSubmit (Java PEX)"]
-    bp --> trace["Span messages in Visual Trace"]
-```
-
-*Proof arrives one of three ways; one process checks, asks the agent, gates, asks a person, then simulates.*
 
 ## Knos on NEAR
 

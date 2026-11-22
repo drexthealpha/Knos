@@ -2,13 +2,14 @@
 // (LAWS/UX/U7.md R13 and R14). The browser's Intl.NumberFormat writes them, so Arabic in Saudi Arabia gets Arabic-Indic
 // digits (١٬٢٣٤٫٥), Arabic in the Emirates Latin digits (1,234.5), Persian its own digits (۱٬۲۳۴٫۵), Hindi groups by
 // lakh (12,34,567.891), German writes 1.234.567,891, and a currency keeps its own decimals (JPY none, KWD three).
-// parse() reads a number typed in Latin, Arabic-Indic, Persian, Devanagari, Bengali or full-width digits, with the
+// parse() reads a number typed in Latin, Arabic-Indic, Persian, Devanagari, Bengali, Gurmukhi, Gujarati, Tamil, Telugu,
+// Kannada, Malayalam, Thai or full-width digits (every digit set of the forty languages of L09), with the
 // locale's decimal mark or the Arabic one. The front door loads it (web/door.html, KF.number for its own numbers).
 window.KF = window.KF || (() => {
   const loc = (l) => l || document.documentElement.lang || "en";
   function number(n, l, o) { try { return new Intl.NumberFormat(loc(l), o).format(n); } catch (e) { return String(n); } }
   function money(x, currency, l) { try { return new Intl.NumberFormat(loc(l), { style: "currency", currency }).format(x); } catch (e) { return currency + " " + String(x); } }
-  const DIGITS = [0x660, 0x6f0, 0x966, 0x9e6, 0xff10];   // the zero of each digit set above, Latin aside
+  const DIGITS = [0x660, 0x6f0, 0x966, 0x9e6, 0xa66, 0xae6, 0xbe6, 0xc66, 0xce6, 0xd66, 0xe50, 0xff10];   // the zero of each digit set above, Latin aside
   function marks(l) {
     try { const p = new Intl.NumberFormat(loc(l)).formatToParts(12345.6); return { group: (p.find((x) => x.type === "group") || {}).value || ",", dec: (p.find((x) => x.type === "decimal") || {}).value || "." }; } catch (e) { return { group: ",", dec: "." }; }
   }

@@ -1,0 +1,11 @@
+{
+ "recorded_at": "2026-11-22T15:32:49Z",
+ "how": "Playwright recordVideo of the local build of web/ with the local app (apps/wanted) answering every call; no voice, no music",
+ "free_runs_used_before": 5,
+ "price_s": 1.66,
+ "paid_s": 4.36,
+ "result_s": 7.41,
+ "result": "Failed at row 120: 1.398 is not above 1.4. 119 rows passed.",
+ "demo_s": 18.32,
+ "loop_s": 13.52
+}

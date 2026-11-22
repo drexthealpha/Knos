@@ -1,10 +1,11 @@
-"""The Knos agent: one crossing from a paper to a funded product, run on the server, calling Qloo at every decision.
+"""The Knos agent: one crossing from a paper to a funded product, run on the server: the paper, the product it
+enables, and the demand check on open signals.
 
     job = start(state, ref="10.1038/nature16521")          # or idea="..." for an idea without a paper
     poll(job_id) -> {"status": "running" | "done" | "error", "steps": [...], "report": hash, "card": hash}
 
-Each step: {n, kind (memory | paper | qloo | decision), title, tool, input, output, effect, at}. Qloo steps stream as the
-calls return (check.demand_check(on_call=...)), so the page shows the crossing live by polling GET /api/cross?id=.
+Each step: {n, kind (memory | paper | signals | decision), title, tool, input, output, effect, at}; the page shows the
+crossing live by polling GET /api/cross?id=.
 The agent's WORKING MEMORY (the Knos record's memory store): before a crossing the agent recalls what it learned about the same paper (the
 product phrase the maker settled on, the last decision); after it, it remembers this crossing. Memory never moves or
 blocks money: vault rules live in knos_pay on chain.
@@ -19,8 +20,6 @@ import hashlib
 import secrets
 import threading
 import time
-
-from knos import qloo_families
 
 from . import check, company, preorder, research
 
@@ -130,14 +129,6 @@ def _step(job: dict, kind: str, title: str, *, tool: str = "", inp=None, out="",
     return s
 
 
-def _qloo_step(job: dict):
-    def on_call(c: dict) -> None:
-        effect = next((e for k, e in check.EFFECTS if c["what"].startswith(k)), "evidence")
-        st = _step(job, "qloo", c["what"], tool=c["call"], inp=c.get("params"), out=c.get("error") or c.get("body_digest") or "", effect=effect)
-        st["call"] = c.get("n")            # the report's call number: the page links the step to its trace (/trace.html#call-n)
-    return on_call
-
-
 def run(job: dict, state) -> None:
     refused = False
     key = memory_key(job.get("ref"), job.get("idea"))
@@ -152,34 +143,11 @@ def run(job: dict, state) -> None:
                   effect="one plan per crossing; memory stays consistent")
         else:
             hot_set("lock:" + key, {"running": job["id"], "started": job["started"],
-                                    "plan": ["recall memory", "read the paper", "name the product", "ask Qloo (who, where, "
-                                             "price, trend, leader)", "decide by code", "remember the crossing"]})
+                                    "plan": ["recall memory", "read the paper", "name the product", "read the open signals",
+                                             "decide by code", "remember the crossing"]})
             _step(job, "memory", "the agent's plan, in shared memory", tool="agent memory, HOT state (crossing plan + cursor)",
-                  inp="lock:" + key, out="plan written: recall -> paper -> product -> Qloo evidence -> decision -> remember",
+                  inp="lock:" + key, out="plan written: recall -> paper -> product -> open signals -> decision -> remember",
                   effect="a second agent on the same paper is refused while this one runs")
-        try:
-            from . import qloo_rest
-            if getattr(state.q, "mode", "") == "live" and qloo_rest.held() > 0:
-                _step(job, "qloo", "Qloo asked for a pause: the harness is not asked", tool="qloo mcp (official @qloo/qloo-harness)",
-                      out=f"nothing sent to Qloo for {qloo_rest.held():.0f} s more", effect="REST carries this crossing, labelled")
-            elif getattr(state.q, "mode", "") == "live":
-                words = " ".join((job.get("product") or job.get("idea") or job.get("ref") or "").split()[:6]) or "research product"
-                box: dict = {}
-                t = threading.Thread(target=lambda: box.update(cap=state.q.call(
-                    "qloo_find_tags", {"query": words}, why="the official qloo-harness MCP server reads Qloo beside the REST steps",
-                    step="harness")), daemon=True)
-                t.start()
-                t.join(HARNESS_WAIT_S)                # a slow harness never holds the crossing: REST carries it, said so
-                if "cap" not in box:
-                    raise TimeoutError(f"the harness had not answered in {HARNESS_WAIT_S:.0f} s")
-                cap = box["cap"]
-                names = ", ".join(str(r.get("name")) for r in (cap.get("results") or [])[:4])
-                _step(job, "qloo", "the Qloo harness answers (live)", tool="qloo mcp (official @qloo/qloo-harness, via the Node bridge)",
-                      inp={"tool": "qloo_find_tags", "query": words}, out=f"status {cap.get('status')}: {names}"[:200],
-                      effect="the ten harness tools answer at /mcp as qloo_*; the decision reads below run on the REST API, labelled")
-        except Exception:  # noqa: BLE001 - a harness that is down never stops a crossing; REST carries it, labelled
-            _step(job, "qloo", "the Qloo harness is down: REST carries this crossing", tool="qloo mcp (not reachable)",
-                  out="falling back to the REST API, labelled on every step", effect="same evidence, same rules")
         mem = recall(key)
         product = job.get("product")
         if mem:
@@ -212,12 +180,12 @@ def run(job: dict, state) -> None:
                       out=f"seq {shelf.get('seq')}" if shelf.get("shelved") else shelf.get("why", "not shelved"),
                       effect="later crossings and searches find this paper without re-reading it")
             if not refused:
-                hot_set("lock:" + key, {**hot_get("lock:" + key), "cursor": "qloo evidence"})
+                hot_set("lock:" + key, {**hot_get("lock:" + key), "cursor": "open signals"})
         idea = (product or (card or {}).get("product") or job.get("idea") or "").strip()
-        rep = check.demand_check(idea, job.get("place"), job.get("leader"), client=state.rest, on_call=_qloo_step(job),
-                                 options=job.get("options"))
-        from . import recorded                       # Qloo not answering: said, or the sample's last real card
-        rep = recorded.honest(job.get("ref") or idea, rep)
+        rep = check.demand_check(idea, job.get("place"), job.get("leader"))
+        for r in (rep.get("open_demand") or {}).get("rows") or []:
+            _step(job, "signals", r["name"], tool=r.get("link") or "pre-orders on this server", inp=(rep["open_demand"].get("phrase") or idea),
+                  out=f"{r['value']:,} {r['unit']}", effect="counts" if r.get("counts") else "does not count")
         rep["fees"] = preorder.fee_line()
         if card:
             rep["research"] = {**card, "why_never_crossed": research.why_never_crossed(card, rep)}
@@ -228,23 +196,7 @@ def run(job: dict, state) -> None:
         from . import vectors
         vectors.note("crossing", rep["elapsed_ms"], rep, state)
         d = rep["decision"]
-        plan = d.get("plan") or {}
-        if plan:
-            w = plan["who"]
-            _step(job, "decision", "WHO: the target audience", tool="from /v2/insights urn:demographics + each /v2/audiences segment's lift (signal.demographics.audiences)",
-                  out=f"{(w.get('age') or '').replace('_', ' ')}, {w.get('gender')}; segments: {', '.join(w.get('segments') or [])}",
-                  effect="the product page and the Blink speak to this audience")
-            _step(job, "decision", "WHERE: the launch cities", tool="from /v2/insights urn:entity:destination (explainability on)",
-                  out=", ".join(plan.get("where") or []) or "none returned", effect="pre-orders open first in these cities")
-            _step(job, "decision", "PRICE: the tier", tool="from the lift of Qloo's spending-habit segments, else the places' price level",
-                  out=f"{plan['tier']}: {plan['unit_price']} test units per unit", effect="sets the pre-order's unit price")
-            _step(job, "decision", "HELD: target and reserve", tool="check.RULES units_formula", inp=d.get("formula"),
-                  out=f"target {plan['target_units']} units ({plan['held_target']} test units), reserve {plan['reserve_units']} "
-                      f"({plan['held_reserve']} test units)", effect="released to the maker after the milestone check passes, once the reserve is pre-ordered")
-            if plan.get("unserved_audience"):
-                _step(job, "decision", "the audience the leader does not serve", tool="from /v2/analysis/compare or the leader's segments",
-                      out=", ".join(plan["unserved_audience"]), effect="the product page leads with it")
-        _step(job, "decision", f"DECISION: {d['verdict']}", tool="check.decide (code, no language model)", out="; ".join(d["reasons"])[:600],
+        _step(job, "decision", f"DECISION: {d['verdict']}", tool="open_signals.fallback (code, no language model)", out="; ".join(d["reasons"])[:600],
               effect="pre-orders open" if d["verdict"] == "OPEN" else "no pre-orders")
         if card:
             for w in rep["research"]["why_never_crossed"]:
@@ -269,20 +221,19 @@ def run(job: dict, state) -> None:
 
 
 def start(state, *, ref: str | None = None, idea: str | None = None, place: str | None = None, product: str | None = None,
-          leader: str | None = None, wait: bool = False, options: dict | None = None) -> dict:
+          leader: str | None = None, wait: bool = False) -> dict:
     if not (ref or idea):
         raise ValueError("paste a paper id (DOI, arXiv, PubMed, OpenAlex) or describe an idea")
-    options = qloo_families.options(options)          # checked before the crossing starts, so a bad field is said at once
-    kept = None if wait or idea or place or product or leader else _kept(state, ref, options)
+    kept = None if wait or idea or place or product or leader else _kept(state, ref)
     if kept:                                          # the same paper crossed here lately: its answer at once, said so
         at = time.strftime("%H:%M UTC", time.gmtime(kept["started"]))
-        job = {**{k: kept[k] for k in ("ref", "idea", "place", "product", "leader", "options", "status", "report", "card")},
+        job = {**{k: kept[k] for k in ("ref", "idea", "place", "product", "leader", "status", "report", "card")},
                "id": secrets.token_hex(8), "started": time.time(), "kept_from": kept["id"],
                "steps": [*kept["steps"], {"title": f"kept from the crossing of this paper at {at}", "at": time.time()}]}
         with _lock:
             JOBS[job["id"]] = job
         return job
-    job = {"id": secrets.token_hex(8), "ref": ref, "idea": idea, "place": place, "product": product, "leader": leader, "options": options,
+    job = {"id": secrets.token_hex(8), "ref": ref, "idea": idea, "place": place, "product": product, "leader": leader,
            "status": "running", "steps": [], "started": time.time(), "report": None, "card": None}
     with _lock:
         JOBS[job["id"]] = job
@@ -296,22 +247,17 @@ def start(state, *, ref: str | None = None, idea: str | None = None, place: str 
 
 
 KEEP_CROSSING_S = 6 * 3600   # a paper crossed in the last 6 hours is answered from that crossing (it reads the same paper)
-HARNESS_WAIT_S = 4.0         # the official harness's one call waits this long at most (on 26 Oct, refused by Qloo, it took 12 s)
 
 
-def _kept(state, ref: str | None, options: dict) -> dict | None:
-    """The newest finished crossing of this paper, with the same options and a demand report Qloo answered in full,
-    from the last 6 hours (one that met a Qloo outage is crossed again)."""
+def _kept(state, ref: str | None) -> dict | None:
+    """The newest finished crossing of this paper from the last 6 hours."""
     if not ref:
         return None
     with _lock:
         done = [j for j in JOBS.values() if j.get("ref") == ref and j.get("status") == "done" and j.get("report") and not j.get("idea")
-                and not j.get("kept_from") and j.get("options") == options and time.time() - j["started"] < KEEP_CROSSING_S]
-    from . import qloo_rest
-    held = qloo_rest.held() > 0                       # Qloo asked for a pause: a new crossing could not ask it either
+                and not j.get("kept_from") and time.time() - j["started"] < KEEP_CROSSING_S]
     for j in sorted(done, key=lambda j: j["started"], reverse=True):
-        rep = state.report(j["report"]) or {}
-        if rep and (held or not (rep.get("qloo_down") or rep.get("stale"))):
+        if state.report(j["report"]):
             return j
     return None
 
@@ -360,31 +306,28 @@ on test money: Solana devnet and NEAR testnet.</p>
 
 
 def discovery() -> str:
-    """GET /mcp's page, its tool line built from the tools tools/list serves (the NEAR and IRIS tools included)."""
+    """GET /mcp's page, its tool line built from the tools tools/list serves (the NEAR tools included)."""
     from .near_jobs import TOOLS as NEAR_TOOLS
     from .product_routes import MCP_TOOLS
     from .tool_run import MCP_TOOLS as RUN_TOOLS
     return DISCOVERY.replace("{TOOL_NAMES}", ", ".join(t["name"] for t in TOOLS + MCP_TOOLS + NEAR_TOOLS + RUN_TOOLS))
 TOOLS = [
     {"name": "knos_cross", "title": "Cross a paper to a funded product",
-     "description": "Paper id (DOI, arXiv, PubMed, OpenAlex) -> research card -> Qloo evidence at every decision -> who, where, price "
-                    "tier, held-money target and reserve, and OPEN or REFUSE. Returns every step with its Qloo call, input, output and effect.",
+     "description": "Paper id (DOI, arXiv, PubMed, OpenAlex) -> research card -> the product it enables -> open signals -> OPEN, "
+                    "REFUSE or CANNOT_DECIDE. Returns every step with its source, input, output and effect.",
      "inputSchema": {"type": "object", "properties": {"ref": {"type": "string"}, "idea": {"type": "string"}, "place": {"type": "string"},
-                                                       "product": {"type": "string"}, **{k: qloo_families.schema(k) for k in qloo_families.FIELDS}},
+                                                       "product": {"type": "string"}},
                      "additionalProperties": False}},
     {"name": "knos_research_card", "title": "Read a landmark paper",
      "description": "Paper id -> the proven result (quoted), citations, retraction status, Nobel recognition, the product it enables.",
      "inputSchema": {"type": "object", "properties": {"ref": {"type": "string"}}, "required": ["ref"], "additionalProperties": False}},
-    {"name": "knos_demand_check", "title": "Is this product wanted? (Qloo)",
-     "description": "A product idea -> Qloo evidence -> a decision made by code. Every Qloo demand family is a typed argument: "
-                    "who (age, gender, audiences), gaps (hide_leader, exclude, popularity_max), where (near, radius, location, geohash, "
-                    "region names), price tier (price_level, price range), who serves it (references_brand, quality, sort, ratings), "
-                    "product kind and years (film/TV/book/person), look up (lookup, entity_id), and `qloo` for any other documented parameter.",
+    {"name": "knos_demand_check", "title": "Is this product wanted?",
+     "description": "A product idea -> free public signals (Wikipedia views, news, Hacker News, research papers, money down) -> "
+                    "a decision made by code: OPEN when 2 of them pass.",
      "inputSchema": {"type": "object", "properties": {"idea": {"type": "string", "description": "the product idea or a paper's DOI (8-500 characters)"},
                                                       "picked": {"type": "boolean", "description": "true when idea is the exact reading picked from the readings a first call returned (which one do you mean?)"},
                                                       "place": {"type": "string", "description": "the launch market"},
-                                                      "leader": {"type": "string", "description": "the market leader to compare"},
-                                                      **{k: qloo_families.schema(k) for k in qloo_families.FIELDS}},
+                                                      "leader": {"type": "string", "description": "the market leader to compare"}},
                      "required": ["idea"], "additionalProperties": False}},
     {"name": "knos_crossings", "title": "Crossings on this server",
      "description": "Every crossing this server ran, newest first: id, paper or idea, verdict, report hash.",
@@ -451,8 +394,8 @@ def _task_submit(args: dict, who: dict) -> dict:
 # each tool's description as the MCP registry lists it: one sentence of what it does and returns (under 160 characters);
 # a tool that moves devnet test money ends with "ask your human first"
 DESCRIPTIONS = {
-    "knos_cross": "Turns a paper id (DOI, arXiv, PubMed or OpenAlex) into a research card and a demand check, and returns each step with the Qloo call behind it.",
-    "knos_demand_check": "Checks who wants a product idea with Qloo taste data and returns the verdict with its audience and launch city, each traced to its Qloo call.",
+    "knos_cross": "Turns a paper id (DOI, arXiv, PubMed or OpenAlex) into a research card and a demand check, and returns each step with its source.",
+    "knos_demand_check": "Checks whether people want a product idea from free public signals and returns the verdict with each source's count and link.",
     "knos_milestones": "Lists every commitment on this server with its held order and its status.",
     "knos_sign_in": "Returns a guest session token that the tools moving devnet test money accept; ask your human first.",
     "knos_preorder": "Prepares a pre-order of an OPEN report and returns the page where your human's passkey approves it with devnet test money; ask your human first.",
@@ -483,8 +426,7 @@ def _caller(args: dict) -> dict | None:
 
 
 def _agent() -> dict | None:
-    """The agent key the HTTP header carries (Bearer), or None: no header, a person's session, or a dead key. The qloo_*
-    tools answer only such a caller (Qloo's terms: no Qloo credential behind a public MCP)."""
+    """The agent key the HTTP header carries (Bearer), or None: no header, a person's session, or a dead key."""
     from . import agentkeys, auth, outside
     headers = getattr(outside.CTX, "headers", None)
     try:
@@ -506,18 +448,18 @@ def _product_tools() -> set:
 # within a daily cap.
 READ_ONLY = {"knos_research_card", "knos_demand_check", "knos_crossings", "knos_milestones", "knos_tasks", "knos_memory_search",
              "knos_memory_recall", "knos_templates", "knos_projects", "knos_openapi", "knos_ready", "knos_usage",
-             "knos_milestone_prompt", "knos_near_swarm_job", "knos_iris_check_proof", "knos_near_job_status", "tools"}
-STORE = {"knos_ready", "knos_demand_check"}           # no qloo_* tool: those answer an agent key only
+             "knos_milestone_prompt", "knos_near_swarm_job", "knos_check_proof", "knos_near_job_status", "tools"}
+STORE = {"knos_ready", "knos_demand_check"}
 STORE_DAILY_CAP = 2000                                 # tool calls a day through /mcp/store, all callers together
 _store_day = {"day": "", "n": 0}
 
 
 def annotate(tool: dict) -> dict:
     name = tool["name"]
-    ro = name in READ_ONLY or name.startswith("qloo_")
+    ro = name in READ_ONLY
     return {**tool, "annotations": {"title": tool.get("title") or name.replace("_", " "), "readOnlyHint": ro,
                                     "destructiveHint": not ro, "idempotentHint": ro,   # spec S6: every tool is read only or flagged so a client asks first
-                                    "openWorldHint": name.startswith("qloo_") or name in ("knos_demand_check", "knos_cross", "knos_research_card")}}
+                                    "openWorldHint": name in ("knos_demand_check", "knos_cross", "knos_research_card")}}
 
 
 def in_store(name: str) -> bool:
@@ -622,56 +564,19 @@ def mcp(state, msg: dict, profile: str = "full") -> dict | None:
         asked = str(((msg.get("params") or {}) if isinstance(msg.get("params"), dict) else {}).get("protocolVersion") or "")
         return ok({"protocolVersion": asked if asked in PROTOCOLS else PROTOCOL, "capabilities": {"tools": {"listChanged": False}},
                    "serverInfo": {"name": "knos", "version": _knos_version()},
-                   "instructions": "The goal: Knos carries research across the valley of death. Start with knos_demand_check (is it wanted: who, where, at what price) or "
-                                                   "knos_cross with a paper id; every step names the Qloo call behind it. knos_ready says whether a brief is "
+                   "instructions": "The goal: Knos carries research across the valley of death. Start with knos_demand_check (is it wanted) or "
+                                                   "knos_cross with a paper id; every step names its source. knos_ready says whether a brief is "
                                                    "clear enough to lock money on. NEAR testnet and Solana devnet, test money, no customers yet."})
     if method == "ping":
         return ok({})
     if method == "tools/list":
-        extra = []
-        try:
-            if store or not _agent():                    # Qloo's tools are listed to an agent key only
-                raise LookupError
-            from .qloo_mcp import WORKFLOWS
-            mode = getattr(state.q, "mode", "mock")
-            extra = [{"name": n, "title": n.replace("_", " "),
-                      "description": f"The official qloo-harness tool {n}, proxied from this server's `qloo mcp` "
-                                     f"({'LIVE' if mode == 'live' else 'MOCK synthetic data, labelled in every answer'}).",
-                      "inputSchema": {"type": "object", "properties": {}, "additionalProperties": True}}
-                     for n in ("qloo_capabilities",) + WORKFLOWS]
-        except Exception:  # noqa: BLE001
-            extra = []
         from .near_jobs import TOOLS as NEAR_TOOLS
         from .product_routes import MCP_TOOLS
         from .tool_run import MCP_TOOLS as RUN_TOOLS
-        tools = [annotate({**t, "description": DESCRIPTIONS.get(t["name"], t["description"])}) for t in TOOLS + MCP_TOOLS + NEAR_TOOLS + RUN_TOOLS + extra]
+        tools = [annotate({**t, "description": DESCRIPTIONS.get(t["name"], t["description"])}) for t in TOOLS + MCP_TOOLS + NEAR_TOOLS + RUN_TOOLS]
         return ok({"tools": [t for t in tools if in_store(t["name"])] if store else tools})
     if method == "tools/call":
         name, args = params.get("name"), params.get("arguments") or {}
-        if isinstance(name, str) and name.startswith("qloo_"):
-            from .qloo_mcp import WORKFLOWS, QlooUnavailable
-            if name not in ("qloo_capabilities",) + WORKFLOWS:
-                return {"jsonrpc": "2.0", "id": mid, "error": {"code": -32602, "message": f"unknown tool {name}"}}
-            agent_who = _agent()
-            if not agent_who:
-                from . import agentkeys, tasks
-                return ok({"isError": True, "content": [{"type": "text", "text": f"{name} answers an agent key only (Authorization: Bearer); "
-                           + agentkeys.needs(name, tasks.public_base())}]})
-            from . import agentkeys, valley
-            try:
-                agentkeys.take_qloo(agent_who["agent_key"])
-            except valley.Refused as why:
-                return ok({"isError": True, "content": [{"type": "text", "text": str(why)[:300]}]})
-            import json as _json
-            if name == "qloo_capabilities":            # not a workflow: what the qloo server said at its handshake
-                got = {"mode": getattr(state.q, "mode", "mock"), "server": getattr(state.q, "server", None),
-                       "tools": getattr(state.q, "tools", []), "capabilities": getattr(state.q, "capabilities", {})}
-                return ok({"content": [{"type": "text", "text": _json.dumps(got, default=str)[:60_000]}], "structuredContent": got})
-            try:
-                got = state.q.call(name, dict(args), why="proxied for an outside agent over Knos's MCP", step=name)
-            except QlooUnavailable as e:
-                return ok({"isError": True, "content": [{"type": "text", "text": str(e)[:300]}]})
-            return ok({"content": [{"type": "text", "text": _json.dumps(got, default=str)[:60_000]}], "structuredContent": got})
         from . import near_jobs
         from .product_routes import MCP_TOOLS as _PT
         from . import tool_run
@@ -694,7 +599,7 @@ def mcp(state, msg: dict, profile: str = "full") -> dict | None:
                 return ok({"isError": True, "content": [{"type": "text", "text": str(why)[:300]}]})
             return ok({"content": [{"type": "text", "text": _json.dumps(got, default=str)[:60_000]}], "structuredContent": got})
         if name == "knos_milestone_submit" and isinstance(args, dict) and args.get("kind") in ("observation", "oru"):
-            # a lab's proof (a FHIR Observation, or an HL7 ORU message) checked by the one rules referee IRIS runs too
+            # a lab's proof (a FHIR Observation, or an HL7 ORU message) checked by the rules referee
             # (knos.referee_rules): the decision only, against the brief given; nothing is signed and no money moves
             import json as _json
             from knos import ready, referee_rules
@@ -718,8 +623,7 @@ def mcp(state, msg: dict, profile: str = "full") -> dict | None:
                            "structuredContent": {"needs": "authorization", "resource_metadata": meta}})
         try:
             if name == "knos_cross":
-                job = start(state, ref=args.get("ref"), idea=args.get("idea"), place=args.get("place"), product=args.get("product"), wait=True,
-                            options={k: args[k] for k in qloo_families.FIELDS if k in args})
+                job = start(state, ref=args.get("ref"), idea=args.get("idea"), place=args.get("place"), product=args.get("product"), wait=True)
                 rep = state.report(job["report"]) if job.get("report") else None
                 out = {"status": job["status"], "error": job.get("error"), "steps": job["steps"], "report": job.get("report"),
                        "decision": (rep or {}).get("decision")}
@@ -728,29 +632,20 @@ def mcp(state, msg: dict, profile: str = "full") -> dict | None:
                 if str(out.get("product_source") or "").startswith("generic phrase"):    # Knos's own guess, not a product
                     out = {**out, "product": None, "suggested_product": None, "product_line": "Name the product this result enables"}
             elif name == "knos_demand_check":
-                opts = {k: args[k] for k in qloo_families.FIELDS if k in args}
                 idea = " ".join(str(args.get("idea") or "").split())
-                picked = args.get("picked") is True
-                from . import recorded, which            # which one do you mean? asked first, as on the front door
-                w = None if picked else which.step(idea)
+                from . import which                      # which one do you mean? a paper id is read first, as on the front door
+                w = None if args.get("picked") is True else which.step(idea)
                 if w:
                     out = {**w, "next": "call knos_demand_check again with idea set to the text of the reading you mean and picked: true"}
                 else:
                     t0 = time.perf_counter()
-                    from . import qloo_rest
-                    rep = check.demand_check(idea, args.get("place"), args.get("leader"), client=state.rest, options=opts,
-                                             only_cache=qloo_rest.visitor_take(qloo_rest.current_visitor()))
-                    rep = recorded.honest(idea, rep, picked=picked)
-                    from . import usage
-                    usage.bump_live(int((rep.get("qloo_calls") or {}).get("live") or 0))
-                    rep["qloo_calls"] = {**rep.get("qloo_calls", {}), "ms": round((time.perf_counter() - t0) * 1000)}
+                    rep = check.demand_check(idea, args.get("place"), args.get("leader"))
+                    rep["elapsed_ms"] = round((time.perf_counter() - t0) * 1000)
                     from . import story
                     rep["story"] = story.build(rep)
                     state.keep_check(rep)
-                    out = {"report": rep["hash"], "idea": rep.get("idea"), "decision": rep["decision"], "families": rep.get("families") or {},
-                           "grounding": rep.get("grounding") or {}, "story": rep.get("story"), "calls": rep["calls"], "label": rep.get("label"), "qloo_calls": rep.get("qloo_calls"),
-                           **{k: rep[k] for k in ("stale", "nearest", "nearest_next", "nearest_options", "qloo_limit", "qloo_reset", "queued", "stand_in",
-                                                  "read_as", "also_matched", "result_line", "brief", "ready", "no_recording") if rep.get(k)}}
+                    out = {"report": rep["hash"], "idea": rep.get("idea"), "decision": rep["decision"], "story": rep.get("story"),
+                           "signals": rep.get("open_demand"), "label": rep.get("label")}
             elif name == "knos_crossings":
                 out = {"crossings": crossings(state)}
             elif name == "knos_milestones":

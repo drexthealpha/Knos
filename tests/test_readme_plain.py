@@ -12,7 +12,7 @@ a number counts one. The page must read at grade 8 or lower, with 16 words a sen
 itself is not graded here.
 
 Also held: README.md's logo comes first; the Mermaid sources in docs/reference/DIAGRAMS.md (at least two, each with an
-italic caption under it and no colour or theme set) are drawn as SVG pictures in COLOSSEUM.md, NEAR.md and IRIS.md;
+italic caption under it and no colour or theme set) are drawn as SVG pictures in COLOSSEUM.md and NEAR.md;
 COLOSSEUM.md links docs/WORDS.md, and docs/WORDS.md itself is alphabetical with each meaning under 20 words.
 """
 
@@ -27,7 +27,7 @@ MERMAID = re.compile(r"(?ms)^```mermaid\n(.*?)^```\n")
 TERMS = ["AI agent", "Pull request", "Merge", "Checks (CI)", "GitHub Actions", "Signed", "Token (OIDC)", "Solana", "Devnet", "USDC",
          "Test USDC", "Held money", "Wallet", "Passkey", "Hash", "Invoice", "Ledger", "Reconcile", "Statement", "Holdback", "Warranty",
          "Refund", "Program", "Program id", "Upgrade", "Multisig", "Time lock", "Relay", "Meter", "Evaluation", "Assurance level",
-         "Qloo", "Demand check", "Ready brief", "Criteria hash", "Milestone", "Pre-order", "Referee"]
+         "Demand check", "Ready brief", "Criteria hash", "Milestone", "Pre-order", "Referee"]
 
 
 def read(rel: str) -> str:
@@ -107,10 +107,10 @@ def test_the_logo_leads_and_every_diagram_has_a_caption_and_no_colour():
     readme = read("README.md")
     lines = [line for line in readme.splitlines() if line.strip()]
     assert lines[0] == "<h1>" and lines[1].strip() == "<picture>" and "wordmark-light.svg" in lines[4] and lines[6] == "</h1>"
-    # the reference pages (COLOSSEUM, NEAR, IRIS) show each diagram as its picture; the sources are in docs/reference/DIAGRAMS.md
+    # the reference pages (COLOSSEUM, NEAR) show each diagram as its picture; the sources are in docs/reference/DIAGRAMS.md
     source = read("docs/reference/DIAGRAMS.md")
     blocks = list(MERMAID.finditer(source))
-    ref = "".join(read(f"docs/reference/{n}.md") for n in ("COLOSSEUM", "NEAR", "IRIS"))   # Round 9, U1: the diagrams moved with their sections
+    ref = "".join(read(f"docs/reference/{n}.md") for n in ("COLOSSEUM", "NEAR"))   # Round 9, U1: the diagrams moved with their sections
     pictures = list(re.finditer(r"!\[[^\]]*\]\(https://raw\.githubusercontent\.com/drexthealpha/Knos/main/(docs/diagrams/[^)]+\.svg)\)", ref))
     assert len(blocks) >= 2 and len(pictures) == len(blocks)
     for block in blocks:

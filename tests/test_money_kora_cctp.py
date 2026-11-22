@@ -1,4 +1,4 @@
-"""Kora (fee relayer) client and CCTP V2 design (knos.money.kora, knos.money.cctp). The Kora node and Circle's Iris
+"""Kora (fee relayer) client and CCTP V2 design (knos.money.kora, knos.money.cctp). The Kora node and Circle's attestation service
 are stand-ins whose answers are shaped from their published docs: synthetic fixtures, no network."""
 from __future__ import annotations
 
@@ -92,7 +92,7 @@ def test_a_cctp_burn_is_taken_as_an_orders_money_only_when_it_names_the_order():
     assert cctp.check(cctp.decode(burn_message(tok, 5_001_000, 1_000, cctp.hook_data(scope, terms), dest=6)), p)
 
 
-def test_iris_answers_are_read_and_a_missing_message_is_none():
+def test_attestation_answers_are_read_and_a_missing_message_is_none():
     assert cctp.attestation(6, "0xabc", fetch=lambda u: (404, b'{"error":"Message not found for provided parameters"}')) is None
     body = json.dumps({"messages": [{"message": "0x00", "attestation": "PENDING", "status": "pending_confirmations"}]}).encode()
     got = cctp.attestation(6, "0xabc", fetch=lambda u: (200, body))

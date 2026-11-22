@@ -179,7 +179,21 @@ def og_png(title: str, line: str | None = None) -> bytes:
 # tool_run.root()); scripts/site_pages.py reads the same files when it builds the Pages site. A value that is an object
 # holds one form per CLDR plural category of its language (U7 R7), chosen by {n}.
 ROOT = Path(os.environ.get("KNOS_NEAR_ROOT") or Path(__file__).resolve().parents[3])
-LANGS = ("en", "ar", "hi", "es", "fr", "pt", "zh-Hans", "id", "sw", "ru")
+# L09 (IQ PLAN.md, DISTRIBUTION/CHECKED-F8-G3.md:746): every locale file of web/i18n/ is served, in the order the
+# published site lists them (scripts/site_product.py SITE_ORDER): the first ten, then the rest by number of speakers; a
+# file not named here comes last, by its code. Arabic, Persian, Urdu and Hebrew are written right to left.
+ORDER = ("en", "ar", "hi", "es", "fr", "pt", "zh-Hans", "id", "sw", "ru",
+         "bn", "ur", "de", "ja", "mr", "te", "tr", "ta", "vi", "ko", "fa", "it", "th", "gu", "pa", "kn", "fil", "am",
+         "ms", "pl", "uk", "ml", "uz", "ro", "nl", "az", "el", "hu", "cs", "he", "zh-Hant")
+RTL = ("ar", "fa", "ur", "he")
+
+
+def _langs() -> tuple:
+    have = {p.stem for p in (ROOT / "web" / "i18n").glob("*.json")}
+    return (tuple(c for c in ORDER if c in have) + tuple(sorted(have - set(ORDER)))) or ORDER[:10]
+
+
+LANGS = _langs()
 ISSUES = "https://github.com/drexthealpha/Knos/issues"
 PRICING_FILE = "https://drexthealpha.github.io/Knos/data/pricing.json"
 TEST_URL = "https://github.com/drexthealpha/Knos/blob/main/near/agents/job/test_limit3.py"   # the locked test (tool_run.TEST_URL)
@@ -221,16 +235,19 @@ def meta(lang: str) -> dict:
 
 
 def match(tag: str | None) -> str | None:
-    """A language tag (ar-EG, pt-BR, zh-CN, fr) as one of LANGS, else None. Never a guess from a place (U7 R17)."""
-    t = str(tag or "").strip().lower()
+    """A language tag (ar-EG, pt-BR, zh-CN, fr) as one of LANGS, else None. Never a guess from a place (U7 R17). Chinese
+    takes its script from the tag (zh-TW, zh-HK and zh-MO read Traditional characters), and the old tags iw, in, tl and
+    ji name he, id, fil and yi: the rule of the published site (scripts/site_product.py MATCH_ALL)."""
+    t = str(tag or "").strip().lower().replace("_", "-")
     if not t:
         return None
     for code in LANGS:
         if t == code.lower():
             return code
-    base = t.split("-")[0].split("_")[0]
+    base = t.split("-")[0]
     if base == "zh":
-        return "zh-Hans"
+        return "zh-Hant" if re.search(r"-(hant|tw|hk|mo)\b", t) and "zh-Hant" in LANGS else "zh-Hans"
+    base = {"iw": "he", "in": "id", "tl": "fil", "ji": "yi"}.get(base, base)
     return base if base in LANGS else None
 
 
@@ -262,21 +279,36 @@ def plural(lang: str, n) -> str:
     """The CLDR cardinal plural category of n in this language (the rules Intl.PluralRules applies; tested against it)."""
     n = abs(float(n))
     i, whole = int(n), float(n).is_integer()
-    if lang in ("zh-Hans", "id"):
+    m10, m100 = i % 10, i % 100
+    if lang in ("zh-Hans", "zh-Hant", "id", "ja", "ko", "ms", "th", "vi"):
         return "other"
-    if lang in ("en", "sw"):
-        return "one" if n == 1 and whole else "other"
-    if lang == "hi":
+    if lang in ("en", "sw", "de", "nl", "el", "az", "tr", "hu", "uz", "ml", "ta", "te", "ur", "mr"):
+        return "one" if n == 1 else "other"
+    if lang in ("hi", "am", "bn", "fa", "gu", "kn"):
         return "one" if i == 0 or n == 1 else "other"
+    if lang == "pa":
+        return "one" if whole and i in (0, 1) else "other"
+    if lang == "fil":
+        f = int(repr(n).split(".")[1]) if not whole else 0
+        return "one" if (whole and (i in (1, 2, 3) or m10 not in (4, 6, 9))) or (not whole and f % 10 not in (4, 6, 9)) else "other"
+    if lang == "he":
+        return "one" if (i == 1 and whole) or (i == 0 and not whole) else "two" if i == 2 and whole else "other"
     million = whole and i != 0 and i % 1000000 == 0
-    if lang == "es":
+    if lang in ("es", "it"):
         return "one" if n == 1 else "many" if million else "other"
     if lang in ("fr", "pt"):
         return "one" if i in (0, 1) else "many" if million else "other"
-    if lang == "ru":
+    if lang == "cs":
+        return "many" if not whole else "one" if i == 1 else "few" if 2 <= i <= 4 else "other"
+    if lang == "ro":
+        return "one" if n == 1 else "few" if not whole or i == 0 or 1 <= m100 <= 19 else "other"
+    if lang == "pl":
         if not whole:
             return "other"
-        m10, m100 = i % 10, i % 100
+        return "one" if i == 1 else "few" if 2 <= m10 <= 4 and not 12 <= m100 <= 14 else "many"
+    if lang in ("ru", "uk"):
+        if not whole:
+            return "other"
         return "one" if m10 == 1 and m100 != 11 else "few" if 2 <= m10 <= 4 and not 12 <= m100 <= 14 else "many"
     if lang == "ar":
         if not whole:
@@ -288,19 +320,37 @@ def plural(lang: str, n) -> str:
 
 # how each language writes a count and a sum of US dollars (CLDR, as Intl.NumberFormat writes them; a test holds the two
 # to each other, U7 R13 and R14). Values read from a person's file are never reformatted: they stay as the file has them.
-GROUP = {"en": ",", "ar": ",", "hi": ",", "es": ".", "fr": "\u202f", "pt": ".", "zh-Hans": ",", "id": ".", "sw": ",", "ru": "\u00a0"}
-DECIMAL = {"es": ",", "fr": ",", "pt": ",", "id": ",", "ru": ","}
-MONEY = {"en": "${}", "ar": "\u200f{}\u00a0US$", "hi": "${}", "es": "{}\u00a0$", "fr": "{}\u00a0$", "pt": "$\u00a0{}",
-         "zh-Hans": "${}", "id": "${}", "sw": "$\u00a0{}", "ru": "{}\u00a0$"}
+# CLDR 48 as full ICU has it (Node 24): Chrome 157 carries no number data for az, pa and uz and writes them as the root
+# locale does (1,234 and "$ 1"); these are the languages' own.
+GROUP = {**dict.fromkeys(("cs", "hu", "pl", "ru", "uk", "uz"), "\u00a0"), "fr": "\u202f", "fa": "\u066c",
+         **dict.fromkeys(("az", "de", "el", "es", "id", "it", "nl", "pt", "ro", "tr", "vi"), ".")}
+DECIMAL = {**dict.fromkeys(("az", "cs", "de", "el", "es", "fr", "hu", "id", "it", "nl", "pl", "pt", "ro", "ru", "tr", "uk", "uz", "vi"), ","),
+           "fa": "\u066b"}
+MONEY = {"ar": "\u200f{}\u00a0US$", "he": "\u200f{}\u00a0\u200f$", "fa": "\u200e${}", "bn": "{}$",
+         **dict.fromkeys(("az", "cs", "de", "el", "es", "fr", "hu", "it", "pl", "ro", "ru", "uk", "uz", "vi"), "{}\u00a0$"),
+         **dict.fromkeys(("nl", "pt", "sw"), "$\u00a0{}")}   # every other language: "${}"
+# the languages whose counts group by lakh (12,34,567); Malayalam and Marathi write a sum of money in threes all the same
+LAKH = ("hi", "bn", "mr", "gu", "pa", "ta", "te", "ml")
+# the languages that leave a four-digit number ungrouped (1234, but 12.345)
+MIN2 = ("es", "it", "pl", "hu")
+# the languages whose numbers are written in their own digits by default (Bengali, Devanagari for Marathi, Persian)
+ZERO = {"bn": 0x9e6, "mr": 0x966, "fa": 0x6f0}
 
 
-def nf(lang: str, n) -> str:
-    """A whole count in the language's own grouping (Hindi groups by lakh; Spanish leaves four digits ungrouped)."""
+def digits(lang: str, s: str) -> str:
+    """Western digits in the language's own (where it writes its own by default, as Intl.NumberFormat does)."""
+    z = ZERO.get(lang)
+    return s if z is None else "".join(chr(z + ord(c) - 48) if "0" <= c <= "9" else c for c in s)
+
+
+def nf(lang: str, n, lakh: bool | None = None) -> str:
+    """A whole count in the language's own grouping and digits (Hindi groups by lakh; Spanish leaves four digits
+    ungrouped; Bengali, Marathi and Persian write their own digits)."""
     neg, s = int(n) < 0, str(abs(int(n)))
     g = GROUP.get(lang, ",")
-    if lang == "es" and len(s) <= 4:
+    if lang in MIN2 and len(s) <= 4:
         out = s
-    elif lang == "hi" and len(s) > 3:
+    elif (lang in LAKH if lakh is None else lakh) and len(s) > 3:
         head, tail = s[:-3], s[-3:]
         parts = []
         while len(head) > 2:
@@ -309,13 +359,18 @@ def nf(lang: str, n) -> str:
         out = g.join(([head] if head else []) + parts) + g + tail
     else:
         out = f"{int(s):,}".replace(",", g)
-    return ("-" if neg else "") + out
+    return ("-" if neg else "") + digits(lang, out)
+
+
+def money_num(lang: str, x) -> str:
+    """The number of a sum of money, as the language writes it inside its currency pattern."""
+    x = float(x)
+    whole = nf(lang, int(x), lang in LAKH and lang not in ("ml", "mr"))
+    return whole if x.is_integer() else whole + DECIMAL.get(lang, ".") + digits(lang, f"{x:.2f}".split(".")[1])
 
 
 def money(lang: str, x) -> str:
-    x = float(x)
-    num = nf(lang, int(x)) if x.is_integer() else nf(lang, int(x)) + DECIMAL.get(lang, ".") + f"{x:.2f}".split(".")[1]
-    return MONEY.get(lang, "${}").format(num)
+    return MONEY.get(lang, "${}").format(money_num(lang, x))
 
 
 class Bdi(str):
@@ -356,7 +411,7 @@ def h(lang: str, key: str, spans: dict | None = None, **v) -> str:
             return m[0]
         x = v[name]
         if name in spans and name in ("price", "low", "high"):
-            num = _val(lang, "n", int(float(x))) if float(x).is_integer() else str(x)
+            num = money_num(lang, x) if float(x).is_integer() else str(x)
             return _e(MONEY.get(lang, "${}")).replace("{}", f'<span {attr(name)}>{_e(num)}</span>')
         out = _e(_val(lang, name, x))
         if name in spans:
@@ -377,7 +432,7 @@ RS = re.compile(r"^(?:Failed at row (\d+): (.+?) is not (above|below) (.+?)\. (\
 
 # what sets two sentences of the result apart: a space, except in Chinese, which writes them side by side (a rule of the
 # script, not a message to translate, so it is not in the locale files)
-SEP = {"zh-Hans": ""}
+SEP = {"zh-Hans": "", "zh-Hant": "", "ja": ""}
 
 
 def sentence(lang: str, text: str, as_html: bool = True) -> str:
@@ -565,6 +620,10 @@ SWITCH_CSS = (".klang-list.kwarm{display:block;position:absolute;visibility:hidd
               ".klang-list a{display:flex;align-items:center;min-height:48px;color:inherit;text-decoration:none}"
               ".klang-list a[aria-current]{font-weight:700}details:not([open])>:not(summary){display:none}"
               ":lang(ar){line-height:1.65}:lang(hi){line-height:1.85}"
+              # L09: the other scripts with tall marks get the same room, and the list of forty languages scrolls inside the screen
+              + "".join(f":lang({c}){{line-height:1.85}}" for c in ("bn", "mr", "gu", "pa", "ta", "te", "kn", "ml", "th", "am"))
+              + ":lang(fa){line-height:1.7}:lang(ur){line-height:2}"
+              ".klang-list:not(.kwarm){max-block-size:60vh;overflow-y:auto;overscroll-behavior:contain}"
               ".five dt{font-weight:700;margin:10px 0 0}.five dd{margin:0}.tgt{display:none}.tgt:target{display:block}")
 
 
@@ -618,7 +677,7 @@ def price_answers(lang: str, n: dict, spans: dict | None = None) -> list[str]:
 
 
 def speech_lang(lang: str) -> str:
-    return {"zh-Hans": "zh-CN"}.get(lang, lang)
+    return {"zh-Hans": "zh-CN", "zh-Hant": "zh-TW"}.get(lang, lang)
 
 
 # the shared runtime of the pages' scripts: the strings of one language, their plural forms, counts and sums of money
@@ -638,7 +697,7 @@ I18N_JS = r"""window.KI = window.KI || (() => {
   const bdi = new Set(["value", "limit", "first", "last", "column", "names"]);
   const t = (k, v) => raw(k, v).replace(/\{(\w+)\}/g, (m, n) => v && v[n] != null ? val(n, v[n]) : m);
   const html = (k, v) => raw(k, v).replace(/\{(\w+)\}/g, (m, n) => v && v[n] != null ? (bdi.has(n) ? "<bdi>" + esc(val(n, v[n])) + "</bdi>" : esc(val(n, v[n]))) : m);
-  const sep = () => L === "zh-Hans" ? "" : " ";   // Chinese sets sentences side by side, with no space (SEP)
+  const sep = () => /^(zh-Hans|zh-Hant|ja)$/.test(L) ? "" : " ";   // Chinese and Japanese set sentences side by side, with no space (SEP)
   const RS = /^(?:Failed at row (\d+): (.+?) is not (above|below) (.+?)\. (\d+) rows? passed\.|Passed: all (\d+) rows? stays? (above|below) (.+?)\.|(I cannot check: no row has a number\.))(?: (?:Row (\d+) has|Rows ([\d, ]+?) and (\d+)( more)? have) no number, so I did not check (?:it|them)\.)?$/;
   function sentence(text, plain) {
     const m = RS.exec(text || ""), f = plain ? t : html;
@@ -679,11 +738,14 @@ I18N_JS = r"""window.KI = window.KI || (() => {
   // the Arabic decimal mark, or a decimal comma, read as the same number
   function num(s) {
     let x = String(s).trim().replace(/[\u0660-\u0669]/g, (c) => c.charCodeAt(0) - 0x660).replace(/[\u06f0-\u06f9]/g, (c) => c.charCodeAt(0) - 0x6f0)
-      .replace(/[\u0966-\u096f]/g, (c) => c.charCodeAt(0) - 0x966).replace(/[\u09e6-\u09ef]/g, (c) => c.charCodeAt(0) - 0x9e6).replace(/\u066b/g, ".").replace(/[\s\u00a0\u202f]/g, "");
+      .replace(/[\u0966-\u096f]/g, (c) => c.charCodeAt(0) - 0x966).replace(/[\u09e6-\u09ef]/g, (c) => c.charCodeAt(0) - 0x9e6)
+      // L09: Gurmukhi, Gujarati, Tamil, Telugu, Kannada, Malayalam and Thai digits too (web/i18n/format.js reads the same)
+      .replace(/[\u0a66-\u0a6f\u0ae6-\u0aef\u0be6-\u0bef\u0c66-\u0c6f\u0ce6-\u0cef\u0d66-\u0d6f\u0e50-\u0e59]/g, (c) => { const k = c.charCodeAt(0); return k >= 0xe50 ? k - 0xe50 : (k & 0xf) - 6; })
+      .replace(/\u066b/g, ".").replace(/[\s\u00a0\u202f]/g, "");
     if (!x.includes(".") && (x.match(/,/g) || []).length === 1) x = x.replace(",", ".");
     return x;
   }
-  const speech = () => L === "zh-Hans" ? "zh-CN" : L;
+  const speech = () => L === "zh-Hans" ? "zh-CN" : L === "zh-Hant" ? "zh-TW" : L;
   const on = [];
   idle(warm);
   return { set(l, s) { L = l; S = s || S; idle(warm); on.forEach((f) => f()); }, lang: () => L, has: (k) => S[k] != null, t, html, esc, nf, money, plural, sentence, rows, why, failing, num, speech, changed: (f) => on.push(f) };
@@ -785,6 +847,9 @@ details li{margin:6px 0}main>details a{display:inline-block;min-height:44px;min-
 .fold-links a{display:inline-flex;align-items:center;justify-content:center;min-height:48px;min-width:48px;padding-inline:4px;margin-inline-end:16px}
 .tgt input{width:100%;font:1rem ui-monospace,Consolas,monospace}
 .home a{display:inline-flex;align-items:center;min-height:48px;min-width:48px}#theme{display:inline-flex;align-items:center;gap:8px;min-height:48px;min-width:48px;padding:0 16px;margin-inline-start:12px;border:2px solid var(--line);border-radius:10px;background:transparent;color:var(--fg);font:inherit;cursor:pointer}
+.boxwrap{position:relative}.boxwrap textarea{padding-inline-end:60px}.mic{position:absolute;inset-inline-end:6px;bottom:6px;margin:0;padding:0;display:inline-flex;align-items:center;justify-content:center;background:var(--card)}
+.mic[aria-pressed=true]{background:var(--accent);color:var(--accent-fg)}#k-hist ul{list-style:none;padding:0;margin:0}#k-hist li a{display:flex;align-items:center;gap:8px;min-height:48px}#k-hist li svg{width:1.25rem;height:1.25rem;flex:none}
+.src-passage{margin:6px 0 0;padding-inline-start:12px;border-inline-start:3px solid var(--line)}
 [hidden]{display:none!important}""" + "\n" + SWITCH_CSS
 
 # The table reader and the chart, the same code on the front door (web/door.html): the column names by the program's rule
@@ -860,7 +925,7 @@ box.addEventListener("input", (e) => { if (how !== "pasted") how = e.inputType =
 const sendFirst = () => { const s = get("knos-first"); if (!s || get("knos-first-sent") || !browser()) return; put("knos-first-sent", "1");
   fetch(D.api + "/api/first_action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ event: "first_action", source: s, browser: browser(), test }), keepalive: true }).catch(() => { /* not counted */ }); };
 const firstAction = () => { if (!get("knos-first")) put("knos-first", how); sendFirst(); };
-let xhr = null, tick = null, link = D.result ? D.result.link : "", mineOn = false, said = D.result ? D.result.result : "";
+let pending = false, xhr = null, tick = null, link = D.result ? D.result.link : "", mineOn = false, said = D.result ? D.result.result : "";
 const make = (tag, text, cls) => { const e = document.createElement(tag); if (text != null) e.textContent = text; if (cls) e.className = cls; return e; };
 const btn = (text, on, primary) => { const b = make("button", text, primary ? "primary" : ""); b.type = "button"; b.addEventListener("click", on); return b; };
 const under = $("more");
@@ -877,14 +942,15 @@ function left(r) {
   if (r.paid_left > 0) return make("p", T("res.runs_left", { n: r.runs_left }));
   return make("p", T("res.free_left", { n: r.free_left }));
 }
-function copy(b) {
-  const done = () => { b.textContent = T("res.copied"); if (navigator.share) navigator.share({ url: link, title: T("tool.title") }).catch(() => {}); };
+function copy(b, url) {
+  const u = url || link, was = b.textContent;
+  const done = () => { b.textContent = T("res.copied"); if (navigator.share) navigator.share({ url: u, title: T("tool.title") }).catch(() => {}); if (url) setTimeout(() => { b.textContent = was; }, 2500); };
   b.textContent = T("res.copied");
-  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(link).then(done, () => fallback(b, done));
-  else fallback(b, done);
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(u).then(done, () => fallback(b, done, u));
+  else fallback(b, done, u);
 }
-function fallback(b, done) {
-  const t = make("textarea"); t.value = link; t.setAttribute("readonly", ""); t.style.position = "fixed"; t.style.opacity = "0"; document.body.append(t); t.select();
+function fallback(b, done, url) {
+  const link = url; const t = make("textarea"); t.value = link; t.setAttribute("readonly", ""); t.style.position = "fixed"; t.style.opacity = "0"; document.body.append(t); t.select();
   let ok = false; try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
   t.remove();
   if (ok) done(); else { b.textContent = T("res.copy"); const p = make("p", T("res.by_hand") + " "); const i = make("input"); i.value = link; i.readOnly = true; i.dir = "ltr"; i.setAttribute("aria-label", T("res.link_label")); p.append(i); b.after(p); i.select(); }
@@ -925,7 +991,7 @@ function answer(r) {
     const src = make("a", T("res.shown_by"), "src"); src.href = D.test_url; src.dataset.verified = "";
     ev.append(c);
     const more = st === "fail" && m && m[1] ? KI.failing(r.failing, m[3], lim) : "";
-    if (more) { const f = make("span"); f.innerHTML = more; f.dataset.failing = ""; ev.append(D.lang === "zh-Hans" ? "" : " ", f); }
+    if (more) { const f = make("span"); f.innerHTML = more; f.dataset.failing = ""; ev.append(/^(zh-Hans|zh-Hant|ja)$/.test(D.lang) ? "" : " ", f); }
     const later = make("div", null, "later"), sp = make("p"); sp.append(src);
     later.append(make("h2", T("res.next_h")), part("p", "next." + st, { r: r.first_failing_row || 0 }, { "data-next-step": "" }), sp);
     a.append(ev, later);
@@ -941,6 +1007,130 @@ let starter = !!D.starter, lastExample = null;
 function loadSample() { box.value = D.sample_shown; box.placeholder = ""; starter = false; fresh = false; kept = null; lab.textContent = D.sample_label; lab.hidden = false; lab.dataset.checked = ""; $("rule").value = D.rule; $("limit").value = D.limit; if (mineOn) fillColumns(D.column); }
 function checked(table) { const k = $("k-input"); if (!k) return; k.querySelector("pre").textContent = table; k.hidden = false; }
 function unchecked() { const k = $("k-input"); if (k) k.hidden = true; }
+// ---- what stays in this browser (L07, L17, L23, L25): one key each, every read and write in try/catch (get, put) ----
+const HIST = "knos.history", day = (d) => { const x = d || new Date(); return x.getFullYear() + "-" + String(x.getMonth() + 1).padStart(2, "0") + "-" + String(x.getDate()).padStart(2, "0"); };
+const hist = () => { try { const h = JSON.parse(get(HIST) || "[]"); return Array.isArray(h) ? h : []; } catch (e) { return []; } };
+const mineOf = (id) => hist().find((h) => h && h.id === id) || null;
+// the run's record, kept in this browser alone: its verdict, its settings and its own key (for download and delete); never sent
+function remember(r) {
+  const h = hist().filter((x) => x && x.id !== r.id);
+  h.unshift({ id: r.id, link: r.link, verdict: verdictOf(r), result: r.result, column: r.column, rule: r.rule, limit: r.limit, mode: r.mode, at: r.created_at || new Date().toISOString(), key: r.key || "", opens: r.opens || 0 });
+  put(HIST, JSON.stringify(h.slice(0, 20)));
+}
+const keyOf = (r) => r.key || (mineOf(r.id) || {}).key || "";
+// a download made here from the answer the server gives to this browser's key (L06): no account, no sign-in
+function download(r, ext, b) {
+  const x = new XMLHttpRequest(); x.open("GET", D.api + "/api/run/" + r.id + "." + ext); x.responseType = "blob";
+  const k = keyOf(r); if (k) x.setRequestHeader("X-Knos-Key", k);
+  b.setAttribute("aria-busy", "true");
+  x.onload = () => { b.removeAttribute("aria-busy"); if (x.status !== 200) return; const a = make("a"); a.href = URL.createObjectURL(x.response); a.download = "knos-" + r.id + "." + ext; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); };
+  x.onerror = () => b.removeAttribute("aria-busy");
+  x.send();
+}
+const send = (method, path, body, done, fail, headers) => {
+  const x = new XMLHttpRequest(); x.open(method, D.api + path); x.setRequestHeader("Content-Type", "application/json");
+  for (const k in headers || {}) x.setRequestHeader(k, headers[k]);
+  x.onload = () => { let b = {}; try { b = JSON.parse(x.responseText); } catch (e) { b = {}; } if (x.status === 200) done(b); else (fail || (() => {}))(x.status, b); };
+  x.onerror = () => (fail || (() => {}))(0, {});
+  x.send(body == null ? null : JSON.stringify(body));
+};
+// the streak (L23): days in a row with a run, day 7 a milestone; a missed day offers a repair and a small return bonus,
+// never a guilt message; nothing is asked of the browser's notifications
+function streak() {
+  let s = {}; try { s = JSON.parse(get("knos.streak") || "{}") || {}; } catch (e) { s = {}; }
+  const now = day(), y = new Date(); y.setDate(y.getDate() - 1);
+  if (s.last === now) return { n: s.n || 1, missed: false, was: 0 };
+  const missed = !!s.last && s.last !== day(y), n = s.last === day(y) ? (s.n || 0) + 1 : 1;
+  put("knos.streak", JSON.stringify({ last: now, n, was: missed ? s.n || 0 : 0 }));
+  return { n, missed, was: missed ? s.n || 0 : 0 };
+}
+function extras(r, ran) {
+  const out = [], mine = !!(r.key || mineOf(r.id));
+  const ver = make("p", T(r.older ? "res.older" : "res.version", { v: r.tool_version || "", at: r.created_at || "" }), "muted"); ver.dataset.version = r.tool_version || ""; out.push(ver);
+  if (mine && r.opens) out.push(make("p", T("res.opens", { n: r.opens })));
+  if (!ran && !mine && r.id && !test) { const seen = get("knos.opened") || ""; if (!seen.split(",").includes(r.id)) { put("knos.opened", (seen ? seen + "," : "") + r.id); send("POST", "/api/opened", { id: r.id }, () => {}); } }
+  const row = make("div");
+  if (r.mode === "sample" || mine) {
+    for (const ext of ["csv", "json"]) { const b = btn(T(ext === "csv" ? "res.csv" : "res.json"), (e) => download(r, ext, e.currentTarget)); b.dataset.download = ext; row.append(b); }
+  }
+  if ("speechSynthesis" in window && window.SpeechSynthesisUtterance) {
+    const l = btn(T("fold.listen"), () => { const s = window.speechSynthesis; if (s.speaking) { s.cancel(); return; } const u = new SpeechSynthesisUtterance(KI.sentence(r.result, true)); u.lang = KI.speech(); s.speak(u); });
+    l.dataset.listen = ""; l.dataset.audio = ""; row.append(l);
+  }
+  const cp = btn(T("inv.copy"), (e) => { const u = new URL(location.origin + "/t/" + D.id + "/"); u.searchParams.set("rule", r.rule); u.searchParams.set("limit", String(r.limit)); u.searchParams.set("column", r.column); copy(e.currentTarget, u.href); });
+  cp.dataset.copyCheck = ""; row.append(cp);
+  const ch = btn(T("ch.button"), () => challengeForm(r, ch)); ch.dataset.challenge = ""; row.append(ch);
+  if (mine && r.mode === "own") { const del = btn(T("del.button"), () => drop(r, del)); del.dataset.delete = ""; row.append(del); }
+  out.push(row);
+  if (ran) {
+    const st = streak(), s = make("p", T("streak.n", { n: st.n })); s.dataset.streak = String(st.n); out.push(s);
+    if (st.n === 7) out.push(make("p", T("streak.week")));
+    if (st.missed) {
+      const p = make("p", T("streak.missed", { n: D.bonus })); p.dataset.missed = "";
+      const fix = btn(T("streak.repair"), () => { fix.disabled = true; send("POST", "/api/bonus", { why: "return", browser: browser(), runs: runsId(), test }, (b) => {
+        put("knos.streak", JSON.stringify({ last: day(), n: st.was + 1, was: 0 })); s.textContent = T("streak.n", { n: st.was + 1 }); s.dataset.streak = String(st.was + 1); fix.remove(); if (b.runs_left != null) p.append(" ", make("span", T("res.runs_left", { n: b.runs_left }))); }, () => { fix.disabled = false; }); });
+      fix.dataset.repair = ""; out.push(p, fix);
+    }
+    if (!get("knos.remind")) out.push(reminder());
+    out.push(inviteRow());
+  }
+  return out;
+}
+// one question after a result (L23): the person's own time, morning suggested; the answer is a calendar file they open
+function reminder() {
+  const box = make("div"); box.dataset.remind = "";
+  const choose = (at, cue) => { put("knos.remind", cue || at); const a = make("a"); a.href = D.api + "/api/remind.ics?at=" + encodeURIComponent(at) + (cue ? "&cue=" + cue : ""); a.download = "knos-daily-check.ics"; document.body.append(a); a.click(); a.remove(); box.replaceChildren(make("p", T("rem.got"))); };
+  const p = make("p", T("rem.q")); p.id = "k-rem-q";
+  const g = make("div"); g.setAttribute("role", "group"); g.setAttribute("aria-labelledby", "k-rem-q");
+  const at8 = btn(T("rem.at8"), () => choose("08:00", "")); at8.dataset.recommended = "";
+  g.append(at8, btn(T("rem.coffee"), () => choose("08:00", "coffee")));
+  box.append(p, g); return box;
+}
+function inviteRow() {
+  const box = make("div");
+  const b = btn(T("inv.invite"), () => { b.disabled = true; send("POST", "/api/invite", { browser: browser(), runs: runsId(), test }, (j) => { b.disabled = false; copy(b, location.origin + "/t/" + D.id + "/?invite=" + j.invite); }, () => { b.disabled = false; }); });
+  b.dataset.invite = ""; box.append(make("p", T("inv.line", { n: D.invite_runs })), b); return box;
+}
+function challengeForm(r, opener) {
+  const f = make("div"); f.dataset.challengeForm = "";
+  const lab2 = make("label", T("ch.label")); lab2.htmlFor = "k-ch"; const t = make("textarea"); t.id = "k-ch"; t.dir = "auto"; t.maxLength = 500; t.style.height = "4em";
+  const go2 = btn(T("ch.send"), () => { if (go2.disabled) return; go2.disabled = true; send("POST", "/api/challenge", { id: r.id, why: t.value }, (j) => { const ok = make("p", T("ch.open")); ok.dataset.challengeStatus = j.status; f.replaceChildren(ok); }, () => { go2.disabled = false; t.focus(); }); });
+  f.append(lab2, t, go2); opener.replaceWith(f); t.focus();
+}
+function drop(r, b) {
+  b.disabled = true;
+  send("DELETE", "/api/run/" + r.id, null, () => { put(HIST, JSON.stringify(hist().filter((h) => h.id !== r.id))); const p = make("p", T("del.done")); p.dataset.deleted = ""; b.replaceWith(p); }, () => { b.disabled = false; }, { "X-Knos-Key": keyOf(r) });
+}
+// the list of this browser's own checks and the guest reset, under the first screen of the tool page (L07, L17)
+function historyList() {
+  const host = $("k-hist"); if (!host) return;
+  const h = hist().filter((x) => x && x.link);
+  const reset = btn(T("hist.reset"), () => {
+    try { for (const s of [localStorage, sessionStorage]) for (const k of Object.keys(s)) if (/^knos/.test(k)) s.removeItem(k); } catch (e) { /* no storage */ }
+    try { if (window.caches) caches.keys().then((ks) => ks.filter((k) => /^knos/.test(k)).forEach((k) => caches.delete(k))); } catch (e) { /* no caches */ }
+    runs = null; host.replaceChildren(make("p", T("hist.reset_done")));
+  });
+  reset.dataset.guestReset = "";
+  const nodes = [];
+  if (h.length) {
+    const ul = make("ul"); ul.dataset.history = "";
+    for (const x of h.slice(0, 10)) { const li = make("li"), a = make("a"); a.href = x.link; a.append(icon(/^(pass|fail|unknown)$/.test(x.verdict) ? x.verdict : "unknown"), " ", KI.sentence(x.result, true)); li.append(a); ul.append(li); }
+    nodes.push(make("h2", T("hist.h")), ul);
+  }
+  nodes.push(reset);
+  host.replaceChildren(...nodes);
+  // L24: today's short list (five at most, each with its source), each item sent to one person through the share sheet
+  (window.requestIdleCallback || ((f) => setTimeout(f, 300)))(() => send("GET", "/api/today", null, (d) => {
+    const items = (d.items || []).slice(0, 5); if (!items.length || !host.isConnected) return;
+    const ul = make("ul"); ul.dataset.today = d.date || "";
+    for (const it of items) {
+      const li = make("li"), a = make("a", it.line); a.href = it.source; a.lang = "en"; a.dir = "auto";
+      const s = btn(T("today.send"), (e) => { if (navigator.share) navigator.share({ url: it.source, title: it.paper || "Knos" }).catch(() => {}); else copy(e.currentTarget, it.source); });
+      s.dataset.share = it.source; li.append(a, s); ul.append(li);
+    }
+    host.append(make("h2", T("today.h")), ul);
+  }));
+}
 function result(r, ran) {
   link = r.link; said = r.result;
   // only the person's own run empties the box (U6 Rule 2); a result opened from its link shows its table in the box (G2 6)
@@ -965,6 +1155,8 @@ function result(r, ran) {
   nodes.push(row);
   // the counting question follows a run the person made, not the opening of a result someone shared
   const q = ran ? ask() : null; if (q) nodes.push(q);
+  if (ran) remember(r);
+  nodes.push(...extras(r, ran));
   // the table checked stays on the screen, read-only under the result, while the box is empty for the next one (G5)
   const seen = shownTable(was);
   if (seen && box.value.trim() !== String(seen).trim()) checked(seen); else unchecked();
@@ -983,12 +1175,15 @@ function editOn() { $("k-rule").hidden = false; $("rule-shown").hidden = true; $
 function changeLimit() { editOn(); $("limit").focus(); $("limit").select(); }
 // an error is a "cannot tell" answer (U6 Rules 15 and 17): the reason in the first person, the person's file kept in
 // the box, and a next step that leaves the error; Try again beside it where the server may answer next time
+// L03: what failed (the reason), where to fix it (the box, or nowhere on the person's side when the server failed), and
+// Try again where the server may answer next time; the text the person typed stays in the box, shown as text, never as HTML
 function trouble(text, label, then, retry) {
   const a = make("div", null, "answer"); a.dataset.verdict = ""; a.dataset.state = "unknown";
   const p = make("p", text, "bad"); p.setAttribute("role", "alert"); p.dataset.answer = ""; p.dataset.reason = "";
+  const where = make("p", T(retry ? "err.where_server" : "err.where_file")); where.dataset.where = "";
   const next = btn(label, then); next.dataset.nextStep = "";
-  a.append(icon("unknown"), p, next);
-  if (retry) a.append(btn(T("btn.retry"), run));
+  a.append(icon("unknown"), p, where, next);
+  if (retry) { const r = btn(T("btn.retry"), run); r.dataset.retry = ""; a.append(r); }
   show(a);
 }
 function edit() { show(); box.focus(); }
@@ -1043,6 +1238,9 @@ function run() {
   if (!num(limit)) return trouble(T("err.limit"), T("btn.type_limit"), () => { show(); changeLimit(); });
   const names = columnsOf(table);
   if (!names.includes(column)) return trouble(T("err.column", { column: shownColumn(column, mineOn), names: names.join(", ") }), T("btn.column"), chooseColumn);
+  // L18: with no network the check waits in this tab (its table stays in the box) and is sent once when the network is back
+  if (navigator.onLine === false) { pending = true; draftSave(); const w = make("p", T("offline.waiting")); w.dataset.pending = ""; show(w); return; }
+  pending = false;
   firstAction();
   const w = working(Math.max(0, rowsOf(table).length - (isHeader(rowsOf(table)[0]) ? 1 : 0)));
   xhr = new XMLHttpRequest();
@@ -1064,7 +1262,7 @@ function run() {
     trouble(T("err.none"), T("btn.back"), edit, true);
   };
   x.onerror = x.ontimeout = () => { idle(); trouble(T("err.reach"), T("btn.back"), edit, true); };
-  x.send(JSON.stringify({ id: D.id, table, column, rule, limit: Number(limit), mode: table === D.sample ? "sample" : "own", browser: browser(), runs: runsId(), test }));
+  x.send(JSON.stringify({ id: D.id, table, column, rule, limit: Number(limit), mode: table === D.sample ? "sample" : "own", browser: browser(), runs: runsId(), test, ...(get("knos.invite") ? { invite: get("knos.invite") } : {}) }));
 }
 function back(nodes) { pay.hidden = true; pay.replaceChildren(); form.hidden = false; show(...(nodes || [])); go.focus(); }
 const price = (p) => Number(String(p.price || "").replace(/[^0-9.]/g, "")) || 0;
@@ -1072,18 +1270,23 @@ function payScreen(p) {
   const press = Array.from(crypto.getRandomValues(new Uint8Array(12)), (x) => x.toString(16).padStart(2, "0")).join("");
   form.hidden = true; show();
   const h = make("h2", T("pay.headline", { n: p.runs, price: price(p) })); h.tabIndex = -1;
-  pay.replaceChildren(h, make("p", T("pay.line")), btn(T("pay.go"), () => confirm(p, press), true), btn(T("pay.not_now"), () => back()));
+  // L12: the amount and its currency, who receives it, when it moves and the undo rule, before anything is recorded
+  const terms = make("p", T("pay.terms", { price: price(p) })); terms.dataset.terms = ""; terms.dataset.mustUnderstand = "";
+  const cancel = btn(T("pay.cancel"), () => back()); cancel.dataset.cancel = "";
+  pay.replaceChildren(h, make("p", T("pay.line")), terms, btn(T("pay.go"), () => confirm(p, press), true), cancel);
   pay.hidden = false; h.focus();
 }
 // the confirm step (U6 Rule 23): a dialog that says what will be recorded, with two named buttons; focus starts on Yes
-// and stays inside it; Escape is Not now. Nothing is sent before Yes.
+// and stays inside it; Escape is Cancel. Nothing is sent before Yes.
 function confirm(p, press) {
   const d = make("div"); d.setAttribute("role", "dialog"); d.setAttribute("aria-modal", "true");
   d.setAttribute("aria-labelledby", "k-pay-h"); d.setAttribute("aria-describedby", "k-pay-d");
   const h = make("h2", T("pay.headline", { n: p.runs, price: price(p) })); h.id = "k-pay-h";
   const sure = make("p", T("pay.confirm", { n: p.runs, price: price(p) })); sure.id = "k-pay-d";
-  const yes = btn(T("pay.yes"), () => record(yes, press), true), no = btn(T("pay.not_now"), () => back());
-  d.append(h, sure, yes, no);
+  const yes = btn(T("pay.yes"), () => record(yes, press), true), no = btn(T("pay.cancel"), () => back());
+  no.dataset.cancel = "";
+  const terms = make("p", T("pay.terms", { price: price(p) })); terms.dataset.terms = "";
+  d.append(h, sure, terms, yes, no);
   d.addEventListener("keydown", (e) => {
     if (e.key === "Escape") { e.preventDefault(); back(); return; }
     if (e.key !== "Tab") return;
@@ -1105,10 +1308,22 @@ function record(b, press) {
   b.disabled = true; b.textContent = T("pay.recording");
   post("/api/pay", { browser: browser(), runs: runsId(), press, test }, (body) => back([recorded(body, press)]), (code) => {
     b.disabled = false; b.textContent = T("btn.retry");
-    if (!code) return;
+    if (!code) return unclear(b, press);
     const m = make("p", T("pay.error"), "bad"); m.setAttribute("role", "alert");
     pay.querySelector("[role=dialog]").append(m);
   });
+}
+// L12: no answer about a payment is an unclear outcome: "Do not pay again yet", and the record is read before any retry
+// (the same press id, so a payment the server did record is never recorded twice)
+function unclear(b, press) {
+  b.disabled = true; b.hidden = true;
+  const d = pay.querySelector("[role=dialog]"), m = make("p", T("pay.unknown"), "bad"); m.setAttribute("role", "alert"); m.dataset.unknown = "";
+  const again = btn(T("pay.check"), () => check());
+  const check = () => { again.disabled = true; post("/api/pay", { browser: browser(), runs: runsId(), press, test, check: true }, (st) => {
+    if (st.status === "recorded") return back([recorded({ runs_left: st.runs_left }, press)]);
+    m.remove(); again.remove(); b.hidden = false; b.disabled = false; b.focus();
+  }, () => { again.disabled = false; }); };
+  d.append(m, again); check();
 }
 // what the test payment did, why, and its undo (U6 Rule 22): Undo takes the 20 runs back while none of them is used
 function recorded(body, press) {
@@ -1147,6 +1362,8 @@ $("file").addEventListener("change", () => {
   unpick();
   const f = $("file").files[0]; if (!f) return;
   if (how !== "pasted") how = "pasted";   // a file put in whole, as a paste is
+  // L26: a spreadsheet (.xlsx) is read on the server into the comma text the box takes; a tab or semicolon file is read as it is
+  if (/\.xlsx$/i.test(f.name)) { const r = new FileReader(); r.onload = () => { const b = new Uint8Array(r.result); let s = ""; for (let i = 0; i < b.length; i += 32768) s += String.fromCharCode.apply(null, b.subarray(i, i + 32768)); send("POST", "/api/convert", { xlsx: btoa(s) }, (j) => { box.value = j.table || ""; fillColumns(); draftSave(); }, () => trouble(T("err.bad"), T("btn.back"), edit)); }; r.readAsArrayBuffer(f); return; }
   const r = new FileReader(); r.onload = () => { box.value = String(r.result); fillColumns(); draftSave(); }; r.readAsText(f);
 });
 // on a result page the rule shows once a new table is typed in the empty box (the verdict above already says it)
@@ -1161,6 +1378,48 @@ form.addEventListener("submit", (e) => { e.preventDefault(); run(); });
 if (D.result && D.result.mode === "own") { ownMode(); fillColumns(D.result.column); }
 if (D.result && box.value.trim()) { lab.textContent = T("res.input"); lab.dataset.checked = ""; lab.hidden = false; }
 if (D.result) result(D.result);
+// a copied check (L25): the link sets the rule, the limit and the column; an invite link keeps its code for the first run
+(() => {
+  const q = new URLSearchParams(location.search);
+  if (/^[0-9a-f]{12}$/.test(q.get("invite") || "")) put("knos.invite", q.get("invite"));
+  if (!D.result && /^(above|below)$/.test(q.get("rule") || "") && num(KI.num(q.get("limit") || ""))) {
+    $("rule").value = q.get("rule"); $("limit").value = q.get("limit"); editOn();
+    if (q.get("column")) { ownMode(); fillColumns(q.get("column")); const sel = $("col"); if (![...sel.options].some((o) => o.value === q.get("column"))) { const o = make("option", q.get("column")); o.value = q.get("column"); sel.append(o); } sel.value = q.get("column"); }
+  }
+})();
+if (!D.result) historyList();
+// L18: offline, the page says which copy it is and from when; a check pressed offline waits and is sent once on return
+const KEPT_AT = "knos.kept." + location.pathname;
+const offlineLine = () => {
+  const o = $("k-offline"); if (!o) return;
+  if (navigator.onLine !== false) { put(KEPT_AT, new Date().toISOString()); return; }
+  const at = get(KEPT_AT); let when = "";
+  try { when = at ? new Date(at).toLocaleString(D.lang, { dateStyle: "medium", timeStyle: "short" }) : ""; } catch (e) { when = at || ""; }
+  o.textContent = when ? T("offline.kept", { time: when }) : T("offline.line"); o.hidden = false;
+};
+offlineLine();
+addEventListener("offline", offlineLine);
+addEventListener("online", () => { const o = $("k-offline"); if (o) o.hidden = true; put(KEPT_AT, new Date().toISOString()); if (pending && !xhr) { pending = false; run(); } });
+// L08: speak instead of typing. The microphone shows inside the box once the box is in use (the first screen keeps its
+// three controls), only where the browser has speech recognition; the words land in the box as text the person can
+// edit, and nothing is sent until they press Check my data
+(() => {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SR) return;
+  const mic = make("button"); mic.type = "button"; mic.id = "k-mic"; mic.className = "mic"; mic.hidden = true; mic.dataset.audio = "";
+  mic.setAttribute("aria-label", T("voice.speak")); mic.title = T("voice.speak");
+  mic.innerHTML = '<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4"/></svg>';
+  const wrap = make("div", null, "boxwrap"); box.before(wrap); wrap.append(box, mic);
+  const on = () => { mic.hidden = false; };
+  box.addEventListener("focus", on); box.addEventListener("input", on);
+  let rec = null;
+  mic.addEventListener("click", () => {
+    if (rec) { rec.stop(); return; }
+    rec = new SR(); rec.lang = KI.speech(); rec.interimResults = false; mic.setAttribute("aria-pressed", "true");
+    rec.onresult = (e) => { const said = Array.from(e.results).map((x) => x[0].transcript).join(" ").trim(); if (said) { box.value = box.value.trim() ? box.value + "\n" + said : said; starter = false; fresh = false; box.dispatchEvent(new Event("input")); box.focus(); } };
+    rec.onend = rec.onerror = () => { rec = null; mic.removeAttribute("aria-pressed"); };
+    rec.start();
+  });
+})();
 // section 12 of the plain-language spec: going back or forward (or a reload) keeps the request typed in this tab, sent
 // or not, and from the pay screen too; kept for this tab only (sessionStorage), and a page without storage still works
 const DRAFT = "knos.draft.tool." + D.id;
@@ -1199,7 +1458,7 @@ window.addEventListener("pagehide", draftSave);
   addEventListener("visibilitychange", () => {
     if (sent || document.visibilityState !== "hidden" || get("knos-count") !== "yes" || !navigator.sendBeacon) return;
     sent = true;
-    navigator.sendBeacon(D.api + "/api/vitals", new Blob([JSON.stringify({ screen: D.result ? "result" : "tool", lcp: v.lcp, inp: v.inp, cls: Math.round(v.cls * 1000) / 1000, browser: browser(), test })], { type: "application/json" }));
+    navigator.sendBeacon(D.api + "/api/vitals", new Blob([JSON.stringify({ screen: D.result ? "result" : "tool", lcp: v.lcp, inp: v.inp, cls: Math.round(v.cls * 1000) / 1000, browser: browser(), test, device: matchMedia("(pointer: coarse)").matches || innerWidth < 768 ? "phone" : "desktop" })], { type: "application/json" }));
   });
 })();
 })();""".replace("/*TABLE*/", TABLE_JS)
@@ -1269,9 +1528,10 @@ def page(tool: dict, base: str, result: dict | None = None, front: str = "https:
     label = t(L, "tool.sample_made_up" if f["made_up"] else "tool.sample_nasa")
     data = {"id": tool["id"], "sample": tool["sample"], "sample_label": label, "rule": tool["rule"], "limit": shown_limit(tool["limit"]), "starter": starter, "api": base, "limits": tool["limits"], "column": tool["column"], "column_plain": column_shown(L, tool["column"]), "sample_shown": sample_shown(L, tool["sample"]),
             "lang": L, "langs": list(LANGS), "t": strings_for(L, SCRIPT_KEYS),
-            "icons": {st: icon(L, st) for st in STATES}, "test_url": TEST_URL,
+            "icons": {st: icon(L, st) for st in STATES}, "test_url": TEST_URL, "bonus": int(conf()["return_bonus_runs"]), "invite_runs": int(conf()["invite_runs"]),
             "result": result and {**{k: result.get(k) for k in ("result", "first_failing_row", "passed", "unchecked", "failing", "shown_by", "link",
-                                                                 "mode", "chart", "column", "rule", "limit", "input")}, "verdict": verdict_of(result)}}
+                                                                 "mode", "chart", "column", "rule", "limit", "input", "id",
+                                                                 "tool_version", "test_sha256", "created_at", "older", "opens")}, "verdict": verdict_of(result)}}
     ssr, below = sent.get("error_html", ""), ""
     if result:
         ssr = answer_html(L, result)
@@ -1357,11 +1617,13 @@ def page(tool: dict, base: str, result: dict | None = None, front: str = "https:
 {copy}
 <div id="more">{below}</div>
 <div id="alt" class="alt"{" hidden" if result and not own else ""}><p><a id="k-sample" href="{_e(sample_href)}" data-starter>{_e(t(L, "tool.try_made_up" if f["made_up"] else "tool.try_nasa"))}</a></p>
-<div id="own" class="field" hidden><button type="button" id="pick">{_e(t(L, "tool.choose_file"))}</button><input id="file" type="file" dir="auto" accept=".csv,text/csv,text/plain" aria-label="{_e(t(L, "tool.choose_file"))}" hidden></div></div>
+<div id="k-hist"></div>
+<div id="own" class="field" hidden><button type="button" id="pick">{_e(t(L, "tool.choose_file"))}</button><input id="file" type="file" dir="auto" accept=".csv,.tsv,.txt,.xlsx,text/csv,text/tab-separated-values,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" aria-label="{_e(t(L, "tool.choose_file"))}" hidden></div></div>
 <details>
 <summary>{_e(t(L, "how"))}</summary>
 {five(L, answers(L, "result" if result else "tool", f))}
 <ol>{items}</ol>
+{source_html(L)}
 {extra}
 </details>
 <div class="home"><a href="{_e(front)}" data-no-mirror>Knos</a> <button type="button" id="theme" hidden><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg><span id="theme-label"></span></button></div>
@@ -1369,6 +1631,24 @@ def page(tool: dict, base: str, result: dict | None = None, front: str = "https:
 {scripts}
 </body>
 </html>"""
+
+
+def conf() -> dict:
+    from .runner_conf import CONF
+    return CONF
+
+
+def source_html(lang: str) -> str:
+    """The sample limit's source (L10): the passage that says it, in the source's own words (English), and the day it was
+    checked, from knos_wanted.sources (never typed into the page)."""
+    from . import sources
+    s = sources.for_limit()
+    if not s or not sources.supports(s):
+        return ""
+    host = s["url"].split("//")[-1].split("/")[0]
+    return (f'<p data-source-checked="{_e(s["checked_on"])}">{_e(t(lang, "src.checked", date=s["checked_on"]))}</p>'
+            f'<blockquote class="src-passage" lang="en" dir="ltr" cite="{_e(s["url"])}"><p>{_e(s["passage"])}</p>'
+            f'<p><a href="{_e(s["url"])}">{_e(host)}</a></p></blockquote>')
 
 
 def first_sentence(result: str) -> str:

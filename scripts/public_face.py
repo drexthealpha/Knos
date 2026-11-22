@@ -142,10 +142,14 @@ DOOR = "web/door.html"   # the published front door: scripts/site_pages.py write
 
 def door_title(description: str | None) -> str | None:
     """The front door's title from its own description: "Knos: " and the description's first sentence, its first letter
-    small and its full stop dropped (60 characters at most: what a person searching reads first)."""
+    small and its full stop dropped (60 characters at most: what a person searching reads first). A first sentence that
+    already says what Knos is ("Knos is ...", IQ L02: the title is the one sentence) is the title as it stands."""
     if not description:
         return None
-    first = re.split(r"(?<=[.!?])\s", description.strip(), maxsplit=1)[0].rstrip(".!?")
+    first = re.split(r"(?<=[.!?])\s", description.strip(), maxsplit=1)[0]
+    if first.startswith("Knos "):
+        return first
+    first = first.rstrip(".!?")
     return "Knos: " + first[:1].lower() + first[1:]
 
 

@@ -4,20 +4,10 @@ import urllib.error
 import xml.etree.ElementTree as ET
 
 from knos_wanted import agent_files as af
-from knos_wanted import trace
 
 BASE = "https://knos.onrender.com"
 H = "ab" * 32
 SM = "{http://www.sitemaps.org/schemas/sitemap/0.9}"
-
-
-def _trace():
-    rep = {"hash": H, "idea": "a late night ramen spot", "made": "2026-10-29T10:00:00Z", "label": "LIVE",
-           "decision": {"verdict": "Go: people want it", "reasons": ["Fans of ramen cluster in Austin", "Late dining is up"]},
-           "calls": [{"n": 1, "call": "/v2/insights", "params": {"a": 1}, "at": "2026-10-29T10:00:01Z", "cached": False},
-                     {"n": 2, "call": "/search", "params": {}, "at": "2026-10-28T09:00:00Z", "cached": True},
-                     {"n": 3, "call": "/v2/tags", "params": {}, "at": "2026-10-29T10:00:02Z"}]}
-    return trace.build(rep)
 
 
 def _copy_ok(text: str):
@@ -34,7 +24,7 @@ def test_llms_txt():
     assert code == 200 and ctype.startswith("text/markdown")
     assert text.startswith("# Knos\n") and "\n> " + af.ONE_LINE + "\n" in text
     assert "## Optional" in text and "{base}" not in text
-    for path in ("/app/", "/mcp)", "/mcp/server-card", "/openapi.json", "/status/qloo", "/trace.html"):
+    for path in ("/app/", "/mcp)", "/mcp/server-card", "/openapi.json"):
         assert BASE + path in text, path
     assert re.search(r"^- \[[^\]]+\]\(https://[^)]+\): \S", text, re.M)
     _copy_ok(text)
@@ -50,19 +40,18 @@ def test_robots_txt():
 
 
 def test_sitemap_xml():
-    code, body, ctype, _ = af.sitemap_xml(BASE, [H, ("cd" * 32, "2026-10-01"), "not-a-hash"], lastmod="2026-10-29")
+    code, body, ctype, _ = af.sitemap_xml(BASE, lastmod="2026-10-29")
     assert code == 200 and "xml" in ctype
-    assert b"&amp;" not in body and b"?hash=" in body
+    assert b"&amp;" not in body
     root = ET.fromstring(body)
     locs = [u.find(SM + "loc").text for u in root.findall(SM + "url")]
     mods = [u.find(SM + "lastmod").text for u in root.findall(SM + "url")]
-    assert locs == [BASE + "/app/", BASE + "/status/qloo", "https://drexthealpha.github.io/Knos/proof/",
-                    f"{BASE}/trace.html?hash={H}", f"{BASE}/trace.html?hash={'cd' * 32}"]
-    assert mods[-1] == "2026-10-01" and all(mods)
+    assert locs == [BASE + "/app/", "https://drexthealpha.github.io/Knos/proof/"]
+    assert mods == ["2026-10-29", "2026-10-29"]
 
 
 def test_sitemap_escapes_ampersand():
-    _, body, _, _ = af.sitemap_xml("https://x.test/a&b", [])
+    _, body, _, _ = af.sitemap_xml("https://x.test/a&b")
     assert b"a&amp;b" in body
     ET.fromstring(body)
 
@@ -150,45 +139,6 @@ def test_indexnow_send_never_raises():
     assert af.indexnow_send(body, opener=boom) == 0
     assert af.indexnow_send(body, opener=refused) == 422
     assert af.indexnow_send({}, opener=ok) == 0
-
-
-def test_trace_markdown_numbers():
-    t = _trace()
-    num = af.trace_numbers(t)
-    assert num == {"calls": 3, "live": sum(1 for c in t["calls"] if c.get("live")), "recorded": 3, "reasons": 2}
-    code, body, ctype, _ = af.trace_markdown(t)
-    md = body.decode()
-    assert code == 200 and ctype.startswith("text/markdown")
-    assert "**Verdict:** Go: people want it" in md
-    for r in t["decision"]["reasons"]:
-        assert f"- {r}" in md
-    assert f"## Qloo calls: {len(t['calls'])}" in md and "Live: 0. Recorded: 3." in md
-    for c in t["calls"]:
-        assert f"| {c['n']} | {c['endpoint'].replace('_', chr(92) + '_')} | {c['at']} | recorded {c['at'][:10]} |" in md
-
-
-def test_trace_jsonld_matches_visible():
-    t = _trace()
-    ld = json.loads(json.dumps(af.trace_jsonld(t)))
-    vals = {p["name"]: p["value"] for p in ld["variableMeasured"]}
-    assert ld["@type"] == "Dataset" and ld["identifier"] == H
-    assert vals == {"Verdict": t["decision"]["verdict"], "Qloo calls": len(t["calls"]), "Live calls": 0,
-                    "Recorded calls": 3, "Reasons": len(t["decision"]["reasons"])}
-    parts = af.trace_html_head(t)
-    assert f'<link rel="alternate" type="text/markdown" href="/trace.md?hash={H}">' in parts["head"]
-    m = re.search(r'<script type="application/ld\+json">(.*?)</script>', parts["head"], re.S)
-    assert json.loads(m.group(1)) == ld
-    s = parts["section"]
-    assert "<h2>Go: people want it</h2>" in s and "Qloo calls: 3. Live: 0. Recorded: 3." in s
-    assert all(f"<li>{r}</li>" in s for r in t["decision"]["reasons"]) and s.count("<tr>") == 1 + len(t["calls"])
-
-
-def test_trace_html_escapes():
-    t = _trace()
-    t["decision"]["verdict"] = "<img src=x onerror=alert(1)>"
-    s = af.trace_html_head(t)
-    assert "<img" not in s["section"] and "&lt;img" in s["section"]
-    assert "</script>" not in s["head"].split('<script type="application/ld+json">', 1)[1][:-len("</script>")]
 
 
 def test_app_jsonld():

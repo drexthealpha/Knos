@@ -2,13 +2,13 @@
 
     python scripts/public_scan.py files            every tracked public file of the repository
     python scripts/public_scan.py site <dir>       a built Pages site (scripts/build_site.sh)
-    python scripts/public_scan.py live             the live answers of the front door, the app, /status/qloo, /mcp
+    python scripts/public_scan.py live             the live answers of the front door, the app, /mcp
                                                    tools/list, /api/check and /api/ready
 
 What a reader reads: prose files (.md, .html, .txt) with their scripts and styles taken out, the text values of JSON,
 and the string literals with a space in them inside the site's and the app's JavaScript (what such code shows; a bare
 identifier or a path is never shown). A Markdown link's target is an address, never shown, so only its text is read.
-A page's raw HTML is also read for an inlined Qloo answer. Counts and places only: a matched passage is never printed.
+A page's raw HTML is also read for an inlined taste-data answer. Counts and places only: a matched passage is never printed.
 Exit 1 on any hit.
 
 `files` skips the machine files of docs/MACHINE_FILES.txt (a line each: path, sha256, reason): signed receipt vectors,
@@ -35,16 +35,15 @@ WORDS = {
     "Upwork": r"upwork", "Algora": r"algora", "Devpost": r"devpost", "pay on proof": r"pa(?:y|id) on proof",
     "knos-mind": r"knos-mind",
 }
-QLOO_RAW = {
-    "Qloo affinity number": r'"affinity"\s*:\s*-?\d|affinity[^<\n]{0,12}\b0\.\d{3,}',
-    "Qloo audience name": r"\((?:Hobbies And Interests|Lifestyle Preferences|Life Stage|Communities|Professional Area|"
+RAW = {
+    "affinity number": r'"affinity"\s*:\s*-?\d|affinity[^<\n]{0,12}\b0\.\d{3,}',
+    "audience name": r"\((?:Hobbies And Interests|Lifestyle Preferences|Life Stage|Communities|Professional Area|"
                           r"Global Issues|Investing Interests|Leisure|Political Preferences|Spending Habits)\)|urn:audience:",
     "k-proof snapshot": r"id=.k-proof['\"]",
 }
 IDEA = "DPI-I-689"
-# the IRIS entry names the community idea it implements on purpose (the B11 bonus): its link, text and address, in the
-# entry's own pages; anywhere else the idea code is a leak of the entry into another page
-IDEA_ALLOWED = {"README.md": 2, "README.pypi.md": 2, "docs/reference/IRIS.md": 3, "iris/README.md": 4, "iris/docs/article-2.md": 2}
+# a contest entry's idea code: no public page carries it
+IDEA_ALLOWED: dict[str, int] = {}
 PROSE = {".md", ".html", ".txt"}
 # never shown to a reader: code, tests, build and machine files, the program interfaces and the record of releases
 SKIP_DIRS = ("tests/", "scripts/", "programs/", "programs-v2/", "programs-hook/", "crates/", "zk/", "idl/", "schemas/",
@@ -106,7 +105,7 @@ def js_text(s: str) -> str:
 
 
 def readable(path: str, raw: str) -> tuple[str, str]:
-    """(the text a reader reads, the raw text searched for an inlined Qloo answer)"""
+    """(the text a reader reads, the raw text searched for an inlined taste-data answer)"""
     ext = Path(path).suffix.lower()
     if ext == ".html":
         return html_text(raw), raw
@@ -187,7 +186,7 @@ def count(text: str, raw: str, path: str, pages: bool) -> dict[str, int]:
     # an all-capitals word is a constant's name, never prose
     hits = {k: sum(1 for m in re.finditer(rx, text, re.I) if not (m.group(0).isupper() and len(m.group(0)) > 1)) for k, rx in WORDS.items()}
     if pages:
-        hits.update({k: len(re.findall(rx, raw)) for k, rx in QLOO_RAW.items()})
+        hits.update({k: len(re.findall(rx, raw)) for k, rx in RAW.items()})
     allowed = IDEA_ALLOWED.get(path.replace("\\", "/"), 0)
     hits[IDEA] = max(0, text.count(IDEA) - allowed)
     return {k: v for k, v in hits.items() if v}
@@ -240,7 +239,7 @@ def _get(url: str, data: bytes | None = None, ctype: str = "application/json") -
 
 def live_items():
     app, front = "https://knos.onrender.com", "https://drexthealpha.github.io/Knos/"
-    for name, url in (("front door", front), ("/app/", app + "/app/"), ("/status/qloo", app + "/status/qloo")):
+    for name, url in (("front door", front), ("/app/", app + "/app/")):
         yield name + ".html", _get(url), True
     tl = _get(app + "/mcp", json.dumps({"jsonrpc": "2.0", "id": 1, "method": "tools/list"}).encode())
     yield "/mcp tools/list.json", tl, False

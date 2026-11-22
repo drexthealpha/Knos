@@ -1,6 +1,5 @@
-"""No personal data goes to Qloo (Qloo's docs/SAFE_USE.md: "Do not send names, email addresses, device
-identifiers, account IDs, location histories, or other personal data to Qloo"). Every argument of every MCP call is
-checked here BEFORE it leaves the server; a refused call never reaches Qloo.
+"""No personal data leaves the server: every input of a check or a tool call is checked here BEFORE any outside source
+is asked; a refused input reaches no source.
 
 What a buyer gives Knos is things they like (public cultural signals: a brand, a film, a cuisine), never who they
 are. This guard refuses what looks like identity data: an e-mail address, a phone number, a social handle, a URL,
@@ -14,7 +13,7 @@ MAX_ITEMS = 10
 MAX_LEN = 80
 SAFE = re.compile(r"^(\d{4}-\d{2}-\d{2}|[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"
                   r"|urn:[a-z0-9:_.-]+|mock-[a-z0-9_-]+)$")
-# a WKT geometry (Qloo's filter.location: a launch area as POINT or POLYGON), numbers only: a place to sell in, not a person
+# a WKT geometry (a launch area as POINT or POLYGON), numbers only: a place to sell in, not a person
 WKT = re.compile(r"^(POINT|POLYGON|MULTIPOLYGON)\s*\([-0-9.,\s()]{3,400}\)$", re.I)
 # a span of years ("2016-2018", "1990 to 2001") is a date range, not a phone number: taken out before the patterns run
 YEARS = re.compile(r"\b(?:1[89]|20)\d\d\s*(?:[/\u2013\u2014-]|to)\s*(?:1[89]|20)\d\d\b")
@@ -31,9 +30,9 @@ PATTERNS = [
 ]
 
 
-# Asking Qloo to infer something about people: "Qloo results ... should not be used to infer a person's identity,
-# sensitive traits, health, financial status, political views, or eligibility for housing, employment, credit, insurance"
-# (kit docs/SAFE_USE.md). Refused when a text asks to infer (a verb) something sensitive (a topic) about people (a noun),
+# Asking Knos to infer something about people (a person's identity, sensitive traits, health, financial status,
+# political views, or eligibility for housing, employment, credit, insurance) is refused when a text asks to infer (a
+# verb) something sensitive (a topic) about people (a noun),
 # or to decide someone's eligibility. A product for a health or money need is not refused: only inference about people.
 INFER = re.compile(r"\b(infer\w*|predict\w*|guess\w*|identif\w+|determin\w+|find(?:ing)? out|figur\w* out|reveal\w*|profil\w+|deduc\w+|work out)\b", re.I)
 PEOPLE = re.compile(r"\b(persons?|people|someone|somebody|individuals?|users?|customers?|employees?|applicants?|tenants?|voters?|neighbou?rs?|"
@@ -46,7 +45,7 @@ ELIGIBLE = re.compile(r"\b(eligib\w*|approve|reject|deny|screen\w*|decide who ge
 
 
 def sensitive(text: str) -> str | None:
-    """Why a text asks Qloo for what the kit forbids, or None."""
+    """Why a text asks for an inference about people that Knos refuses, or None."""
     if ELIGIBLE.search(text):
         return "it asks to decide someone's eligibility (housing, work, credit or insurance)"
     if INFER.search(text) and PEOPLE.search(text) and SENSITIVE.search(text):
@@ -55,7 +54,7 @@ def sensitive(text: str) -> str | None:
 
 
 class PersonalData(ValueError):
-    """Refused before any Qloo call: the text looks like personal data."""
+    """Refused before any source is asked: the text looks like personal data."""
 
 
 def problems(value, where: str = "input") -> list[str]:
@@ -69,7 +68,7 @@ def problems(value, where: str = "input") -> list[str]:
         for i, v in enumerate(value):
             out += problems(v, f"{where}[{i}]")
     elif isinstance(value, str):
-        if SAFE.match(value) or WKT.match(value):      # a Qloo id or tag URN, an ISO date, a WKT area: not free text
+        if SAFE.match(value) or WKT.match(value):      # an id or URN, an ISO date, a WKT area: not free text
             return out
         if len(value) > MAX_LEN and not where.endswith(("idea",)):
             out.append(f"{where}: at most {MAX_LEN} characters")
@@ -79,12 +78,12 @@ def problems(value, where: str = "input") -> list[str]:
                 out.append(f"{where} looks like {what}")
         why = sensitive(value)
         if why:
-            out.append(f"{where}: {why}, which Knos refuses (Qloo describes aggregate taste, never a person)")
+            out.append(f"{where}: {why}, which Knos refuses (it measures demand, never a person)")
     return out
 
 
 class Refused(ValueError):
-    """Refused before any Qloo call: the idea is on Knos's published refuse list (knos.refuse, GET /api/refuse)."""
+    """Refused before any source is asked: the idea is on Knos's published refuse list (knos.refuse, GET /api/refuse)."""
 
 
 def _texts(value) -> list[str]:
@@ -102,7 +101,7 @@ def check(value, where: str = "input") -> None:
         raise Refused(f"Knos refuses this: {no[0]['why']} ('{no[0]['word']}'). The list is public: /api/refuse.")
     p = problems(value, where)
     if p:
-        raise PersonalData("Knos sends no personal data to Qloo: " + "; ".join(p[:3])
+        raise PersonalData("Knos sends no personal data to any source: " + "; ".join(p[:3])
                            + ". Name things you like (a brand, a film, a cuisine), not who you are.")
 
 

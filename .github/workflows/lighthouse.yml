@@ -24,7 +24,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: "22"
-      - name: "Serve the app from this commit (no keys: Qloo MOCK, no money held)"
+      - name: "Serve the app from this commit (no keys, no money held)"
         run: |
           pip install --quiet . "./apps/wanted[auth,config]"
           KNOS_WANTED_STATE=$RUNNER_TEMP/state KNOS_WANTED_CACHE=$RUNNER_TEMP/cache KNOS_WANTED_RECORD=$RUNNER_TEMP/record \

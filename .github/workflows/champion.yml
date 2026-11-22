@@ -122,7 +122,7 @@ jobs:
     # six shards at once (the front door's pages in two, the app's in four): every page still gets three cold runs,
     # each a fresh browser; test_vitals below reads them all. They start once the quick jobs that open the same pages in
     # their own browsers are done (measured at the same time, the front door's pages crossed 1.5 s in 3 runs of 3)
-    needs: [test_legibility, test_proof_first, test_companies_mode, test_value_vectors, test_stack_coverage]
+    needs: [test_legibility, test_proof_first, test_companies_mode, test_value_vectors]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -187,16 +187,6 @@ jobs:
           path: .lighthouseci
           merge-multiple: true
       - run: node scripts/test_quality_bar.mjs vitals .lighthouseci
-  test_stack_coverage:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
-        with:
-          python-version: "3.12"
-      - run: pip install -q -e .
-      - run: python scripts/test_stack_coverage.py "$APP_URL"
   test_knos_builds_knos:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -207,7 +197,7 @@ jobs:
         run: python3 scripts/test_knos_builds_knos.py "$(cat scripts/champion_project.txt)" --except test_knos_builds_knos
   release:
     needs: [test_fields_matrix, test_value_vectors, test_proof_first, test_money_page, test_companies_mode, test_legibility,
-            test_vitals, test_stack_coverage, test_knos_builds_knos]
+            test_vitals, test_knos_builds_knos]
     if: always() && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -229,7 +219,7 @@ jobs:
   # check them without Knos (scripts/verify_proofs.sh, or `sigstore verify github` by hand).
   proofs:
     needs: [test_fields_matrix, test_value_vectors, test_proof_first, test_money_page, test_companies_mode, test_legibility,
-            test_vitals, test_stack_coverage, test_knos_builds_knos]
+            test_vitals, test_knos_builds_knos]
     if: always() && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15

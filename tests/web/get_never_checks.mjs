@@ -1,5 +1,5 @@
 // node tests/web/get_never_checks.mjs
-// H3: a page that opens never asks Qloo. In headless Chromium, served from web/, with the app's server answered from a
+// H3: a page that opens never runs a check. In headless Chromium, served from web/, with the app's server answered from a
 // recording: every result page under web/results/ and the front door opened as /?q=a probiotic kombucha brand send 0 POST
 // to /api/check while they load and settle; each shows the recorded answer labelled recorded (or says there is none);
 // a live check runs only from the reader's press (one POST for one press). No real server is asked: every request that

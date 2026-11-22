@@ -81,7 +81,7 @@ def need(sentence: str, user: dict, open_: bool, state) -> dict:
     field = classify(sentence)
     brief = draft(sentence, field)
     r = kr.check(brief)
-    rep = check.demand_check(sentence, None, None, client=state.rest)
+    rep = check.demand_check(sentence)
     rep["private"] = not open_
     state.keep_check(rep)
     d = rep.get("decision") or {}

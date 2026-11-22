@@ -1,7 +1,7 @@
 # Evidence plan (fixed 28 Oct 2026, before any run it names)
 
 Knos's own claims, each tested against a real outcome with a control that tries to break it. Every number this plan
-names is published as the script recomputes it from committed raw files, wins and losses alike. No Qloo call is made.
+names is published as the script recomputes it from committed raw files, wins and losses alike.
 
 ## 1. A clear brief before the work (IDT)
 
@@ -22,6 +22,7 @@ names is published as the script recomputes it from committed raw files, wins an
   above 1, and the control-to-Ready interval is too. Otherwise the page says the claim did not hold.
 - Raw files: `docs/idt/e1/runs.json` (every run) and `docs/idt/e1/summary.json`, written by
   `python scripts/idt_bench.py --arms vague,ready,control --out docs/idt/e1`.
+- On 22 Nov 2026, four recorded replies in `docs/idt/e1/runs.json` had a removed product name replaced by "[removed]".
 
 ## 2. Proof checking against altered pull requests
 
@@ -39,15 +40,6 @@ names is published as the script recomputes it from committed raw files, wins an
   (`knos.judge.judge`, tests mode). A pull request is caught when the referee refuses to pay it.
 - Results: caught out of 60 for each referee, per operator, and every miss by name.
 - Raw file: `docs/reference/e1_mutants.json`, written by `python scripts/e1_mutants.py`.
-
-## 3. What Qloo adds, from recordings already made (0 new calls)
-
-Every with-and-without-Qloo result already measured is published with its date and raw file, wins and losses alike:
-
-- the verdict changed on 14 of 20 ideas against a free-data baseline;
-- the Census where-test, which Qloo lost (0.193 against 0.407);
-- the taste test, which tied;
-- the crowdfunding test on a public dataset of crowdfunded product launches, which showed no lift.
 
 ## 4. The pre-order flow
 

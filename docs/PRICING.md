@@ -108,4 +108,4 @@ To change them takes an upgrade of the program, which waits 8 days in public fir
 
 ## Read more
 
-- [Start here](START.md): check a paper's claim on NEAR first, then see the same Knos on Solana and IRIS.
+- [Start here](START.md): check a paper's claim on NEAR first, then see the same Knos on Solana.

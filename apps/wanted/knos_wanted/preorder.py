@@ -211,8 +211,8 @@ def lock(report: dict, units: int, buyer_label: str, maker_wallet: str | None = 
     then wallets.sign). No server key buys for anyone. The report's checks still run first, so the reason given is the
     first one that applies."""
     d = report.get("decision") or {}
-    if d.get("verdict") != "OPEN" or report.get("label", "").startswith("NO QLOO"):
-        raise ValueError("pre-orders open only on a report whose decision is OPEN on live Qloo evidence")
+    if d.get("verdict") != "OPEN" or not isinstance(d.get("target_units"), int):
+        raise ValueError("pre-orders open only on a report whose decision is OPEN with a pre-order target")
     _need()
     from .wallets import NeedPasskey
     raise NeedPasskey("a pre-order is signed by the buyer's own passkey: POST /api/preorder returns the challenge, "

@@ -17,7 +17,7 @@ def test_values_hold_no_secret_and_compose_has_both_services():
     v = yaml.safe_load((CHART / "values.yaml").read_text(encoding="utf-8"))
     assert v["cluster"] == "devnet" and v["replicaCount"] == 1
     flat = (CHART / "values.yaml").read_text(encoding="utf-8")
-    for word in ("BEGIN PRIVATE", "sk_live", "QLOO_API_KEY=sk"):
+    for word in ("BEGIN PRIVATE", "sk_live", "_API_KEY=sk"):
         assert word not in flat
     c = yaml.safe_load((ROOT / "deploy" / "selfhost" / "compose.yaml").read_text(encoding="utf-8"))
     assert set(c["services"]) == {"knos", "sso"} and c["services"]["knos"]["build"]["dockerfile"] == "apps/wanted/Dockerfile"

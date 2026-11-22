@@ -1,12 +1,12 @@
 """The front door's list: research products people can back now (GET /api/front), and the seeds that keep it full.
 
 The app runs on a free instance whose disk is wiped when it restarts, so a stranger could find an empty app. When a reader
-first asks for the board, this server crosses each SEED (a landmark paper and the product it enables) on live
-Qloo exactly as a researcher's crossing does, and opens a PROJECT for each one that decides OPEN, so its milestones
+first asks for the board, this server crosses each SEED (a landmark paper and the product it enables) on the open
+signals exactly as a researcher's crossing does, and opens a PROJECT for each one that decides OPEN, so its milestones
 can be funded before any maker claims them (the payee is bound when a maker claims). Nothing is invented: a seed whose
 crossing does not decide OPEN is not listed, and every number on the list is read from this server's own files.
 
-Every product is named by a SLUG that outlives a restart (the report's hash changes when Qloo's data does), so the
+Every product is named by a SLUG that outlives a restart (the report's hash changes when its signals do), so the
 front door's links (#back=<slug>) keep working.
 Each product carries ONE-TAP actions: back it (pre-order, or the first milestone's vault while no maker has
 claimed it), fund a milestone (the project), contribute (the open work).
@@ -77,7 +77,7 @@ def _project_for(report_hash: str, title: str, template: str) -> str | None:
 
 
 def seed_one(state, s: dict) -> dict:
-    """Cross one seed on this server's Qloo (synchronously) and open its project when it decides OPEN."""
+    """Cross one seed on this server (synchronously) and open its project when it decides OPEN."""
     from . import agent
     with _lock:
         _seeded[s["slug"]] = {"state": "crossing", "at": time.time()}
@@ -116,12 +116,7 @@ def start(state) -> None:
         return
     _started = True
     def seed():
-        try:
-            ensure_seeded(state)
-        finally:
-            idle = getattr(state.q, "idle", None)        # the seeds' crossings started `qloo mcp`: stopped until next asked
-            if callable(idle) and os.environ.get("KNOS_WANTED_MOCK") != "1":
-                idle()
+        ensure_seeded(state)
     threading.Thread(target=seed, daemon=True, name="knos-front-seeds").start()
 
 
@@ -177,8 +172,9 @@ def board(state, n: int = 6) -> dict:
         start(state)                      # the seeds cross when a reader first asks for the board, never at boot
     out, seen = [], set()
     by_report = {p.get("report"): p["id"] for p in valley._all("projects") if p.get("report")}
-    def listed(rep) -> bool:             # OPEN on LIVE Qloo evidence: the only decisions pre-orders open on
-        return bool(rep) and (rep.get("decision") or {}).get("verdict") == "OPEN" and str(rep.get("label") or "").startswith("LIVE")
+    def listed(rep) -> bool:             # OPEN on the open signals
+        from . import check
+        return bool(rep) and (rep.get("decision") or {}).get("verdict") == "OPEN" and rep.get("label") == check.LABEL
     for s in SEEDS:
         got = seeded().get(s["slug"]) or {}
         rep = state.report(got.get("report")) if got.get("report") else None
@@ -196,7 +192,7 @@ def board(state, n: int = 6) -> dict:
             out.append(product(state, rep, c["report"][:16], by_report.get(c["report"])))
     waking = [s["slug"] for s in SEEDS if (seeded().get(s["slug"]) or {}).get("state") == "crossing"]
     return {"products": out[:n], "crossing_now": waking, "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-            "source": "this server's own files (live Qloo decisions, money held on devnet)", "money": "devnet test units: no real money",
+            "source": "this server's own files (decisions on open signals, money held on devnet)", "money": "devnet test units: no real money",
             "app": "https://knos.onrender.com"}
 
 

@@ -20,7 +20,7 @@ if (!CI) {
   const render = execFileSync(py, ["-I", process.env.KNOS_RENDER_LATEST], { encoding: "utf8" }).trim().split(/\s+/);
   ok(render[1] === "live" && ARG.startsWith(render[2]), `Render live at ${render[2]} (${render[1]})`);
 }
-const PAGES = [SITE, SITE + "claims/", SITE + "claim/hyperloglog/", SITE + "prove/", SITE + "agents/", SITE + "labs/", SITE + "pricing/", SITE + "status/", SITE + "check/"];
+const PAGES = [SITE, SITE + "claims/", SITE + "claim/hyperloglog/", SITE + "prove/", SITE + "agents/", SITE + "pricing/", SITE + "status/", SITE + "check/"];
 const browser = await chromium.launch();
 
 try {

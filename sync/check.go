@@ -28,17 +28,19 @@ const (
 
 // PlaceResult is one place of an entry, as check found it.
 type PlaceResult struct {
-	File   string `json:"file"`
-	Line   int    `json:"line"`
-	Says   string `json:"says"`
-	Stated string `json:"stated,omitempty"`
-	Now    string `json:"now,omitempty"`
-	Should string `json:"should,omitempty"`
-	Status string `json:"status"`
-	First  string `json:"first_stale_commit,omitempty"`
-	start  int    // byte offsets of the stated value in the file
-	end    int
-	newVal string // the true value written the way the text wrote the old one
+	File      string `json:"file"`
+	Line      int    `json:"line"`
+	Says      string `json:"says"`
+	Stated    string `json:"stated,omitempty"`
+	Now       string `json:"now,omitempty"`
+	Should    string `json:"should,omitempty"`
+	Status    string `json:"status"`
+	First     string `json:"first_stale_commit,omitempty"`
+	LineText  string `json:"line_text,omitempty"`  // the whole line as it reads
+	LineFixed string `json:"line_fixed,omitempty"` // a stale place's whole line as it should read
+	start     int    // byte offsets of the stated value in the file
+	end       int
+	newVal    string // the true value written the way the text wrote the old one
 }
 
 // EntryResult is one entry, as check found it.
@@ -55,6 +57,8 @@ type EntryResult struct {
 	Confirmed bool          `json:"confirmed_by_person"`
 	Blocking  bool          `json:"blocking"`
 	Places    []PlaceResult `json:"places"`
+	Rank      int           `json:"rank,omitempty"`
+	Score     int           `json:"score,omitempty"`
 }
 
 // Report is what `check --json` prints.
@@ -68,12 +72,17 @@ type Report struct {
 	Outside    int               `json:"outside"`
 	FileHashes map[string]string `json:"file_hashes"`
 	Exit       int               `json:"exit"`
+	Rechecked  int               `json:"rechecked"`
+	Reused     int               `json:"reused"`
+	Names      []NameFinding     `json:"names,omitempty"`
+	NamesError string            `json:"names_error,omitempty"`
 }
 
 type checkOptions struct {
 	network    bool
 	rereadWait time.Duration
 	only       map[string]bool
+	full       bool // run every entry again, ignoring the stored traces
 }
 
 // fileCache reads each file once and keeps its content hash: files are compared by content, never by time (E6).
@@ -105,6 +114,8 @@ type located struct {
 	suffix string
 	start  int // byte offsets of the stated value in the file
 	end    int
+	text   string // the whole line
+	off    int    // the line's byte offset in the file
 }
 
 func valuePattern(kind, says string) string {
@@ -163,7 +174,7 @@ func locate(content []byte, kind string, p Place) located {
 			return located{}, false
 		}
 		return located{found: true, line: n, stated: s[m[2]:m[3]], now: s[m[0]:m[1]], prefix: prefix, suffix: suffix,
-			start: off + m[2], end: off + m[3]}, true
+			start: off + m[2], end: off + m[3], text: s, off: off}, true
 	}
 	if l, ok := try(p.Line); ok {
 		return l
@@ -223,12 +234,14 @@ func evaluate(fc *fileCache, c *Facts, e Entry, opt checkOptions) EntryResult {
 			continue
 		}
 		pr.Line, pr.Stated, pr.Now, pr.start, pr.end = loc.line, loc.stated, loc.now, loc.start, loc.end
+		pr.LineText = loc.text
 		ok, err := compare(e.Kind, e.Comparator, loc.stated, actual, e.Tolerance)
 		switch {
 		case err != nil || !ok:
 			replacement := formatLike(e.Kind, loc.stated, actual)
 			pr.Should = loc.prefix + replacement + loc.suffix
 			pr.newVal = replacement
+			pr.LineFixed = loc.text[:loc.start-loc.off] + replacement + loc.text[loc.end-loc.off:]
 			pr.Status = StatusStale
 			if c.silenced(e.ID, p.File, loc.stated, actual) {
 				pr.Status = StatusSilenced
@@ -268,18 +281,41 @@ func runCheck(root string, c *Facts, st *State, opt checkOptions) *Report {
 			rep.Pointed++
 		}
 	}
+	if err := st.storeFactsGraph(c); err != nil {
+		fmt.Fprintf(os.Stderr, "knos-sync: the graph was not stored (%v)\n", err)
+	}
 	for _, e := range c.Entries {
 		if len(opt.only) > 0 && !opt.only[e.ID] {
 			continue
 		}
-		r := evaluate(fc, c, e, opt)
-		// A value read from a chain or a clock is read once more after a wait before it is reported (E7).
-		if e.volatile() && (r.Status == StatusStale || r.Status == StatusError) {
-			if opt.rereadWait > 0 {
-				time.Sleep(opt.rereadWait)
+		// An entry whose inputs hash as they did last time gives the result it gave then: only what a change
+		// touched is checked again (SYNC/P3.md: a stored hash per input, early cutoff).
+		var r EntryResult
+		inputs, cacheable := inputsOf(fc, c, e)
+		reused := false
+		if cacheable && !opt.full {
+			if old, result, ok := st.trace(e.ID); ok && old == inputs && json.Unmarshal([]byte(result), &r) == nil {
+				reused = true
 			}
+		}
+		if reused {
+			rep.Reused++
+		} else {
+			rep.Rechecked++
 			r = evaluate(fc, c, e, opt)
-			r.Reread = true
+			// A value read from a chain or a clock is read once more after a wait before it is reported (E7).
+			if e.volatile() && (r.Status == StatusStale || r.Status == StatusError) {
+				if opt.rereadWait > 0 {
+					time.Sleep(opt.rereadWait)
+				}
+				r = evaluate(fc, c, e, opt)
+				r.Reread = true
+			}
+			if cacheable {
+				if b, err := json.Marshal(r); err == nil {
+					st.storeTrace(e.ID, inputs, string(b))
+				}
+			}
 		}
 		if r.Actual != "" {
 			src := e.Source
@@ -308,7 +344,57 @@ func runCheck(root string, c *Facts, st *State, opt checkOptions) *Report {
 		}
 		rep.Entries = append(rep.Entries, r)
 	}
+	rankEntries(rep.Entries)
+	if c.kindOn(KindName) && len(opt.only) == 0 {
+		names, err := checkNames(root, c, st)
+		if err != nil {
+			rep.NamesError = err.Error()
+		}
+		rep.Names = names
+	}
 	return rep
+}
+
+// noticeWeight orders notices: a stale value, a command with no value, a broken link, a text to record.
+var noticeWeight = map[string]int{StatusStale: 3, StatusError: 2, StatusBroken: 1, StatusRecord: 0}
+
+// rankScore orders the notices: one that blocks first, then by status, then a fact a person confirmed, then by how
+// many places are stale (SYNC/P2.md: the first run prints a ranked list of confirmed stale claims). -1: no notice.
+func rankScore(r EntryResult) int {
+	w, ok := noticeWeight[r.Status]
+	if !ok {
+		return -1
+	}
+	score := w * 100
+	if r.Blocking {
+		score += 1000
+	}
+	if r.Confirmed {
+		score += 50
+	}
+	n := 0
+	for _, p := range r.Places {
+		if p.Status == StatusStale {
+			n++
+		}
+	}
+	return score + min(n, 49)
+}
+
+// rankEntries sorts the entries by score, highest first, and numbers each notice from 1; an entry with no notice
+// keeps rank 0 and comes after them.
+func rankEntries(rs []EntryResult) {
+	sort.SliceStable(rs, func(i, j int) bool { return rankScore(rs[i]) > rankScore(rs[j]) })
+	for i := range rs {
+		if s := rankScore(rs[i]); s >= 0 {
+			rs[i].Rank, rs[i].Score = i+1, s
+		}
+	}
+}
+
+// recheckLine says how many entries ran again and how many gave their stored result.
+func recheckLine(rep *Report) string {
+	return fmt.Sprintf("rechecked: %d of %d entries; %d reused, their inputs unchanged", rep.Rechecked, rep.Rechecked+rep.Reused, rep.Reused)
 }
 
 func currentCommit(root string) string {
@@ -333,6 +419,9 @@ func short(sha string) string {
 // should be (E6), one notice for every place of one fact (E5).
 func noticeText(r EntryResult) string {
 	var b strings.Builder
+	if r.Rank > 0 {
+		fmt.Fprintf(&b, "#%d ", r.Rank)
+	}
 	switch r.Status {
 	case StatusStale:
 		fmt.Fprintf(&b, "STALE %s (%s): %s\n  true value %s, from: %s\n", r.ID, r.Kind, r.Subject, r.Actual, r.Command)
@@ -385,13 +474,34 @@ func printText(rep *Report, unconfirmed []Entry) {
 	if len(rep.KindsOff) > 0 {
 		fmt.Printf("kinds with notices off: %s\n", strings.Join(rep.KindsOff, ", "))
 	}
+	for _, f := range rep.Names {
+		fmt.Print(nameText(f))
+		n++
+	}
+	if rep.NamesError != "" {
+		fmt.Printf("names were not checked: %s\n", rep.NamesError)
+	}
 	fmt.Printf("verified: %d of %d entries; %d notices; exit %d\n", rep.Verified, rep.Total, n, rep.Exit)
+	fmt.Println(recheckLine(rep))
 	if unconfirmed != nil {
 		fmt.Printf("\n%d entries no person has confirmed:\n", len(unconfirmed))
 		for _, e := range unconfirmed {
 			fmt.Printf("  knos-sync confirm %s    # %s\n", e.ID, e.Subject)
 		}
 	}
+}
+
+// suggestion is a stale place's fix as a GitHub suggestion block: the whole line as it should read, which a review
+// comment on that line applies with one click (SYNC/P6.md finding 5).
+func suggestion(p PlaceResult) string {
+	if p.Status != StatusStale || p.LineFixed == "" {
+		return ""
+	}
+	fence := "```"
+	for strings.Contains(p.LineFixed, fence) {
+		fence += "`"
+	}
+	return fence + "suggestion\n" + p.LineFixed + "\n" + fence + "\n"
 }
 
 func mdCode(s string) string {
@@ -402,12 +512,18 @@ func mdCode(s string) string {
 // noticeMarkdown is one entry's notice for a pull request comment or a run summary.
 func noticeMarkdown(r EntryResult) string {
 	var b strings.Builder
+	if r.Rank > 0 && r.Status != StatusRecord {
+		fmt.Fprintf(&b, "#%d ", r.Rank)
+	}
 	switch r.Status {
 	case StatusStale:
 		fmt.Fprintf(&b, "**%s** (%s): %s. True value %s, from %s\n\n", r.ID, r.Kind, r.Subject, mdCode(r.Actual), mdCode(r.Command))
 		for _, p := range r.Places {
 			if p.Status == StatusStale {
 				fmt.Fprintf(&b, "- %s line %d: %s should be %s\n", mdCode(p.File), p.Line, mdCode(p.Now), mdCode(p.Should))
+				if s := suggestion(p); s != "" {
+					fmt.Fprintf(&b, "\n%s\n", s)
+				}
 			}
 		}
 		fmt.Fprintf(&b, "\nFix every place: %s. Not useful: %s.\n\n", mdCode("knos-sync fix "+r.ID), mdCode("knos-sync silence "+r.ID))
@@ -425,7 +541,16 @@ func printMarkdown(rep *Report) {
 	for _, r := range rep.Entries {
 		fmt.Print(noticeMarkdown(r))
 	}
+	if len(rep.Names) > 0 {
+		fmt.Println("Code names in docs that do not resolve:")
+		fmt.Println()
+		for _, f := range rep.Names {
+			fmt.Printf("- %s", strings.TrimPrefix(nameText(f), "NAME "))
+		}
+		fmt.Println()
+	}
 	fmt.Printf("Verified: %d of %d entries. Exit %d.\n", rep.Verified, rep.Total, rep.Exit)
+	fmt.Println(recheckLine(rep) + ".")
 	if len(rep.KindsOff) > 0 {
 		fmt.Printf("Kinds with notices off: %s.\n", strings.Join(rep.KindsOff, ", "))
 	}
@@ -439,6 +564,7 @@ func cmdCheck(args []string) (int, error) {
 	unconf := set.Bool("unconfirmed", false, "also list every entry no person has confirmed")
 	network := set.Bool("network", false, "let entries whose source is network read it")
 	wait := set.Duration("reread-wait", 60*time.Second, "wait before reading a chain or clock value again")
+	full := set.Bool("full", false, "run every entry again, ignoring what the state file stored")
 	if err := set.Parse(args); err != nil {
 		return 2, err
 	}
@@ -456,7 +582,7 @@ func cmdCheck(args []string) (int, error) {
 		st = nil
 	}
 	defer st.Close()
-	opt := checkOptions{network: *network, rereadWait: *wait, only: map[string]bool{}}
+	opt := checkOptions{network: *network, rereadWait: *wait, only: map[string]bool{}, full: *full}
 	for _, id := range set.Args() {
 		if e, _ := c.entry(id); e == nil {
 			return 2, fmt.Errorf("no entry %q in %s", id, FactsPath)
@@ -574,6 +700,8 @@ func cmdReport(args []string) (int, error) {
 	set := flag.NewFlagSet("report", flag.ContinueOnError)
 	basePath := set.String("base", "", "check --json of the base")
 	headPath := set.String("head", "", "check --json of the head")
+	record := set.Bool("record", false, "add the lines this change rewrote to kinds.<kind>.acted_on in sync/facts.json")
+	rootF := set.String("root", "", "repository root, for --record")
 	if err := set.Parse(args); err != nil {
 		return 2, err
 	}
@@ -589,7 +717,110 @@ func cmdReport(args []string) (int, error) {
 		return 2, err
 	}
 	text, _, _ := changeReport(base, head)
+	acted := actedOn(base, head)
+	n := 0
+	for _, v := range acted {
+		n += v
+	}
+	if n > 0 {
+		if text == "" {
+			text = "<!-- knos-sync -->\n"
+		}
+		text += fmt.Sprintf("Flagged lines this change rewrote (acted on): %d.\n", n)
+	}
 	fmt.Print(text)
+	if *record && n > 0 {
+		root, err := resolveRoot(*rootF)
+		if err != nil {
+			return 2, err
+		}
+		if err := recordActed(root, acted); err != nil {
+			return 2, err
+		}
+	}
+	return 0, nil
+}
+
+// actedOn counts, per kind, the places stale at the base whose line the change rewrote: the flagged line differs at
+// merge, so the finding was acted on, and nobody ran a command to say so (SYNC/P6.md finding 24).
+func actedOn(base, head *Report) map[string]int {
+	heads := map[string]EntryResult{}
+	for _, r := range head.Entries {
+		heads[r.ID] = r
+	}
+	out := map[string]int{}
+	for _, b := range base.Entries {
+		h, ok := heads[b.ID]
+		if !ok {
+			continue
+		}
+		for i, p := range b.Places {
+			if p.Status != StatusStale || i >= len(h.Places) {
+				continue
+			}
+			if q := h.Places[i]; q.File == p.File && q.LineText != p.LineText {
+				out[b.Kind]++
+			}
+		}
+	}
+	return out
+}
+
+// recordActed adds the counts to kinds.<kind>.acted_on, changing only those bytes of sync/facts.json.
+func recordActed(root string, acted map[string]int) error {
+	_, raw, err := needFacts(root)
+	if err != nil {
+		return err
+	}
+	kinds := make([]string, 0, len(acted))
+	for k := range acted {
+		kinds = append(kinds, k)
+	}
+	sort.Strings(kinds)
+	for _, k := range kinds {
+		for i := 0; i < acted[k]; i++ {
+			if raw, err = bumpCount(raw, []string{"kinds", k, "acted_on"}); err != nil {
+				return err
+			}
+		}
+	}
+	return writeFacts(root, raw)
+}
+
+// cmdHook is the pre-commit hook: it checks every entry, prints each stale one, and exits 1 when any fact is stale,
+// whatever its kind; a commit is the cheapest moment to fix it. A value from a chain or a clock is read once.
+func cmdHook(args []string) (int, error) {
+	set := flag.NewFlagSet("hook", flag.ContinueOnError)
+	rootF := set.String("root", "", "repository root")
+	if err := set.Parse(args); err != nil {
+		return 2, err
+	}
+	root, err := resolveRoot(*rootF)
+	if err != nil {
+		return 2, err
+	}
+	c, _, err := loadFacts(root)
+	if err != nil {
+		return 2, err
+	}
+	st, err := openState(root)
+	if err != nil {
+		st = nil
+	}
+	defer st.Close()
+	rep := runCheck(root, c, st, checkOptions{})
+	stale := 0
+	for _, r := range rep.Entries {
+		if r.Status == StatusStale {
+			fmt.Print(noticeText(r))
+			fmt.Println()
+			stale++
+		}
+	}
+	if stale > 0 {
+		fmt.Printf("knos-sync: %d stated facts are stale; write the true values with: knos-sync fix\n", stale)
+		return 1, nil
+	}
 	return 0, nil
 }
 

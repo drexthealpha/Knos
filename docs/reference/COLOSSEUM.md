@@ -8,7 +8,7 @@ Back to the [README](../../README.md#from-colosseum).
 
 *Money moves only when a step passes its test.*
 
-1. **Is it wanted?** Knos [checked who would buy it](DEMAND_CHECK.md) and in which city, before any work was paid.
+1. **Is it wanted?** Knos checked who would buy it and in which city, before any work was paid.
 2. **Write the deal.** Each step of the work got a goal and a deadline, plus the test that decided it. They were sealed with a fingerprint, so nobody could change them later.
 3. **Hold the money.** Backers' money waited in a program on [Solana](../WORDS.md#solana), a public ledger, not with Knos.
 4. **Pass the test.** The maker sent proof. When the test passed, that step was paid. If nothing passed by the deadline, the backers got their money back. Example: [a real payment of 5 test units for checked work](https://explorer.solana.com/tx/53pd6Rfdtcj34rHUtV7UnCQyfFRVXe5Vot2ujFCXR6dcrHeziwQRyry2ekeph5iHKX9L7ALc3W4GjhVSN5LLMGw7?cluster=devnet).
@@ -24,7 +24,6 @@ In that entry the proof was checked before any money moved. A milestone named it
 - a lab result or a public evidence page, read by the milestone's checker;
 - checks that GitHub signs, verified on chain;
 - the same verdict signed by two of three [referees](../WORDS.md#referee);
-- a verdict from [IRIS](https://github.com/drexthealpha/Knos/tree/main/iris) inside a lab's own walls. Its agent can only say no or ask a person.
 
 ![Nothing is paid on a promise. A missed deadline sends the money back](https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/diagrams/docs-reference-diagrams-2.svg)
 
@@ -84,7 +83,6 @@ One person holds every key today. Any change to the programs waits in public for
 ## From a terminal
 
 ```sh
-knos demand "a vegan ramen food truck" --place London     # Qloo's demand check: who, where, price tier
 knos idea get arxiv:<id> --out idea.json                  # a paper as one claim record
 knos idea wanted idea.json                                # demand evidence and the stage plan; sends nothing
 knos idea commit idea.json --units <n> --price <n>        # lock the stages on devnet, one order a stage
@@ -110,7 +108,7 @@ solana-verify get-program-hash -u devnet 5y7iWJ1VAMJjnnWbbdo2a2PsWJEwTExSNpzrvQS
 
 ## Words
 
-Qloo, Ready brief, milestone and more, each in one plain line: [docs/WORDS.md](../WORDS.md).
+Ready brief, milestone and more, each in one plain line: [docs/WORDS.md](../WORDS.md).
 
 ## Questions
 
@@ -149,7 +147,7 @@ Open [the front door](https://drexthealpha.github.io/Knos/) and ask a question a
 
 ## Read more
 
-- [Get started](../START.md): check a paper's claim on NEAR first, then see the same Knos on Solana and IRIS.
+- [Get started](../START.md): check a paper's claim on NEAR first, then see the same Knos on Solana.
 
 - [Pricing](../PRICING.md): what Knos costs. Checking a claim is free. On NEAR testnet the jobs contract keeps 1 part in 10 of what moves; on Solana devnet the maker keeps 100% and the funder pays the payment program's fee on top, 0.30% of each payout, at least 0.05. A 1% release fee is planned, not today's fee. Nobody pays real money today.
 

@@ -53,6 +53,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+          fetch-depth: 0    # the whole history: a code name is reported only if it resolved when its line was written (L54)
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version: "1.27.4"
@@ -97,7 +98,9 @@ jobs:
           cat "$RUNNER_TEMP/check.md" >> "$GITHUB_STEP_SUMMARY"
           echo "knos-sync check exit code: $code"
           exit "$code"
-      - name: knos-sync scan, with its memory on Linux
+      # scan prints its own peak memory beside its cap on all three systems (on Windows from GetProcessMemoryInfo) and
+      # exits 1 past the cap: 2048 MiB, a quarter of the 8 GB Windows PC, the hardest target (L56; SYNC/P1.md).
+      - name: knos-sync scan, with its peak memory against its cap
         if: github.event_name != 'pull_request'
         env:
           EXE: sync/bin/${{ matrix.exe }}
@@ -117,7 +120,8 @@ jobs:
         run: |
           set -euo pipefail
           case "$BASE" in *[!0-9a-f]*|'') echo "not a commit: $BASE"; exit 1;; esac
-          git fetch --no-tags --depth=1 origin "$BASE"
+          # the checkout holds the whole history; a shallow fetch here would cut it, so the base is fetched only if missing
+          git cat-file -e "$BASE^{commit}" 2>/dev/null || git fetch --no-tags origin "$BASE"
           git worktree add --detach "$RUNNER_TEMP/base" "$BASE"
           "$EXE" check --json --reread-wait 0s --root "$RUNNER_TEMP/base" > "$RUNNER_TEMP/base.json" || true
           "$EXE" check --json --root . > "$RUNNER_TEMP/head.json" || true

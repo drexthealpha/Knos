@@ -11,7 +11,6 @@ image:
 env:
   KNOS_WANTED_RP_ID: localhost
   KNOS_WANTED_TRUST_PROXY: "0"
-  QLOO_BASE_URL: ""        # the Qloo API host you were given, from your environment (--set env.QLOO_BASE_URL=...)
   KNOS_VALLEY_SWEEP_S: "60"
 persistence:
   enabled: true

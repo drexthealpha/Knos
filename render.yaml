@@ -1,5 +1,5 @@
 # Render blueprint: Knos's server (apps/wanted): the NEAR check flow and the demand check, as one free web service,
-# built from this repository's main. Secrets are set on Render, never here: QLOO_API_KEY and NEAR_AI_API_KEY (env), the
+# built from this repository's main. Secrets are set on Render, never here: NEAR_AI_API_KEY (env), the
 # devnet TEST keys and the NEAR testnet keys as secret files under /etc/secrets.
 services:
   - type: web
@@ -11,12 +11,6 @@ services:
     branch: main
     healthCheckPath: /healthz
     envVars:
-      - key: QLOO_API_KEY
-        sync: false
-      - key: QLOO_BASE_URL
-        sync: false
-      - key: QLOO_MONTHLY_BUDGET
-        value: "8000"
       - key: KNOS_CLUSTER
         value: devnet
       - key: KNOS_PRIORITY            # knos.platform.priority: a priority fee from getRecentPrioritizationFees, a limit from simulateTransaction

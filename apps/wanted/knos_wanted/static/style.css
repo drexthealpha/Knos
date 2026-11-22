@@ -50,7 +50,7 @@ button:disabled { opacity: .55; cursor: default; }
 /* timeline */
 .steps { list-style: none; padding: 0; margin: 0; }
 .step { border-inline-start: 3px solid var(--line); padding: 8px 14px; margin: 0 0 6px; animation: rise .25s ease; }
-.step.qloo { border-color: var(--accent); } .step.decision { border-color: var(--ok); } .step.memory { border-color: var(--warnc); }
+.step.signals { border-color: var(--accent); } .step.decision { border-color: var(--ok); } .step.memory { border-color: var(--warnc); }
 .step b { overflow-wrap: anywhere; }
 .step p { margin: 3px 0; } .step pre { white-space: pre-wrap; font-size: 12px; margin: 4px 0; }
 .effect { color: var(--ok); font-size: var(--fs-0); }
@@ -157,20 +157,4 @@ button:active { transform: scale(.97); }
 @media (max-width: 720px) { .left-hand .step { animation-duration: calc(.25s * var(--speed, 1)); } .left-hand .spin { animation-duration: calc(.8s * var(--speed, 1)); } }
 .ux-done { pointer-events: none; position: fixed; left: 50%; bottom: calc(96px + env(safe-area-inset-bottom)); transform: translateX(-50%); margin: 0; padding: 8px 16px; border-radius: 20px; background: var(--surface); border: 1px solid var(--line); color: var(--ink); z-index: 45; animation: rise calc(.25s * var(--speed, 1)) ease; }
 .reduce-motion .ux-done { animation: none; }
-/* the Qloo demand families (static/demand_opts.js): one row per family, Advanced folded */
-fieldset.fam { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin: 10px 0; min-width: 0; }
-fieldset.fam legend { font-size: var(--fs-0); font-weight: 600; padding: 0 4px; }
-.famrow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 6px 0; }
-.famrow .famq { flex: 0 0 7.5rem; font-size: var(--fs-0); font-weight: 600; }
-.famrow select, .famrow input { flex: 1 1 8rem; min-width: 0; margin: 0; }
-.famrow input.yr { flex: 0 1 6rem; }
-.famrow label.chk { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-0); margin: 0; flex: 0 0 auto; white-space: nowrap; }
-.famrow label.chk input { flex: 0 0 auto; width: auto; min-height: 0; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-details.famadv summary { cursor: pointer; font-size: var(--fs-0); min-height: 44px; display: flex; align-items: center; }
-.famgrid { display: grid; gap: 10px; }
-.famset { display: grid; gap: 4px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 12rem), 1fr)); }
-.famset > b { grid-column: 1 / -1; font-size: var(--fs-0); }
-.famset label { font-size: var(--fs-0); margin: 0; }
-.famans { margin-top: 10px; }
-@media (max-width: 420px) { .famrow .famq { flex-basis: 100%; } }

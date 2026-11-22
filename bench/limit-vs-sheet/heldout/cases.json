@@ -1,0 +1,184 @@
+{
+ "cases": [
+  {
+   "id": "h01",
+   "what": "a clean fall",
+   "file": "h01.csv",
+   "column": "capacity_ah",
+   "rule": "above",
+   "limit": 1.4,
+   "expected": 120
+  },
+  {
+   "id": "h02",
+   "what": "a value equal to the limit",
+   "file": "h02.csv",
+   "column": "capacity_ah",
+   "rule": "above",
+   "limit": 1.4,
+   "expected": 77
+  },
+  {
+   "id": "h03",
+   "what": "a file that never breaks the limit",
+   "file": "h03.csv",
+   "column": "capacity_ah",
+   "rule": "above",
+   "limit": 1.4,
+   "expected": null
+  },
+  {
+   "id": "h04",
+   "what": "blank cells before the break",
+   "file": "h04.csv",
+   "column": "capacity_ah",
+   "rule": "above",
+   "limit": 1.4,
+   "expected": 90
+  },
+  {
+   "id": "h05",
+   "what": "NaN cells before the break",
+   "file": "h05.csv",
+   "column": "capacity_ah",
+   "rule": "above",
+   "limit": 1.4,
+   "expected": 50
+  },
+  {
+   "id": "h06",
+   "what": "words in number cells",
+   "file": "h06.csv",
+   "column": "capacity_ah",
+   "rule": "above",
+   "limit": 1.4,
+   "expected": 60
+  },
+  {
+   "id": "h07",
+   "what": "inf and -inf cells",
+   "file": "h07.csv",
+   "column": "capacity_ah",
+   "rule": "above",
+   "limit": 1.4,
+   "expected": 101
+  },
+  {
+   "id": "h08",
+   "what": "a temperature column with the rule below",
+   "file": "h08.csv",
+   "column": "temp_c",
+   "rule": "below",
+   "limit": 45,
+   "expected": 33
+  },
+  {
+   "id": "h09",
+   "what": "numbers in scientific notation",
+   "file": "h09.csv",
+   "column": "capacity_ah",
+   "rule": "above",
+   "limit": 1.4,
+   "expected": 40
+  },
+  {
+   "id": "h10",
+   "what": "spaces around numbers",
+   "file": "h10.csv",
+   "column": "capacity_ah",
+   "rule": "above",
+   "limit": 1.4,
+   "expected": 64
+  },
+  {
+   "id": "h11",
+   "what": "numbers in quotes",
+   "file": "h11.csv",
+   "column": "capacity_ah",
+   "rule": "above",
+   "limit": 1.4,
+   "expected": 45
+  },
+  {
+   "id": "h12",
+   "what": "no header row",
+   "file": "h12.csv",
+   "column": "column 2",
+   "rule": "above",
+   "limit": 1.4,
+   "expected": 25
+  },
+  {
+   "id": "h13",
+   "what": "semicolons and decimal commas",
+   "file": "h13.csv",
+   "column": "capacity_ah",
+   "rule": "above",
+   "limit": 1.4,
+   "expected": 70
+  },
+  {
+   "id": "h14",
+   "what": "tabs between columns",
+   "file": "h14.csv",
+   "column": "capacity_ah",
+   "rule": "above",
+   "limit": 1.4,
+   "expected": 55
+  },
+  {
+   "id": "h15",
+   "what": "a long log of 100,001 rows",
+   "file": "h15.csv",
+   "column": "capacity_ah",
+   "rule": "above",
+   "limit": 1.4,
+   "expected": 90000
+  },
+  {
+   "id": "h16",
+   "what": "a units row under the header",
+   "file": "h16.csv",
+   "column": "capacity_ah",
+   "rule": "above",
+   "limit": 1.4,
+   "expected": 31
+  },
+  {
+   "id": "h17",
+   "what": "the first row breaks the limit",
+   "file": "h17.csv",
+   "column": "capacity_ah",
+   "rule": "above",
+   "limit": 1.4,
+   "expected": 1
+  },
+  {
+   "id": "h18",
+   "what": "Windows line endings",
+   "file": "h18.csv",
+   "column": "capacity_ah",
+   "rule": "above",
+   "limit": 1.4,
+   "expected": 88
+  },
+  {
+   "id": "h19",
+   "what": "a byte-order mark, the checked column first",
+   "file": "h19.csv",
+   "column": "capacity_ah",
+   "rule": "above",
+   "limit": 1.4,
+   "expected": 47
+  },
+  {
+   "id": "h20",
+   "what": "negative numbers, limit -10",
+   "file": "h20.csv",
+   "column": "temp_c",
+   "rule": "above",
+   "limit": -10,
+   "expected": 58
+  }
+ ]
+}

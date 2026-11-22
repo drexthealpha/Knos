@@ -3,12 +3,11 @@
 - index.html: the front door (web/door.html): the first tool (Round 13, A2 and A7), its numbers written in from
   docs/data/pricing.json and near/claims/claims.json; the earlier ask box below the first screen.
 - prove/: the whole proof on NEAR (near/web/index.html), its files read from near/.
-- labs/: the same check inside a lab's InterSystems IRIS (web/iris/index.html), its video and poster read from iris/.
 - check/: the pull request checker exactly as entered at Colosseum (tag v0.3.28), from web/check-v0328/: the tag's own
   check.js and check_rules.js beside it, and its paying step on Knos's programs on Solana devnet. Its command palette
   (palette.js) is left out: it opens pages of the earlier one-page app, which the site no longer has.
 - 404.html: the page for any missing address, under the same one header.
-- near/ and iris/: old addresses, sent on to prove/ and labs/ at once, with the front door's title and preview.
+- near/: the old address, sent on to prove/ at once, with the front door's title and preview.
 
 Every page carries one header: the logo (the front door) and the product's pages. The source pages stay as they are
 (their tests and the local NEAR server use them); only the published site is composed.
@@ -26,10 +25,11 @@ from pathlib import Path
 import site_product
 
 ROOT = Path(__file__).resolve().parents[1]
-# Round 13: plain names (the PLAIN-WORDS rule of ROUND13-ITEMS: no "prove", "agent", "IRIS" on a stranger's screens)
-PAGES = [("claims/", "nav.claims"), ("prove/", "nav.papers"), ("agents/", "nav.builders"), ("labs/", "nav.labs"), ("check/", "nav.prs")]   # keys of web/i18n/en.json
+# Round 13: plain names (the PLAIN-WORDS rule of ROUND13-ITEMS: no "prove" or "agent" on a stranger's screens)
+PAGES = [("claims/", "nav.claims"), ("papers/", "nav.papers"), ("agents/", "nav.builders"), ("check/", "nav.prs")]   # keys of web/i18n/en.json (L16: Papers opens papers/)
 # the product's pages; every other page of the build leaves the published site, each old address sent to the front door
-KEEP = {"index.html", "404.html", "privacy.html", "prove/receipt/index.html", "tx/index.html"}   # Round 10, V6: one finished order, saved
+KEEP = {"index.html", "404.html", "privacy.html", "prove/index.html", "prove/receipt/index.html", "tx/index.html",   # Round 10, V6: one finished order, saved
+        "teardown/index.html"}   # L35: one sourced teardown (web/teardown/index.html)
 CSS = ("#ask label a { display: inline !important; min-height: 0 !important; padding: 0 !important; }\n"   # the Prove page's Claims link sits in its sentence
        ".kh { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; max-width: 760px; margin: 0 auto; padding: 8px 16px; }\n"
        ".kh .logo { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-inline-end: auto; color: var(--ink); text-decoration: none; font: 600 20px/1 var(--head); }\n"
@@ -46,12 +46,13 @@ CSS = ("#ask label a { display: inline !important; min-height: 0 !important; pad
 
 
 def menu(up: str, here: str = "") -> str:
-    """The menu: the goal as its first line, one press away (A7), then the product's pages."""
+    """The menu: the product's pages (L02: no mission line on any page)."""
     cur = ' aria-current="page"'
     en = site_product.en
     links = "".join(f'<a href="{up}{p}"{cur if p == here else ""}>{en(key)}</a>' for p, key in PAGES)
-    return (f'<details class="kmenu"><summary>{en("menu")}</summary><div class="kmenu-panel"><p class="kgoal">{en("goal")}</p>'
-            f'<nav aria-label="Pages">{links}</nav><a href="{up}pricing/">{en("nav.pricing")}</a><a href="{up}status/">{en("nav.status")}</a></div></details>')
+    return (f'<details class="kmenu"><summary>{en("menu")}</summary><div class="kmenu-panel">'
+            f'<nav aria-label="Pages">{links}</nav><a href="{up}pricing/">{en("nav.pricing")}</a><a href="{up}status/">{en("nav.status")}</a>'
+            f'<a href="{up}teardown/">{en("nav.teardown")}</a></div></details>')
 
 
 def header(up: str, here: str = "", lang: bool = False, screen: bool = False) -> str:
@@ -94,9 +95,9 @@ def with_header(html: str, up: str, here: str, lang: bool = False, screen: bool 
 
 
 def with_goal(html: str, up: str) -> str:
-    """The goal and the pricing page, one line at the foot of a composed page (the front door has its own footer, the
-    pages of scripts/site_product.py theirs): the vision is one tap or less from every screen, always labelled the goal."""
-    if site_product.GOAL.split(": ", 1)[1] in html:
+    """The one sentence of what Knos is (L02, the "goal" key of web/i18n/en.json) and the pricing page, one line at the foot
+    of a composed page (the front door has its own footer, the pages of scripts/site_product.py theirs)."""
+    if site_product.GOAL in html:
         return html
     foot = (f'<footer class="kgoal" style="max-width:760px;margin:0 auto;padding:16px;color:var(--ink-2);font-size:16px">'
             f'<span>{site_product.GOAL}</span><br><a href="{up}pricing/" style="display:inline-flex;align-items:center;min-height:44px">Pricing</a></footer>\n')
@@ -136,7 +137,7 @@ def tokens_css(up: str) -> str:
 HEAD_JS = r"""(() => { const de = document.documentElement, L = /*LANGS*/[], BASE = /*BASE*/"";
   try { const t = localStorage.getItem("knos-theme"); if (t === "light" || t === "dark") de.dataset.theme = t; } catch (e) { /* no storage */ }
   const match = (tag) => { const t = String(tag || "").toLowerCase(); if (!t) return null; for (const l of L) if (l.code.toLowerCase() === t) return l.code;
-    const b = t.split(/[-_]/)[0]; if (b === "zh") return "zh-Hans"; return L.some((l) => l.code === b) ? b : null; };
+    const b = t.split(/[-_]/)[0]; /*ZH*/ return L.some((l) => l.code === b) ? b : null; };
   let kept = null; try { kept = localStorage.getItem("knos.lang"); } catch (e) { /* no storage */ }
   const want = match(new URLSearchParams(location.search).get("lang")) || match(kept) || (navigator.languages || [navigator.language]).map(match).find(Boolean) || "en";
   if (want === "en") return;
@@ -149,7 +150,7 @@ HEAD_JS = r"""(() => { const de = document.documentElement, L = /*LANGS*/[], BAS
   mo.observe(de, { attributes: true, attributeFilter: ["lang"] });
 })();"""
 HEAD_CSS = ('html.k-wait body{visibility:hidden}'
-            ':root[data-want="zh-Hans"]{--text:system-ui,-apple-system,"Segoe UI",sans-serif;--head:system-ui,-apple-system,"Segoe UI",sans-serif;--code:ui-monospace,Consolas,monospace}')
+            ':root:is([data-want="zh-Hans"],[data-want="zh-Hant"],[data-want="ja"],[data-want="ko"]){--text:system-ui,-apple-system,"Segoe UI",sans-serif;--head:system-ui,-apple-system,"Segoe UI",sans-serif;--code:ui-monospace,Consolas,monospace}')
 
 # the light or dark switch at the foot (foot()): it shows the theme it switches to, in the page's language
 THEME_JS = r"""(() => { const b = document.getElementById("theme"), de = document.documentElement; if (!b) return;
@@ -194,14 +195,22 @@ SCREEN_CSS = (".kh .logo { cursor: default; }\n"
               # question box is a closed fold, whose content is not laid out until it opens
               "body > footer { content-visibility: auto; contain-intrinsic-size: auto 480px; }\n"
               ":root:lang(hi) p, :root:lang(hi) li, :root:lang(hi) dd { line-height: 1.85; }\n"
-              ":root:lang(ar) p, :root:lang(ar) li, :root:lang(ar) dd { line-height: 1.6; }\n")
+              ":root:lang(ar) p, :root:lang(ar) li, :root:lang(ar) dd { line-height: 1.6; }\n"
+              # L09: the scripts with tall marks get the same room (Indic and Southeast Asian scripts as Hindi, Persian
+              # as Arabic, Urdu's Nastaliq more), and the list of forty languages scrolls inside the screen
+              + "".join(f":root:lang({c}) p, :root:lang({c}) li, :root:lang({c}) dd {{ line-height: 1.85; }}\n"
+                        for c in ("bn", "mr", "gu", "pa", "ta", "te", "kn", "ml", "th", "am"))
+              + ":root:lang(fa) p, :root:lang(fa) li, :root:lang(fa) dd { line-height: 1.7; }\n"
+              ":root:lang(ur) p, :root:lang(ur) li, :root:lang(ur) dd { line-height: 2; }\n"
+              ".klang-list:not(.kwarm) { max-block-size: 60vh; overflow-y: auto; overscroll-behavior: contain; }\n")
 
 
 def screen(html: str, up: str) -> str:
     """One of the three screens made whole: the design system written in (tokens_css), every style block rewritten by
     logical_rem, the head script and its styles first in the head, and the theme switch's script after the language runtime."""
     langs = [{"code": c, "dir": site_product.TP.meta(c)["dir"]} for c in site_product.TP.LANGS]
-    head = HEAD_JS.replace("/*LANGS*/[]", json.dumps(langs)).replace('/*BASE*/""', json.dumps(up + "i18n/"))
+    head = (HEAD_JS.replace("/*LANGS*/[]", json.dumps(langs)).replace('/*BASE*/""', json.dumps(up + "i18n/"))
+            .replace("/*ZH*/", site_product.MATCH_ALL))   # the tag rule of the language runtime (site_product.static_runtime)
     html = html.replace(f'<link rel="stylesheet" href="{up}brand/tokens.css">', f'<style id="k-tokens">{tokens_css(up)}</style>', 1)
     html = html.replace("</head>", f"<style id=\"k-screen\">\n{SCREEN_CSS}</style>\n</head>", 1)
     html = re.sub(r"(<style[^>]*>)(.*?)(</style>)", lambda m: m[1] + logical_rem(m[2]) + m[3], html, flags=re.S)
@@ -238,13 +247,16 @@ def redirect(to: str, head: str) -> str:
 BEACON = """<script>
 // first-party only (knos_wanted.visits): a random visit id that resets every day, no cookie, no IP stored; Do Not Track sends nothing
 (() => { if (navigator.doNotTrack === "1" || window.doNotTrack === "1") return;
-  const H = "https://knos.onrender.com", day = new Date().toISOString().slice(0, 10); let v, back = false;
+  const H = "https://knos.onrender.com", day = new Date().toISOString().slice(0, 10); let v, back = false, first = day;
   try { const s = JSON.parse(localStorage.getItem("knos.visit") || "{}"); back = !!s.day && s.day !== day && Date.now() - (s.at || 0) < 7 * 864e5;
     v = s.day === day ? s.v : [...crypto.getRandomValues(new Uint8Array(8))].map((b) => b.toString(16).padStart(2, "0")).join("");
-    localStorage.setItem("knos.visit", JSON.stringify({ v, day, at: s.day === day ? s.at : Date.now() })); } catch { v = [...crypto.getRandomValues(new Uint8Array(8))].map((b) => b.toString(16).padStart(2, "0")).join(""); }
+    first = s.first || day; localStorage.setItem("knos.visit", JSON.stringify({ v, day, at: s.day === day ? s.at : Date.now(), first })); } catch { v = [...crypto.getRandomValues(new Uint8Array(8))].map((b) => b.toString(16).padStart(2, "0")).join(""); }
   const page = location.pathname.replace(/^\\/Knos/, "") || "/", t0 = Date.now();
   const send = (e, x) => { try { fetch(H + "/api/visit", { method: "POST", body: JSON.stringify({ v, e, p: page, back, ...(x || {}) }), headers: { "content-type": "text/plain" }, credentials: "omit", keepalive: true, mode: "cors" }).catch(() => {}); } catch { /* no beacon */ } };
-  send("view");
+  // L36, L37: with the first view only, the days since this browser's first visit (a date kept here, never an id), the
+  // screen's language, a phone or a desktop, and the time zone the browser names (the region; no address is read)
+  let tz = ""; try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch { tz = ""; }
+  send("view", { since: Math.max(0, Math.round((Date.parse(day) - Date.parse(first)) / 864e5)), lang: document.documentElement.lang || "", dev: matchMedia("(pointer: coarse)").matches ? "phone" : "desktop", tz });
   window.knosNotWhat = (why) => send("notwhat", why ? { why: String(why).slice(0, 30) } : {});   // T8: one tap on a result
   let presses = [];
   addEventListener("click", (ev) => { const at = performance.now(), n = presses.filter((p) => at - p.t < 1000 && Math.abs(p.x - ev.clientX) < 30 && Math.abs(p.y - ev.clientY) < 30).length;
@@ -286,7 +298,7 @@ BEACON = """<script>
 
 def beacon(out: Path) -> None:
     """The first-party visit script on every product page (knos_wanted.visits), just before </body>."""
-    pages = [out / "index.html", out / "prove" / "index.html", out / "labs" / "index.html", out / "check" / "index.html",
+    pages = [out / "index.html", out / "prove" / "index.html", out / "check" / "index.html",
              *[out / p for p in ("claims/index.html", "agents/index.html", "pricing/index.html", "status/index.html")], *(out / "claim").rglob("index.html")]
     for p in pages:
         if p.is_file():
@@ -299,7 +311,7 @@ def sweep(out: Path) -> int:
     """Every page of the build that is not the product's becomes an old address: it sends a visitor to the front door
     (pricing.html to pricing/). Run again by the pages workflow after its own steps write pages (rank/)."""
     head = head_of((ROOT / "web" / "door.html").read_text(encoding="utf-8"))
-    keep = KEEP | {f"{p}index.html" for p, _ in PAGES} | {"pricing/index.html", "status/index.html", "near/index.html", "iris/index.html",
+    keep = KEEP | {f"{p}index.html" for p, _ in PAGES} | {"pricing/index.html", "status/index.html", "near/index.html", "near/receipts.html",
                                                                  "data/pricing.html", "data/usage.html"}   # the pricing and status files, as pages (R13 WALK 1)
     keep |= {p.relative_to(out).as_posix() for p in (out / "claim").rglob("index.html")} if (out / "claim").is_dir() else set()
     moved = {"pricing.html": "pricing/"}
@@ -413,7 +425,7 @@ def fill(html: str) -> str:
     if "data-sample" in html:
         f = sample_facts()
         html = re.sub(r'(<span data-sample="(\w+)">)[^<]*(</span>)', lambda m: f"{m[1]}{f[m[2]]}{m[3]}", html)
-        html = re.sub(r'(<textarea id="list"[^>]*data-sample>).*?(</textarea>)', lambda m: m[1] + site_product.html.escape(sample_text(), quote=False) + m[2], html, flags=re.S)
+        html = re.sub(r'(<(?:textarea id="list"|template id="k-sample")[^>]*data-sample>).*?(</(?:textarea|template)>)', lambda m: m[1] + site_product.html.escape(sample_text(), quote=False) + m[2], html, flags=re.S)
         html = re.sub(r"(<span data-job>).*?(</span>)", lambda m: m[1] + job_line() + m[2], html, flags=re.S)
     return COMPANY_LINE.sub(company_line(), html)
 
@@ -487,8 +499,62 @@ def strings(html: str) -> str:
             assert re.search(rf"(?<![\d.]){re.escape(want)}(?![\d])", text), f"web/door.html: {{{{{key}}}}} says {name}={want}, the build writes: {text}"
         return out
     html = re.sub(r"\{\{(@?[\w.]+)((?: \w+=[^ }]+)*)\}\}", one, html)
-    html = html.replace("<script>/*I18N*/</script>", "<script>\n" + tp.static_runtime("i18n/") + "\n</script>", 1)
+    html = html.replace("<script>/*I18N*/</script>", "<script>\n" + site_product.static_runtime("i18n/") + "\n</script>", 1)
     return html.replace("</head>", f'<style id="k-i18n-css">{tp.SWITCH_CSS}</style>\n</head>', 1)
+
+
+def rem_fonts(css: str) -> str:
+    """L05: every font size of a style in rem (16 px = 1 rem), so the reader's own text size reaches every page."""
+    return re.sub(r"(?<![\w-])font(?:-size)?\s*:[^;}]*", lambda m: re.sub(r"(\d*\.?\d+)px", lambda n: f"{float(n[1]) / 16:g}rem", m[0]), css)
+
+
+PX_FONT = re.compile(r"(?<![\w-])font(?:-size)?\s*:[^;}\"'<>]*?\dpx", re.I)   # tests/test_site_laws.py reads it
+
+
+def rem_everywhere(out: Path) -> int:
+    """L05 on the whole published site: the font sizes of every page's style blocks and style attributes in rem. The
+    vendored libraries of the NEAR page are not pages. Returns the pages changed."""
+    n = 0
+    for p in out.rglob("*.html"):
+        if "near/vendor" in p.as_posix():
+            continue
+        t = p.read_text(encoding="utf-8", errors="replace")
+        u = re.sub(r"(<style[^>]*>)(.*?)(</style>)", lambda m: m[1] + rem_fonts(m[2]) + m[3], t, flags=re.S)
+        u = re.sub(r'(style=")([^"]*)(")', lambda m: m[1] + rem_fonts(m[2]) + m[3], u)
+        if u != t:
+            p.write_text(u, encoding="utf-8")
+            n += 1
+    return n
+
+
+GITHUB_API = "https://api.github.com/repos/drexthealpha/Knos"
+
+
+def stars() -> int | None:
+    """L28: the repository's star count as the GitHub API gives it when the site is built (stargazers_count); None when
+    it does not answer, and the page then shows no count (never a 0 it did not read). KNOS_GITHUB_REPO_JSON names a saved
+    answer to read instead (the tests'); a path that is not there is an API that did not answer."""
+    import os
+    import urllib.request
+    src = os.environ.get("KNOS_GITHUB_REPO_JSON")
+    try:
+        if src:
+            data = json.loads(Path(src).read_text(encoding="utf-8"))
+        else:
+            req = urllib.request.Request(GITHUB_API, headers={"Accept": "application/vnd.github+json", "User-Agent": "knos-site-build"})
+            with urllib.request.urlopen(req, timeout=8) as r:
+                data = json.loads(r.read().decode("utf-8"))
+    except (OSError, ValueError):
+        return None
+    n = data.get("stargazers_count") if isinstance(data, dict) else None
+    return n if isinstance(n, int) and not isinstance(n, bool) and n >= 0 else None
+
+
+def with_stars(html: str) -> str:
+    n = stars()
+    if n is None:
+        return html
+    return html.replace('<span id="k-stars" hidden></span>', f'<span id="k-stars" data-stars="{n}">{comp("door.stars", {"n": n})}</span>', 1)
 
 
 def main(site: str) -> int:
@@ -496,6 +562,7 @@ def main(site: str) -> int:
     door = fill(strings((ROOT / "web" / "door.html").read_text(encoding="utf-8")))
     door = door.replace("/*CLAIMS*/[]/*END*/", json.dumps(door_claims(), ensure_ascii=False).replace("</", "<\\/"))
     door = door.replace('aria-valuemax="0"', f'aria-valuemax="{run_seconds()}"', 1)
+    door = with_stars(door)
     door = with_header(door, "", "", lang=True, screen=True).replace("<!--FOOT-->", foot(""), 1)
     (out / "index.html").write_text(screen(door, ""), encoding="utf-8")
     (out / "door.html").unlink(missing_ok=True)
@@ -510,18 +577,9 @@ def main(site: str) -> int:
     assert n == 1, "the NEAR page has no first block"
     near = retitle(near, "Knos: check a paper's claim", "Give a paper's link: Knos checks its claim with test money and hands you code that works.")
     near = re.sub(r'\s*<p class="vision"[^>]*>.*?</p>', "", near, flags=re.S)
+    near = re.sub(r'\s*<p class="k-goal"[^>]*>.*?</p>', "", near, flags=re.S)   # L02: no mission line on any page
     (out / "prove").mkdir(exist_ok=True)
     (out / "prove" / "index.html").write_text(with_goal(with_header(near, "../", "prove/"), "../"), encoding="utf-8")
-    iris = (ROOT / "web" / "iris" / "index.html").read_text(encoding="utf-8")
-    iris = iris.replace('"knos-iris.mp4"', '"../iris/knos-iris.mp4"').replace('poster="poster.png"', 'poster="../iris/poster.png"')
-    # the labs page opens on its own heading (its section names the check inside IRIS)
-    # (Round 13 WALK 1: no product's name on the screen or in its fold)
-    iris, n = re.subn(r"<!-- k-first -->.*?<!-- /k-first -->", '<h1 class="k-first" id="k-first">For labs</h1>\n<p class="k-a">Knos checks each lab step\'s '
-                      'test result against terms set before the work, inside the lab\'s own database.</p>', iris, count=1, flags=re.S)
-    assert n == 1, "the IRIS page has no first block"
-    iris = retitle(iris, "Knos for labs", "The check inside a lab's own database, with its install steps and video.")
-    (out / "labs").mkdir(exist_ok=True)
-    (out / "labs" / "index.html").write_text(with_goal(with_header(iris, "../", "labs/"), "../"), encoding="utf-8")
     # the checker as entered at Colosseum: the tag's page and files, under the one header, dated as the build
     chk = (ROOT / "web" / "check-v0328" / "index.html").read_text(encoding="utf-8")
     built = re.search(r'datetime="(\d{4}-\d{2}-\d{2})"', (out / "check" / "index.html").read_text(encoding="utf-8"))
@@ -541,6 +599,9 @@ def main(site: str) -> int:
     (out / "check" / "brand" / "checked.svg").write_bytes((ROOT / "web" / "brand" / "checked.svg").read_bytes())
     # the missing-address page under the one header (its <base> is the site root, so the links need no "../")
     (out / "404.html").write_text(with_header((ROOT / "web" / "404.html").read_text(encoding="utf-8"), "", ""), encoding="utf-8")
+    # L35: the sourced teardown under the one header
+    td = (ROOT / "web" / "teardown" / "index.html").read_text(encoding="utf-8")
+    (out / "teardown" / "index.html").write_text(with_goal(with_header(td, "../", ""), "../"), encoding="utf-8")
     # the saved receipt and the transaction viewer have no bar of their own: the one header goes above their content
     for rel, up in (("prove/receipt/index.html", "../../"), ("tx/index.html", "../")):
         p = out / rel
@@ -550,7 +611,6 @@ def main(site: str) -> int:
             p.write_text(t, encoding="utf-8")
     head = head_of(door)
     (out / "near" / "index.html").write_text(redirect("../prove/", head), encoding="utf-8")
-    (out / "iris" / "index.html").write_text(redirect("../labs/", head), encoding="utf-8")
     site_product.HEADER_CSS = CSS
     site_product.FOOT = foot
     made = site_product.write(out, header)
@@ -561,9 +621,10 @@ def main(site: str) -> int:
     for name in ("pricing.json", "usage.json", "scorecard_summary.json"):
         (out / "data" / name).write_bytes((DATA / name).read_bytes())
     (out / "tools.html").write_text(redirect("./", head), encoding="utf-8")   # linked from earlier posts: sends to the front door
+    rem_everywhere(out)
     beacon(out)
     gone = sweep(out)
-    print(f"product pages: the front door, {len(made) + 2} pages ({', '.join(['prove/', 'labs/'] + made)}); near/ and iris/ send on; {gone} older pages send to the front door")
+    print(f"product pages: the front door, {len(made) + 1} pages ({', '.join(['prove/'] + made)}); near/ sends on; {gone} older pages send to the front door")
     return 0
 
 

@@ -7,12 +7,11 @@ from http.server import ThreadingHTTPServer
 import pytest
 
 from knos_wanted import server
-from knos_wanted.qloo_mcp import MOCK_LABEL, InProcess, Qloo
 
 
 @pytest.fixture
 def app():
-    state = server.State(Qloo(InProcess(), mode="mock", sleep=lambda s: None))
+    state = server.State()
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.make_handler(state))
     t = threading.Thread(target=httpd.serve_forever, daemon=True)
     t.start()
@@ -34,39 +33,28 @@ def call(base, path, body=None):
 def test_page_and_status(app):
     base, _ = app
     st, page = call(base, "/app/")
-    assert st == 200 and b"Knos" in page and b"not a sales forecast" in page and b"not a prediction about one person" in page
+    assert st == 200 and b"Knos" in page and b"not a sales forecast" in page
     assert b"Knos Wanted" not in page                     # no sub-brand: it is Knos's demand check
     st, s = call(base, "/api/status")
-    assert st == 200 and s["mode"] == "mock" and s["label"] == MOCK_LABEL and s["cluster"] == "devnet" and len(s["tools"]) == 10
-    assert "QLOO_API_KEY" not in json.dumps(s)
+    assert st == 200 and s["mode"] == "offline" and s["label"] == "OPEN SIGNALS" and s["cluster"] == "devnet"
+    assert s["deps"]["open_signals"]["state"] == "not asked"
+    assert "_API_KEY" not in json.dumps(s)
     st, _ = call(base, "/static/app.js")
     assert st == 200
     assert call(base, "/static/../server.py")[0] == 404
 
 
-def test_maker_flow_over_http(app):
+
+
+def test_the_check_and_privacy_over_http(app):
     base, state = app
-    st, s = call(base, "/api/maker/start", {"idea": "Vegan street food truck for students in Lagos", "rivals": "A, B", "place": "Lagos"})
-    assert st == 200 and s["label"] == MOCK_LABEL and s["questions"]
-    choices = {q["key"]: (q["candidates"][0]["id"] if q["pick"] == "one" else [q["candidates"][0]["id"]]) for q in s["questions"] if q["candidates"]}
-    st, r = call(base, "/api/maker/confirm", {"session": s["id"], "choices": choices})
-    assert st == 200 and state.known(r["hash"]) and r["aggregate"] == "aggregate taste, not a prediction about one person"
-    assert "record" in r and isinstance(r["trail"], list)
-    st, p = call(base, "/api/maker/publish", {"hash": r["hash"], "title": "Lagos Vegan Truck"})
-    assert st == 200 and p["product"]["report_hash"] == r["hash"]
-    assert call(base, "/api/products")[1]["products"][0]["title"] == "Lagos Vegan Truck"
-    assert call(base, "/api/maker/confirm", {"session": "nope", "choices": {}})[0] == 400
-    assert call(base, "/api/maker/start", {"idea": ""})[0] == 400
-
-
-def test_buyer_flow_and_privacy_over_http(app):
-    base, _ = app
-    st, e = call(base, "/api/buyer/start", {"likes": "jane@example.com"})
+    st, e = call(base, "/api/check", {"idea": "a bottle, mail jane@example.com"})
     assert st == 400 and "no personal data" in e["error"]
-    st, s = call(base, "/api/buyer/start", {"likes": "Aesop", "targets": ["brand"]})
-    assert st == 200
-    st, r = call(base, "/api/buyer/confirm", {"session": s["id"], "choices": {s["questions"][0]["key"]: s["questions"][0]["candidates"][0]["id"]}})
-    assert st == 200 and r["recommendations"][0]["target_type"] == "brand"
+    st, r = call(base, "/api/check", {"idea": "Vegan street food truck for students in Lagos", "place": "Lagos"})
+    assert st == 200 and state.known(r["hash"]) and r["decision"]["verdict"] == "CANNOT_DECIDE"   # no source asked in tests
+    assert r["story"]["sentence"] == "No signal yet" and "record" in r
+    for gone in ("/api/maker/start", "/api/buyer/start"):
+        assert call(base, gone, {"idea": "x"})[0] == 404
 
 
 def test_preorder_needs_a_known_report(app):
@@ -86,8 +74,8 @@ def test_preorder_needs_a_known_report(app):
 
 def test_rate_limit(app, monkeypatch):
     base, _ = app
-    monkeypatch.setitem(server.LIMITS, "maker", (2, 600))
-    codes = [call(base, "/api/maker/start", {"idea": "Board game cafe in Paris"})[0] for _ in range(3)]
+    monkeypatch.setitem(server.LIMITS, "check", (2, 600))
+    codes = [call(base, "/api/check", {"idea": "Board game cafe in Paris", "picked": True})[0] for _ in range(3)]
     assert codes == [200, 200, 429]
 
 
@@ -102,13 +90,12 @@ def test_presence_and_draft_autosave_never_use_up_the_persons_limit(app, monkeyp
     assert codes == [200, 200, 429]                       # the person's own steps keep their full limit
 
 
-def test_the_demand_fields_and_the_front_door_may_read_the_check(app):
+def test_the_front_door_may_read_the_check(app):
     base, _ = app
-    req = urllib.request.Request(base + "/api/demand/fields", headers={"Origin": "https://drexthealpha.github.io"})
+    req = urllib.request.Request(base + "/api/status", headers={"Origin": "https://drexthealpha.github.io"})
     with urllib.request.urlopen(req, timeout=30) as r:
-        spec = json.loads(r.read())
+        assert json.loads(r.read())["label"] == "OPEN SIGNALS"
         assert r.headers.get("Access-Control-Allow-Origin") == "https://drexthealpha.github.io"
-    assert set(spec["families"]) == {f"F{i}" for i in range(1, 9)} and spec["families"]["F1"]["label"] == "Who"
-    other = urllib.request.Request(base + "/api/demand/fields", headers={"Origin": "https://evil.example"})
+    other = urllib.request.Request(base + "/api/status", headers={"Origin": "https://evil.example"})
     with urllib.request.urlopen(other, timeout=30) as r:
         assert r.headers.get("Access-Control-Allow-Origin") is None

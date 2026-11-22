@@ -1,16 +1,15 @@
 """The seven product-value vectors, measured, and the proof shown first.
 
-    note(kind, ms, rep)   after each demand check or crossing: how long it took, how many Qloo calls it made
+    note(kind, ms, rep)   after each demand check or crossing: how long it took, how many open sources answered
     vectors()             GET /api/vectors: cost, speed, friction, trust, capability, access, status, each measured
     proof()               GET /api/proof: the latest real verdict, as the front doors draw it at load
 
 Speed is the median of the checks this server ran (cached answers included, and said so); cost is the API spend of a
-check (the Qloo key and the free hosting cost nothing per call) and the measured cost of a Ready brief (the
+check (the open sources and the free hosting cost nothing per call) and the measured cost of a Ready brief (the
 IDT benchmark, docs/idt/summary.json). Nothing is estimated: a vector with no measurement yet says so.
 """
 from __future__ import annotations
 
-import copy
 import json
 import statistics
 import threading
@@ -33,28 +32,15 @@ def _load() -> None:
     global _proof
     if _loaded[0]:
         return
-    from . import valley
+    from . import check, valley
     doc = valley._safe_load("pages", "vectors") or {}
     with _lock:
         _loaded[0] = True
         if not _runs:
             _runs.extend(doc.get("runs") or [])
-        if _proof is None and public(doc.get("proof") or {}) and ((doc.get("proof") or {}).get("decision") or {}).get("verdict") == "OPEN":
-            _proof = shape(doc.get("proof"))
-
-
-CALL_KEYS = ("n", "call", "params", "cached", "ms", "at", "effect", "error")
-
-
-def shape(p: dict | None) -> dict | None:
-    """A proof as the front doors read it: `calls` a list of calls (their requests, never Qloo's answers) and `n_calls`
-    their count. A proof saved before held the count in `calls`: it becomes `n_calls`, with no list."""
-    if not isinstance(p, dict):
-        return p
-    calls = p.get("calls")
-    rows = [{k: c.get(k) for k in CALL_KEYS if k in c} for c in calls if isinstance(c, dict)] if isinstance(calls, list) else []
-    n = len(calls) if isinstance(calls, list) else calls if isinstance(calls, int) else len(rows)
-    return {**p, "calls": rows, "n_calls": n}
+        p = doc.get("proof") or {}
+        if _proof is None and public(p) and (p.get("decision") or {}).get("verdict") == "OPEN" and p.get("label") == check.LABEL:
+            _proof = p
 
 
 _public: set[str] = set()
@@ -65,8 +51,8 @@ def _norm(idea) -> str:
 
 
 def public(rep: dict) -> bool:
-    """Is this check one the site itself offers (a hero example or a front-door product: each chosen because Qloo answers
-    it in full)? Only such a check is shown to the next visitor: what a person typed stays theirs."""
+    """Is this check one the site itself offers (a hero example or a front-door product)? Only such a check is shown to
+    the next visitor: what a person typed stays theirs."""
     if not _public:
         import re
 
@@ -78,32 +64,25 @@ def public(rep: dict) -> bool:
     return _norm(rep.get("idea")) in _public or _norm(rep.get("ref")) in _public
 
 
-def _terms(rep: dict) -> dict | None:
-    """The report's launch terms with the metros the card maps (metros.terms), by the one rule every page draws."""
-    from . import metros
-    t = metros.with_terms(rep).get("terms")
-    return {k: t.get(k) for k in ("city", "target", "cells", "refund_rule", "metros", "by_population")} if t else None
-
-
 def _card(rep: dict) -> dict:
-    """What a front door draws for a verdict: the decision, who, where (with coordinates), the price tier, the trace."""
+    """What a front door draws for a verdict: the decision and each open signal's row with its link."""
     d = rep.get("decision") or {}
+    fb = rep.get("open_demand") or {}
     return {"hash": rep.get("hash"), "idea": rep.get("idea"), "label": rep.get("label"), "made": rep.get("made"),
-            "decision": {"verdict": d.get("verdict"), "reasons": (d.get("reasons") or [])[:2], "plan": d.get("plan")},
-            "who": rep.get("who"), "audiences": (rep.get("audiences") or [])[:3], "cities": (rep.get("cities") or [])[:5],
-            "price": rep.get("price"), "terms": _terms(rep), "no_map": rep.get("no_map"), "calls": shape({"calls": rep.get("calls") or []})["calls"], "n_calls": len(rep.get("calls") or []),
-            "leader": {k: (rep.get("leader") or {}).get(k) for k in ("name", "id")} if isinstance(rep.get("leader"), dict) else None}
+            "decision": {"verdict": d.get("verdict"), "reasons": (d.get("reasons") or [])[:2]},
+            "signals": fb.get("rows") or [], "line": fb.get("line"), "rule": fb.get("rule")}
 
 
 def note(kind: str, ms: float, rep: dict, state=None) -> None:
-    """One measured run. A real Open verdict (with Qloo's cities) on a public example becomes the proof shown first."""
+    """One measured run. A real Open verdict on a public example becomes the proof shown first."""
     global _proof
     _load()
-    calls = rep.get("calls") or []
+    from . import check
+    answered = [r for r in (rep.get("open_demand") or {}).get("rows") or [] if r.get("link")]
     verdict = (rep.get("decision") or {}).get("verdict")
-    row = {"kind": kind, "ms": round(ms), "calls": len(calls), "cached": bool(calls) and all(c.get("cached") for c in calls),
+    row = {"kind": kind, "ms": round(ms), "calls": len(answered), "cached": False,
            "verdict": verdict, "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
-    real = verdict == "OPEN" and rep.get("cities") and not rep.get("without_qloo") and not rep.get("private") and public(rep)   # a Wanted verdict leads
+    real = verdict == "OPEN" and rep.get("label") == check.LABEL and bool(answered) and not rep.get("private") and public(rep)
     with _lock:
         _runs.append(row)
         del _runs[:-KEEP]
@@ -116,12 +95,6 @@ def note(kind: str, ms: float, rep: dict, state=None) -> None:
     if due:
         from . import valley
         valley._save("pages", "vectors", doc)
-    if real and state is not None:
-        try:
-            from . import trace
-            trace.keep(state, rep.get("hash") or "")              # the proof's trace survives a redeploy
-        except Exception:  # noqa: BLE001 - the trace is a link of the card; the card is shown either way
-            pass
 
 
 def _idt() -> dict:
@@ -152,8 +125,8 @@ def vectors() -> dict:
     tasks = idt.get("tasks") or 0
     from . import escrow, track
     return {
-        "cost": {"api_usd_per_check": 0.0, "why": "the Qloo key and the free hosting cost nothing per call",
-                 "qloo_calls_per_check": round(statistics.median([r["calls"] for r in checks])) if checks else None,
+        "cost": {"api_usd_per_check": 0.0, "why": "the open sources and the free hosting cost nothing per call",
+                 "sources_per_check": round(statistics.median([r["calls"] for r in checks])) if checks else None,
                  "usd_per_ready_brief": round(idt["ready_cost_usd"] / tasks, 4) if tasks else None,
                  "brief_source": "docs/idt/summary.json (measured agent runs)"},
         "speed": {"median_s": med([r["ms"] for r in checks]), "median_s_fresh": med([r["ms"] for r in fresh]),
@@ -162,10 +135,10 @@ def vectors() -> dict:
                   "papers": sum(1 for r in runs if r["kind"] == "crossing")},
         "friction": {"steps_to_verdict": 2, "steps": ["paste", "press"], "sign_up": False},
         "trust": {"escrow_program": _program(escrow), "held_program": _program(escrow), "cluster": "devnet",
-                  "proof": "every Qloo value links to its call (/trace.html)"},
+                  "proof": "every open signal links to its source"},
         "capability": {"idt_ratio": idt.get("ratio_vague_to_ready"), "ready_pass": idt.get("ready_pass_rate"),
                        "vague_pass": idt.get("vague_pass_rate"), "tasks": tasks},
-        "access": {"fields": 7, "countries": "any (Qloo's geocodes)", "phone": True, "sign_up": False},
+        "access": {"fields": 7, "countries": "any (World Bank country codes)", "phone": True, "sign_up": False},
         "status": track.ready_cards_summary(),
     }
 
@@ -173,26 +146,8 @@ def vectors() -> dict:
 def proof() -> dict:
     _load()
     with _lock:
-        p = shape(dict(_proof)) if _proof else None
-    return {"proof": p, "label": "A real check this server ran" if p else "No real check yet", "sample": open_sample(),
-            "qloo_line": _qloo_line()}
-
-
-def _qloo_line() -> str | None:
-    from . import qloo_status
-    return qloo_status.doc()["line"]
-
-
-def open_sample() -> dict | None:
-    """The first sample chip (recorded.CHIPS order) whose recorded card opens pre-orders in a launch city: the finished
-    result the front door draws at load. From the private recordings, never the page."""
-    from . import metros, recorded
-    with recorded._lock:
-        cards = [recorded._last.get(recorded.key(c)) for c in recorded.CHIPS]
-    for r in cards:
-        if r and (r.get("decision") or {}).get("verdict") == "OPEN" and metros.launch_terms(r):
-            return copy.deepcopy(r)
-    return None
+        p = dict(_proof) if _proof else None
+    return {"proof": p, "label": "A real check this server ran" if p else "No real check yet"}
 
 
 SPEED = '<li data-v="speed"><b>…</b> median to verdict</li>'

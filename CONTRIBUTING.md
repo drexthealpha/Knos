@@ -51,6 +51,13 @@ deployment's test binaries from its unchanged source.
 which ids are the acceptance checks, and the ids of the hidden tests that catch a cheat: the sentinel and canary tests). Add its test directories and protected paths
 beside the others, and a test in `tests/test_judge_langs.py` with an honest fix, a no-op and a cheat.
 
+## Add a check
+
+A check is a program and the locked test that decides it works. Put a manifest at `tools/<id>/manifest.json` that
+names both, the files the test reads and the inputs (`tools/limit-check/manifest.json` is the one to copy).
+`python scripts/tool_manifest.py` runs each test as the checker does and lists the check only when its test passes;
+a missing or failing test is refused with the reason.
+
 ## A good pull request
 
 - One thing, with a test that fails before it and passes after.

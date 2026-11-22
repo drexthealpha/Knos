@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from knos_wanted import check, enterprise
+from knos_wanted import enterprise
 
 STATIC = Path(enterprise.__file__).parent / "static"
 WEB = Path(enterprise.__file__).resolve().parents[3] / "web"
@@ -43,17 +43,6 @@ def test_the_sign_in_sheet_shows_only_what_works():
     assert "Not available" not in sheet and " disabled" not in sheet
 
 
-def test_who_wants_it_shows_only_segments_tied_to_the_idea():
-    words = check.content_words("a reusable water bottle")
-    shown = [n for n, i in (("Jewellery", "urn:audience:hobbies_and_interests:jewellery"),
-                            ("Sneakerheads", "urn:audience:hobbies_and_interests:sneakerheads"),
-                            ("Spy Enthusiast", "urn:audience:hobbies_and_interests:spy"),
-                            ("Water sports", "urn:audience:hobbies_and_interests:water_sports"))
-             if check.tied({"name": n, "id": i}, words, [])]
-    assert shown == ["Water sports"]
-    # a tag path of the idea's own Qloo tags counts too
-    assert check.tied({"name": "Trail runners", "id": "urn:audience:hobbies_and_interests:running"}, ["flask"],
-                      [{"id": "urn:tag:keyword:qloo:running"}])
 
 
 def test_every_knos_page_carries_the_crow_icon_set():

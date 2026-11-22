@@ -32,7 +32,6 @@
   <nav id="nav" aria-label="Knos">
     <a href="https://drexthealpha.github.io/Knos/" data-nav="home">Home</a>
     <a href="https://drexthealpha.github.io/Knos/prove/" data-nav="near">NEAR app</a>
-    <a href="https://drexthealpha.github.io/Knos/labs/" data-nav="iris">IRIS</a>
     <a href="https://drexthealpha.github.io/Knos/claims/" data-nav="proof" data-proof>Proof</a>
   </nav>
   <div class="tools">
@@ -110,7 +109,7 @@
         <p><b>${esc(ms.name)}</b>: ${esc(ms.target)}</p><p>Proof: <b>${esc(j.proof)}</b>, then a ${esc(j.challenge_hours)} h challenge window.</p>
         ${j.criteria_hash ? `<p class="mono">criteria ${esc(j.criteria_hash.slice(0, 16))}…</p>` : `<p>${esc((j.missing || []).join("; "))}</p>`}</section>
         <section data-part="demand"><h2>Demand: ${esc(d.verdict === "OPEN" ? "open" : d.verdict === "REFUSE" ? "not yet" : "cannot decide")}${d.private ? " (private)" : ""}</h2>
-        <p>${esc((d.reasons || [])[0] || "")}</p>${d.hash ? `<p><a href="/trace.html?hash=${esc(d.hash)}">The Qloo calls</a></p>` : ""}</section>
+        <p>${esc((d.reasons || [])[0] || "")}</p>${d.hash ? `<p><a href="/r/${esc(d.hash.slice(0, 16))}">The signals</a></p>` : ""}</section>
         <section data-part="milestone"><h2>${p ? "Milestone opened" : "No milestone yet"}</h2>
         ${p ? `<p><a href="${esc(p.page)}">Your project</a> · ${p.open ? "open to anyone" : "private"} · released when its check passes</p>` : ""}
         ${c.page ? `<p><a href="${esc(c.page)}">Ready card</a>, attested on devnet</p>` : ""}</section>`;

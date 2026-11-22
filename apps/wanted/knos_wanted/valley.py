@@ -219,7 +219,7 @@ def _create_custom(user: dict, title: str, brief: dict, report: str | None, team
     share = 10_000 // len(rows)
     ms = [{"key": n["key"], "name": n["name"] or n["key"], "kind": "build", "share_bps": share, "route": "none", "game": False,
            "deadline_s": n["deadline_s"] or ready.MIN_DEADLINE_S, "target": n["target"], "verifier": n["verifier"]} for n in rows]
-    lt = ready.launch(brief)                  # the launch terms Qloo set (metros.brief): kept, and hashed with the milestones
+    lt = ready.launch(brief)                  # the launch terms the brief names: kept, and hashed with the milestones
     return _open(user, "custom", "Your brief", title, [], report, team, ms, False, {**ready.terms(brief), **({"launch": lt} if lt else {})})
 
 
@@ -315,24 +315,23 @@ def resolve(word: str, reading: str, target: str, user: dict | None = None) -> d
 
 
 def grounding(p: dict) -> dict | None:
-    """The Qloo facts of the crossing a project came from (its decision report): audience, launch cities, price tier."""
+    """The open signals of the check a project came from (its decision report): each source's count and the verdict."""
+    def kept():
+        g = p.get("grounding_snapshot")         # the report is gone (a redeploy): the line as it was when saved
+        return g if isinstance(g, dict) and "signals" in g else None
     h = p.get("report")
     f = escrow._state_dir() / "reports" / f"{h}.report" if isinstance(h, str) and re.fullmatch(r"[0-9a-f]{64}", h) else None
     if not f or not f.exists():
-        return p.get("grounding_snapshot")         # the report is gone (a redeploy): the line as it was when saved
+        return kept()
     try:
         rep = json.loads(f.read_text(encoding="utf-8"))
     except ValueError:
-        return p.get("grounding_snapshot")
-    plan = (rep.get("decision") or {}).get("plan") or {}
-    fam = rep.get("grounding") or {}                # the families' answers (knos_wanted.families.grounding)
-    who = plan.get("who") or {}
-    out = {"audience": {k: who.get(k) for k in ("age", "gender") if who.get(k)} | ({"segments": (who.get("segments") or fam.get("segments") or [])[:3]}
-                                                                                   if who.get("segments") or fam.get("segments") else {}),
-           "launch_cities": (plan.get("where") or fam.get("cities") or [])[:3], "price_tier": plan.get("tier") or fam.get("price_tier"),
-           "unit_price": plan.get("unit_price"), "comparables": (fam.get("comparables") or [])[:4],
-           "asked": {k: v for k, v in (rep.get("options") or {}).items() if k not in ("qloo", "qloo_calls")}, "source": "Qloo"}
-    return {k: v for k, v in out.items() if v}
+        return kept()
+    fb = rep.get("open_demand") or {}
+    if not fb.get("rows"):
+        return kept()
+    return {"signals": [{k: r.get(k) for k in ("name", "value", "unit", "link")} for r in fb["rows"]][:6],
+            "verdict": (rep.get("decision") or {}).get("verdict"), "source": "open signals"}
 
 
 def milestone_prompt(pid: str, key: str) -> dict:
@@ -543,7 +542,7 @@ def public_project(p: dict) -> dict:
     out = {k: v for k, v in p.items() if k != "owner"}
     out["ready"] = readiness(p) if "versions" in p else {"ready": False, "label": "Not ready", "missing": ["brief: opened before the check"]}
     out.setdefault("changes", [])
-    out["grounding"] = grounding(p)                 # the Ready brief's "Grounding (Qloo)" line: who, where, price tier, comparables
+    out["grounding"] = grounding(p)                 # the Ready brief's Grounding line: the open signals of its check
     from . import chainx
     out["credits"] = chainx.credits_of(p["id"])     # the project's credit mint: moves only into its vault (the transfer hook)
     out["milestones"] = []

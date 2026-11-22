@@ -26,10 +26,9 @@ def test_the_entry_the_proxy_appended_is_the_key_and_forged_leading_entries_chan
         assert server.client_key("", "10.0.0.1", "203.0.113.7") == "10.0.0.1"          # no trusted proxy: the header is ignored
 
 
-def test_a_client_cannot_step_around_the_faucet_limit_with_a_forged_header(monkeypatch, q, tmp_path):
-    from knos_wanted.qloo_rest import Client
+def test_a_client_cannot_step_around_the_faucet_limit_with_a_forged_header(monkeypatch, tmp_path):
     monkeypatch.setenv("KNOS_WANTED_TRUST_PROXY", "1")
-    state = server.State(q, Client(key="", folder=tmp_path / "rest"))
+    state = server.State()
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.make_handler(state))
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
     seen = []

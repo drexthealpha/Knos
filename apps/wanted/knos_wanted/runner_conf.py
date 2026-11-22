@@ -29,4 +29,12 @@ CONF = {'tool': 'limit-check',
  'results_kept': 2000,
  'browsers_kept': 20000,
  'input_kept_chars': 32000,
- 'chart_points': 2000}
+ 'chart_points': 2000,
+ 'invite_runs': 5,
+ 'invite_runs_source': 'not from a law: a starting value to be tested',
+ 'return_bonus_runs': 2,
+ 'return_bonus_runs_source': 'not from a law: a starting value to be tested',
+ 'challenges_kept': 2000,
+ 'host_usd_per_month': 0,
+ 'host_usd_per_month_source': "render.yaml plan: free (read 22 Nov 2026): the server's host costs 0 US dollars a month; "
+                              "a paid plan's monthly price replaces it, the founder's step"}

@@ -14,5 +14,34 @@
     "day7_return": null,
     "active_days": null,
     "paying_share": null
-  }
+  },
+  "lead": {
+    "first_result_7d": null,
+    "activation_7d": null,
+    "dau": null,
+    "dau_mau": null,
+    "dau_wau": null,
+    "return_d1": null,
+    "return_d3": null,
+    "return_d7": null,
+    "return_d14": null,
+    "return_d30": null,
+    "week2_use": null
+  },
+  "depth": {
+    "core_users": null,
+    "resurrected": null,
+    "active_days_28": null,
+    "week4_active": null,
+    "minutes_to_result": null,
+    "run_success": null,
+    "by_language": null,
+    "by_device": null,
+    "by_region": null,
+    "invites": null,
+    "arrival_source": null,
+    "shared_opens": null,
+    "l7": null
+  },
+  "survey": {}
 }

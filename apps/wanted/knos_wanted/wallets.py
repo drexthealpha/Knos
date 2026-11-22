@@ -363,8 +363,8 @@ def prepare_preorder(led, user: dict, report: dict, units, rp_id: str, funder: b
     from knos.settle.v2 import pay
     ps = _ps()
     d = report.get("decision") or {}
-    if d.get("verdict") != "OPEN" or report.get("label", "").startswith("NO QLOO"):
-        raise ValueError("pre-orders open only on a report whose decision is OPEN on live Qloo evidence")
+    if d.get("verdict") != "OPEN" or not isinstance(d.get("target_units"), int):
+        raise ValueError("pre-orders open only on a report whose decision is OPEN with a pre-order target")
     preorder._need()
     if isinstance(units, bool) or not isinstance(units, int) or not 5 <= units <= min(1000, d["target_units"]):
         raise ValueError(f"units: 5 to {min(1000, d['target_units'])} (the report's target)")

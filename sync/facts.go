@@ -122,6 +122,7 @@ type Facts struct {
 	Note       string                  `json:"_"`
 	Skip       []string                `json:"skip"`
 	Historical []string                `json:"historical"`
+	OptIn      bool                    `json:"opt_in,omitempty"` // read only the files that hold OptInMarker
 	Kinds      map[string]*KindSetting `json:"kinds"`
 	Existing   []Existing              `json:"existing"`
 	Generated  []Generated             `json:"generated"`

@@ -24,12 +24,6 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: "22"
-      - name: the IRIS page, served here with the site's tokens next to it (it is not on Pages)
-        run: |
-          mkdir -p "$RUNNER_TEMP/iris/brand" "$RUNNER_TEMP/iris/fonts"
-          cp iris/web/dashboard.html "$RUNNER_TEMP/iris/index.html" && cp web/brand/tokens.css "$RUNNER_TEMP/iris/brand/" && cp web/fonts/*.woff2 "$RUNNER_TEMP/iris/fonts/"
-          (cd "$RUNNER_TEMP/iris" && nohup python3 -m http.server 8080 --bind 127.0.0.1 > "$RUNNER_TEMP/http.log" 2>&1 &)
-          for _ in $(seq 1 30); do curl -fsS -o /dev/null http://127.0.0.1:8080/ && break; sleep 1; done
       - name: a browser, axe-core
         run: |
           npm install --no-save --no-audit --no-fund playwright@1.64.1 axe-core@4.11.0 linkinator@8.1.0 impeccable@4.8.0 puppeteer-core@25.16.0
@@ -38,9 +32,9 @@ jobs:
         if: always()
         run: |
           mkdir -p faces
-          for p in "" prove/ claims/ claim/hyperloglog/ agents/ iris; do
+          for p in "" prove/ claims/ claim/hyperloglog/ agents/; do
             n=$(echo "${p:-home}" | tr '/' '-' | sed 's/-$//')
-            u="https://drexthealpha.github.io/Knos/$p"; [ "$p" = iris ] && u=http://127.0.0.1:8080/
+            u="https://drexthealpha.github.io/Knos/$p"
             for k in 1 2 3; do   # three cold runs: stray work on a shared runner moves one run's score, so the median counts
               npx --yes lighthouse@12.8.2 "$u" --quiet --chrome-flags="--headless=new --no-sandbox" \
                 --output=json --output-path="faces/lighthouse-$n-$k.json" --only-categories=performance,accessibility,best-practices,seo || true
@@ -52,7 +46,7 @@ jobs:
         if: always()
         run: |
           mkdir -p faces
-          npx linkinator https://drexthealpha.github.io/Knos/ https://drexthealpha.github.io/Knos/prove/ https://drexthealpha.github.io/Knos/claims/ https://drexthealpha.github.io/Knos/agents/ http://127.0.0.1:8080/ \
+          npx linkinator https://drexthealpha.github.io/Knos/ https://drexthealpha.github.io/Knos/prove/ https://drexthealpha.github.io/Knos/claims/ https://drexthealpha.github.io/Knos/agents/ \
             --retry --retry-errors --timeout 20000 --skip "^https://(x\.com|twitter\.com|www\.linkedin\.com)" --format json > faces/links.json || true
           node -e 'const r=require(process.argv[1]); const bad=r.links.filter(l=>l.state==="BROKEN"&&l.status!==429); console.log("links", r.links.length, "broken", bad.length); for (const l of bad) console.log(l.status, l.url, "on", l.parent); process.exit(bad.length?1:0)' "$PWD/faces/links.json" | tee faces/links.txt
       - name: Hallmark sloplint and Impeccable, each face
@@ -60,11 +54,11 @@ jobs:
         run: |
           mkdir -p faces
           git clone -q https://github.com/Nutlope/hallmark "$RUNNER_TEMP/hallmark" && git -C "$RUNNER_TEMP/hallmark" checkout -q 4f6a46c6dc325d40ab268c93e25c7b96676ebccd
-          for f in web/door.html near/web/index.html iris/web/dashboard.html; do
+          for f in web/door.html near/web/index.html; do
             echo "== $f" | tee -a faces/sloplint.txt
             node "$RUNNER_TEMP/hallmark/skills/hallmark/scripts/sloplint.mjs" "$f" 2>&1 | grep -E "FAIL|sloplint:" | tee -a faces/sloplint.txt || true
           done
-          for u in https://drexthealpha.github.io/Knos/ https://drexthealpha.github.io/Knos/prove/ https://drexthealpha.github.io/Knos/claims/ http://127.0.0.1:8080/; do
+          for u in https://drexthealpha.github.io/Knos/ https://drexthealpha.github.io/Knos/prove/ https://drexthealpha.github.io/Knos/claims/; do
             echo "== $u" | tee -a faces/impeccable.txt
             timeout 180 npx impeccable detect "$u" 2>&1 | tail -40 | tee -a faces/impeccable.txt || true
           done

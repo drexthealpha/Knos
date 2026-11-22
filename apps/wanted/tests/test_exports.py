@@ -1,40 +1,37 @@
-"""A result's downloads (knos_wanted.exports): the brief as a one-page PDF, the calls as CSV with no response body and no
-key, the Ready brief as JSON with its criteria hash. SYNTHETIC report only."""
+"""A result's downloads (knos_wanted.exports): the brief as a one-page PDF, the open signals as CSV, and the Ready brief
+as JSON (none: the open signals name no launch city). SYNTHETIC report only."""
 import csv
 import io
 import json
 
-from knos import ready
-from knos_wanted import exports, metros
+from knos_wanted import exports
+
+ROWS = [{"name": "Wikipedia", "value": 296, "unit": "views a day (last 60 days)", "link": "https://en.wikipedia.org/wiki/Festival", "counts": True},
+        {"name": "Hacker News", "value": 6, "unit": "stories in 2 years", "link": "https://hn.algolia.com/", "counts": True},
+        {"name": "Money down", "value": 0.0, "unit": "test money, 0 pre-orders here", "counts": False}]
 
 
-def report(with_city=True):
-    cells = [{"lat": 36.17 + i * 0.01, "lon": -115.14, "affinity": 0.99 - i * 0.02} for i in range(4)] + [{"lat": 40.7, "lon": -74.0, "affinity": 0.5}]
+def report():
     return {"hash": "cd" * 32, "idea": "a synthetic (desert) music festival", "made": "2026-10-22T22:09:40Z", "decision": {"verdict": "OPEN"},
-            "matches": [{"id": "e1", "name": "X"}], "terms": metros.terms(cells) if with_city else None, "where": cells,
-            "calls": [{"n": 1, "call": "GET /search", "what": "closest products", "params": {"query": "desert festival", "api_key": "never-shown", "take": 5},
-                       "ms": 120, "cached": False, "body_digest": "SECRET-BODY 5 results", "out": "SECRET-BODY 5 results"},
-                      {"n": 2, "call": "GET /v2/insights", "params": {"filter.type": "urn:heatmap"}, "cached": True, "body_digest": "SECRET-BODY cells"}]}
+            "open_demand": {"verdict": "OPEN", "rows": ROWS, "head": "Open signals say people want this",
+                            "line": "Sources: Wikipedia, Hacker News, pre-orders here.", "rule": "People want it when 2 of these pass."}}
 
 
-def test_the_calls_csv_holds_no_body_and_no_key():
-    text = exports.csv_text(report())
-    rows = list(csv.reader(io.StringIO(text)))
-    assert rows[0] == ["n", "endpoint", "params", "ms", "cached", "fed"] and len(rows) == 3
-    assert "SECRET-BODY" not in text and "never-shown" not in text and "api_key" not in text
-    assert rows[1][:5] == ["1", "GET /search", "query=desert festival; take=5", "120", "no"] and rows[2][4] == "yes"
+def test_the_signals_csv_holds_each_row_with_its_link():
+    rows = list(csv.reader(io.StringIO(exports.csv_text(report()))))
+    assert rows[0] == ["source", "value", "unit", "counts", "link"] and len(rows) == 4
+    assert rows[1] == ["Wikipedia", "296", "views a day (last 60 days)", "yes", "https://en.wikipedia.org/wiki/Festival"]
+    assert rows[3][3] == "no" and rows[3][4] == ""
 
 
-def test_the_ready_brief_json_and_its_hash():
+def test_the_ready_brief_json_says_there_is_none():
     d = json.loads(exports.json_text(report()))
-    assert d["ready"] is True and d["criteria_hash"] == ready.criteria_hash(d["brief"])
-    none = json.loads(exports.json_text(report(with_city=False)))
-    assert none["ready"] is False and none["brief"] is None and "no launch city" in none["why"]
+    assert d["ready"] is False and d["brief"] is None and "no launch city" in d["why"] and d["report"] == "cd" * 32
 
 
 def test_the_brief_pdf_is_one_page_with_the_cards_fields():
     b = exports.pdf(report(), "https://knos.onrender.com/r/" + "cd" * 8)
     assert b.startswith(b"%PDF-1.4") and b.rstrip().endswith(b"%%EOF") and b.count(b"/Type /Page ") == 1
-    assert b"\\(desert\\)" in b and b"Pre-order target" in b and b"SECRET-BODY" not in b
+    assert b"\\(desert\\)" in b and b"Open signals say people want this" in b and b"Wikipedia: 296" in b
     xref = int(b.rsplit(b"startxref\n", 1)[1].split(b"\n")[0])
     assert b[xref:xref + 4] == b"xref"

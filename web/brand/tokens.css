@@ -1,4 +1,4 @@
-/* Hallmark · job: the Knos design system, one file for the site, the NEAR app and the IRIS page · shape: tokens · genre: modern-minimal · theme: Knos (near/DESIGN.md) */
+/* Hallmark · job: the Knos design system, one file for the site and the NEAR app · shape: tokens · genre: modern-minimal · theme: Knos (near/DESIGN.md) */
 /* Knos's one design system: the logo, type, colour, spacing, the bar and the hero, the same bytes on the front door and
    the app (scripts/sync_brand.py copies it, tests/test_design_system.py holds it). */
 @font-face { font-family: "Bricolage Grotesque"; src: url("../fonts/bricolage-grotesque.woff2") format("woff2"); font-weight: 600 700; font-style: normal; font-display: optional; }
@@ -39,14 +39,14 @@
   --head: "Bricolage Grotesque", "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
   --text: "Geist", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --code: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --s-1: 13px; --s0: 14px; --s1: 16px; --s2: 20px; --s3: 28px; --s4: 40px;
+  --s-1: 0.8125rem; --s0: 0.875rem; --s1: 1rem; --s2: 1.25rem; --s3: 1.75rem; --s4: 2.5rem;
   --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 40px;
   --gap: 24px; --radius: 14px; --radius-s: 8px;
   --ease: cubic-bezier(.2, .8, .2, 1); --ease-exit: cubic-bezier(.4, 0, 1, 1); --ease-move: cubic-bezier(.65, 0, .35, 1); --dur-1: 120ms; --dur-2: 240ms; --dur-3: 480ms;
   --bg: var(--paper); --fg: var(--ink); --muted: var(--ink-2); --card: var(--paper-2);
   --surface: var(--paper-2); --accent-ink: var(--accent-fg); --accent-soft: var(--soft); --danger: var(--bad); --warnc: var(--warn);
   --r: var(--radius); --r-s: var(--radius-s); --shadow: var(--depth-1);
-  --fs-0: var(--s-1); --fs-1: var(--s1); --fs-2: 18px; --fs-3: var(--s2); --fs-4: var(--s3);
+  --fs-0: var(--s-1); --fs-1: var(--s1); --fs-2: 1.125rem; --fs-3: var(--s2); --fs-4: var(--s3);
 }
 body { background: var(--bg); color: var(--fg); font-family: var(--text); font-size: var(--s1); }
 h1, h2, h3, h4 { font-family: var(--head); letter-spacing: -.015em; }
@@ -54,7 +54,7 @@ h1 { font-weight: 600; letter-spacing: -.025em; }
 code, pre, kbd, .mono { font-family: var(--code); }
 .bar { position: relative; z-index: 20; display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; margin: 0;
   padding: 12px max(16px, calc((100% - 1200px) / 2)); background: var(--bg); border-bottom: 1px solid var(--line); font-family: var(--text); }
-.brand { display: flex; gap: 10px; align-items: center; min-height: 44px; font: 650 20px/1 var(--head); letter-spacing: -.01em; text-decoration: none; color: var(--fg); }
+.brand { display: flex; gap: 10px; align-items: center; min-height: 44px; font: 650 1.25rem/1 var(--head); letter-spacing: -.01em; text-decoration: none; color: var(--fg); }
 .brand .wordmark { display: none; }
 @supports ((mask-image: url("mark.svg")) or (-webkit-mask-image: url("mark.svg"))) {
   .brand .wordmark { display: block; aspect-ratio: 1856 / 1756; height: 30px; background: currentColor; -webkit-mask: url("mark.svg") center / contain no-repeat;
@@ -166,8 +166,8 @@ html, body { overflow-x: clip; }
 .js .bar .tools { margin-left: auto; }
 .bar .tools .signin, .bar .tools #whoBtn.signin { display: none; }
 
-:root .k-first{font:600 clamp(26px,3.2vw,40px)/1.15 var(--head);letter-spacing:-.02em;color:var(--fg);max-width:22em;margin:var(--sp-5) auto var(--sp-2);text-align:center}
-:root .k-a{font:500 clamp(17px,1.6vw,21px)/1.45 var(--text);color:var(--fg);max-width:40em;margin:0 auto var(--sp-3);text-align:center}
+:root .k-first{font:600 clamp(1.625rem,3.2vw,2.5rem)/1.15 var(--head);letter-spacing:-.02em;color:var(--fg);max-width:22em;margin:var(--sp-5) auto var(--sp-2);text-align:center}
+:root .k-a{font:500 clamp(1.0625rem,1.6vw,1.3125rem)/1.45 var(--text);color:var(--fg);max-width:40em;margin:0 auto var(--sp-3);text-align:center}
 :root .k-a a{color:var(--accent)}
-:root .k-goal{font:500 clamp(20px,2.2vw,28px)/1.25 var(--text);max-width:22em;margin:0 auto var(--sp-4);text-align:center}
+:root .k-goal{font:500 clamp(1.25rem,2.2vw,1.75rem)/1.25 var(--text);max-width:22em;margin:0 auto var(--sp-4);text-align:center}
 @media print { .brand .wordmark { aspect-ratio: 3440/1268; -webkit-mask-image: url("wordmark.svg"); mask-image: url("wordmark.svg") } }

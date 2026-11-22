@@ -1,7 +1,7 @@
 ---
 version: alpha
 name: Knos
-description: The Knos web tokens (web/brand/tokens.css) for the NEAR pages and the IRIS dashboard. Dark first, a light theme by preference.
+description: The Knos web tokens (web/brand/tokens.css) for the NEAR pages. Dark first, a light theme by preference.
 colors:
   primary: "#93a5ff"
   on-primary: "#07080c"

@@ -6,7 +6,7 @@
 // local address. Calls the front door makes to https://knos.onrender.com go to that local app; every other address
 // outside is refused. No `playwright` package or no browser: SKIP outside CI, a failure in CI (tests/web/overflow.mjs).
 import { createServer, request as httpRequest } from "node:http";
-import { readFileSync, existsSync, statSync, mkdtempSync, cpSync, rmSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync, statSync, mkdtempSync, cpSync, rmSync } from "node:fs";
 import { spawn, execFileSync } from "node:child_process";
 import { join, extname, dirname, resolve } from "node:path";
 import { tmpdir } from "node:os";
@@ -18,7 +18,12 @@ import { chromiumOrSkip, TYPES } from "./overflow.mjs";
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 export const SCREENS = ["door", "tool", "result", "price", "status"];
 export const RUN_SCREENS = ["door", "tool", "result"];
-export const LOCALES = ["en", "ar", "hi", "es", "fr", "pt", "zh-CN", "id", "sw", "ru"];   // ROUND13-ITEMS H3 a
+// ROUND13-ITEMS H3 a, L09: a browser locale for every locale file of web/i18n (the first ten, then the rest by code),
+// Chinese by its region (zh-Hans as zh-CN, zh-Hant as zh-TW)
+const FIRST = ["en", "ar", "hi", "es", "fr", "pt", "zh-Hans", "id", "sw", "ru"];
+const FILES = readdirSync(join(ROOT, "web", "i18n")).filter((f) => f.endsWith(".json")).map((f) => f.slice(0, -5));
+export const LOCALES = [...FIRST.filter((c) => FILES.includes(c)), ...FILES.filter((c) => !FIRST.includes(c)).sort()]
+  .map((c) => ({ "zh-Hans": "zh-CN", "zh-Hant": "zh-TW" })[c] || c);
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // Pages that only read what a screen shows load side by side (KNOS_LAW_PAGES at once, 4 by default); a measure of time
 // runs alone (excl): it waits for the others to close and nothing else opens until it is done.

@@ -8,20 +8,16 @@ Each entry starts with what changed for you, in one or two plain lines ("In shor
 
 **In short:** since 0.4.1 (6 Nov 2026), not yet a release: the NEAR entry (a paper's claim checked against a test
 locked in a jobs contract on NEAR testnet, with NEAR AI Cloud's attestation checked, and the jobs and claim market
-contracts left with no access keys on 14 Nov 2026), and the IRIS entry with its video. The tag
+contracts left with no access keys on 14 Nov 2026). The tag
 `hackathon-submission` is the NEAR entry as submitted. This entry is filled at the next release.
 
 ## 0.4.1 (November 2026)
 
 **In short:** after `knos demand`, the rest of one job runs from the command line and from Python: `knos ready` locks
-the test, `knos iris-check` checks a proof as the IRIS referee does, and `knos near-job` runs one live NEAR testnet job
-in which only the agent that passes is paid.
+the test and `knos near-job` runs one live NEAR testnet job in which only the agent that passes is paid.
 
 - **`knos ready <brief.json>`** prints Ready with the brief's criteria hash, or the fields it is missing
   (`knos.job.ready`, on top of `knos.ready.check`).
-- **`knos iris-check <brief.json> <kind> <proof>`** applies the rules referee that Knos on IRIS runs to a
-  GitHub check run, a FHIR Observation or an HL7 ORU^R01 (`knos.job.iris_check`). For an ORU it now reads the OBX the
-  brief's verifier names, not only the first one.
 - **`knos near-job`** asks the hosted runner (knos.onrender.com) for one job on NEAR testnet from Knos's capped test
   account, follows it to the payment, and prints each transaction (`knos.job.near_job`). Past the runner's daily cap
   it shows the last run and says so.
@@ -30,8 +26,8 @@ Test money only: NEAR testnet and Solana devnet. **No program changes in this re
 
 ## 0.4.0 (October 2026)
 
-**In short:** Knos now has an app for research products: paste a landmark paper, see who would buy its product (Qloo,
-end to end), and back it with devnet test money that is paid to the maker only on proof. Six roles, one phone page,
+**In short:** Knos now has an app for research products: paste a landmark paper, see who would buy its product,
+and back it with devnet test money that is paid to the maker only on proof. Six roles, one phone page,
 seven languages.
 
 Everything is on Solana devnet, which is test mode: every amount is test units of a test mint, and every money view
@@ -42,10 +38,9 @@ says so. **No program changes in this release:** nothing under `programs-v2/knos
 ### The six roles (apps/wanted, hosted at knos.onrender.com)
 
 - **Researcher (Research):** a DOI, PubMed, arXiv or OpenAlex id becomes a research card (citations, retraction
-  check), its product, and a decision (OPEN or REFUSE) from Knos's own rules over Qloo's evidence. Every step names
-  the Qloo call behind it, what it returned, and why it matters.
+  check), its product, and a decision (OPEN or REFUSE) from Knos's own rules.
 - **Buyer (Back):** who (age, gender, segments), where (launch cities), the price tier, and the target for the held money and
-  reserve, all set by Qloo's evidence. A pre-order locks test units in a PANEL order released by a 2-of-3 referee panel.
+  reserve. A pre-order locks test units in a PANEL order released by a 2-of-3 referee panel.
 - **Funder (Fund):** a funder's money is held on its own for the milestone (its own order and claim id, beside
   the pre-orders), paid to the maker on proof and refunded after the deadline.
 - **Contributor (Contribute):** a sample game round is always open. Submit the whole `train.py` of
@@ -53,16 +48,7 @@ says so. **No program changes in this release:** nothing under `programs-v2/knos
   paid a sample payment in test units.
 - **Maker (Make):** post a public page that contains the claim id as evidence; two referee signatures release the
   money; a second release is refused because the order is closed on chain.
-- **Agent (MCP over HTTP at /mcp):** the knos_* tools for every role, and the official qloo-harness MCP server's
-  tools as `qloo_*`. Tools that move test money say "CONFIRM FIRST".
-
-### Qloo end to end
-
-- Search, entities, tags, audiences, insights (demographics, heatmap, locations), trends and compare each set one
-  thing in the decision: relevance, the market leader, who, where, price tier, trend and the reserve.
-- The official qloo-harness MCP server runs live on the server; the decision comes from REST and is labelled so.
-- Explainability is shown wherever Qloo returns it; the taste persona keeps the product's kind and puts the rest
-  behind a "Show all Qloo matches" toggle.
+- **Agent (MCP over HTTP at /mcp):** the knos_* tools for every role. Tools that move test money say "CONFIRM FIRST".
 
 ### Solana pieces
 
@@ -169,7 +155,7 @@ moved by a byte. The interface crates stay at 0.3.14. Nothing new went to exerci
   new to all of it: short sentences, no internal shorthand, and each technical word explained once or linked to
   [`docs/WORDS.md`](docs/WORDS.md). The documents in `docs/reference/` moved with their links fixed; some are
   unchanged.
-- **[`docs/WORDS.md`](docs/WORDS.md)** explains 51 words.
+- **[`docs/WORDS.md`](docs/WORDS.md)** explains 50 words.
 - **The site's first screen** says what Knos does and for whom. The page that lists the evidence is now called "Check
   every claim yourself".
 - **New READMEs** for [`programs/`](programs-v2/README.md#the-first-deployment-in-programs-nobody-can-change-it), [`programs-v2/`](programs-v2/README.md),

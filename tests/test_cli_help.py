@@ -20,8 +20,8 @@ def test_no_argument_and_help_print_the_one_flows_four_headings_in_order(capsys)
     at = lambda text: bare.index(text)  # noqa: E731
     demand, hold, paid, run = at("Check demand"), at("Hold money"), at("Checks and receipts"), at("Run Knos")
     assert demand < hold < paid < run
-    assert [bare.index(f"│ {n} ") for n in ("demand", "idea", "idt")] == sorted(bare.index(f"│ {n} ") for n in ("demand", "idea", "idt"))
-    for name in ("demand", "idt", "idea"):
+    assert [bare.index(f"│ {n} ") for n in ("idea", "idt")] == sorted(bare.index(f"│ {n} ") for n in ("idea", "idt"))
+    for name in ("idt", "idea"):
         assert demand < at(f"│ {name} ") < hold, name
     for name in ("fund-wallet", "balance", "bounty", "terms", "faucet"):
         assert hold < at(f"│ {name} ") < paid, name

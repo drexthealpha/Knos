@@ -158,7 +158,7 @@ def register(app, help_lines: list | None = None) -> None:
                    product: str = typer.Option(None, "--product", help="the product the idea would become, for the demand check"),
                    place: str = typer.Option(None, "--in", help="a place, for the demand check's where/fit"),
                    as_json: bool = typer.Option(False, JSON)) -> None:
-        """Demand evidence (Qloo demand check: MOCK until QLOO_API_KEY) and the pull-commitment plan. Sends nothing."""
+        """Demand evidence (money locked for the idea) and the pull-commitment plan. Sends nothing."""
         from . import wanted as W
         c = guard(lambda: _load(ref))
         d = W.demand(c, product, place)

@@ -1,4 +1,4 @@
-"""Step 2, wanted? (wall 1): the demand check (Qloo MOCK, labelled), the pull-commitment plan locked in stages, the
+"""Step 2, wanted? (wall 1): the demand evidence (money), the pull-commitment plan locked in stages, the
 milestone oracles, and the CLI door to both steps. Offline: recorded fixture bodies only. Keys, oracles and flags are
 named through knos.ideas.K, knos.ideas.wanted.ORACLE and knos.ideas.cli's constants, never spelled here."""
 from __future__ import annotations
@@ -116,15 +116,6 @@ def test_referee_and_lab_verdict_files(tmp_path):
     assert W.check(c, O_.lab_qc, verdict=str(v))[K.met] is True
 
 
-def test_the_demand_check_runs_on_the_labelled_mock_without_a_qloo_key():
-    d = W.demand(paper(), "longer-lasting perovskite solar panels")
-    assert d[K.status] == "ok" and d[K.mode] == K.mock
-    assert "MOCK" in d[K.label]
-    assert len(d[K.hash]) == 64
-    assert ideas.ENVS[3] in d["key"]
-    assert "first candidate" in d[K.confirmed]
-
-
 def test_the_cli_reads_an_idea_writes_it_and_plans_the_commitment(capsys, tmp_path):
     out = tmp_path / "idea.json"
     assert cli.main([GROUP, "get", TRIAL, OUT, str(out)]) == 0
@@ -132,7 +123,7 @@ def test_the_cli_reads_an_idea_writes_it_and_plans_the_commitment(capsys, tmp_pa
     assert "FIXTURE" in said and TRIAL in said and out.exists()
     assert cli.main([GROUP, "wanted", str(out), UNITS, "10", PRICE, "4"]) == 0
     said = capsys.readouterr().out
-    assert "MOCK" in said
+    assert "demand check: ok money lean=no money locked yet" in said
     assert f"{K.stage2}: {O_.results_posted}" in said
     assert cli.main([GROUP, "check", str(out), O_.results_posted]) == 0
     assert "not met" in capsys.readouterr().out

@@ -1,3 +1,0 @@
-# IPM (module.xml) installs these into the instance's mgr/python, as iris/Dockerfile does: Knos's only Solana dependency
-solders>=0.21,<0.30
-base58>=2

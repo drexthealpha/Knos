@@ -8,12 +8,11 @@ from http.server import ThreadingHTTPServer
 import pytest
 
 from knos_wanted import agent, server
-from knos_wanted.qloo_mcp import InProcess, Qloo
 
 
 @pytest.fixture
 def app():
-    state = server.State(Qloo(InProcess(), mode="mock", sleep=lambda s: None))
+    state = server.State()
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.make_handler(state))
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
     yield f"http://127.0.0.1:{httpd.server_address[1]}", state
@@ -103,13 +102,13 @@ def test_every_tool_mcp_lists_is_answered_by_a_handler(app):
 
 def test_a_project_opened_on_a_recalled_crossing_keeps_its_grounding_line(app, monkeypatch, tmp_path):
     """A crossing recalled from memory is kept only in the server's memory; opening a project on it writes the report
-    where the project's Grounding (Qloo) line reads it (live: the line was missing on such a project)."""
+    where the project's Grounding line reads it (live: the line was missing on such a project)."""
     from knos_wanted import escrow
     base, state = app
     monkeypatch.setattr(escrow, "_state_dir", lambda: tmp_path)
     h = "c" * 64
-    state.keep({"hash": h, "idea": "a recovery shoe", "decision": {"verdict": "OPEN", "plan": {"who": {"age": "25_to_29", "gender": "female"},
-                "where": ["Austin"], "tier": "premium", "unit_price": 3}}, "grounding": {"comparables": ["Tracksmith"]}})
+    state.keep({"hash": h, "idea": "a recovery shoe", "decision": {"verdict": "OPEN"},
+                "open_demand": {"rows": [{"name": "Wikipedia", "value": 296, "unit": "views a day (last 60 days)", "link": "https://en.wikipedia.org/wiki/Shoe"}]}})
     assert not (tmp_path / "reports" / f"{h}.report").exists()
     tok = call(base, "/api/auth/guest", {"label": "tester"})[1]["token"]
     brief = {"milestones": [{"key": "m1", "name": "Sell-through", "target": "200 pairs in 60 days on test_sell_through",
@@ -117,7 +116,7 @@ def test_a_project_opened_on_a_recalled_crossing_keeps_its_grounding_line(app, m
     st, p = call(base, "/api/project", {"template": "custom", "title": "Recovery shoe", "brief": brief, "report": h}, tok)
     assert st == 200, p
     g = call(base, f"/api/project?id={p['id']}")[1]["grounding"]
-    assert g["launch_cities"] == ["Austin"] and g["comparables"] == ["Tracksmith"] and g["source"] == "Qloo"
+    assert g["signals"][0]["name"] == "Wikipedia" and g["verdict"] == "OPEN" and g["source"] == "open signals"
 
 
 def test_a_project_is_archived_by_its_buyer_or_the_operator_and_stays_readable(app, monkeypatch, tmp_path):

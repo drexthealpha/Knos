@@ -25,7 +25,7 @@ SITE = "https://drexthealpha.github.io/Knos/"
 # the front door names no other host in its pages (tests/test_settle_fixtures.py): its links to the app go through its own
 # wake page, which wakes the free server and forwards (web/wanted.html: the hash, and ?to= one of the app's pages)
 WAKE = "wanted.html"
-COPIES = {WEB / "brand" / n: STATIC / "brand" / n for n in ("tokens.css", "card.css", "wordmark.svg", "mark.svg", "bar.js", "hero.js", "vectors.js", "shape.js", "pointer.js", "icons.svg", "LUCIDE-LICENSE.txt")}
+COPIES = {WEB / "brand" / n: STATIC / "brand" / n for n in ("tokens.css", "wordmark.svg", "mark.svg", "bar.js", "vectors.js", "icons.svg", "LUCIDE-LICENSE.txt")}
 COPIES |= {f: STATIC / "fonts" / f.name for f in sorted((WEB / "fonts").iterdir()) if f.suffix in (".woff2", ".txt")}
 # the raven icon set (scripts/make_icons.py) on every Knos page, the app's included
 COPIES |= {WEB / "icon.svg": STATIC / "icon.svg", WEB / "favicon.ico": STATIC / "favicon.ico",
@@ -54,7 +54,6 @@ def icons(s: str, root: str, preconnect: bool = False) -> str:
 # page: (its home, the front door, the app, its tokens link, loads web/brand/bar.js)
 PAGES = {
     WEB / "index.html": ("", "", WAKE, "brand/tokens.css", False),        # web/front.js runs this bar (the build's app.html)
-    WEB / "home.html": ("./", "./", WAKE, "brand/tokens.css", True),      # the front door: the build's index.html
     WEB / "faq.html": ("./", "./", WAKE, "brand/tokens.css", True),
     WEB / "how-we-test.html": ("./", "./", WAKE, "brand/tokens.css", True),
     WEB / "pricing.html": ("./", "./", WAKE, "brand/tokens.css", True),
@@ -62,23 +61,16 @@ PAGES = {
     # this bar: privacy.html is the text scripts/site_product.py --sources writes, the page Pages publishes
     WEB / "wanted.html": ("./", "./", WAKE, "brand/tokens.css", True),
     WEB / "start" / "index.html": ("../", "../", "../" + WAKE, "../brand/tokens.css", True),
-    WEB / "iris" / "index.html": ("../", "../", "../" + WAKE, "../brand/tokens.css", True),   # the IRIS face, at /iris/
     ROOT / "near" / "web" / "index.html": ("../", "../", "../" + WAKE, "../brand/tokens.css", True),   # the NEAR face, at /near/
     STATIC / "index.html": ("", SITE, "", "/static/brand/tokens.css", True),
     **{STATIC / n: ("/app/", SITE, "/app/", "/static/brand/tokens.css", True)
-       for n in ("trace.html", "with_without.html", "qloo_safe_use.html", "invite.html", "verify.html", "ready.html",
+       for n in ("invite.html", "verify.html", "ready.html",
                  "fields.html", "money.html", "companies.html")},
 }
 MARK = re.compile(r"<!-- k-bar -->.*?<!-- /k-bar -->", re.S)
 FIRST = re.compile(r"<!-- k-first -->.*?<!-- /k-first -->", re.S)   # every face's first line (web/brand/first.html)
-PROOF_SLOT = '<div id="k-card" class="k-slot" aria-live="polite"></div>'   # hero.js runs right after the card slot
-HERO = re.compile(r"<!-- k-hero -->.*?<!-- /k-hero -->", re.S)
 VECTORS = re.compile(r"<!-- k-vectors -->.*?<!-- /k-vectors -->", re.S)
 STEPS = re.compile(r"<!-- k-steps -->.*?<!-- /k-steps -->", re.S)
-CAPS = re.compile(r"<!-- k-caps -->.*?<!-- /k-caps -->", re.S)
-# the demand check's first screen, in the app's home and the two old one-page fronts (not published):
-# (the app's address for the API, the app's address for its pages, hero.js)
-HEROES = {WEB / "index.html": ("@app", WAKE, "brand/hero.js"), WEB / "home.html": ("@app", WAKE, "brand/hero.js"), STATIC / "index.html": ("", "/app/", "/static/brand/hero.js")}
 
 
 def bar(home: str, site: str, app: str) -> str:
@@ -112,23 +104,11 @@ def page(path: Path, home: str, site: str, app: str, tokens: str, script: bool) 
     if FIRST.search(s):
         first = (WEB / "brand" / "first.html").read_text(encoding="utf-8").strip()
         s = FIRST.sub(lambda _: f"<!-- k-first -->\n{first}\n<!-- /k-first -->", s, count=1)
-    if path in HEROES:
-        api, app_pages, js = HEROES[path]
-        t = (WEB / "brand" / "hero.html").read_text(encoding="utf-8").strip().replace("{API}", api).replace("{APP}", app_pages).replace("{SP}", site or "./")
-        t = t.replace("<!-- k-vectors -->", vectors(api, js.replace("hero.js", "vectors.js")))
-        t = t.replace("{SHAPE}", js.replace("hero.js", "shape.js"))
-        t = t.replace("{POINTER}", js.replace("hero.js", "pointer.js")).replace("{ICONS}", js.replace("hero.js", "icons.svg"))
-        # hero.js runs in place, right after the proof slot: the past result is drawn before anything below it is laid
-        # out (run deferred, the card arrived after the first paint and moved the page under the reader: CLS)
-        code = lean((WEB / "brand" / "hero.js").read_text(encoding="utf-8").strip())   # inlined without its comments and indentation
-        t = t.replace(PROOF_SLOT, f'{PROOF_SLOT}\n<script data-src="{js}">\n{code}\n</script>', 1)
-        s = HERO.sub(lambda _: f'<!-- k-hero -->\n{t}\n<!-- /k-hero -->', s, count=1)
-        # the steps under the first screen (web/brand/steps.html): idea or paper, Qloo demand, test money held, check passed, released
-        steps = (WEB / "brand" / "steps.html").read_text(encoding="utf-8").strip().replace("{SP}", site).replace("{ICONS}", js.replace("hero.js", "icons.svg"))
+    if STEPS.search(s):
+        # the steps under the first screen (web/brand/steps.html): idea or paper, test money held, check passed, released
+        icons_at = "/static/brand/icons.svg" if tokens.startswith("/static/") else tokens.replace("tokens.css", "icons.svg")
+        steps = (WEB / "brand" / "steps.html").read_text(encoding="utf-8").strip().replace("{SP}", site).replace("{ICONS}", icons_at)
         s = STEPS.sub(lambda _: f"<!-- k-steps -->\n{steps}\n<!-- /k-steps -->", s, count=1)
-        # under the first screen: one line per built capability, each with its link (web/brand/caps.html)
-        caps = (WEB / "brand" / "caps.html").read_text(encoding="utf-8").strip().replace("{SP}", site)
-        s = CAPS.sub(lambda _: f"<!-- k-caps -->\n{caps}\n<!-- /k-caps -->", s, count=1)
     # a page that runs web/brand/bar.js lays the bar out for scripts (and in the reader's theme) before its first paint:
     # set after it, the bar moves under the reader (a layout shift Lighthouse counts)
     EARLY = ('<script>document.documentElement.classList.add("js");'
@@ -139,7 +119,7 @@ def page(path: Path, home: str, site: str, app: str, tokens: str, script: bool) 
     # for at once they took the first paint's bandwidth on a slow phone (a later largest paint)
     s = re.sub(r'<link rel="preload" href="[^"]*fonts/[a-z-]+\.woff2" as="font" type="font/woff2" crossorigin>\n', "", s)
     # a main screen's measured numbers (web/brand/vectors.html), between the k-vectors marks
-    if VECTORS.search(s) and path not in HEROES:
+    if VECTORS.search(s):
         api = "" if tokens.startswith("/static/") else "@app"
         js = "/static/brand/vectors.js" if tokens.startswith("/static/") else tokens.replace("tokens.css", "vectors.js")
         s = VECTORS.sub(lambda _: f"<!-- k-vectors -->\n{vectors(api, js)}\n<!-- /k-vectors -->", s, count=1)
@@ -157,12 +137,6 @@ def board() -> str:
     sec = BOARD_SECTION.search(BOARD_FROM.read_text(encoding="utf-8"))
     assert sec, "how-we-test.html has no results board"
     return BOARD.sub(lambda _: f"<!-- k-board -->\n    {sec.group(0)}\n<!-- /k-board -->", s, count=1)
-
-
-def lean(code: str) -> str:
-    """hero.js as the pages inline it: whole-line comments, blank lines and each line's leading indentation dropped (the
-    first load stays under its 200 KB budget, apps/wanted/tests/test_round9.py); hero.js itself keeps them."""
-    return "\n".join(line.lstrip() for line in code.splitlines() if line.strip() and not line.lstrip().startswith("//"))
 
 
 def main(argv: list[str]) -> int:

@@ -364,7 +364,7 @@ def test_every_reader_of_a_transaction_asks_for_version_1():
                        "src/knos/statement.py": (1, ["1"]),                                  # statement.py: `knos statement settle-sync` reads the PayOrder
                        "scripts/network_stats.py": (1, ["1"]), "src/knos/receipt.py": (1, ["1"]),
                        "scripts/test_admin_safety.py": (1, ["1"]), "scripts/test_knos_builds_knos.py": (1, ["1"]),
-                       "scripts/test_agent_paid_mcp.py": (1, ["1"]), "scripts/test_chain_truth.py": (2, ["1", "1"]), "scripts/crossing_page.py": (1, ["1"]), "web/check.js": (1, ["1"])}, readers   # the site's whole history; `knos receipt verify` in its time
+                       "scripts/test_agent_paid_mcp.py": (1, ["1"]), "scripts/test_chain_truth.py": (2, ["1", "1"]), "web/check.js": (1, ["1"])}, readers   # the site's whole history; `knos receipt verify` in its time
 
 
 # ---- the commands -----------------------------------------------------------------------------------------------------

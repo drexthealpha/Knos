@@ -189,8 +189,9 @@ def test_the_answers_agree_with_the_tree():
 @pytest.mark.parametrize("rel", sorted(PAGES))
 def test_each_page_to_index_has_its_own_address_heading_links_and_date(rel):
     p, text = page(rel), (WEB / rel).read_text(encoding="utf-8")
-    # every page opens with the two vision lines (docs/facts.json l1, l2): its title and its description say them
-    vision = " ".join(json.loads((ROOT / "docs" / "facts.json").read_text(encoding="utf-8"))[k] for k in ("l1", "l2"))
+    # L02 (IQ PLAN.md): every surface says the one sentence of what Knos is (web/i18n/en.json "goal"), no mission line:
+    # its title and its description say it
+    vision = json.loads((WEB / "i18n" / "en.json").read_text(encoding="utf-8"))["strings"]["goal"]["text"]
     assert p.title == vision, p.title
     (description,) = p.meta["description"]
     assert description == vision, description
@@ -236,23 +237,12 @@ def built_file(url: str) -> str:
 def test_the_sitemap_lists_the_published_pages_and_names_each_ones_source_for_its_date():
     urls = sitemap()
     assert urls[0] == (SITE, "git:web/door.html")                                   # the front door at the bare address
-    for want in ("claims/", "prove/", "agents/", "labs/", "pricing/", "status/", "privacy.html", "check/"):
+    for want in ("claims/", "prove/", "agents/", "pricing/", "status/", "privacy.html", "check/"):
         assert SITE + want in [u for u, _d in urls], want
     claims = [u for u, _d in urls[2:]][:[u for u, _d in urls].index(SITE + "prove/") - 2]
     assert claims and all(u.startswith(SITE + "claim/") for u in claims)           # one page per claim, after the list
     for url, d in urls:
         assert d.startswith("git:") and (ROOT / d.removeprefix("git:")).is_file(), (url, d)   # scripts/sitemap_dates.py dates it from git
-
-
-def test_the_front_door_says_what_it_is_and_what_it_costs_in_json_ld():
-    (doc,) = [d for d in page("home.html").ld if "@graph" in d]
-    app = next(x for x in doc["@graph"] if x["@type"] == "SoftwareApplication")
-    org = next(x for x in doc["@graph"] if x["@type"] == "Organization")
-    assert app["name"] == "Knos" and app["description"] == sentence() and app["url"] == SITE and app["publisher"] == {"@id": org["@id"]}
-    assert org["sameAs"] == ["https://github.com/drexthealpha/Knos"]
-    offer = app["offers"]
-    pricing = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", (WEB / "pricing.html").read_text(encoding="utf-8")))
-    assert offer["@type"] == "Offer" and offer["price"] == "0" and offer["description"] in pricing and offer["url"] == SITE + "pricing.html"
 
 
 def test_llms_txt_has_the_proposals_shape_and_every_link_leads_somewhere(published: Path):

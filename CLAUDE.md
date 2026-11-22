@@ -7,7 +7,6 @@ NEAR testnet and Solana devnet only; test units, never real money.
 - `src/knos/`: the package (CLI `knos`, the knos_pay client, `ready.py` Ready to fund, `idt.py` intent tax).
 - `apps/wanted/`: the app on knos.onrender.com (`knos_wanted/server.py`, `valley.py` projects, `static/`).
 - `near/`: the NEAR contracts, agents and checker (the NEAR entry).
-- `iris/`: Knos on InterSystems IRIS (the IRIS entry).
 - `web/`: the Pages site (drexthealpha.github.io/Knos), built by `scripts/build_site.sh`.
 - `bench/idt/` + `scripts/idt_bench.py` + `docs/idt/`: the IDT benchmark (measured, never estimated).
 - `tests/`, `apps/wanted/tests/`, `tests/web/*.mjs`: pytest and the site's headless-Chromium tests.

@@ -9,7 +9,7 @@ The first screen (#home-products) must be whole before anything answers: the app
 the page ships the cards themselves, drawn here from the app's own list (GET /api/front), and web/home.js redraws them
 from the live list once the app answers. The snapshot's rows sit beside the cards (<script id="home-snapshot">), and
 --check draws the cards again from those rows: the two cannot drift apart. Only what Knos computes is kept (the
-product's name, the paper's venue and year, the reserve and the units pre-ordered); no Qloo response data.
+product's name, the paper's venue and year, the reserve and the units pre-ordered); no outside response data.
 """
 from __future__ import annotations
 

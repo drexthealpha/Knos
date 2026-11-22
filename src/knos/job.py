@@ -1,12 +1,12 @@
-"""One Knos job from Python or the command line, in its order: Qloo checks demand (`knos demand`), the test is locked
-(`ready`), IRIS's rules referee checks the proof (`iris_check`), and NEAR pays the agent that passed (`near_job`).
+"""One Knos job from Python or the command line, in its order: the test is locked (`ready`), the rules referee checks
+the proof (`check_proof`), and NEAR pays the agent that passed (`near_job`).
 
     from knos import job
     job.ready(brief)                       # Ready or the missing fields, and the criteria hash that locks it
-    job.iris_check(brief, "checkrun", proof)  # met or not met per milestone, as the IRIS referee decides
+    job.check_proof(brief, "checkrun", proof)  # met or not met per milestone, as the rules referee decides
     job.near_job()                         # one live testnet job on the hosted runner: two agents, the passing one paid
 
-`knos ready <brief.json>`, `knos iris-check <brief.json> <kind> <proof.json>` and `knos near-job` print the same.
+`knos ready <brief.json>`, `knos check-proof <brief.json> <kind> <proof.json>` and `knos near-job` print the same.
 The NEAR job runs on https://knos.onrender.com (KNOS_WANTED_URL) from its own capped testnet account; test tokens only.
 """
 from __future__ import annotations
@@ -26,8 +26,8 @@ def ready(brief: dict) -> dict:
     return _ready.check(brief)
 
 
-def iris_check(brief: dict, kind: str, proof) -> dict:
-    """The rules referee IRIS runs (knos.referee_rules) on one proof: a check run, a FHIR Observation or an HL7 ORU."""
+def check_proof(brief: dict, kind: str, proof) -> dict:
+    """The rules referee (knos.referee_rules) on one proof: a check run, a FHIR Observation or an HL7 ORU."""
     from . import ready as _ready
     from . import referee_rules
     if kind == "checkrun" and isinstance(proof, dict) and "check_run" not in proof and ({"name", "conclusion"} & set(proof)):
@@ -61,13 +61,13 @@ def near_job(wait: bool = True, every: float = 3.0, limit: float = 600.0, say=No
 
 
 def register(app, help_lines: list | None = None) -> None:
-    """`knos ready`, `knos iris-check` and `knos near-job` on the main app."""
+    """`knos ready`, `knos check-proof` and `knos near-job` on the main app."""
     import importlib
     typer = importlib.import_module("typer")
 
     if help_lines is not None:
         help_lines.append(("ready", None, "Lock the test: Ready or what a brief is missing, and its criteria hash."))
-        help_lines.append(("iris-check", None, "Check a proof as IRIS does: met or not met per milestone."))
+        help_lines.append(("check-proof", None, "Check a proof against a brief: met or not met per milestone."))
         help_lines.append(("near-job", None, "One live NEAR testnet job: two agents try, only the passing one is paid."))
 
     def _load(path: str):
@@ -83,11 +83,11 @@ def register(app, help_lines: list | None = None) -> None:
         r = ready(_load(brief))
         typer.echo(("Ready: " + str(r.get("criteria_hash"))) if r.get("ready") else "Not ready: " + "; ".join(r.get("missing") or []))
 
-    @app.command("iris-check", help="Check one proof against a brief with the rules referee IRIS runs. Kinds: checkrun, observation, oru.")
-    def iris_check_(brief: str = typer.Argument(..., help="the brief, a JSON file"),
+    @app.command("check-proof", help="Check one proof against a brief with the rules referee. Kinds: checkrun, observation, oru.")
+    def check_proof_(brief: str = typer.Argument(..., help="the brief, a JSON file"),
                     kind: str = typer.Argument(..., help="checkrun, observation or oru"),
                     proof: str = typer.Argument(..., help="the proof file (JSON, or the ORU message as text)")) -> None:
-        r = iris_check(_load(brief), kind, _load(proof))
+        r = check_proof(_load(brief), kind, _load(proof))
         typer.echo(f"{r.get('decision')}: " + "; ".join(f"{m.get('key')} {'met' if m.get('met') else 'not met'} ({m.get('reason', '')})"
                                                      for m in r.get("milestones") or []))
 

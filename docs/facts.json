@@ -636,15 +636,6 @@
   },
   {
    "say": [
-    "43"
-   ],
-   "doc": "iris/media/README.md",
-   "what": "the length in seconds of the IRIS video file, iris/media/knos-iris.mp4, a live run on 13 Nov 2026",
-   "file": "iris/media/README.md",
-   "has": "43 seconds, 1280x720"
-  },
-  {
-   "say": [
     "92"
    ],
    "what": "the teams that submitted to the hackathon an early version of Knos won (its leaderboard, read 12 Nov 2026)",
@@ -658,17 +649,6 @@
    "what": "Morris, Wooding and Grant (2011): it is frequently stated that it takes an average of 17 years for research evidence to reach clinical practice (J R Soc Med 104(12):510-520)",
    "source": "https://doi.org/10.1258/jrsm.2011.110180",
    "read": "2026-11-11"
-  },
-  {
-   "say": [
-    "$330",
-    "$763",
-    "330",
-    "763"
-   ],
-   "what": "Perignon, citing Colliard and others, in the CRRESS book (session 6): exploiting economies of scale could lower a reproducibility service's average cost per paper from $763 to $330 (the front door's cost of checking one paper)",
-   "source": "https://labordynamicsinstitute.github.io/crress-book/sessions/6/perignon/",
-   "read": "2026-11-15"
   },
   {
    "say": [

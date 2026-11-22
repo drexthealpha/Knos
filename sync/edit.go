@@ -522,5 +522,14 @@ func cmdPropose(args []string) (int, error) {
 		}
 	}
 	fmt.Printf("%d possible copies\n", n)
+	claims, err := literalClaims(root, c)
+	if err != nil {
+		return 2, err
+	}
+	for _, lc := range claims {
+		fmt.Printf("%s:%d says %s, the constant %s at %s:%d (confidence %.2f): %s\n",
+			lc.Doc.File, lc.Doc.Line, lc.Doc.Value, lc.Const.Name, lc.Const.File, lc.Const.Line, lc.Confidence, lc.linkCommand())
+	}
+	fmt.Printf("%d literals that code and a doc share\n", len(claims))
 	return 0, nil
 }

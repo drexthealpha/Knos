@@ -321,11 +321,11 @@ threshold_check_.verdict_record, ghoidc_.GH_HOST, participant_.LocalClient, sess
 # the verdict, the token's claims and links the Rekor entry with these.
 _.check_verdict, _.check_claims, _.rekor_url
 
-# knos.demand_cli: `knos demand` is a Typer command; Typer calls it by its decorator, never by name.
-_.demand_
 # knos.ready.tranches: the app (apps/wanted valley.py, wallets.py) funds a long milestone's first 90-day order with it.
 _.tranches
 # scripts/trim_fonts.py: fontTools reads its subset.Options and TTFont settings as attributes (opts.flavor, opts.layout_features).
 _.flavor, _.layout_features
-# knos.job: `knos ready`, `knos iris-check` and `knos near-job` are Typer commands; Typer calls them by their decorators.
-_.ready_, _.iris_check_, _.near_job_
+# knos.job: `knos ready`, `knos check-proof` and `knos near-job` are Typer commands; Typer calls them by their decorators.
+_.ready_, _.check_proof_, _.near_job_
+# scripts/site_pages.py: PX_FONT is the pixel-font pattern tests/test_site_laws.py reads (no px font sizes on the site).
+_.PX_FONT

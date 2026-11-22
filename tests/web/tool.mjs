@@ -5,7 +5,7 @@
 // it (under /Knos/), in headless Chromium at 360 by 800 with no stored state, the hosted server answered by a stand-in
 // that keeps the API contract and the program's interface of SPEC2.md (POST /api/run, POST /api/pay, GET /api/tools; the
 // 402, 413 and 408 answers):
-//   A  "Proved by": the first screen holds 40 words or fewer and none of the PLAIN-WORDS rule's words; "Check my data" shows a
+//   A  "Proved by": the first screen holds 13 words or fewer (L02) and none of the PLAIN-WORDS rule's words; "Check my data" shows a
 //      first change within 200 ms (SPEC: U1 R2 and R3) and a sentence that starts "Failed at row " or "Passed: all ";
 //      "Use my data" shows "Choose a file", "Which column?" and the limit, in that order; file 2 of A8 given as a file,
 //      its column picked, "must stay above" and its limit set, "Check my data" reads "Failed at row 37"; "Copy link" reads
@@ -38,7 +38,7 @@ if (!LIVE && !readFileSync(join(given, "index.html"), "utf8").includes('id="list
 const pricing = JSON.parse(readFileSync(join(here, "../../docs/data/pricing.json"), "utf8")).numbers;
 const N = Object.fromEntries(Object.entries(pricing).map(([k, v]) => [k, v.value]));
 // the PLAIN-WORDS rule of ROUND13-ITEMS.md: none of these on a front, tool, result, price or status screen outside a closed How it works fold
-export const PLAIN = ["tx", "hash", "testnet", "devnet", "mainnet", "proof", "prove", "verify", "contract", "token", "wallet", "agent", "job", "oracle", "LMSR", "NEAR", "Solana", "IRIS", "MCP", "API", "JSON"];
+export const PLAIN = ["tx", "hash", "testnet", "devnet", "mainnet", "proof", "prove", "verify", "contract", "token", "wallet", "agent", "job", "oracle", "LMSR", "NEAR", "Solana", "MCP", "API", "JSON"];
 const plainHit = (text) => PLAIN.filter((w) => new RegExp(`\\b${w}s?\\b`, "i").test(text));
 let fails = 0;
 const check = (name, cond, detail) => { if (cond) console.log("ok  ", name); else { fails++; console.error("FAIL", name, detail === undefined ? "" : JSON.stringify(detail)); } };
@@ -139,7 +139,8 @@ await ctx.route(/^https:\/\/knos\.onrender\.com\/api\/(tools|run|pay)/, LIVE ? (
 await ctx.route(/^https:\/\/(knos\.onrender\.com\/api\/(near|visit)|rpc\.testnet)/, (r) => r.abort());   // the question box below and the visit events: not this test
 const page = await ctx.newPage();
 await page.goto(base, { waitUntil: "load" });
-SAMPLE = await page.evaluate(() => document.getElementById("list").defaultValue);
+// L01: the box starts empty; the sample, its one example, is kept in a template and goes into the box when it is checked
+SAMPLE = await page.evaluate(() => document.getElementById("k-sample").content.textContent);
 
 // ---- A: the first screen ------------------------------------------------------------------------------------------------
 const first = await page.evaluate(() => {
@@ -159,12 +160,17 @@ const first = await page.evaluate(() => {
     lines: document.getElementById("list").value.split("\n"), column: document.getElementById("colname").textContent, rule: document.getElementById("rule").selectedOptions[0].textContent,
     limit: document.getElementById("limit").value, scrollX: document.documentElement.scrollWidth - innerWidth, font: parseFloat(getComputedStyle(document.body).fontSize) };
 });
-check("A: the first screen is 40 words or fewer (the box's sample is the input, not words of the screen)", words(first.text) <= 40, [words(first.text), first.text]);
+check("A: the first screen is 13 words or fewer (L02: about 12; the box is empty)", words(first.text) <= 13, [words(first.text), first.text]);
 check("A: the first screen has none of the PLAIN-WORDS rule's words", plainHit(first.text).length === 0, plainHit(first.text));
-check("A: one h1, the headline, and the tool's title under it", first.h1.length === 1 && first.h1[0] === "What can you do with Knos?" && first.title === "Check a test file against a limit", first);
-check("A2: the sample is loaded and labelled, two columns cycle and capacity_ah", /^Sample: (NASA|made-up) battery test$/.test(first.label) && first.lines[0] === "cycle,capacity_ah" && first.lines.length > 100, [first.label, first.lines.slice(0, 2)]);
-// F1B: the rule line says the sample's column in plain words; capacity_ah, the file's own name, is the box's and the fold's
-check("A2: the limit is filled in: charge held must stay above 1.4", first.column === "charge held" && !/capacity_ah/.test(first.text) && first.rule === "must stay above" && first.limit === "1.4", first);
+check("A: one h1, the headline (L01: the box's label), and the tool's title in the fold", first.h1.length === 1 && first.h1[0] === "Ask anything about research" && first.title === "Check a test file against a limit", first);
+// the sample in the box: labelled, two columns cycle and capacity_ah, its rule line in plain words (F1B: capacity_ah, the
+// file's own name, is the box's and the fold's)
+await page.fill("#list", SAMPLE); await page.dispatchEvent("#list", "input");
+const withSample = await page.evaluate(() => ({ label: document.getElementById("list-label").textContent.trim(), labelShown: !!document.getElementById("list-label").offsetParent,
+  lines: document.getElementById("list").value.split("\n"), column: document.getElementById("colname").textContent, rule: document.getElementById("rule").selectedOptions[0].textContent,
+  limit: document.getElementById("limit").value, ruleShown: !!document.getElementById("rule-line").offsetParent }));
+check("A2: the sample is loaded and labelled, two columns cycle and capacity_ah", withSample.labelShown && /^Sample: (NASA|made-up) battery test$/.test(withSample.label) && withSample.lines[0] === "cycle,capacity_ah" && withSample.lines.length > 100, withSample);
+check("A2: the limit is filled in: charge held must stay above 1.4", withSample.ruleShown && withSample.column === "charge held" && !/capacity_ah/.test(first.text) && withSample.rule === "must stay above" && withSample.limit === "1.4", withSample);
 check("A: the box and Check my data are whole on the first screen, no scroll", first.boxBottom <= first.H && first.goBottom <= first.H && first.scrollX <= 0, first);
 check("A: Check my data is the main action, 48 px tall at least and 300 px wide at least; body text 18 px", first.goH >= 48 && first.goW >= 300 && first.font >= 18, first);
 

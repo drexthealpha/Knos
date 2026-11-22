@@ -37,7 +37,7 @@ const origin = `http://127.0.0.1:${server.address().port}`, base = origin + PREF
 // RPCs, the uptime log on the gh-pages branch
 const PRODUCT = /^https:\/\/knos\.onrender\.com\/api\/(near\/[\w/]+|visits?|tools|run|pay)$|^https:\/\/(rpc\.testnet\.fastnear\.com|rpc\.testnet\.near\.org)\/?$|^https:\/\/raw\.githubusercontent\.com\/drexthealpha\/Knos\/gh-pages\/uptime\.jsonl$/;
 const outside = [];
-const ASKED = /^https:\/\/(api\.github\.com|api\.devnet\.solana\.com|devnet\.rpcpool\.com)\/|^https:\/\/knos\.onrender\.com\/api\/(front|proof|vectors|counter|qloo\/status)$/;     // what the pages read by design, refused here: GitHub, devnet (and its second free RPC, web/netfacts.js, once the first is refused), and the app's list of research products (web/home.js, on a reader's first move at the bare address)
+const ASKED = /^https:\/\/(api\.github\.com|api\.devnet\.solana\.com|devnet\.rpcpool\.com)\/|^https:\/\/knos\.onrender\.com\/api\/(front|proof|vectors|counter)$/;     // what the pages read by design, refused here: GitHub, devnet (and its second free RPC, web/netfacts.js, once the first is refused), and the app's list of research products (web/home.js, on a reader's first move at the bare address)
 // block: a test of the request's path inside the site; a request it matches fails as a dropped connection would
 const world = async (block = () => false, o = {}) => {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, ...o });

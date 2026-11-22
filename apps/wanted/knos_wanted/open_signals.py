@@ -1,9 +1,10 @@
-"""Open signals: free, keyless public sources, each named as its own source and never mixed into Qloo's answers.
+"""Open signals: free, keyless public sources, each named as its own source: the demand check's evidence.
 
-    coords(name, country)   a place's latitude and longitude from Wikidata (P625), for a city Qloo named without them
+    baseline(idea, country)   what each source said about the idea's subject, with its link
+    fallback(idea, country)   the demand answer: those rows plus money already put down here, and the verdict
 
-Every call has a short timeout and fails to nothing (the caller says what is missing); answers are kept in memory, so
-one city is looked up once per process.
+Every call has a short timeout and fails to nothing (the caller says what is missing). Off the hosted app (tests, a
+laptop) no source is asked unless KNOS_OPEN_SIGNALS=on.
 """
 from __future__ import annotations
 
@@ -17,8 +18,6 @@ import urllib.request
 
 UA = "Knos/0.4 (https://github.com/drexthealpha/Knos; demand check, open signals)"
 WIKIDATA = "https://www.wikidata.org/w/api.php"
-_cache: dict[tuple[str, str], tuple[float, float] | None] = {}
-_lock = threading.Lock()
 
 
 def _get(url: str, timeout: float = 4.0) -> dict | None:
@@ -29,37 +28,7 @@ def _get(url: str, timeout: float = 4.0) -> dict | None:
         return None
 
 
-def coords(name: str, country: str | None = None) -> tuple[float, float] | None:
-    """Latitude and longitude of the first Wikidata item for this place name that has coordinates (P625)."""
-    key = (str(name or "").strip(), str(country or "").upper())
-    if not key[0]:
-        return None
-    with _lock:
-        if key in _cache:
-            return _cache[key]
-    found = _search(key[0])
-    got = None
-    if found:
-        ents = (_get(f"{WIKIDATA}?action=wbgetentities&format=json&props=claims&ids={'|'.join(found[:5])}") or {}).get("entities") or {}
-        for qid in found[:5]:
-            for c in ((ents.get(qid) or {}).get("claims") or {}).get("P625") or []:
-                v = ((c.get("mainsnak") or {}).get("datavalue") or {}).get("value") or {}
-                if isinstance(v.get("latitude"), (int, float)) and isinstance(v.get("longitude"), (int, float)):
-                    got = (round(float(v["latitude"]), 4), round(float(v["longitude"]), 4))
-                    break
-            if got:
-                break
-    with _lock:
-        _cache[key] = got
-    return got
-
-
-def _search(name: str) -> list[str]:
-    q = urllib.parse.urlencode({"action": "wbsearchentities", "format": "json", "language": "en", "type": "item", "limit": 5, "search": name})
-    return [x["id"] for x in ((_get(f"{WIKIDATA}?{q}") or {}).get("search") or []) if isinstance(x, dict) and x.get("id")]
-
-
-# ---- the no-Qloo baseline ----------------------- --------------------------------------------------------------------
+# ---- the demand answer ----------------------------------------------------------------------------------------------
 # Six keyless public sources answer for an idea: how much people read about it (Wikimedia pageviews), how much the news
 # writes about it (GDELT), how much builders post about it (Hacker News), how much research there is (OpenAlex), what
 # the concept is (Wikidata) and what the launch country earns (World Bank). What they cannot say, they leave empty:
@@ -162,9 +131,14 @@ def _wikidata(qid: str | None) -> dict:
 
 
 def baseline(idea: str, country: str = "US") -> dict:
-    """The demand answer from open signals only, each source with what it said and its link; no key, no Qloo."""
+    """The demand answer from open signals only, each source with what it said and its link; no key. Off the hosted
+    app no source is asked: each says it did not answer."""
     from concurrent.futures import ThreadPoolExecutor
     q = phrase(idea)
+    if not online():
+        return {"source": "open signals (not asked here)", "idea": idea, "phrase": q, "verdict": "CANNOT_DECIDE", "attention_counted": 0,
+                "audience": None, "cities": [], "price_tier": None, "rules": RULES,
+                "signals": [{"source": n, "answered": False} for n in ("Wikimedia pageviews", "GDELT news", "Hacker News", "OpenAlex", "World Bank", "Wikidata")]}
     with ThreadPoolExecutor(max_workers=5) as ex:
         futures = [ex.submit(f, a) for f, a in ((_wikipedia, q), (_gdelt, q), (_hn, q), (_openalex, q), (_worldbank, country))]
         wiki, gdelt, hn, oa, wb = (f.result() for f in futures)
@@ -198,8 +172,8 @@ def held_for(idea: str) -> dict:
 
 
 def fallback(idea: str, country: str = "US") -> dict:
-    """A4: the demand answer when Qloo gives nothing (no key, an error, HTTP 429, an empty answer): the open signals plus
-    money already put down, in plain rows, with one line naming the sources used. Kept 10 minutes per idea."""
+    """The demand answer: the open signals plus money already put down, in plain rows, with one line naming the sources
+    used. Kept 10 minutes per idea."""
     k = f"{country}|{' '.join((idea or '').lower().split())}"
     got = _answers.get(k)
     if got and time.time() - got[0] < 600:
@@ -229,19 +203,3 @@ def online() -> bool:
     """The hosted app (Render sets RENDER) or KNOS_OPEN_SIGNALS=on: the open sources are reachable; tests stay offline."""
     import os
     return os.environ.get("KNOS_OPEN_SIGNALS") == "on" or (bool(os.environ.get("RENDER")) and os.environ.get("KNOS_OPEN_SIGNALS") != "off")
-
-
-def needs_fallback(rep: dict) -> bool:
-    """Qloo gave nothing usable: no key, an error or HTTP 429 with no real answer kept, or an empty answer."""
-    if not online() or rep.get("kind") == "which_one" or rep.get("without_qloo") or rep.get("stale") or rep.get("nearest"):
-        return False
-    d = rep.get("decision") or {}
-    return bool(rep.get("queued") or rep.get("qloo_down") or d.get("verdict") == "CANNOT_DECIDE"
-                or (not rep.get("matches") and not rep.get("tags") and "decision" in rep))
-
-
-def prefetch(idea: str, country: str = "US") -> None:
-    """Start the fallback's lookups beside the Qloo step when Qloo cannot answer, so the answer is ready when it ends."""
-    k = f"{country}|{' '.join((idea or '').lower().split())}"
-    if online() and k not in _answers:
-        threading.Thread(target=lambda: fallback(idea, country), daemon=True).start()

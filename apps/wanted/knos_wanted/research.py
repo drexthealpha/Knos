@@ -2,7 +2,7 @@
 
     card = research_card("10.1126/science.aam8743")         # DOI, arXiv id, PubMed id, OpenAlex id (W...), uspto:<number>
     card["product"]          the product phrase the demand check runs on (the maker may edit it)
-    flags = why_never_crossed(card, report)                   # after the demand check, from its Qloo evidence
+    flags = why_never_crossed(card, report)                   # after the demand check, from the card's own sources
 
 The paper is read through Knos's own source readers (knos.ideas.sources: OpenAlex, Crossref, arXiv, PubMed / Europe
 PMC; patents through the USPTO path, a labelled FIXTURE without a USPTO key). Citations, topics, keywords and the
@@ -61,7 +61,6 @@ def regulator_of(evidence: dict | None) -> str | None:
 
 YEARS_STUCK = 5            # years since publication before a cited result with no product counts as stuck
 TOP_CITED = 1000           # OpenAlex cited_by_count at or above this: top-cited
-SMALL_PRODUCT = 0.3        # a Qloo match below this popularity is a small attempt
 
 
 class ResearchError(ValueError):
@@ -161,16 +160,14 @@ def why_never_crossed(card: dict, report: dict, today: dt.date | None = None) ->
     out = []
     year, cited = card.get("year"), card.get("cited_by_count")
     years = today.year - year if isinstance(year, int) else None
-    matches = report.get("matches") or []
+    none = card.get("no_product_evidence") or {}
     proven = bool(card.get("nobel")) or (isinstance(cited, int) and cited >= TOP_CITED)
-    if years is not None and years >= YEARS_STUCK and proven and not matches:
+    if years is not None and years >= YEARS_STUCK and proven and none.get("url"):
         out.append({"wall": "money before proof", "flag": True,
                     "evidence": f"{years} years since publication, " + (f"Nobel {card['nobel']['prize']} {card['nobel']['year']}" if card.get("nobel") else f"{cited} citations (OpenAlex)")
-                    + f", and Qloo lists no existing product for '{card['product']}' (report {report.get('hash', '')[:12]}, call #1)"})
-    elif matches:
-        out.append({"wall": "money before proof", "flag": False, "evidence": f"Qloo lists products like it: {', '.join(m['name'] for m in matches[:3])}"})
+                    + f", and no product yet for '{card['product']}' ({none['url']})"})
     else:
-        out.append({"wall": "money before proof", "flag": False, "evidence": "no evidence (needs >= 5 years and Nobel or >= 1,000 citations, and no Qloo product)"})
+        out.append({"wall": "money before proof", "flag": False, "evidence": "no evidence (needs >= 5 years and Nobel or >= 1,000 citations, and a source saying no product is on sale)"})
     text = " ".join([card.get("field") or "", card.get("topic") or "", *card.get("topics", []), card.get("product") or ""]).lower()
     word = next((w for w in REGULATED_WORDS if w in text), None)
     named = card.get("regulator")
@@ -181,8 +178,5 @@ def why_never_crossed(card: dict, report: dict, today: dt.date | None = None) ->
     out.append({"wall": "slow judges", "flag": reg,
                 "evidence": (f"{why}: such products need clinical or regulatory approval before sale"
                              if reg else "no evidence (OpenAlex field and topics are not clinical or regulated)")})
-    small = [m for m in matches if isinstance(m.get("popularity"), (int, float)) and m["popularity"] < SMALL_PRODUCT]
-    out.append({"wall": "failed attempts", "flag": bool(small),
-                "evidence": ("small products exist in Qloo: " + ", ".join(f"{m['name']} (popularity {m['popularity']:.2f})" for m in small[:3])
-                             if small else "no evidence")})
+    out.append({"wall": "failed attempts", "flag": False, "evidence": "no evidence"})
     return out

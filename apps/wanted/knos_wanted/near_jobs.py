@@ -1,5 +1,5 @@
 """Four MCP tools: three read (one NEAR swarm job as the jobs contract on NEAR testnet holds it, a job's progress, and
-the rules referee IRIS runs, knos.referee_rules, applied to one proof against one brief), and knos_near_run_job funds one
+the rules referee, knos.referee_rules, applied to one proof against one brief), and knos_near_run_job funds one
 capped testnet job with test tokens."""
 from __future__ import annotations
 
@@ -57,7 +57,7 @@ def check_proof(args: dict) -> dict:
     if len(payload) > 200_000:
         raise ValueError("proof: at most 200,000 characters")
     got = json.loads(referee_rules.decide(json.dumps(brief), kind, payload, ready.criteria_hash(brief)))
-    return {**got, "referee": "the rules referee IRIS runs (knos.referee_rules), run on this server; nothing signed, no money moved"}
+    return {**got, "referee": "the rules referee (knos.referee_rules), run on this server; nothing signed, no money moved"}
 
 
 TOOLS = [
@@ -66,8 +66,8 @@ TOOLS = [
                     "locked test's hash, which agent took it, what each submitted, and who was paid. Read only.",
      "inputSchema": {"type": "object", "properties": {"id": {"type": "string", "maxLength": 64, "description": "the job id, such as job-1105164458"}},
                      "required": ["id"], "additionalProperties": False}},
-    {"name": "knos_iris_check_proof", "title": "Check a proof as IRIS does",
-     "description": "Applies the rules referee IRIS runs to one proof (a CI check run, a FHIR Observation or an HL7 ORU "
+    {"name": "knos_check_proof", "title": "Check a proof against a brief",
+     "description": "Applies the rules referee (knos.referee_rules) to one proof (a CI check run, a FHIR Observation or an HL7 ORU "
                     "message) against a brief's milestones, and returns met or not met per milestone with the reason. "
                     "Nothing is signed and no money moves.",
      "inputSchema": {"type": "object", "properties": {
@@ -107,5 +107,5 @@ TOOLS += [
      "inputSchema": {"type": "object", "properties": {"run": {"type": "string", "maxLength": 24, "description": "the run id"}},
                      "required": ["run"], "additionalProperties": False}},
 ]
-HANDLERS = {"knos_near_swarm_job": swarm_job, "knos_iris_check_proof": check_proof, "knos_near_run_job": run_job,
+HANDLERS = {"knos_near_swarm_job": swarm_job, "knos_check_proof": check_proof, "knos_near_run_job": run_job,
             "knos_near_job_status": job_status}

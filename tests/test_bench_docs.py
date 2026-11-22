@@ -240,7 +240,7 @@ def test_the_one_sentence_leads_the_readme_and_the_site_and_the_readmes_first_sc
     merged = json.loads((ROOT / "docs" / "backtest.json").read_text(encoding="utf-8"))["reviewed"]["overall"]
     number = f"Of {merged['prs']} merged agent pull requests claiming passing tests, {merged['test_or_build_check_failed']['prs']} failed a test, build, lint or type check."
     assert lines and len(first.splitlines()) <= 40 and len(readme.splitlines()) <= 250
-    for row in ("From NEAR HACKATHON", "From the InterSystems contest", "From Colosseum"):
+    for row in ("From NEAR HACKATHON", "From Colosseum"):
         assert f"| {row} |" in first and f"\n## {row}\n" in readme, row
     hero = (ROOT / "web" / "index.html").read_text(encoding="utf-8").split('<div class="hero-words">')[1].split("</form>")[0]
     # web/index.html is the older app page, not the front door (Pages publishes web/door.html at the root and web/index.html
@@ -257,8 +257,8 @@ def test_the_one_sentence_leads_the_readme_and_the_site_and_the_readmes_first_sc
     # ten-second check, why nobody can fudge the count, then "Is it real?" over the table, then the commands
     parts = dict(zip(*[iter(re.split(r"(?m)^## (.+)$", ref.split("\n---\n", 1)[0])[1:])] * 2))
     how, fudge, real = "How it works", "Why nobody can fudge the count", "Is it real?"
-    assert "](DEMAND_CHECK.md)" in parts[how] and "hash" in parts[fudge] and "](https://drexthealpha.github.io/Knos/)" in parts["Try it in ten seconds"]   # the front door
-    assert "knos demand " in parts["From a terminal"] and "/api/check" in parts["From a terminal"]
+    assert "**Is it wanted?**" in parts[how] and "hash" in parts[fudge] and "](https://drexthealpha.github.io/Knos/)" in parts["Try it in ten seconds"]   # the front door
+    assert "knos idea get " in parts["From a terminal"] and "/api/check" in parts["From a terminal"]
     assert list(parts)[0] == how and list(parts).index(fudge) < list(parts).index(real) < list(parts).index("Check every claim yourself")
     assert parts[real].split("<!-- bench:today -->")[0].count("](DISCLOSURE.md)") == 1 and "test money only" in parts[real] and "no customers yet" in parts[real]
     for zero in ("| 0 |", "Outside funders", "Letters of intent"):                         # no list of zeros above the table

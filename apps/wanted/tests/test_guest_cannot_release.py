@@ -10,8 +10,6 @@ from http.server import ThreadingHTTPServer
 
 import pytest
 from knos_wanted import agent, auth, escrow, preorder, server
-from knos_wanted.qloo_mcp import InProcess, Qloo
-from knos_wanted.qloo_rest import Client
 
 ORDER = "So11111111111111111111111111111111111111112"
 OWNER = "passkey:" + "a" * 16
@@ -25,7 +23,7 @@ def setup(tmp_path, monkeypatch):
                     "receivable": {"maker_sub": OWNER, "wallet": "W", "vault": "V"}})
     released = []
     monkeypatch.setattr(preorder, "milestone", lambda report, order, url, *a, **k: released.append((order, url)) or {"commitment": order, "release": "released"})
-    state = server.State(Qloo(InProcess(), mode="mock", sleep=lambda s: None), Client(key="", base="https://example.test", folder=tmp_path))
+    state = server.State()
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.make_handler(state))
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
     yield f"http://127.0.0.1:{httpd.server_address[1]}", state, released

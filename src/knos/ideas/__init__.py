@@ -99,9 +99,9 @@ class Names:
 
 
 # every environment variable knos.ideas reads (keys are read only by the adapter that needs them, never logged)
-ENVS = ("OPENALEX_API_KEY", "NCBI_API_KEY", "USPTO_ODP_API_KEY", "QLOO_API_KEY", "KNOS_WANTED_LIVE", "KNOS_CONTACT_EMAIL",
+ENVS = ("OPENALEX_API_KEY", "NCBI_API_KEY", "USPTO_ODP_API_KEY", "KNOS_CONTACT_EMAIL",
         "KNOS_IDEAS_RECORD", "KNOS_IDEAS_FIXTURES", "KNOS_MCP_TOOLS")
-FIXTURES_ENV = ENVS[7]
+FIXTURES_ENV = ENVS[5]
 
 # every key of a Claim record, of a plan, of an oracle's evidence and of a contract record, and the source names
 K = Names("v id field statement origin kind by ids sources source mode read retraction retracted checked notices risk links "

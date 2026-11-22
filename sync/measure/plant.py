@@ -5,7 +5,8 @@
 (a) In a copy, each kind gets 6 false statements. A statement is planted first by changing the value at a place
     sync/facts.json links (one plant per line), and the rest as new sentences at the end of a document, where no
     entry links them. `knos-sync check` can report only linked places; `knos-sync scan` should list every plant as a
-    candidate of its kind. Both counts are written, per kind.
+    candidate of its kind. Both counts are written, per kind. Each copy is first made a repository of one commit, so
+    the plants are lines not committed yet: a planted path that does not resolve is reported by check's names (L54).
 (b) On the unchanged copy, every notice `knos-sync check` prints is listed: each is a false alarm unless a person
     finds the text really is stale. A kind whose notices on the unchanged copy are more than 10% of its notices is
     one to turn off by default (SYNC/P6.md strongest rule 2).
@@ -42,6 +43,14 @@ def copy_repo(repo: Path, dest: Path) -> None:
         target = dest / rel
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(src, target)
+
+
+def commit_copy(path: Path) -> None:
+    """Make the copy a repository of one commit, so knos-sync tells a line written now (a plant) from a committed one."""
+    git = ["git", "-C", str(path), "-c", "user.name=knos-sync measure", "-c", "user.email=measure@example.invalid",
+           "-c", "commit.gpgsign=false"]
+    for args in (["init", "-q"], ["add", "-A"], ["commit", "-q", "-m", "copy"]):
+        subprocess.run([*git, *args], capture_output=True, check=True)
 
 
 def run_json(binary: str, args: list[str]) -> dict:
@@ -131,6 +140,10 @@ def notices(report: dict) -> list[dict]:
                             "now": p.get("now", ""), "should": p.get("should", "")})
         if e.get("status") == "error":
             out.append({"kind": e["kind"], "entry": e["id"], "file": "", "line": 0, "status": "error", "now": e.get("error", ""), "should": ""})
+    # a code name in a doc that does not resolve (L54) is a stale place of the name kind
+    for n in report.get("names") or []:
+        out.append({"kind": "name", "entry": None, "file": n["file"], "line": n["line"], "status": "stale",
+                    "now": n["name"], "should": n.get("new_name", "")})
     return out
 
 
@@ -150,6 +163,8 @@ def main(argv: list[str] | None = None) -> int:
         unchanged, planted = tmp / "unchanged", tmp / "planted"
         copy_repo(repo, unchanged)
         copy_repo(repo, planted)
+        commit_copy(unchanged)
+        commit_copy(planted)
         base = run_json(binary, ["check", "--json", "--reread-wait", "0s", "--root", str(unchanged)])
         facts = json.loads((planted / "sync" / "facts.json").read_text(encoding="utf-8"))
         plants = plant(planted, facts, rng)

@@ -1,6 +1,5 @@
-"""The faces tell one story with one design (TASK-FOUR F1, F4): the demand check page (web/home.html, its bar from
-web/brand/bar.html; the app's build serves it, while the Pages root is web/door.html, held by tests/test_one_page.py),
-the NEAR app (near/web/index.html and its story) and the IRIS page (iris/web/dashboard.html).
+"""The faces tell one story with one design (TASK-FOUR F1, F4): the NEAR app (near/web/index.html and its story),
+with the bar of web/brand/bar.html (the Pages root is web/door.html, held by tests/test_one_page.py).
 Each has the same nav, none says "n/a", "IDT" or "record line", each loads web/brand/tokens.css, and none declares a
 colour or a font of its own: every colour and face comes from that one file."""
 import pathlib
@@ -9,8 +8,8 @@ import re
 import pytest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-FACES = {"demand check": "web/home.html", "NEAR app": "near/web/index.html", "NEAR story": "near/web/story/index.html", "IRIS page": "iris/web/dashboard.html"}
-NAV = ["Home", "NEAR app", "IRIS", "Proof"]
+FACES = {"NEAR app": "near/web/index.html", "NEAR story": "near/web/story/index.html"}
+NAV = ["Home", "NEAR app", "Proof"]
 COLOUR = re.compile(r"#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(")
 
 

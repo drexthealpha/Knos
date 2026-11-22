@@ -1,6 +1,5 @@
-"""Knos's demand check as one service: a static page + a small JSON API, Python standard library only. Qloo is
-reached ONLY from this server: its REST API (knos_wanted.qloo_rest, the primary path: POST /api/check) and, for the
-older confirm-each-match flow, `qloo mcp` (knos_wanted.qloo_mcp). The browser never sees a key or calls Qloo.
+"""Knos's demand check as one service: a static page + a small JSON API, Python standard library only. The demand
+check reads free, keyless public sources from this server (knos_wanted.open_signals); the browser never calls them.
 
     python -m knos_wanted serve            (HOST, default 127.0.0.1; PORT, default 8080)
 
@@ -13,7 +12,7 @@ GET  /api/receivables; POST /api/lend/quote {commitment, advance_bps}; /api/fact
 POST /api/lend/advance {commitment}; /api/lend/collect {commitment}      factoring, every step signed by a passkey
 POST /api/milestone {commitment, evidence_url}     verify the evidence; 2 of 3 referees sign PASS; release (signed in)
 POST /api/refund {commitment}                      past the deadline: back to the buyer (signed in)
-Rate limits per client address keep a public demo from draining the Qloo quota and the devnet test wallet.
+Rate limits per client address keep a public demo from draining the public sources and the devnet test wallet.
 """
 from __future__ import annotations
 
@@ -32,9 +31,7 @@ import urllib.parse
 from urllib.parse import parse_qs, urlparse
 
 from . import __version__, outside
-from . import agent, auth, blink, buyer, catalog, check, company, demand, escrow, front, planner, preorder, privacy, product_routes, referee, research, tasks, tool_run, valley, wallets, x402
-from .qloo_mcp import AGGREGATE, Lazy, Qloo, QlooUnavailable
-from .qloo_rest import Client
+from . import agent, auth, blink, check, company, escrow, front, preorder, privacy, product_routes, referee, research, tasks, tool_run, valley, wallets, x402
 
 STATIC = Path(__file__).parent / "static"
 ROOT_ICONS = {"/favicon.ico": "favicon.ico", "/apple-touch-icon.png": "brand/apple-touch-icon.png",
@@ -63,19 +60,18 @@ def client_key(xff: str, peer: str, cf: str = "") -> str:
     return str(peer)[:64]
 MAX_BODY = 16_384
 SESSION_S = 30 * 60
-LIMITS = {"maker": (20, 600), "search": (40, 600), "buyer": (20, 600), "publish": (10, 600), "demo": (4, 600),
-          "faucet": (2, 3600), "tx": (20, 600), "check": (30, 600), "taste": (30, 600), "mcp": (300, 600), "lock": (6, 600), "auth": (30, 600),
+LIMITS = {"demo": (4, 600),
+          "faucet": (2, 3600), "tx": (20, 600), "check": (30, 600), "mcp": (300, 600), "lock": (6, 600), "auth": (30, 600),
           "milestone": (30, 600), "milestone_one": (10, 3600), "referee": (120, 600), "product": (60, 600),
           "live": (120, 600), "near_live": (6, 600), "near_guard": (2, 600), "near_market": (5, 600), "near_product": (5, 600), "near_look": (30, 600), "near_flow": (4, 600), "near_order": (20, 600), "near_free": (60, 600), "visit": (300, 600), "tool": (120, 600), "tool_pay": (20, 600)}   # (calls, seconds) per client; "live": presence and draft autosave, apart from "product"
 GLOBAL_DEMO = (60, 3600)
 FRONT_ORIGINS = ("https://drexthealpha.github.io",)               # the front door, allowed to read the demand check
 PUBLIC_BASE = "https://knos.onrender.com"                       # this app's public address, in the files agents read
-MCP_CHECK_TOOLS = ("knos_demand_check", "knos_cross", "knos_research_card")   # MCP tools that ask Qloo: the check limit
-DEMAND_CORS = ("/api/qloo/status", "/api/recorded", "/api/progress", "/api/check", "/api/demand/fields", "/api/cross", "/api/report", "/api/vectors", "/api/proof", "/api/ready/card", "/api/money", "/api/qloo-diff", "/api/agent/payout/latest", "/api/usage", "/api/counter", "/api/project", "/api/receipts", "/api/calls", "/api/match", "/api/record/head", "/api/forecasts", "/api/status", "/healthz", "/api/tools", "/api/run", "/api/pay", "/api/vitals", "/api/first_action")                                           # the front door reads these from its own origin
-ROUTES = {"/api/trace/keep": "product", "/api/ask": "check", "/api/feedback": "product", "/api/qloo-diff": "product", "/api/open-signals": "check", "/api/ready/card": "product", "/api/company/need": "product", "/api/maker/start": "maker", "/api/maker/search": "search", "/api/maker/confirm": "maker", "/api/maker/publish": "publish",
-          "/api/buyer/start": "buyer", "/api/buyer/confirm": "buyer", "/api/preorder/demo": "demo", "/api/preorder/faucet": "faucet",
+MCP_CHECK_TOOLS = ("knos_demand_check", "knos_cross", "knos_research_card")   # MCP tools that run a check: the check limit
+DEMAND_CORS = ("/api/check", "/api/cross", "/api/report", "/api/vectors", "/api/proof", "/api/ready/card", "/api/money", "/api/agent/payout/latest", "/api/usage", "/api/counter", "/api/project", "/api/receipts", "/api/record/head", "/api/status", "/healthz", "/api/tools", "/api/run", "/api/pay", "/api/vitals", "/api/first_action")                                           # the front door reads these from its own origin
+ROUTES = {"/api/ask": "check", "/api/feedback": "product", "/api/open-signals": "check", "/api/ready/card": "product", "/api/company/need": "product", "/api/preorder/demo": "demo", "/api/preorder/faucet": "faucet",
           "/api/preorder/tx": "tx", "/api/preorder/submit": "tx",
-          "/api/check": "check", "/api/test/record": "check", "/api/research": "check", "/api/cross": "check", "/api/factor": "lock",
+          "/api/check": "check", "/api/research": "check", "/api/cross": "check", "/api/factor": "lock",
           "/api/fund": "lock", "/api/task/submit": "check", "/api/anchor": "lock",
           "/api/auth/email": "auth", "/api/auth/email/verify": "auth", "/api/preorder": "lock", "/api/milestone": "milestone", "/api/refund": "lock",
           "/api/auth/challenge": "auth", "/api/auth/passkey/register": "auth", "/api/auth/passkey/login": "auth",
@@ -103,6 +99,7 @@ POST_ROUTES = {"/api/near/claim/quote": "NEAR testnet: a dry quote for the test 
                "/api/run": "Run a tool on a list ({id, input, mode, browser, test}): the result line, the exact count, the result's link, runs left; 402 past the free runs, 413 over the line limit, 408 over the time limit",
                "/api/pay": "Record a test payment for a browser ({browser, press}): 20 more runs; a repeated press records nothing more, and a different payload on the same press is refused (409)",
                "/api/visit": "One first-party event of an anonymous visit (no cookie, no IP stored)",
+               "/api/survey": "One answer to an optional question after a second result ({q, a, test}): one count, no id, no IP stored",
                "/api/referee/commit": "A referee host's FROST round: its commitment (signed by its transport key)",
                "/api/referee/share": "A referee host's FROST round: its signature share (signed by its transport key)",
                "/api/referee/attest": "A referee host's FROST round: its attestation (signed by its transport key)"}
@@ -110,31 +107,26 @@ SIGNED_IN = ("/api/preorder", "/api/milestone", "/api/refund", "/api/factor", "/
              "/api/preorder/demo", "/api/preorder/faucet", "/api/preorder/tx", "/api/preorder/submit",
              "/api/wallet", "/api/wallet/faucet", "/api/sign", "/api/maker/claim", "/api/lend/quote", "/api/lend/advance", "/api/lend/collect")   # no anonymous money or faucet calls
 # every GET route below (do_GET), for the OpenAPI document (knos_wanted.openapi); the product routes list their own
-PAGES = {"/fields": "fields.html", "/money": "money.html", "/companies": "companies.html", "/trace": "trace.html", "/trace.html": "trace.html", "/with-without": "with_without.html", "/with-without.html": "with_without.html",
-         "/qloo-safe-use": "qloo_safe_use.html", "/qloo-safe-use.html": "qloo_safe_use.html", "/invite": "invite.html", "/invite.html": "invite.html"}
-GET_ROUTES = {"/api/tools": "The tools a person can run: id, title and sample of each", "/t/{id}/": "A tool's page, its og tags in the first response", "/r/{id}/": "One run's result page: that input and that result", "/og/t/{id}.png": "A tool's 1200 x 630 link image", "/og/r/{id}.png": "A result's 1200 x 630 link image", "/api/visits": "The first-party funnel of the last 7 days (visits, first press, first result, proof finished, backed, came back) and the screen people leave from most; no cookie, IP or account is stored", "/api/near/balances": "The NEAR testnet accounts that keep the live demo up, each balance against its floor (near/balances.json), read from NEAR", "/api/near/ai/ledger": "The NEAR AI spend ledger and cached model answers (no key), which a scheduled job saves on the gh-pages branch", "/api/near/ai": "The AI reviewer on NEAR AI Cloud: on or off, its model, dollars spent of its $10 and where that figure comes from, its limits, and the model's attestation report hash", "/api/near/claim/counters": "Counters of NEAR testnet's public record: transfers into Knos's fee account (proofs; many came from Knos's own test account, so money moved between Knos's own accounts), the test dollars moved with them, and transfers lost. Jobs paid to agents are in /api/near/totals", "/api/near/claims": "Every claim Knos can prove, with its truth market and its demand market on NEAR testnet (price before the result, trader count) and the test USDC put behind it", "/api/near/tests": "The full test suite's latest finished run on main (GitHub Actions): passed or not, and its link", "/api/near/claim/plain": "The plain-words page about the sample paper, written by a small model in GitHub Actions (its check run), held by the server", "/api/near/claim/try": "The verified code at work: it counts n different visitors (?n=, 1,000 to 100,000) and says how close it came and how many bytes it keeps", "/api/near/claim/code": "The verified code of the sample claim: the version that passed its locked test on NEAR testnet, as visitor_counter.py, its sha256 in X-Sha256", "/api/near/market": "The claim markets on NEAR testnet: the open claim's Yes and No prices in cents, the settled claim's record (POST /api/near/market/buy buys $1 of Yes or No)", "/api/near/totals": "The NEAR jobs contract's totals: since_upgrade holds jobs paid to agents and test USDC paid out since its 14 Nov upgrade, read from the contract (get_totals, get_agent_record); paid_usd, jobs_paid and tries are an older walk of its public record, with read_at", "/api/near/live": "The live NEAR testnet job for a visitor of /near/: on or off, runs used today, the cap, the bid (POST starts one)", "/api/near/live/{run}": "One live NEAR job: its step, then who was paid and every testnet transaction", "/api/progress": "One running check: its live Qloo calls and entities so far (?req=)", "/actions.json": "Solana Actions rules", "/llms.txt": "This app for language models (llmstxt.org)", "/robots.txt": "Crawler rules: search and assistant bots allowed, /api/ left out", "/sitemap.xml": "The public pages and traces, with lastmod", "/.well-known/ai-catalog.json": "The AI catalog: the MCP Server Card, the OpenAPI document and llms.txt", "/mcp/server-card": "The MCP Server Card (SEP-2127): the /mcp remote and its protocol versions", "/trace.md": "A demand report trace as Markdown (?hash=)", "/trace": "A demand report trace page (?hash=), its verdict in the HTML", "/start": "301 to the front door", "/start/": "301 to the front door", "/api/refuse": "What Knos will not fund: the refuse list the Ready check applies", "/api/fields": "Fields: 7 bottlenecks by 7 technologies, 49 cells, each live or next",
+PAGES = {"/fields": "fields.html", "/money": "money.html", "/companies": "companies.html", "/invite": "invite.html", "/invite.html": "invite.html"}
+GET_ROUTES = {"/api/tools": "The tools a person can run: id, title and sample of each", "/t/{id}/": "A tool's page, its og tags in the first response", "/r/{id}/": "One run's result page: that input and that result", "/og/t/{id}.png": "A tool's 1200 x 630 link image", "/og/r/{id}.png": "A result's 1200 x 630 link image", "/api/visits": "The first-party funnel of the last 7 days (visits, first press, first result, proof finished, backed, came back) and the screen people leave from most; no cookie, IP or account is stored", "/api/near/balances": "The NEAR testnet accounts that keep the live demo up, each balance against its floor (near/balances.json), read from NEAR", "/api/near/ai/ledger": "The NEAR AI spend ledger and cached model answers (no key), which a scheduled job saves on the gh-pages branch", "/api/near/ai": "The AI reviewer on NEAR AI Cloud: on or off, its model, dollars spent of its $10 and where that figure comes from, its limits, and the model's attestation report hash", "/api/near/claim/counters": "Counters of NEAR testnet's public record: transfers into Knos's fee account (proofs; many came from Knos's own test account, so money moved between Knos's own accounts), the test dollars moved with them, and transfers lost. Jobs paid to agents are in /api/near/totals", "/api/near/claims": "Every claim Knos can prove, with its truth market and its demand market on NEAR testnet (price before the result, trader count) and the test USDC put behind it", "/api/near/tests": "The full test suite's latest finished run on main (GitHub Actions): passed or not, and its link", "/api/near/claim/plain": "The plain-words page about the sample paper, written by a small model in GitHub Actions (its check run), held by the server", "/api/near/claim/try": "The verified code at work: it counts n different visitors (?n=, 1,000 to 100,000) and says how close it came and how many bytes it keeps", "/api/near/claim/code": "The verified code of the sample claim: the version that passed its locked test on NEAR testnet, as visitor_counter.py, its sha256 in X-Sha256", "/api/near/market": "The claim markets on NEAR testnet: the open claim's Yes and No prices in cents, the settled claim's record (POST /api/near/market/buy buys $1 of Yes or No)", "/api/near/totals": "The NEAR jobs contract's totals: since_upgrade holds jobs paid to agents and test USDC paid out since its 14 Nov upgrade, read from the contract (get_totals, get_agent_record); paid_usd, jobs_paid and tries are an older walk of its public record, with read_at", "/api/uptime": "The scheduled uptime check of the last 7 days: checks that answered, of all checks, read from uptime.jsonl on the gh-pages branch", "/api/near/live": "The live NEAR testnet job for a visitor of /near/: on or off, runs used today, the cap, the bid (POST starts one)", "/api/near/live/{run}": "One live NEAR job: its step, then who was paid and every testnet transaction", "/actions.json": "Solana Actions rules", "/llms.txt": "This app for language models (llmstxt.org)", "/robots.txt": "Crawler rules: search and assistant bots allowed, /api/ left out", "/sitemap.xml": "The public pages and traces, with lastmod", "/.well-known/ai-catalog.json": "The AI catalog: the MCP Server Card, the OpenAPI document and llms.txt", "/mcp/server-card": "The MCP Server Card (SEP-2127): the /mcp remote and its protocol versions", "/start": "301 to the front door", "/start/": "301 to the front door", "/api/refuse": "What Knos will not fund: the refuse list the Ready check applies", "/api/fields": "Fields: 7 bottlenecks by 7 technologies, 49 cells, each live or next",
               "/api/money": "The money page: what is held, released and charged, and the price list",
               "/api/vectors": "The seven product-value vectors, measured: cost, speed, friction, trust, capability, access, status",
               "/api/proof": "The latest real verdict this server reached (shown first on both front doors)",
-              "/api/forecasts": "The forecast ledger's rows, Knos's picks with them (docs/reference/forecast_plan_v2.md)",
               "/api/ready/card": "A Ready card, read back from its devnet attestation (?hash= the criteria hash)",
               "/api/solvers": "Proven solvers first: wallets by verified milestones, each read back from devnet",
-              "/fields": "Fields", "/money": "The money", "/with-without": "With and without Qloo: the 20 ideas, the table in the page", "/companies": "Companies", "/api/trace": "A demand report's Qloo calls, redacted: endpoint, params, ids, excerpt, limit",
-              "/api/outside": "The outside counter: crossings and pre-order commitments by people outside Knos, summed from the store",
+              "/fields": "Fields", "/money": "The money", "/companies": "Companies", "/api/outside": "The outside counter: crossings and pre-order commitments by people outside Knos, summed from the store",
               "/api/outside/rows": "Every row the outside counter sums (kind, time, crossing id or order address, via)",
-              "/api/qloo-diff": "The \"With and without Qloo\" table: 20 ideas, each checked with Qloo and with the key unset", "/sw.js": "The app's service worker (offline shell, background sync)",
+              "/sw.js": "The app's service worker (offline shell, background sync)",
               "/manifest.webmanifest": "The app's web app manifest (installable, home-screen shortcuts)", "/api/actions/preorder": "Solana Action (Blink): pre-order metadata",
               "/api/pay/fund": "Solana Pay transaction request: the label and icon a wallet shows before funding a milestone",
               "/api/cross": "Poll a live crossing", "/verify": "How we verify", "/api/crossings": "Crossings, newest first",
               "/api/front": "Research products open for backing now (the front door's list; ?slug= one product)",
-              "/api/demand/fields": "The Qloo demand families F1-F8: every option's name, Qloo parameter, kind, help and example",
               "/api/tasks": "Open contributor rounds (knos.game)", "/api/memory/search": "Search the agent's memory",
               "/api/x402/report": "A demand report, paid per read over x402", "/api/commitments": "Pre-orders and funders' held money",
               "/mcp": "MCP discovery page (POST JSON-RPC here)", "/mcp/store": "The app-store MCP profile: read-only tools, no sign-in, a daily call cap (POST JSON-RPC here)", "/auth/orcid": "Sign in with ORCID", "/auth/orcid/callback": "ORCID callback",
               "/": "301 to the front door, https://drexthealpha.github.io/Knos/", "/app": "301 to /app/",
-              "/quality": "301 to the front door", "/quality/": "301 to the front door", "/api/ready": "How to ask for a Ready check (it is a POST)", "/app/": "The app", "/status/qloo": "Qloo as this server met it today: calls, cache hits, last success, last 429", "/api/qloo/status": "The same as JSON, with the line the front door shows while Qloo limits requests", "/api/record/head": "The Knos record's newest line: its sequence number, time and kind", "/api/calls": "The last 200 Qloo requests this server made or recorded: time, endpoint, parameters, status, ms, cached; never a body", "/api/match": "The products Qloo matched to a recorded idea (?idea=), for the step that asks whether this is what you mean", "/paid": "301 to /app/?all=1: the app with the passkey wallet, pre-orders, pools, company sign-in and accounting files", "/api/status": "Server status", "/api/ops/memory": "The operator's: this process's memory now and at its peak", "/api/agent/payout/latest": "The newest payout to an agent, read from devnet", "/api/usage": "Demand checks run, Ready briefs made, the knos_pay program's devnet transactions, and the tools' per-day counts (days, test_days) and three measures", "/api/counter": "Live checks today and this week, checks by others, devnet pre-orders held and released, feedback answers", "/api/taste/movie": "The films a film's fans also love, from Qloo (?title=&year=): names and years only", "/api/products": "Listed products", "/api/quote": "Fee quote",
-              "/api/pool": "A report's pre-order pool", "/healthz": "Health check", "/api/report": "A demand report", "/api/recorded": "The recorded answer for an idea, word for word (never a live check)",
-              "/api/receipts": "A result's receipts (?id=, the first 16 hex of its hash): each Qloo call with its time and hash, the target's rule, the model's answer, the brief's criteria hash, the Knos record line, devnet transactions",
+              "/quality": "301 to the front door", "/quality/": "301 to the front door", "/api/ready": "How to ask for a Ready check (it is a POST)", "/app/": "The app", "/api/record/head": "The Knos record's newest line: its sequence number, time and kind", "/paid": "301 to /app/?all=1: the app with the passkey wallet, pre-orders, pools, company sign-in and accounting files", "/api/status": "Server status", "/api/ops/memory": "The operator's: this process's memory now and at its peak", "/api/agent/payout/latest": "The newest payout to an agent, read from devnet", "/api/usage": "Demand checks run, Ready briefs made, the knos_pay program's devnet transactions, and the tools' per-day counts (days, test_days) and three measures", "/api/counter": "Live checks today and this week, checks by others, devnet pre-orders held and released, feedback answers", "/api/quote": "Fee quote",
+              "/api/pool": "A report's pre-order pool", "/healthz": "Health check", "/api/report": "A demand report", "/api/receipts": "A result's receipts (?id=, the first 16 hex of its hash): each open signal with its link, the Knos record line, devnet transactions",
               "/api/commitment": "One commitment", "/api/auth/config": "Sign-in providers", "/api/fees": "Fees (config/fees.yaml)",
               "/api/receivables": "Receivables a lender can finance (passkey wallets: advance rate, fee, due date)",
               "/api/referee/group": "The FROST referee group (public)", "/api/referee/pending": "Open referee signing sessions",
@@ -144,7 +136,7 @@ GET_ROUTES = {"/api/tools": "The tools a person can run: id, title and sample of
               "/.well-known/oauth-authorization-server": "OAuth 2.0 authorization server metadata (RFC 8414): client credentials only",
               "/.well-known/oauth-protected-resource": "OAuth 2.0 protected resource metadata (RFC 9728): the MCP endpoint",
               "/.well-known/oauth-protected-resource/mcp": "The same metadata at the resource's own path (RFC 9728 section 3.1)"}
-SUMMARIES = {"/api/check": "Demand check on Qloo", "/api/company/need": "Companies: one sentence to a Ready brief, a private demand check and an opened milestone", "/api/ready/card": "Attest a Ready brief on devnet: the shareable card", "/api/open-signals": "Demand from open signals only (no Qloo, keyless)", "/api/research": "Research card from a paper id", "/api/cross": "Start a crossing",
+SUMMARIES = {"/api/check": "Demand check on open signals", "/api/company/need": "Companies: one sentence to a Ready brief, a private demand check and an opened milestone", "/api/ready/card": "Attest a Ready brief on devnet: the shareable card", "/api/open-signals": "Demand from open signals only (keyless)", "/api/research": "Research card from a paper id", "/api/cross": "Start a crossing",
              "/api/preorder": "Pre-order, held until the milestone check passes", "/api/milestone": "Post milestone evidence; 2 of 3 referees release",
              "/api/refund": "Refund past the deadline", "/api/fund": "Fund a milestone", "/api/factor": "Receivable financing offer",
              "/api/anchor": "Anchor the record root on devnet", "/api/task/submit": "Submit to a contributor round",
@@ -263,8 +255,7 @@ TO_PAID = ('<script>(() => { const go = () => { const h = location.hash.slice(1)
 
 
 def named(state, q: str) -> list[dict]:
-    """The crossings this server ran and the checks it keeps (the recorded ones included) whose idea holds q, newest first."""
-    from . import recorded
+    """The crossings this server ran whose idea holds q, newest first."""
     want = " ".join(q.lower().split())
     seen, rows = set(), []
     for c in agent.crossings(state):
@@ -272,14 +263,6 @@ def named(state, q: str) -> list[dict]:
         if want and want in idea.lower() and idea.lower() not in seen:
             seen.add(idea.lower())
             rows.append({"tier": "crossing", "name": idea, "key": c.get("report"), "snippet": f"verdict {c.get('verdict') or 'none yet'}, {c.get('status')}"})
-    with recorded._lock:
-        kept = sorted([*recorded._last.values(), *recorded._answered.values()], key=lambda r: str(r.get("made") or ""), reverse=True)
-    for r in kept:
-        idea = str(r.get("idea") or "")
-        if want and want in idea.lower() and idea.lower() not in seen:
-            seen.add(idea.lower())
-            rows.append({"tier": "check", "name": idea, "key": r.get("hash"),
-                         "snippet": f"verdict {(r.get('decision') or {}).get('verdict')}, Qloo answered {str(r.get('made') or '')[:10]}"})
     return rows[:20]
 
 
@@ -357,16 +340,13 @@ REPORTS_IN_MEMORY = 100
 
 
 class State:
-    def __init__(self, q: Qloo | None = None, rest: Client | None = None):
-        self.q = q or Lazy()          # `qloo mcp` (120 MB) starts at the MCP flow's first use
-        self.rest = rest or Client()
+    def __init__(self):
         self.cards: dict[str, dict] = {}
         self.last_anchor: dict | None = None
         self.reports: OrderedDict[str, dict] = OrderedDict()
         self.sessions: OrderedDict[str, tuple[float, dict]] = OrderedDict()
         self.hits: dict[tuple[str, str], deque] = defaultdict(deque)
         self.lock = threading.Lock()
-        self.qlock = threading.Lock()        # one Qloo conversation at a time over the one bridge
 
     def pair(self, key: tuple) -> None:
         """A verdict card was answered: the full card for the same idea, from the same address, within 5 minutes, is free."""
@@ -427,21 +407,16 @@ class State:
             f = escrow._state_dir() / "reports" / f"{h}.report"       # a decision report kept across restarts
             if f.exists():
                 got = json.loads(f.read_text(encoding="utf-8"))
-        if got is None and isinstance(h, str):
-            from . import recorded                   # a sample chip's recorded card, by its hash (the trace of a fresh server)
-            got = recorded.by_hash(h)
         return got
 
     def keep_check(self, r: dict) -> None:
         self.keep(r)
-        if r.get("stale"):                                # a sample's last real card, shown while Qloo is down: memory only
-            return
         d = escrow._state_dir() / "reports"
         d.mkdir(parents=True, exist_ok=True)
         (d / f"{r['hash']}.report").write_text(json.dumps(r, default=str), encoding="utf-8")
 
     def known(self, h) -> bool:
-        return self.report(h) is not None or (isinstance(h, str) and catalog.get(h) is not None)
+        return self.report(h) is not None
 
     def session(self, s: dict | None = None, sid: str | None = None, flow: str | None = None) -> dict:
         now = time.monotonic()
@@ -457,12 +432,6 @@ class State:
         if got is None or (flow and got[1].get("flow") != flow):
             raise ValueError("unknown or expired session: start again")
         return got[1]
-
-
-def _names(v, n: int = 3) -> list[str]:
-    if isinstance(v, str):
-        v = re.split(r"[,;\n]", v)
-    return [s.strip()[:60] for s in (v or []) if isinstance(s, str) and s.strip()][:n]
 
 
 def _text(v, n: int = 60) -> str | None:
@@ -502,7 +471,7 @@ def make_handler(state: State):
             if getattr(self, "_body", None) is not None:      # read once: the check's rate limit reads it first
                 return self._body
             n = int(self.headers.get("Content-Length") or 0)
-            if n > (4 * MAX_BODY if urlparse(self.path).path == "/api/qloo-diff" else MAX_BODY):   # the operator's table: 3 arms x 20 rows
+            if n > MAX_BODY:
                 raise ValueError("request too large")
             got = json.loads(self.rfile.read(n) or b"{}")
             if not isinstance(got, dict):
@@ -523,6 +492,12 @@ def make_handler(state: State):
 
         def do_OPTIONS(self):
             return self._send(204, b"", "text/plain", blink.CORS)
+
+        def do_DELETE(self):
+            u = urlparse(self.path)
+            if tool_run.handle_delete(self, state, u.path):   # L17: a person deletes their own result from the server
+                return None
+            return self._send(404, {"error": "not found"})
 
         def do_GET(self):
             u = urlparse(self.path)
@@ -573,6 +548,9 @@ def make_handler(state: State):
             if u.path == "/api/near/totals":                # jobs paid to agents, from the jobs contract itself
                 from . import near_live
                 return self._send(200, near_live.totals(), headers=blink.CORS)
+            if u.path == "/api/uptime":                     # the scheduled uptime check, last 7 days
+                from . import near_live
+                return self._send(200, near_live.uptime(), headers=blink.CORS)
             if u.path == "/api/near/market":                # the claim markets on testnet: the open one's price, the settled one's record
                 from . import near_live
                 try:
@@ -606,27 +584,10 @@ def make_handler(state: State):
                 data = json.dumps(FIELDS if u.path == "/fields" else money_doc(), ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
                 page = (STATIC / PAGES[u.path]).read_text(encoding="utf-8").replace(DATA_SLOT, f'<script type="application/json" id="k-data">{data}</script>', 1)
                 return self._send(200, inline_css(vectors.filled(page)).encode("utf-8"), "text/html; charset=utf-8")
-            if u.path in PAGES:                              # the trace, "With and without Qloo", Qloo safe use, the invite
+            if u.path in PAGES:                              # the companies page, the invite
                 from . import vectors
                 page = (STATIC / PAGES[u.path]).read_text(encoding="utf-8")
-                if u.path in ("/with-without", "/with-without.html"):     # its table in the page: drawn with no request first
-                    try:
-                        data = json.dumps(valley._load("pages", "qloo_diff"), ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
-                        page = page.replace(DATA_SLOT, f'<script type="application/json" id="k-data">{data}</script>', 1)
-                    except valley.Refused:
-                        pass                                 # not published yet: the page asks and says so
-                if u.path in ("/trace", "/trace.html") and (qs.get("hash") or [""])[0]:   # the verdict in the HTML, for readers with no script
-                    from . import agent_files as _af, trace as _trace
-                    t = _trace.load(state, (qs.get("hash") or [""])[0])
-                    if t:
-                        ssr = _af.trace_html_head(t, base=PUBLIC_BASE)
-                        page = page.replace("</head>", ssr["head"] + "</head>", 1).replace("<main", ssr["section"] + "<main", 1) \
-                            if "<main" in page else page.replace("</head>", ssr["head"] + "</head>", 1).replace("</body>", ssr["section"] + "</body>", 1)
                 return self._send(200, inline_css(vectors.filled(page)).encode("utf-8"), "text/html; charset=utf-8")
-            if u.path == "/api/trace":                       # a report's Qloo calls, redacted (knos_wanted.trace)
-                from . import trace as _trace
-                t = _trace.load(state, (qs.get("hash") or [""])[0])
-                return self._send(200 if t else 404, t or {"error": "unknown report: no trace kept for it"})
             if u.path == "/api/outside":                     # the outside counter, from the store (knos_wanted.outside)
                 return self._send(200, outside.totals())
             if u.path == "/api/outside/rows":
@@ -661,14 +622,6 @@ def make_handler(state: State):
                 return self._send(200, track.ready_card_get(h))
             if re.fullmatch(r"/ready/[0-9a-f]{64}", u.path):
                 return self._send(200, (STATIC / "ready.html").read_bytes(), "text/html; charset=utf-8")
-            if u.path == "/api/qloo-diff":                   # the table behind "With and without Qloo"
-                try:
-                    return self._send(200, valley._load("pages", "qloo_diff"))
-                except valley.Refused:
-                    return self._send(404, {"error": "the table has not been published yet"})
-            if u.path == "/api/demand/fields":               # one table for every interface's controls (knos.qloo_families)
-                from . import families as _fam
-                return self._send(200, _fam.fields())
             if u.path == "/api/front":                       # the front door's list (web/home.js asks it from github.io)
                 slug = (qs.get("slug") or [""])[0]
                 if slug:
@@ -791,14 +744,6 @@ def make_handler(state: State):
                 rid = u.path[3:]
                 rep = result_page.find(state, rid)
                 return self._send(200 if rep else 404, result_page.page(rep, self._base() + u.path, rid).encode("utf-8"), "text/html; charset=utf-8")
-            if u.path == "/api/forecasts":                 # the forecast ledger's rows, Knos's picks with them (forecast_plan_v2.md)
-                from . import recorded
-                with recorded._lock:
-                    fc = dict(recorded._forecasts)
-                return self._send(200 if fc else 404, fc or {"error": "no forecast rows on this server"}, headers={"Cache-Control": "no-store"})
-            if u.path == "/status/qloo":                    # Qloo as this server met it today, from its own traffic: no call made
-                from . import qloo_status
-                return self._send(200, inline_css(qloo_status.page()).encode("utf-8"), "text/html; charset=utf-8")
             if u.path == "/api/record/head":                # the Knos record's newest line: its sequence number and time
                 try:
                     from knos.record import journal
@@ -806,21 +751,6 @@ def make_handler(state: State):
                     return self._send(200, {"seq": h.get("seq"), "at": h.get("ts"), "kind": h.get("kind")}, headers={"Cache-Control": "no-store"})
                 except Exception as why:  # noqa: BLE001 - a record that cannot be read is said, never guessed
                     return self._send(503, {"seq": None, "why": f"the Knos record could not be read here ({type(why).__name__})"})
-            if u.path == "/api/progress":                   # one running check's Qloo calls so far, read from the same call log
-                from . import qloo_rest
-                return self._send(200, qloo_rest.progress((qs.get("req") or [""])[0]), headers={"Cache-Control": "no-store"})
-            if u.path == "/api/calls":                      # the last 200 Qloo requests: no body, no key (the front door's /calls/)
-                from . import qloo_rest
-                return self._send(200, {"calls": qloo_rest.recent(), "most": qloo_rest.RECENT.maxlen,
-                                        "about": "time, endpoint, parameters, status, ms and cached; never a response body"}, headers={"Cache-Control": "no-store"})
-            if u.path == "/api/match":                      # "Is this what you mean?": the products Qloo matched to a recorded idea
-                from . import recorded
-                idea = (qs.get("idea") or [""])[0][:200]
-                names = recorded.matched(idea)
-                return self._send(200, {"idea": idea, "matches": names[:4], "from": "recorded" if names else "none"})
-            if u.path == "/api/qloo/status":                # the same for the front door's line above the chips
-                from . import qloo_status
-                return self._send(200, qloo_status.doc(), headers={"Cache-Control": "no-store"})
             if u.path in ("/sw.js", "/manifest.webmanifest"):        # the PWA: its worker's scope is the whole app
                 ctype = "text/javascript; charset=utf-8" if u.path == "/sw.js" else "application/manifest+json"
                 return self._send(200, (STATIC / u.path[1:]).read_bytes(), ctype, {"Cache-Control": "no-cache"})
@@ -834,18 +764,6 @@ def make_handler(state: State):
                 return self._send(404, {"error": "not found"})
             if u.path == "/api/status":
                 return self._send(200, self.status())
-            if u.path == "/api/taste/movie":                 # the films a film's fans also love (Knos's Qloo client; names and years only)
-                from . import taste
-                if not product_routes._admin(self.headers.get("X-Knos-Admin")) and not state.allow(self._client(), "taste"):
-                    return self._send(429, {"error": "too many requests from this address; try again in a few minutes"})
-                y = (qs.get("year") or [""])[0]
-                from .qloo_rest import QlooError
-                try:
-                    return self._send(200, taste.also_love_movie(state.rest, (qs.get("title") or [""])[0], int(y) if y.isdigit() else None))
-                except QlooError as why:                       # Qloo did not answer: 503 with the reason, in one sentence
-                    from . import qloo_status
-                    said = qloo_status.limit_line() if "429" in str(why) else None
-                    return self._send(503, {"error": said or f"Qloo did not answer this time: {str(why)[:160]}"})
             if u.path == "/api/usage":                       # the public counter: checks and briefs from the store, payouts from devnet
                 from . import usage
                 return self._send(200, {**usage.counts(), **tool_run.usage()})   # the tool's per-day counts and measures with them
@@ -858,8 +776,6 @@ def make_handler(state: State):
                 if not product_routes._admin(self.headers.get("X-Knos-Admin")):
                     return self._send(403, {"error": "the operator's X-Knos-Admin key reads this"})
                 return self._send(200, memory_now(state))
-            if u.path == "/api/products":
-                return self._send(200, {"products": catalog.products(), "aggregate": AGGREGATE})
             if u.path == "/api/quote":
                 try:
                     units = int((qs.get("units") or ["5"])[0])
@@ -882,27 +798,10 @@ def make_handler(state: State):
                 return self._send(*agent_file)
             if u.path in ("/quality", "/quality/"):          # the old quality page left the site: straight to the front door
                 return self._send(301, b"", "text/plain", headers={"Location": "https://drexthealpha.github.io/Knos/"})
-            if u.path.startswith("/api/card/"):             # an Open card's downloads: pre-order text, outreach draft, refund date
-                from . import story
-                rep = state.report((qs.get("hash") or [""])[0])
-                got = story.download(rep, u.path[len("/api/card/"):]) if rep else None
-                if not got:
-                    return self._send(404, {"error": "no such download: an Open card's preorder, outreach or refund.ics"})
-                body, ctype, name = got
-                return self._send(200, body.encode("utf-8"), ctype, {"Content-Disposition": f'attachment; filename="{name}"'})
-            if u.path == "/api/recorded":                 # a page that opens shows what was recorded: Qloo is asked only from a press
-                from . import recorded
-                idea = (qs.get("idea") or [""])[0][:500]
-                rec = recorded.recording(idea)
-                if rec is None:
-                    return self._send(404, {"error": "no recorded answer for this idea", "idea": idea})
-                return self._send(200, recorded.stored(rec))
             if u.path == "/api/report":
                 rep = state.report((qs.get("hash") or [""])[0])
                 if rep is None:
                     return self._send(404, {"error": "unknown report"})
-                from . import recorded                       # read back later: "recorded <its day>", never LIVE
-                rep = recorded.stored(rep)
                 return self._send(200, {**rep, "preorders": preorder.of_report(rep["hash"]),
                                         "reserve": preorder.reserve_status(rep) if rep.get("kind") == check.KIND else None})
             if u.path == "/api/commitment":
@@ -934,7 +833,7 @@ def make_handler(state: State):
 
         def _agent_file(self, u, qs) -> tuple | None:
             """The files agents and search engines read (knos_wanted.agent_files): llms.txt, robots.txt, the sitemap, the
-            AI catalog and the MCP Server Card, the trace's Markdown twin, the IndexNow key, and /start's 301 to the front door."""
+            AI catalog and the MCP Server Card, the IndexNow key, and /start's 301 to the front door."""
             from . import agent_files as af
             if u.path in ("/start", "/start/"):
                 return af.start_redirect()
@@ -943,21 +842,12 @@ def make_handler(state: State):
             if u.path == "/robots.txt":
                 return af.robots_txt(base=PUBLIC_BASE)
             if u.path == "/sitemap.xml":
-                from . import trace as _trace
-                try:
-                    kept = sorted(p.stem for p in _trace._dir().glob("*.json"))[-2000:]
-                except OSError:
-                    kept = []
-                return af.sitemap_xml(base=PUBLIC_BASE, trace_hashes=kept)
+                return af.sitemap_xml(base=PUBLIC_BASE)
             if u.path == "/.well-known/ai-catalog.json":
                 return af.ai_catalog(base=PUBLIC_BASE)
             if u.path == "/mcp/server-card":
                 from . import __version__
                 return af.server_card(base=PUBLIC_BASE, version=__version__, protocol_versions=list(agent.PROTOCOLS))
-            if u.path == "/trace.md":
-                from . import trace as _trace
-                t = _trace.load(state, (qs.get("hash") or [""])[0])
-                return af.trace_markdown(t, base=PUBLIC_BASE) if t else (404, {"error": "unknown report: no trace kept for it"}, "application/json", {})
             if u.path.endswith(".txt") and len(u.path) > 5:
                 key = af.read_key()
                 if key and u.path[1:-4] == key:
@@ -967,36 +857,31 @@ def make_handler(state: State):
         def status(self) -> dict:
             from . import model as _model                # "on" or "off": whether the founder set a model key, never the key
             pf = preorder.preflight_status()
-            rest = state.rest.status()
-            mcp = state.q.status()
-            from . import qloo_status
-            q = qloo_status.doc()
-            if rest["rest"] and q["limited"]:     # the key is set but Qloo limits it: said, never "live"
-                top = {"mode": "limited", "label": q["line"] or "Qloo is limiting requests right now.", "reason": "Qloo's own limit headers and its last answers",
-                       "mcp_flow": {k: mcp.get(k) for k in ("mode", "label", "reason")}}
-            elif rest["rest"]:        # the decision path is Qloo's REST API: when it is live, the server is live
-                top = {"mode": "live", "label": check.LIVE_LABEL, "reason": "Qloo REST API key configured on this server",
-                       "mcp_flow": {k: mcp.get(k) for k in ("mode", "label", "reason")}}
-            else:
-                top = {"no_key_behaviour": "every check answers CANNOT_DECIDE (" + check.NO_EVIDENCE + "); pre-orders never open"}
-            from . import qloo_harness
-            hz = qloo_harness.harness()
-            rest = {**rest, "harness_first": {"surface": qloo_harness.SURFACE, "on": hz.enabled(), "answered": hz.answered,
-                                              "rule": "a call goes through the harness when every parameter maps onto a harness tool; else REST"}}
+            from . import open_signals
+            top = {"mode": "live" if open_signals.online() else "offline", "label": check.LABEL,
+                   "reason": "the demand check reads free, keyless public sources" if open_signals.online() else check.OFF}
             from . import status_deps
-            return {**mcp, **top, "model": _model.state(), "qloo_rest": rest, "preorders": pf, "record_anchor": state.last_anchor, "deps": status_deps.deps(),
+            return {**top, "model": _model.state(), "preorders": pf, "record_anchor": state.last_anchor, "deps": status_deps.deps(),
                     "x402": {"ready": x402.ready(), "route": "/api/x402/report?hash=<report>", "price": f"{x402.PRICE_UNITS} test unit per read"},
                     "fees": preorder.fee_line(), "auth": auth.config(),
-                    "framing": demand.FRAMING, "money_path": escrow.available(),
+                    "framing": check.FRAMING, "money_path": escrow.available(),
                     "demo_wallet": bool(os.environ.get("KNOS_WANTED_DEVNET_KEYPAIR")), "cluster": "devnet",
                     "relayer": preorder.relayer_funds(),
-                    "record": company.root() is not None, "targets": ["brand", "place", "artist", "movie", "book", "podcast", "tv_show"]}
+                    "record": company.root() is not None}
 
         def do_POST(self):
             u = urlparse(self.path)
             outside.begin(self.headers)                   # the outside counter reads who is asking (knos_wanted.outside)
             if tool_run.handle_post(self, state, u.path):   # Round 13: /api/run and /api/pay (knos_wanted.tool_run)
                 return None
+            if u.path == "/api/near/job/stop":             # L13: stop a job past its deadline: the contract's own refund_job
+                from . import near_live
+                if not state.allow(self._client(), "lock"):
+                    return self._send(429, {"error": "too many requests; wait a minute"}, headers=blink.CORS)
+                try:
+                    return self._send(200, near_live.stop_job(str(self._json().get("id") or "")), headers=blink.CORS)
+                except ValueError as e:
+                    return self._send(400, {"error": str(e)}, headers=blink.CORS)
             if u.path == "/api/near/claim/quote":          # G3: a dry 1Click quote for the $1 that funds a job's test
                 from . import near_live
                 try:
@@ -1061,6 +946,11 @@ def make_handler(state: State):
                 if not state.allow(self._client(), "visit"):
                     return self._send(200, {"ok": False}, headers=blink.CORS)
                 return self._send(200, {"ok": visits.record(self._json())}, headers=blink.CORS)
+            if u.path == "/api/survey":                     # L38: one optional answer after a second result, a count with no id
+                from . import visits
+                if not state.allow(self._client(), "visit"):
+                    return self._send(200, {"ok": False}, headers=blink.CORS)
+                return self._send(200, {"ok": visits.survey_answer(self._json())}, headers=blink.CORS)
             if u.path == "/api/near/guard":                 # the guardrails, live: agent B over its cap, then with no passing work
                 from . import near_live
                 if not state.allow(self._client(), "near_guard"):
@@ -1101,7 +991,7 @@ def make_handler(state: State):
                 pair = (self._client(), " ".join(str(pb.get("idea") or "").split()).lower()[:200])
                 free = pb.get("stage") != "verdict" and state.paired(pair)
             self._free_check = free                         # the full card after its verdict: one live check, not two
-            # the operator's own measured runs (scripts/qloo_vs_open_signals.py) carry its key and skip the per-address limits
+            # the operator's own measured runs carry its key and skip the per-address limits
             if not product_routes._admin(self.headers.get("X-Knos-Admin")) and not free and not state.allow(self._client(), kind):
                 return self._send(429, {"error": "too many requests from this address; try again in a few minutes"})
             try:
@@ -1117,7 +1007,7 @@ def make_handler(state: State):
                     return self._send(429, {"error": "this commitment had 10 evidence posts in the last hour; try again later"})
                 if u.path in ("/api/preorder/demo", "/api/preorder/faucet", "/api/preorder/tx", "/api/preorder/submit"):   # the wallet path: route(), never route_v2's refund
                     return self._send(200, self.route(u.path, body))
-                if u.path.startswith("/api/auth/") or u.path in ("/api/check", "/api/test/record", "/api/research", "/api/cross", "/api/trace/keep", "/api/qloo-diff", "/api/open-signals", "/api/ready/card", "/api/company/need", "/api/feedback", "/api/ask") + SIGNED_IN:
+                if u.path.startswith("/api/auth/") or u.path in ("/api/check", "/api/research", "/api/cross", "/api/open-signals", "/api/ready/card", "/api/company/need", "/api/feedback", "/api/ask") + SIGNED_IN:
                     return self._send(200, self.route_v2(u.path, body))
                 return self._send(200, self.route(u.path, body))
             except (auth.AuthError, wallets.NeedPasskey) as why:
@@ -1130,9 +1020,7 @@ def make_handler(state: State):
                 return self._send(422, {"error": f"milestone not verified: {why}"[:400], "verified": False})
             except escrow.EscrowUnavailable as why:
                 return self._send(503, {"error": str(why)})
-            except QlooUnavailable as why:
-                return self._send(503, {"error": f"Qloo MCP: {why}"})
-            except (privacy.PersonalData, demand.FlowError, planner.PlanError) as why:
+            except privacy.PersonalData as why:
                 return self._send(400, {"error": str(why)[:400]})
             except (ValueError, TypeError, KeyError) as why:
                 return self._send(400, {"error": str(why)[:300]})
@@ -1155,18 +1043,18 @@ def make_handler(state: State):
                 msg = self._json()
             except ValueError as why:
                 return self._send(400, {"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": str(why)[:200]}})
-            # a tool that asks Qloo or runs a check counts as a check; every other MCP message (initialize, tools/list,
+            # a tool that runs a check counts as a check; every other MCP message (initialize, tools/list,
             # reading a round, claiming, submitting) has its own, larger allowance: an agent's one task is dozens of them
             name = str(((msg.get("params") or {}) if isinstance(msg.get("params"), dict) else {}).get("name") or "")
-            spends = msg.get("method") == "tools/call" and (name in MCP_CHECK_TOOLS or name.startswith("qloo_"))
+            spends = msg.get("method") == "tools/call" and name in MCP_CHECK_TOOLS
             if not state.allow(self._client(), "check" if spends else "mcp"):
                 return self._send(429, {"jsonrpc": "2.0", "id": msg.get("id"), "error": {"code": -32000, "message": "rate limited"}})
-            from . import qloo_rest
-            qloo_rest.set_visitor(qloo_rest.visitor_hash(self._client()))   # an MCP demand check counts against the same visitor
+            from . import usage
+            usage.set_visitor(usage.visitor_hash(self._client()))   # a tool run over MCP counts against the same visitor
             try:
                 out = agent.mcp(state, msg, profile)
             finally:
-                qloo_rest.set_visitor(None)
+                usage.set_visitor(None)
             if out is None:
                 return self._send(202, b"", "text/plain")
             hdr = {"Mcp-Session-Id": "knos"} if msg.get("method") == "initialize" else {}
@@ -1214,15 +1102,11 @@ def make_handler(state: State):
                 return self._send(500, {"message": "the server could not build this transaction"}, headers=blink.CORS)
 
         def route_v2(self, path: str, body: dict) -> dict:
-            """Knos's demand check on Qloo's REST API, pre-orders released when the milestone check passes, and sign-in."""
+            """Knos's demand check on open signals, pre-orders released when the milestone check passes, and sign-in."""
             if path == "/api/cross":
                 ref, idea = _text(body.get("ref"), 200), _text(body.get("idea"), 500)
                 privacy.check({"idea": idea, "place": body.get("place")})
-                from knos import qloo_families
-                opts = {k: body[k] for k in qloo_families.FIELDS if k in body}
-                privacy.check({k: v for k, v in opts.items() if isinstance(v, str)})
-                job = agent.start(state, ref=ref, idea=idea, place=_text(body.get("place")), product=_text(body.get("product"), 200),
-                                  options=opts)
+                job = agent.start(state, ref=ref, idea=idea, place=_text(body.get("place")), product=_text(body.get("product"), 200))
                 outside.note("crossing", job["id"], "crossing")
                 return {"id": job["id"], "status": job["status"]}
             if path == "/api/auth/email":
@@ -1250,9 +1134,9 @@ def make_handler(state: State):
                                     f"{user.get('kind')}: {user.get('label')}", sub=str(user.get("sub") or ""),
                                     wallet=_text(body.get("wallet"), 44), base=self._base())
             if path == "/api/feedback":                   # "Was this useful?": the result's hash, yes or no, a note; a salted visitor hash
-                from . import qloo_rest, usage
+                from . import usage
                 return usage.feedback(str(body.get("hash") or ""), body.get("useful") is True, str(body.get("note") or ""),
-                                      qloo_rest.visitor_hash(self._client()))
+                                      usage.visitor_hash(self._client()))
             if path == "/api/ask":                        # one question about a result: the model, under its caps, only with a key
                 from . import model as _model
                 rep = state.report(str(body.get("hash") or ""))
@@ -1269,22 +1153,8 @@ def make_handler(state: State):
                 from knos import readings as _readings      # a paper's DOI is digits by its nature: it names a paper, never a person
                 doi = _readings.doi_of(idea)
                 privacy.check({"idea": "" if doi and doi == idea.strip() else idea, "place": body.get("place"), "leader": body.get("leader")})
-                ex = body.get("exclude") or []
-                if not isinstance(ex, list) or len(ex) > 20 or not all(isinstance(x, str) and len(x) < 80 for x in ex):
-                    raise ValueError("exclude: a list of up to 20 Qloo entity ids the maker unticked")
-                from knos import qloo_families
-                opts = {k: body[k] for k in qloo_families.FIELDS if k in body and k != "exclude"   # the families' fields, by name
-                        and not (k == "qloo" and isinstance(body[k], str))}   # "qloo": "off" is the switch, never an option
-                if ex:
-                    opts["exclude"] = ",".join(ex)
-                privacy.check({k: v for k, v in opts.items() if isinstance(v, str) and k != "exclude"})   # exclude: Qloo ids, checked above
-                without = body.get("without_qloo") is True        # the same check with the key unset (the comparison)
-                picked = body.get("picked") is True              # the reader picked this exact reading (which.py)
-                from . import open_signals, qloo_status as _qs
-                if not without and (not getattr(state.rest, "has_key", True) or _qs.limit_line()):   # A4: Qloo cannot answer; start the open signals now
-                    open_signals.prefetch(idea)
-                if not picked and not without and not ex:
-                    from . import which                         # which one do you mean? before any Qloo call
+                if body.get("picked") is not True:
+                    from . import which                         # which one do you mean? a paper id is read first
                     w = which.step(idea)
                     if w:
                         return w
@@ -1292,53 +1162,19 @@ def make_handler(state: State):
                 stage = "verdict" if body.get("stage") == "verdict" else None
                 if stage:
                     state.pair((self._client(), " ".join(idea.split()).lower()[:200]))
-                from . import qloo_rest                     # 30 live checks per visitor an hour (a salted hash, never the address)
-                operator = product_routes._admin(self.headers.get("X-Knos-Admin"))   # the operator's measured runs: no visitor cap
-                capped = None if without or operator or getattr(self, "_free_check", False) else qloo_rest.visitor_take(qloo_rest.visitor_hash(self._client()))
-                if str(body.get("qloo") or "").lower() == "off" or "off" in parse_qs(urlparse(self.path).query).get("qloo", []):
-                    capped = "Qloo switched off for this request: answered from the private cache only"
-                rep = check.demand_check(idea, _text(body.get("place")), _text(body.get("leader"), 80),
-                                         client=Client(key="") if without else state.rest, exclude=ex, options=opts, stage=stage,
-                                         only_cache=capped, req=qloo_rest.request_id(body.get("req")))
-                if without:
-                    rep["without_qloo"] = True
-                else:
-                    from . import recorded                   # Qloo not answering: said, or the sample's last real card
-                    rep = recorded.honest(idea, rep, picked=picked)
-                    if stage or not getattr(self, "_free_check", False):     # the verdict and its full card: one check
-                        from . import usage
-                        usage.bump_live(int((rep.get("qloo_calls") or {}).get("live") or 0))
-                    from . import open_signals                # A4: demand never breaks; Qloo gave nothing, the open signals answer
-                    if open_signals.needs_fallback(rep):
-                        fb = open_signals.fallback(rep.get("idea") or idea)
-                        rep = {**{k: v for k, v in rep.items() if k not in ("queued", "qloo_down")}, "open_demand": fb,
-                               "decision": {"verdict": fb["verdict"], "reasons": [fb["line"]], "target_units": None, "reserve_units": None}}
+                rep = check.demand_check(idea, _text(body.get("place")), _text(body.get("leader"), 80), stage=stage)
                 rep["fees"] = preorder.fee_line()
                 card = state.cards.get(str(body.get("research") or ""))
                 if card:
                     rep["research"] = {**card, "why_never_crossed": research.why_never_crossed(card, rep)}
                 rep["elapsed_ms"] = round((time.perf_counter() - t0) * 1000)
-                if isinstance(rep.get("qloo_calls"), dict):
-                    rep["qloo_calls"] = {**rep["qloo_calls"], "ms": rep["elapsed_ms"]}
-                from . import story                          # the decision first: sentence, tiles, used words, reruns
+                from . import story                          # the decision first: sentence, the rows, the sources
                 rep["story"] = story.build(rep)
-                if rep.get("open_demand"):                   # A4: the open signals' rows, each with its unit; the sources in one line
-                    fb = rep["open_demand"]
-                    rep["story"] = {**rep["story"], "sentence": fb["head"], "used": {"line": fb["line"] + " " + fb["rule"]}, "downloads": [], "reruns": [], "rejected": [],
-                                    "tiles": [{"label": x["name"], "value": (f"${x['value']:.2f} " if x["name"] == "Money down" else f"{x['value']:,} ") + x["unit"]}
-                                              for x in fb["rows"]]}
-                if not rep.get("queued"):
-                    rep["record"] = {"recorded": False, "why": "a last real card, already recorded"} if rep.get("stale") else company.record_check(rep)
+                rep["record"] = company.record_check(rep)
                 state.keep_check(rep)
-                if not rep.get("stale") and not rep.get("queued"):
-                    from . import vectors
-                    vectors.note("check", rep["elapsed_ms"], rep, state)   # speed and cost, measured; a real verdict is the proof shown first
+                from . import vectors
+                vectors.note("check", rep["elapsed_ms"], rep, state)   # speed and cost, measured; a real verdict is the proof shown first
                 return rep
-            if path == "/api/test/record" and os.environ.get("KNOS_TEST_MODE") == "1":   # test mode only: a stub last card
-                from . import recorded
-                with recorded._lock:
-                    recorded._last[recorded.key(str(body.get("key") or ""))] = dict(body.get("card") or {})
-                return {"kept": True}
             if path == "/api/company/need":                # companies mode: one sentence -> Ready brief, private check, opened milestone
                 if not self.user:
                     raise auth.AuthError("sign in first: company SSO (one press), or any Knos session")
@@ -1348,7 +1184,7 @@ def make_handler(state: State):
                 from . import track
                 brief = body.get("brief") if isinstance(body.get("brief"), dict) else body
                 return track.ready_card(brief)
-            if path == "/api/open-signals":                 # the no-Qloo baseline: keyless public sources, each named
+            if path == "/api/open-signals":                 # the baseline: keyless public sources, each named
                 from . import open_signals
                 idea = _text(body.get("idea"), 500) or ""
                 privacy.check({"idea": idea})
@@ -1356,19 +1192,6 @@ def make_handler(state: State):
                     raise ValueError("idea: a few words saying what the product is")
                 cc = (_text(body.get("country"), 2) or "US").upper()
                 return open_signals.baseline(idea, cc if cc.isalpha() else "US")
-            if path == "/api/trace/keep":                   # keep a report's trace on devnet: something links to it
-                from . import trace as _trace
-                return _trace.keep(state, str(body.get("hash") or ""))
-            if path == "/api/qloo-diff":                     # the operator publishes the "With and without Qloo" table
-                if not product_routes._admin(self.headers.get("X-Knos-Admin")):
-                    raise auth.AuthError("the operator's X-Knos-Admin key publishes this table")
-                rows = body.get("rows")
-                if not isinstance(rows, list) or not 1 <= len(rows) <= 60:
-                    raise ValueError("rows: 1 to 60")
-                doc = {"v": 2 if body.get("baseline") else 1, "made": body.get("made"), "summary": body.get("summary"), "rows": rows,
-                       "rule": body.get("rule"), "baseline": body.get("baseline"), "rules": body.get("rules")}
-                valley._save("pages", "qloo_diff", doc)
-                return {"published": len(rows), "page": "/with-without"}
             if path == "/api/research":
                 card = research.research_card(str(body.get("ref") or ""), product=_text(body.get("product"), 200))
                 with state.lock:
@@ -1428,43 +1251,6 @@ def make_handler(state: State):
             return wallets.prepare_collect(led, user, c, self._rp())
 
         def route(self, path: str, body: dict) -> dict:
-            if path == "/api/maker/start":
-                idea = body.get("idea")
-                if not isinstance(idea, str) or not idea.strip():
-                    raise ValueError("describe the idea")
-                with state.qlock:
-                    s = demand.start(state.q, idea, _names(body.get("rivals")), _text(body.get("place")), _names(body.get("variants")) or None)
-                return state.session(s)
-            if path == "/api/maker/search":
-                s = state.session(sid=body.get("session"), flow="maker")
-                name = _text(body.get("name"))
-                if not name:
-                    raise ValueError("type a name to look up")
-                with state.qlock:
-                    return {"question": demand.search(state.q, s, str(body.get("key", "")), name), "trail": s["trail"]}
-            if path == "/api/maker/confirm":
-                s = state.session(sid=body.get("session"), flow="maker")
-                if not isinstance(body.get("choices"), dict):
-                    raise ValueError("choices: an object")
-                with state.qlock:
-                    rep = demand.confirm(state.q, s, body["choices"])
-                rep["record"] = company.record_report(rep)
-                state.keep(rep)
-                return rep
-            if path == "/api/maker/publish":
-                rep = state.report(body.get("hash"))
-                if rep is None:
-                    raise ValueError("unknown report: build the report first")
-                return {"product": catalog.publish(rep, str(body.get("title", ""))), "quote": company.quote(5)}
-            if path == "/api/buyer/start":
-                with state.qlock:
-                    return state.session(buyer.start(state.q, body.get("likes"), body.get("vibes"), body.get("targets")))
-            if path == "/api/buyer/confirm":
-                s = state.session(sid=body.get("session"), flow="buyer")
-                if not isinstance(body.get("choices"), dict):
-                    raise ValueError("choices: an object")
-                with state.qlock:
-                    return buyer.confirm(state.q, s, body["choices"])
             h = body.get("hash")
             if path == "/api/preorder/faucet":
                 return escrow.faucet(str(body.get("owner", "")))
@@ -1478,7 +1264,7 @@ def make_handler(state: State):
                                  "or your own wallet (POST /api/preorder/tx)")
             res = escrow.submit(str(body.get("transaction", "")), str(body.get("owner", "")))
             res.update(owner=str(body.get("owner", "")), amount_units=units, order=body.get("order"), buyer_kind="wallet")
-            rep = state.report(h) or catalog.get(h) or {}
+            rep = state.report(h) or {}
             q = company.quote(units)
             res["fees"] = q
             res["record"] = company.record_preorder(h, res, q, synthetic_report=rep.get("mode") != "live")
@@ -1499,20 +1285,18 @@ def _restore_projects(budget_s: float = 60.0) -> None:
 
     def run():
         try:
-            from . import trace as _trace
-
             from . import privacy
 
             def put(kind, key, obj):
                 obj, n = privacy.scrub(obj)              # no email address comes back from devnet into the store
                 box["scrubbed"] = box.get("scrubbed", 0) + n
-                if n and kind != "traces":
+                if kind == "traces":                     # traces are no longer kept
+                    return
+                if n:
                     valley._save(kind, key, obj)         # and the devnet copy is rewritten without it
                     return
                 if kind == "projects":
                     valley._save(kind, key, obj, chain=False)
-                elif kind == "traces":
-                    _trace.restore_save(kind, key, obj)
                 else:
                     valley._save(kind, key, obj, chain=False)
             box["n"] = chainstate.restore(put)
@@ -1538,22 +1322,11 @@ def serve(host: str | None = None, port: int | None = None) -> None:
     threading.Thread(target=tasks.available, daemon=True).start()        # seeds the demo round when no round is open
     valley.start_sweeper()                 # missed milestone deadlines: refund + reopen, every KNOS_VALLEY_SWEEP_S seconds
     threading.Thread(target=valley.warm_summaries, daemon=True, name="projects-summary").start()   # /app/#projects reads a file
-    from . import qloo_harness
-    threading.Thread(target=qloo_harness.harness().warm, daemon=True, name="qloo-harness-warm").start()
-    # no sample idea is run at boot: each chip's recorded card is its last real answer, read from the private secret
-    # file (recorded.load), else the first real answer a reader's own press gets (recorded.keep); a restart asks Qloo nothing
-    from . import recorded
-    print(f"knos recorded: {recorded.load()} of {len(recorded.CHIPS)} sample chips have a recorded card", flush=True)
     from . import vectors                  # the front door's first card (/api/proof), built once before the first visitor asks
     threading.Thread(target=vectors.proof, daemon=True, name="proof-warm").start()
     from . import telegram_bot             # the tool inside Telegram: only when KNOS_TELEGRAM_TOKEN is set, else one line
     telegram_bot.start()
     # the seeded research products cross on the first request for the board (front.board), never at boot
     httpd = ThreadingHTTPServer((host, port), make_handler(state))
-    rest_ok, rest_why = state.rest.ready()
-    print(f"Knos demand check on http://{host}:{port}  Qloo REST: {'on' if rest_ok else 'off (' + rest_why + ')'}  "
-          f"Qloo MCP: {state.q.status().get('mode')}  pre-orders: preflight running (see /api/status)", flush=True)
-    try:
-        httpd.serve_forever()
-    finally:
-        state.q.close()
+    print(f"Knos demand check on http://{host}:{port}  pre-orders: preflight running (see /api/status)", flush=True)
+    httpd.serve_forever()

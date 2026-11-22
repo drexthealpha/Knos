@@ -3,22 +3,23 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<!-- THE FRONT DOOR of the published site (scripts/site_pages.py writes it as index.html). Round 13, A2 and A7: the first
-     screen is the first tool, "Check a test file against a limit", under the headline "What can you do with Knos?".
-     The box holds the labelled sample (near/agents/job/data/limit/sample.csv, written in at build time) with its limit
-     filled in; "Check my data" sends the file to the hosted server (POST /api/run, the contract in v0328 research R13 SPEC2.md)
-     and the result sentence and its chart are shown under the button. Below the first screen: the earlier question box,
-     unchanged. Every number in the How it works fold and the pay screen is written in at build time from
-     docs/data/pricing.json, the sample and the job's released.json (the spans marked data-n, data-sample, data-job). -->
-<title>Knos: check a test file against a limit</title>
-<meta name="description" content="Check a test file against a limit. Knos names the first row that breaks it, for anyone who tests batteries, motors, parts or machines.">
+<!-- THE FRONT DOOR of the published site (scripts/site_pages.py writes it as index.html). L01 (IQ PLAN.md): one box,
+     "Ask anything about research". What is typed or pasted is read in the browser: a table runs the limit check (POST
+     /api/run, the contract in v0328 research R13 SPEC2.md; the sample, near/agents/job/data/limit/sample.csv, is the one
+     example and runs when the box is empty), a claim's name, a paper's link or a question is answered from the claims
+     registry (written in at build time), a pull request's link goes to its check. L02: the title, the description and the
+     link preview are one sentence, the "goal" key of web/i18n/en.json (tests/test_site_laws.py holds them equal). Every
+     number in the How it works fold and the pay screen is written in at build time from docs/data/pricing.json, the
+     sample and the job's released.json (the spans marked data-n, data-sample, data-job). -->
+<title>Knos is a research checker that helps anyone test a result.</title>
+<meta name="description" content="Knos is a research checker that helps anyone test a result.">
 <meta name="author" content="drexthealpha">
 <meta name="color-scheme" content="light dark">
 <link rel="canonical" href="https://drexthealpha.github.io/Knos/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Knos">
-<meta property="og:title" content="Knos: check a test file against a limit">
-<meta property="og:description" content="Check a test file against a limit. Knos names the first row that breaks it, for anyone who tests batteries, motors, parts or machines.">
+<meta property="og:title" content="Knos is a research checker that helps anyone test a result.">
+<meta property="og:description" content="Knos is a research checker that helps anyone test a result.">
 <meta property="og:url" content="https://drexthealpha.github.io/Knos/">
 <meta property="og:image" content="https://drexthealpha.github.io/Knos/brand/card.png">
 <meta name="twitter:card" content="summary_large_image">
@@ -27,11 +28,10 @@
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => { /* no worker: the page still works online */ });
 </script>
 <script>
-// an old address: the one page's NEAR section is prove/, its IRIS section labs/; the check of a pull request has its
+// an old address: the one page's NEAR section is prove/; the check of a pull request has its
 // own page, and every other old page is in app.html
 (() => { const go = () => { const h = location.hash, name = h.slice(1).split("=")[0];
   if (/^(near|near-flow|who)$/.test(name)) location.replace("prove/");
-  else if (name === "iris") location.replace("labs/");
   else if (/^check(-a-pull-request)?$/.test(name)) location.replace("check/" + (h.startsWith("#check=") && h.length > 7 ? h : ""));
   else if (/^(install|claim)$/.test(name)) location.replace("check/" + h);   // the Colosseum entry's install and pay steps
   else if (name && !/^(home|k-q|tool|ask)$/.test(name)) location.replace("app.html" + h); };
@@ -54,7 +54,8 @@ a { color: var(--accent); }
 .kh nav a, .kmenu-panel > a { display: flex; align-items: center; min-height: 44px; padding: 0 4px; color: var(--ink); text-decoration: none; font-size: 16px; }
 .kh nav a:hover, .kh nav a[aria-current] { text-decoration: underline; }
 main { max-width: 760px; margin: 0 auto; padding: 0 16px; }
-h1 { font: 600 clamp(32px, 8.5vw, 44px)/1.15 var(--head); letter-spacing: -.02em; margin: 8px 0 12px; }
+/* L22: the promise in a thin, high-contrast display face (the design system's serif, weight 400), not a heavy bold headline */
+h1 { font: 400 clamp(38px, 10.5vw, 56px)/1.08 var(--serif); letter-spacing: -.01em; margin: 8px 0 12px; }
 h1 label { display: block; font: inherit; margin: 0; }
 :lang(ar) h1 { letter-spacing: 0; }
 h2 { font: 600 22px/1.25 var(--head); margin: 0 0 4px; }
@@ -75,7 +76,10 @@ button { min-height: 48px; min-width: 48px; padding: 0 18px; font: 600 18px var(
 .go { min-height: 52px; background: var(--accent); color: var(--accent-fg); border: 2px solid var(--accent); }
 /* the main action is the first control after the language control in reading order (U3 Rule 10), and shows under the box */
 #form { display: flex; flex-direction: column; }
-#own { order: 1; } #list-label { order: 2; } #list { order: 3; } #which { order: 4; } #form .rule { order: 5; } #limits { order: 6; }
+#own { order: 1; } #list-label { order: 2; } #boxwrap { order: 3; }
+/* the microphone sits inside the box (H3 b, L08): shown once the box has the focus, so the first screen keeps three controls */
+#boxwrap { position: relative; }
+#speak { position: absolute; inset-block-end: 6px; inset-inline-end: 6px; min-height: 44px; font-size: 16px; background: var(--paper-2); } #which { order: 4; } #form .rule { order: 5; } #limits { order: 6; }
 #try { order: 7; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 10px; }
 #try svg { flex: none; }
 .go[disabled], .go[aria-disabled="true"] { opacity: .8; cursor: progress; }
@@ -128,6 +132,38 @@ footer { max-width: 760px; margin: 0 auto; padding: 16px; color: var(--ink-2); f
 :root:lang(ar) p, :root:lang(ar) li { line-height: 1.6; }
 footer a { color: var(--ink-2); display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; margin-inline-end: 12px; }
 [hidden] { display: none !important; }
+/* L01: the one box takes a question as well as a table: a question reads in the text face, a table in the code face */
+#list:placeholder-shown, #list.q { font-family: var(--text); white-space: pre-wrap; }
+#try svg { transition: transform .2s; }
+/* L22: the crow tilts while a check runs (the mark in the header) */
+.kh .mark { transition: transform .3s; transform-origin: 50% 80%; }
+html.k-busy .kh .mark { animation: k-tilt 1.2s ease-in-out infinite; }
+@keyframes k-tilt { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-14deg); } }
+/* L22: one pointer, once per visitor, after 3 s with no tap: it glides 0.85 s to the button and presses at 0.84 scale */
+.k-pointer { position: fixed; z-index: 40; width: 48px; height: 48px; pointer-events: none; color: var(--ink); transition: transform .85s cubic-bezier(.4, 0, .2, 1), opacity .3s; filter: drop-shadow(0 2px 3px rgb(0 0 0 / .4)); }
+.k-pointer.press svg { transform: scale(.84); transition: transform .12s; }
+/* below the first screen: the live numbers (L11), the wordless loop (L22), the licence (L28) */
+.live { border-top: 1px solid var(--line); margin-top: 24px; padding-top: 16px; }
+.live ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.live li { margin: 0; }
+.live a { display: inline-flex; align-items: center; min-height: 48px; font-variant-numeric: tabular-nums; }
+.live a:empty, .live p:empty { display: none; }
+.live .fact { color: var(--ink-2); margin: 4px 0; }
+.vid { margin: 8px 0 0; } .vid a { display: inline-flex; align-items: center; min-height: 48px; }
+.loop { margin: 16px 0 0; }
+.loop svg { display: block; width: 100%; max-width: 480px; height: auto; color: var(--ink); }
+.loop .coin { fill: var(--warn); }
+.loop .pass { fill: var(--ok); }
+.loop .try { fill: none; stroke: currentColor; stroke-width: 2; }
+.loop.run .coin { animation: k-coin 6s ease-in-out infinite; }
+.loop.run .t1 { animation: k-try 6s infinite; } .loop.run .t2 { animation: k-try 6s .4s infinite; } .loop.run .t3 { animation: k-try 6s .8s infinite; }
+.loop.run .pass { animation: k-pass 6s infinite; }
+@keyframes k-coin { 0%, 10% { transform: translate(0, 0); } 40%, 60% { transform: translate(150px, 0); } 85%, 100% { transform: translate(300px, 0); } }
+@keyframes k-try { 0%, 20% { opacity: .25; } 30%, 60% { opacity: 1; } 70%, 100% { opacity: .25; } }
+@keyframes k-pass { 0%, 70% { opacity: 0; } 80%, 100% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .loop.run .coin, .loop.run .t1, .loop.run .t2, .loop.run .t3, .loop.run .pass, html.k-busy .kh .mark { animation: none; } .k-pointer { display: none; } }
+.mit { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 16px 0 0; }
+.mit a { display: inline-flex; align-items: center; min-height: 48px; padding: 0 16px; border: 2px solid var(--ink-2); border-radius: 10px; color: var(--ink); text-decoration: none; font-weight: 600; }
 @media (max-width: 460px) { main p a, main li a { padding: 12px 0; margin: -12px 0; } }
 </style>
 </head>
@@ -138,29 +174,30 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
      strings through KI.t (apps/wanted/knos_wanted/tool_page.py I18N_JS). Round 13, H3. -->
 <header class="kh" id="kh">
   <a class="logo" href="./"><span class="mark" aria-hidden="true" data-no-mirror style="--m: url(brand/mark.svg)"></span>Knos</a>
-  <details class="kmenu"><summary>{{menu}}</summary><div class="kmenu-panel"><p class="kgoal">{{goal}}</p><nav aria-label="Pages"><a href="prove/">{{nav.papers}}</a><a href="labs/">{{nav.labs}}</a></nav></div></details>
+  <details class="kmenu"><summary>{{menu}}</summary><div class="kmenu-panel"><nav aria-label="Pages"><a href="prove/">{{nav.papers}}</a></nav></div></details>
 </header>
 <main>
-  <section class="door" id="tool" data-tool="limit-check" aria-labelledby="t-title">
-    <!-- the headline is the box's label, so the screen's largest text is the box's own (UX/U1.md line 74) -->
+  <section class="door" id="tool" data-tool="limit-check" aria-labelledby="k-name">
+    <!-- the headline is the box's label, so the screen's largest text is the box's own (UX/U1.md line 74). L01: the first
+         screen holds one box, one button and the language control (U3 Rule 1a), about 12 words (L02) -->
     <h1><label for="list" id="k-name">{{door.headline}}</label></h1>
     <p class="who" id="k-offline" role="status" hidden>{{offline.line}}</p>
     <!-- with no script the box is a plain form the server runs (POST /t/limit-check/run answers with the result page) -->
     <form id="form" method="post" action="https://knos.onrender.com/t/limit-check/run"><input type="hidden" name="column" value="capacity_ah" dir="auto">
       <div class="field" id="own" hidden><label for="file">{{tool.choose_file}}</label><input id="file" type="file" dir="auto" accept=".csv,text/csv,text/plain"></div>
-      <button class="go" id="try" type="submit" data-primary><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>{{tool.try}}</button>
-      <label for="list" id="list-label">{{@tool.sample_label}}</label>
-      <textarea id="list" name="table" rows="4" dir="auto" wrap="off" spellcheck="false" autocomplete="off" data-sample></textarea>
+      <!-- L22: an arrow inside the button (no hand emoji) -->
+      <button class="go" id="try" type="submit" data-primary>{{door.go}}<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      <label for="list" id="list-label" hidden>{{@tool.sample_label}}</label>
+      <div id="boxwrap"><textarea id="list" name="table" rows="3" dir="auto" wrap="off" spellcheck="false" autocomplete="off" placeholder="{{tool.paste}}"></textarea><button id="speak" type="button" hidden>{{ask.speak}}</button></div>
+      <template id="k-sample" data-sample></template>
       <div class="field" id="which" hidden><label for="col">{{tool.which}}</label><select id="col" dir="auto"></select></div>
-      <p class="rule"><span id="colname">{{tool.sample_column}}</span> <span id="rule-shown"><span>{{rule.above}}</span> <bdi data-no-mirror>1.4</bdi></span><span class="rule" id="rule-edit" hidden><label for="rule">{{tool.rule_label}}</label> <select id="rule" name="rule" aria-label="{{tool.rule_label}}"><option value="above" selected>{{rule.above}}</option><option value="below">{{rule.below}}</option></select> <label for="limit">{{tool.limit_label}}</label> <input id="limit" name="limit" dir="auto" inputmode="decimal" autocomplete="off" aria-label="{{tool.limit_label}}" value="1.4"></span></p>
+      <p class="rule" id="rule-line" hidden><span id="colname">{{tool.sample_column}}</span> <span id="rule-shown"><span>{{rule.above}}</span> <bdi data-no-mirror>1.4</bdi></span><span class="rule" id="rule-edit" hidden><label for="rule">{{tool.rule_label}}</label> <select id="rule" name="rule" aria-label="{{tool.rule_label}}"><option value="above" selected>{{rule.above}}</option><option value="below">{{rule.below}}</option></select> <label for="limit">{{tool.limit_label}}</label> <input id="limit" name="limit" dir="auto" inputmode="decimal" autocomplete="off" aria-label="{{tool.limit_label}}" value="1.4"></span></p>
       <p class="who" id="limits" hidden></p>
     </form>
-    <!-- the tool's name and who it is for, under the box and Check my data: above the box stands only the headline
-         (U4.md line 76: at most one text block above the main input) -->
-    <h2 id="t-title">{{tool.title}}</h2>
-    <p class="who" id="who">{{tool.line}}</p>
     <p class="state" id="state" role="status" aria-live="polite" data-state="idle" data-status hidden><span class="spin" id="spin" aria-hidden="true" hidden></span><span id="step"></span> <span id="rows" hidden></span><span class="bar" id="bar" role="progressbar" aria-label="{{work.bar}}" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0" hidden><span id="bar-fill"></span></span><button id="stop" type="button" hidden>{{stop}}</button></p>
-    <div class="err" id="err" role="alert" hidden><p id="err-text"></p><button id="err-next" type="button"></button></div>
+    <div class="err" id="err" role="alert" data-must-understand hidden><p id="err-text"></p><button id="err-next" type="button"></button></div>
+    <!-- the answer to a question, a claim's name, a paper's link or a pull request's link (L01) -->
+    <div class="out" id="ask-out" aria-live="polite" hidden></div>
     <div class="result" id="result" aria-live="polite" hidden>
       <p class="about" id="about" data-verdict data-answer></p>
       <p id="reason" data-reason data-uncertain="true" hidden></p>
@@ -170,8 +207,10 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
       <p id="shown">{{res.shown_by cases=14}}</p>
       <div class="acts"><button id="mine" type="button" data-followup>{{res.mine}}</button><button id="change" type="button" data-followup data-next-step>{{res.change_limit}}</button><button id="copy" type="button">{{res.copy}}</button></div>
       <p id="copied-by-hand" hidden>{{res.by_hand}} <input id="link-text" readonly dir="auto" aria-label="{{res.link_label}}"></p>
-      <p id="optin" hidden>{{res.count_q}} <button id="optin-yes" type="button">{{yes}}</button> <button id="optin-no" type="button">{{no}}</button></p>
-      <details class="how" id="how"><summary>{{how}}</summary>{{@five}}<ol>
+      <!-- L38: one optional question, only after the second result, one at a time; answers are counts with no id -->
+      <div class="acts" id="k-q" hidden></div>
+      <p id="optin" data-must-understand hidden>{{res.count_q}} <button id="optin-yes" type="button">{{yes}}</button> <button id="optin-no" type="button">{{no}}</button></p>
+      <details class="how" id="how"><summary>{{how}}</summary><h2 id="t-title">{{tool.title}}</h2><p class="who" id="who">{{tool.line}}</p>{{@five}}<ol>
         <li>{{@fold.sample first=1.86 last=1.29 cycles=168 limit=1.4}}</li>
         <li>{{fold.column column=capacity_ah}}</li>
         <li>{{fold.not_do}}</li>
@@ -187,28 +226,41 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
     </div>
     <section class="pay" id="pay" aria-labelledby="pay-h" hidden>
       <h2 id="pay-h">{{pay.headline runs=20 price=1}}</h2>
-      <p id="pay-line">{{pay.line}}</p>
+      <p id="pay-line" data-must-understand>{{pay.line}}</p>
       <div class="acts" id="pay-ask"><button class="go" id="pay-go" type="button">{{pay.go}}</button><button id="pay-no" type="button">{{pay.not_now}}</button></div>
       <div id="pay-confirm" hidden>
-        <p id="pay-what">{{pay.confirm runs=20 price=1}}</p>
+        <p id="pay-what" data-must-understand>{{pay.confirm runs=20 price=1}}</p>
         <div class="acts"><button class="go" id="pay-yes" type="button">{{pay.yes}}</button><button id="pay-back" type="button">{{pay.not_now}}</button></div>
       </div>
       <p id="pay-said" role="status"></p>
     </section>
   </section>
-  <!-- the question box opens in a fold: one input on the screen, the table's box (UX/U7.md line 301) -->
-  <details class="below" id="ask-box">
-    <summary><h2 id="ask-h">{{ask.h}}</h2></summary>
-    <form id="ask">
-      <input id="paper" name="paper" dir="auto" placeholder="{{ask.ph}}" aria-label="{{ask.label}}" autocomplete="off" spellcheck="false">
-      <button id="speak" type="button" hidden>{{ask.speak}}</button>
-      <button class="ask-btn" id="go" type="submit">{{ask.go}}</button>
-    </form>
-    <button class="sample" id="sample" type="button">{{ask.sample}}</button>
-    <div class="chips" id="mine-q" hidden></div>
-    <div class="out" id="ask-out" aria-live="polite"></div>
-    <p class="cost">{{ask.cost low=330 high=763}}</p>
-  </details>
+  <!-- L34: the product video, recorded from the local product by bench/video/capture.mjs (times in media/capture.json) -->
+  <p class="vid" id="k-video"><a href="media/knos-demo.mp4" type="video/mp4">{{door.video}}</a></p>
+  <!-- L11: three exact live numbers, each a link to its public record, read by this browser from NEAR testnet (the jobs
+       contract's get_totals and get_agent_record); a number not read shows nothing. The uptime line reads the checks kept
+       on the gh-pages branch (uptime.jsonl); the lost line the claim record's counters (data/counters.json). -->
+  <section class="live" id="k-live" aria-labelledby="k-live-h">
+    <h2 id="k-live-h" hidden>{{live.h}}</h2>
+    <ul><li><a id="k-paid" data-live="paid" href="https://testnet.nearblocks.io/address/jobs.knos-swarm-1105.testnet"></a></li>
+      <li><a id="k-settled" data-live="settled" href="https://testnet.nearblocks.io/address/jobs.knos-swarm-1105.testnet?tab=txns"></a></li>
+      <li><a id="k-tried" data-live="tried" href="https://testnet.nearblocks.io/address/jobs.knos-swarm-1105.testnet?tab=txns"></a></li></ul>
+    <p class="fact" id="k-up"></p><p class="fact" id="k-lost"></p>
+  </section>
+  <!-- L22: a wordless loop of 6 s: test money goes out, three helpers try, the money lands on the one whose work passed.
+       It runs while on the screen, with a pause control (WCAG 2.2.2); with reduced motion nothing moves -->
+  <section class="loop" id="k-loop" aria-labelledby="k-loop-h">
+    <h2 id="k-loop-h">{{loop.h}}</h2>
+    <svg viewBox="0 0 360 120" role="img" aria-label="{{loop.label}}" data-no-mirror>
+      <rect class="try t1" x="300" y="8" width="40" height="28" rx="6"/><rect class="try t2" x="300" y="46" width="40" height="28" rx="6"/><rect class="try t3" x="300" y="84" width="40" height="28" rx="6"/>
+      <circle class="pass" cx="320" cy="60" r="8"/>
+      <circle class="coin" cx="20" cy="60" r="14"/>
+    </svg>
+    <button type="button" id="k-loop-btn">{{loop.pause}}</button>
+  </section>
+  <!-- L28: the licence in one plain line and one button, with the star count the repository had when this page was built -->
+  <p class="mit" id="k-mit"><span>{{door.mit}}</span><a id="k-fork" href="https://github.com/drexthealpha/Knos/fork">{{door.fork}}</a><span id="k-stars" hidden></span></p>
+  <div class="chips" id="mine-q" hidden></div>
 </main>
 <footer>
   <p class="fline">{{foot.door}}</p>
@@ -227,7 +279,22 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
   const $ = (id) => document.getElementById(id);
   const box = $("list"), tryBtn = $("try"), state = $("state"), step = $("step"), stopBtn = $("stop"), res = $("result"), err = $("err"), pay = $("pay"), bar = $("bar");
   const r1 = (x) => String(Math.round(x * 10) / 10);   // a chart coordinate, one decimal
-  const SAMPLE = box.defaultValue, SAMPLE_COLUMN = $("form").elements.column.value;   // the file's own column name; the rule line says it in plain words (F1B)
+  const SAMPLE = $("k-sample").content.textContent, SAMPLE_COLUMN = $("form").elements.column.value;   // the file's own column name; the rule line says it in plain words (F1B)
+  // L01: what is in the box is read here. A table (two rows or more, a comma between cells, a number in a row under the
+  // first) runs the limit check; anything else is a question, a claim's name or a link, answered by the claims registry
+  // below (window.knosAsk). The sample is the one example: an empty box checks it.
+  const same = (a, b) => String(a).replace(/\r\n?/g, "\n").trim() === String(b).replace(/\r\n?/g, "\n").trim();
+  const isTable = (text) => { const rows = rowsOf(String(text)); return rows.length >= 2 && rows.some((r) => r.length >= 2) && rows.slice(1).some((r) => r.some((c) => DATA.test(c.trim()))); };
+  // the sample in the box: its label and its rule line are shown, as they say what the sample is checked against
+  const sampleOn = () => { show($("list-label"), true); show($("rule-line"), true); box.classList.remove("q"); };
+  // what the box holds decides what the screen shows under it: a table its rule line (and, for your own, its controls)
+  function kind() {
+    const t = box.value, table = t.trim() !== "" && isTable(t);
+    box.classList.toggle("q", t.trim() !== "" && !table);
+    if (!table) { if (!mineOn) { show($("rule-line"), false); show($("list-label"), false); } return; }
+    if (same(t, SAMPLE)) { sampleOn(); return; }
+    if (!mineOn) { ownOn(); fillColumns(); }
+  }
   // with no network the page is the copy kept by web/sw.js: one line says so, in the page's language
   const offline = () => { $("k-offline").hidden = navigator.onLine !== false; };
   offline(); addEventListener("online", offline); addEventListener("offline", offline);
@@ -309,6 +376,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
     clearInterval(stopWorking.tick); clearTimeout(stopWorking.later);
     show(state, false); show($("spin"), false); show(stopBtn, false); show(bar, false); show($("rows"), false); $("rows").removeAttribute("data-partial");
     state.dataset.state = "idle"; tryBtn.removeAttribute("aria-disabled"); tryBtn.removeAttribute("aria-busy"); ctl = null;
+    document.documentElement.classList.remove("k-busy");
   }
   // the rows of the table the program will check (its header row by the program's rule): the first part of the answer
   // that exists before the server's, shown at once (U1 R12: partial results as soon as they exist)
@@ -321,6 +389,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
     // the seconds against the run's own time limit, and Stop (U6 Rule 6, U1 R3 and R13). The button keeps its focus.
     step.textContent = T("work.sending");
     show(err, false); show(res, false); show(state, true); state.dataset.state = "working";
+    document.documentElement.classList.add("k-busy");
     // the table is read once the first change is on the screen
     requestAnimationFrame(() => setTimeout(() => { if (state.dataset.state !== "working") return;
       const rows = $("rows"); rows.textContent = T("work.rows", { n: dataRows(table) }); rows.dataset.partial = ""; show(rows, true); }, 0));
@@ -352,16 +421,23 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
     if (ctl) return;
     // a box a verdict emptied, untouched since: Check my data checks the table just checked again; one the person emptied is empty
     const again = fresh && !box.value.trim() && kept;
-    const table = again ? kept.table : box.value, column = again && kept.col ? kept.col : mineOn ? $("col").value : SAMPLE_COLUMN, rule = $("rule").value, limit = KI.num($("limit").value);
+    // L01: an empty box checks the one example; a question or a link goes to the claims registry
+    const example = !again && !box.value.trim() && !mineOn;
+    if (example) requestAnimationFrame(() => setTimeout(() => { if (state.dataset.state === "working" && !box.value.trim()) { box.value = SAMPLE; sampleOn(); } }, 0));   // the box shows the example once the press is answered (U1 R3)
+    else if (!again && box.value.trim() && !isTable(box.value)) { show(res, false); show(err, false); if (window.knosAsk) window.knosAsk(box.value.trim()); return; }
+    show($("ask-out"), false);
+    const table = again ? kept.table : example ? SAMPLE : box.value, column = again && kept.col ? kept.col : mineOn ? $("col").value : SAMPLE_COLUMN, rule = $("rule").value, limit = KI.num($("limit").value);
     if (again) { box.value = table; fresh = false; }   // the table goes back in the box while it runs, so an error keeps it there
     if (!table.trim()) { fail(T("err.empty"), "back"); return; }
     if (!num(limit)) { fail(T("err.limit"), "limit"); return; }
-    const mode = table === SAMPLE ? "sample" : "own";
+    const mode = same(table, SAMPLE) ? "sample" : "own";
+    const sent = mode === "sample" ? SAMPLE : table;
+    run.table = table;   // the table this run checks, kept when the verdict empties the box
     sentColumn = column;
     firstAction();
     const t0 = performance.now(), mine = new AbortController(); ctl = mine;
     working(t0, table);
-    const body = { id: TOOL, table, column, rule, limit: Number(limit), mode, browser: counted() ? browserId(true) : "", runs: runsId(), test: TEST };
+    const body = { id: TOOL, table: sent, column, rule, limit: Number(limit), mode, browser: counted() ? browserId(true) : "", runs: runsId(), test: TEST };
     let r = null, j = null;
     try {
       r = await fetch(HOSTED + "/api/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: mine.signal, credentials: "omit" });
@@ -385,7 +461,8 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
   let kept = null, fresh = false;   // fresh: the box was emptied by a verdict and not touched since
   function result(j) {
     last = j; limits = j.limits || limits;
-    if (box.value.trim()) { kept = { table: box.value, col: mineOn ? $("col").value : "" }; box.value = ""; fresh = true; $("list-label").textContent = T("tool.paste"); }
+    const was = box.value.trim() ? box.value : run.table || "";
+    if (was.trim()) { kept = { table: was, col: mineOn ? $("col").value : "" }; box.value = ""; fresh = true; if (!mineOn) show($("list-label"), false); }
     $("about").innerHTML = KI.sentence(j.result);
     // the verdict's state as the server gives it, else from the first failing row and the rows passed; "I cannot check"
     // (no row has a number) is a verdict Knos cannot give (U6 Rule 15)
@@ -409,6 +486,24 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
     $("embed-line").value = `<iframe src="${base}/r/${rid}/mark" width="360" height="180" style="border:0" title="${KI.esc(T("embed.title"))}" loading="lazy"></iframe>`;
     show($("original"), KI.lang() !== "en"); $("original").textContent = T("fold.original", { text: j.result });
     show(res, true);
+    if (survey.last !== j) { survey.last = j; survey(); }   // a new result, not the same one drawn again in another language
+  }
+  // L38 (IQ PLAN.md): after the second result in this browser, one optional question at a time (never before the first
+  // result); an answer is sent as a count (POST /api/survey, no id) and each question is asked once
+  const QS = [["again", ["yes", "no"]], ["without", ["yes", "no"]], ["disappointed", ["survey.very", "survey.somewhat", "survey.not"]], ["rank", ["survey.r_file", "survey.r_paper", "survey.r_pr"]]];
+  const ASK = { again: () => T("survey.again"), without: () => T("survey.without"), disappointed: () => T("survey.disappointed"), rank: () => T("survey.rank") };   // each question's key written out
+  function survey() {
+    const q = $("k-q"); q.hidden = true;
+    let n = 0, done = {}; try { n = Number(localStorage.getItem("knos.results") || 0) + 1; localStorage.setItem("knos.results", String(n)); done = JSON.parse(localStorage.getItem("knos.survey") || "{}"); } catch { return; }
+    if (n < 2) return;
+    const next = QS.find(([k]) => !done[k]); if (!next) return;
+    const [key, answers] = next, mark = (a) => { done[key] = a || "skip"; try { localStorage.setItem("knos.survey", JSON.stringify(done)); } catch { /* no storage */ } };
+    const say = Object.assign(document.createElement("p"), { textContent: ASK[key]() });
+    const btn = (label, a) => Object.assign(document.createElement("button"), { type: "button", textContent: T(label), onclick: () => { mark(a);
+      if (a) fetch(HOSTED + "/api/survey", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ q: key, a, test: TEST }), credentials: "omit", keepalive: true }).catch(() => { /* not counted */ });
+      q.replaceChildren(Object.assign(document.createElement("p"), { textContent: a ? T("survey.thanks") : "" })); } });
+    q.replaceChildren(say, ...answers.map((l) => btn(l, l.replace(/^survey\./, ""))), btn("survey.skip", ""));
+    q.hidden = false;
   }
   KI.changed(() => { if (last && !res.hidden) result(last); if (offer && !pay.hidden) payText(offer); });
   function payText(p) {
@@ -457,14 +552,14 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
   function ownOn() {
     mineOn = true; editOn();
     show($("own"), true); show($("which"), true); show($("colname"), false);
-    $("list-label").textContent = T("tool.paste");
+    $("list-label").textContent = T("tool.paste"); show($("list-label"), true); show($("rule-line"), true); box.classList.remove("q");
     if (limits && limits.max_rows != null && limits.max_seconds != null) {
       $("limits").textContent = T("tool.lim_rows", { n: limits.max_rows }) + " " + T("tool.lim_secs", { n: limits.max_seconds });
       show($("limits"), true);
     }
   }
   $("mine").addEventListener("click", () => {
-    ownOn(); box.value = ""; $("limit").value = ""; kept = null; fresh = false;
+    ownOn(); box.value = ""; $("limit").value = ""; kept = null; fresh = false; box.classList.remove("q");
     fillColumns();
     show(res, false); show(err, false); show(state, false);
     $("file").focus();
@@ -474,9 +569,9 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
   $("file").addEventListener("change", () => {
     const f = $("file").files[0]; if (!f) return;
     if (how !== "pasted") how = "pasted";   // a file put in whole, as a paste is
-    const r = new FileReader(); r.onload = () => { box.value = String(r.result); fillColumns(); draftSave(); }; r.readAsText(f);
+    const r = new FileReader(); r.onload = () => { box.value = String(r.result); kind(); fillColumns(); draftSave(); }; r.readAsText(f);
   });
-  box.addEventListener("input", () => { fresh = false; if (mineOn) fillColumns(); });
+  box.addEventListener("input", () => { fresh = false; kind(); if (mineOn) fillColumns(); });
   box.addEventListener("focus", () => { fresh = false; });   // a person who goes into the empty box means an empty one
   // section 12 of the plain-language spec: going back or forward (or a reload) keeps the request typed in this tab, sent
   // or not, and from the pay screen too; kept for this tab only (sessionStorage), and a page without storage still works
@@ -493,7 +588,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
     if (!d || typeof d.table !== "string") return;
     if (d.mine && !mineOn) ownOn();
     if (d.rule !== "above" || String(d.limit) !== $("limit").defaultValue) editOn();
-    box.value = d.table;
+    box.value = d.table; kind();
     if (mineOn) { fillColumns(); if ([...$("col").options].some((o) => o.value === d.col)) $("col").value = d.col; }
     if ([...$("rule").options].some((o) => o.value === d.rule)) $("rule").value = d.rule;
     $("limit").value = String(d.limit == null ? "" : d.limit);
@@ -501,7 +596,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
   draftLoad();
   addEventListener("pageshow", (e) => { if (e.persisted) draftLoad(true); });
   // the table sent from the pricing or status page's box (their Check my data), read once
-  try { const h = sessionStorage.getItem("knos.handoff"); if (h !== null) { sessionStorage.removeItem("knos.handoff"); if (h.trim()) box.value = h; } } catch { /* no storage */ }
+  try { const h = sessionStorage.getItem("knos.handoff"); if (h !== null) { sessionStorage.removeItem("knos.handoff"); if (h.trim()) { box.value = h; kind(); } } } catch { /* no storage */ }
   for (const [el, ev] of [[box, "input"], [$("col"), "change"], [$("rule"), "change"], [$("limit"), "input"]]) el.addEventListener(ev, draftSave);
   tryBtn.addEventListener("click", draftSave);
   window.addEventListener("pagehide", draftSave);
@@ -540,8 +635,9 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
 })();
 </script>
 <script>
-// THE QUESTION BOX (unchanged, below the first screen): a question or a paper's link, answered from the claims Knos has
-// proved on NEAR testnet (written in at build time) and the live server
+// THE ANSWERS (L01): a question, a claim's name, a paper's link or a pull request's link typed into the one box, answered
+// from the claims Knos has checked by a locked test on NEAR testnet (written in at build time) and the live server.
+// The box's own script (above) sends here everything that is not a table (window.knosAsk).
 (() => {
   const HOSTED = "https://knos.onrender.com", T = KI.t;
   const CLAIMS = /*CLAIMS*/[]/*END*/;   // the claims registry, written at build time by scripts/site_pages.py
@@ -550,6 +646,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
   const link = (href, text, cls) => el("a", { href, textContent: text, className: cls || "", target: href.startsWith("http") ? "_blank" : "", rel: "noopener" });
   const json = (u, opt) => fetch(u, opt).then((r) => r.ok ? r.json() : null).catch(() => null);
   const secs = (ms) => KF.number(ms / 1000, KI.lang(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });   // web/i18n/format.js
+  const put = (...kids) => { out.replaceChildren(...kids); out.hidden = false; };
   // the state of every claim: the site's own file at once, then the live server
   let board = null;
   const boardFile = json("data/board.json").then((b) => { if (b && b.claims && !board) board = b; });
@@ -561,8 +658,11 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
   const words = (s) => String(s || "").toLowerCase().normalize("NFKD").replace(/[^a-z0-9.]+/g, " ").split(" ").filter((w) => w.length > 2);
   const STOP = new Set(words("the and for with does what how can are was this that from into its claim paper papers research about"));
   const src = (c) => c.doi ? "https://doi.org/" + c.doi : c.arxiv ? "https://arxiv.org/abs/" + c.arxiv : c.url || "";   // the claim's source link
+  const PR = /^https?:\/\/github\.com\/[\w.-]+\/[\w.-]+\/pull\/\d+\/?(?:[#?].*)?$/i;
   function match(text) {
     const s = text.trim(), id = s.toLowerCase().replace(/^https?:\/\/(dx\.)?doi\.org\//, "").replace(/^doi:/, "").replace(/^https?:\/\/arxiv\.org\/(abs|pdf)\//, "arxiv:").replace(/v\d+$/, "");
+    if (PR.test(s)) return { pr: s };
+    for (const c of CLAIMS) if (s.toLowerCase() === c.name) return { c, by: "name" };   // a claim's own name, as its page shows it
     for (const c of CLAIMS) if ((c.doi && id === c.doi.toLowerCase()) || (c.arxiv && id === "arxiv:" + c.arxiv) || (c.url && s.toLowerCase().replace(/\/$/, "") === c.url.toLowerCase().replace(/\/$/, ""))) return { c, by: "paper" };
     if (/^https?:|^10\.\d|^arxiv:/i.test(s)) return null;   // a paper Knos has no claim for: the server says what a check would cost
     const q = new Set(words(s).filter((w) => !STOP.has(w)));
@@ -570,7 +670,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
     for (const c of CLAIMS) { const k = new Set(words([c.name.replace(/-/g, " "), c.title, c.plain, c.quote, c.paper, c.authors].join(" "))), name = new Set(words(c.name.replace(/-/g, " ")));
       let n = 0; for (const w of q) if (k.has(w)) n += name.has(w) ? 2 : 1;   // the claim's own name counts double
       if (n > top) { top = n; best = c; } }
-    if (top < 2) return { none: true };
+    if (top < 2) return { none: true, best: top > 0 ? best : null };
     // a word or number of the question that the claim does not have: the answer is the closest proved claim, not a yes to the question
     const st = (w) => w.replace(/s$/, "").replace(/e$/, ""), own = new Set(words([best.name.replace(/-/g, " "), best.title, best.plain, best.quote, best.paper].join(" ")).map(st)),
       key = words(best.name.split("-")[0])[0], miss = [...q].filter((w) => !own.has(st(w)) && (w.length > 3 || /\d/.test(w)));
@@ -582,24 +682,30 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
     const m = (board && board.claims && board.claims[c.name]) || {}, last = live || m.last_proof && { holds: true, job: m.last_proof };
     const holds = last ? last.holds !== false : null, out7 = m.demand && m.demand.behind_usd != null ? +m.demand.behind_usd : null,
       behind = out7 != null ? T("ask.behind", { amount: KF.number(out7, KI.lang(), { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }) : "";
-    // plain words above the fold (the PLAIN-WORDS rule); the test's file, the record and the way to run the check
-    // yourself inside a closed How it works fold, none of them a primary control (Check my data is the screen's one)
-    // R13 WALK 2: the claim's plain title on the screen; its exact sentence, with its numbers, only in the closed fold
+    // plain words above the fold: what is proved and how much is behind it; the locked test, the record and the way to run
+    // the check yourself inside a closed How it works fold
     const fold = el("details", { className: "how" }, [el("summary", { textContent: T("how") }),
       el("p", {}, [en(c.plain)]),
-      ...(behind ? [el("p", { textContent: behind + "." })] : []),
       el("p", {}, [link(`https://github.com/drexthealpha/Knos/blob/main/near/agents/job/${c.test}`, c.test), holds != null && last.job ? link(last.record || `claim/${c.name}/`, last.job) : ""]),
       el("p", {}, [link("prove/#paper=" + encodeURIComponent(src(c)), T("ask.prove")), link(`claim/${c.name}/`, T("ask.claim"))])]);
-    out.replaceChildren(
+    put(
       ...(near ? [el("p", { className: "near", textContent: T("ask.closest") })] : []),
-      el("p", { className: "verdict", textContent: holds === true ? T(near ? "ask.holds_near" : "ask.holds") : holds === false ? T("ask.fails") : T("ask.not_yet") }),
+      el("p", { className: "verdict", "data-answer": "", textContent: holds === true ? T(near ? "ask.holds_near" : "ask.holds") : holds === false ? T("ask.fails") : T("ask.not_yet") }),
       el("p", {}, [en(`${c.title}. ${c.authors}, ${c.year}.`), " ", holds != null && last.job ? T("ask.proved") : T("ask.locked")]),
+      ...(behind ? [el("p", { textContent: behind + "." })] : []),
       notWhat(), fold);
   }
-  function none(text) {
-    out.replaceChildren(el("p", { className: "verdict", textContent: T("ask.none") }),
+  // no record matches: never an error, the nearest records and a way to have it proved
+  function none(text, best) {
+    const near = best ? [best, ...CLAIMS.filter((c) => c !== best)] : CLAIMS;
+    put(el("p", { className: "verdict", "data-answer": "", textContent: T("ask.none") }),
       el("p", { textContent: T("ask.none_line", { n: CLAIMS.length, q: text.slice(0, 60) }) }),
-      el("p", {}, CLAIMS.map((c) => el("button", { type: "button", className: "sample", lang: "en", textContent: c.title, onclick: () => ask(c.title, true) }))), notWhat());
+      el("p", {}, near.slice(0, 3).map((c) => el("button", { type: "button", className: "sample", lang: "en", textContent: c.title, onclick: () => ask(c.title, true) }))),
+      el("p", {}, [link("prove/" + (/^https?:|^10\.\d|^arxiv:/i.test(text) ? "#paper=" + encodeURIComponent(text) : ""), T("ask.prove_it"), "prove-it")]), notWhat());
+  }
+  function pr(url) {
+    put(el("p", { className: "verdict", "data-answer": "", textContent: T("ask.pr") }),
+      el("p", {}, [link("check/#check=" + url, T("ask.pr_go"))]));
   }
   function notWhat() {   // T8: "Not what I need" under each answer; one tap, then an optional word of why
     const b = el("button", { type: "button", className: "nw", textContent: T("ask.notwhat") });
@@ -613,45 +719,43 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
     return el("p", { className: "nw-row" }, [b]);
   }
   let asked = 0;   // only the newest question's answer is shown: a slow answer to an earlier one is dropped
+  const go = $("try");
   async function ask(text, exact) {
-    $("paper").value = text;
-    const go = $("go"), t0 = performance.now(), m = match(text), mine = ++asked;
+    const t0 = performance.now(), m = match(text), mine = ++asked;
+    if (m && m.pr) { remember(text, ""); pr(m.pr); return; }
     if (m && m.c) {
       remember(text, m.c.name);
       // something visible at once, then one frame for the browser to paint it before the answer is built
-      out.replaceChildren(el("p", { textContent: T("ask.reading_near") }));
+      put(el("p", { textContent: T("ask.reading_near") }));
       await new Promise((res) => requestAnimationFrame(() => setTimeout(res, 0)));
-      if (!board) await Promise.race([boardFile, new Promise((res) => setTimeout(res, 1500))]);
+      if (!board) await Promise.race([boardFile, new Promise((res) => setTimeout(res, 1200))]);
       if (mine !== asked) return;
       if (board && board.claims) { answer(m.c, null, m.near && !exact); return; }   // the site's own board file, or else the server's last proof of this claim
       const r = await json(HOSTED + "/api/near/claim/look", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: src(m.c) }) });
       if (mine === asked) answer(m.c, r && r.last, m.near && !exact);
       return;
     }
-    if (m && m.none) { remember(text, ""); none(text); return; }
-    go.disabled = true; $("sample").disabled = true;
-    const p = el("p", { textContent: T("ask.reading_paper", { s: "0.0" }) }); out.replaceChildren(p);
+    if (m && m.none) { remember(text, ""); none(text, m.best); return; }
+    go.disabled = true;
+    const p = el("p", { textContent: T("ask.reading_paper", { s: "0.0" }) }); put(p);
     const tick = setInterval(() => { p.textContent = T("ask.reading_paper", { s: secs(performance.now() - t0) }); }, 100);
     const r = await json(HOSTED + "/api/near/claim/look", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: text }) });
-    clearInterval(tick); go.disabled = false; $("sample").disabled = false;
+    clearInterval(tick); go.disabled = false;
     if (mine !== asked) return;
-    if (!r || !r.ok) { out.replaceChildren(el("p", { className: "verdict", textContent: T("ask.not_read") }), el("p", {}, [T("ask.no_answer") + " ", el("button", { type: "button", className: "ask-btn", textContent: T("btn.retry"), onclick: () => ask(text) })])); return; }
+    if (!r || !r.ok) { none(text, null); return; }
     if (r.known) { const c = CLAIMS.find((x) => x.name === r.name); if (c) { remember(text, c.name); answer(c, r.last); return; } }
     const q = r.quote || {};
     remember(text, "");
-    out.replaceChildren(el("p", { className: "verdict", textContent: T("ask.cannot") }),
+    put(el("p", { className: "verdict", "data-answer": "", textContent: T("ask.cannot") }),
       el("p", {}, [r.title ? en(r.title + ". ") : "", T("ask.person", { checker: q.checker || T("ask.someone"), price_text: q.price || T("ask.unpublished"), time: q.time || T("ask.unpublished") })]),
       el("p", {}, [link(q.source || "prove/", T("ask.source"))]));
   }
-  $("ask").addEventListener("submit", (e) => { e.preventDefault(); const v = $("paper").value.trim(); if (!v) { $("sample").click(); return; } ask(v); });
-  // the sample question is a claim's plain English title (R13 WALK 2: no word to look up), so it matches the claims registry
-  const SAMPLE_Q = (CLAIMS.find((c) => c.name === "hyperloglog") || CLAIMS[0] || {}).title || "";
-  $("sample").addEventListener("click", () => ask(SAMPLE_Q, true));
-  // Speak (H3 b): the browser's own speech recognition fills the box, in the screen's language; not shown where the
-  // browser has none, and no outside service
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition, speak = $("speak");
+  window.knosAsk = (text) => ask(text, false);
+  // Speak (H3 b): the browser's own speech recognition fills the box with editable text, in the screen's language; the
+  // text is sent only when Check is pressed. Not shown where the browser has none, and no outside service
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition, speak = $("speak"), box = $("list");
   if (SR) {
-    speak.hidden = false;
+    box.addEventListener("focus", () => { speak.hidden = false; });
     let rec = null, busy = false;
     speak.addEventListener("click", () => {
       if (rec) { rec.stop(); return; }
@@ -662,15 +766,69 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
         busy = false;
         try {
           rec = new SR(); rec.lang = KI.speech(); rec.interimResults = false; rec.maxAlternatives = 1;
-          rec.onresult = (e) => { const said = e.results && e.results[0] && e.results[0][0] ? e.results[0][0].transcript : ""; if (said) { $("paper").value = said; $("paper").focus(); } };
+          rec.onresult = (e) => { const said = e.results && e.results[0] && e.results[0][0] ? e.results[0][0].transcript : ""; if (said) { box.value = said; box.dispatchEvent(new Event("input")); box.focus(); } };
           rec.onend = rec.onerror = () => { rec = null; speak.textContent = T("ask.speak"); };
           rec.start();
         } catch (e) { rec = null; speak.textContent = T("ask.speak"); }
       }, 0));
     });
   }
-  // a second visit starts where the first ended: the visitor's last questions, from this browser
-  if ((mem.asked || []).length) { $("mine-q").hidden = false; $("mine-q").replaceChildren(...mem.asked.slice(0, 3).map((x) => el("button", { type: "button", dir: "auto", textContent: x.q.length > 40 ? x.q.slice(0, 40).replace(/\s+\S*$/, "") + "..." : x.q, title: x.q, onclick: () => ask(x.q) }))); }
+  // a second visit starts where the first ended: the visitor's last questions, from this browser (below the first screen)
+  if ((mem.asked || []).length) { $("mine-q").hidden = false; $("mine-q").replaceChildren(...mem.asked.slice(0, 3).map((x) => el("button", { type: "button", dir: "auto", textContent: x.q.length > 40 ? x.q.slice(0, 40).replace(/\s+\S*$/, "") + "..." : x.q, title: x.q, onclick: () => { $("list").value = x.q; $("list").dispatchEvent(new Event("input")); ask(x.q); } }))); }
+})();
+</script>
+<script>
+// L11: the three live numbers, read from NEAR testnet by the Knos server (the jobs contract's own views, get_totals and
+// get_agent_record, kept a minute), so this browser asks only Knos; a number that is not read leaves its slot empty.
+// L22: the loop's pause control and the pointer, once per visitor.
+(() => {
+  const T = KI.t, $ = (id) => document.getElementById(id), JOBS = "jobs.knos-swarm-1105.testnet";
+  const HOSTED = "https://knos.onrender.com";
+  const getJSON = (path) => fetch(HOSTED + path, { cache: "no-store", signal: AbortSignal.timeout(8000) }).then((r) => r.ok ? r.json() : Promise.reject(new Error("not read")));
+  const n2 = (x) => KF.number(x, KI.lang(), { minimumFractionDigits: 2, maximumFractionDigits: 2 }), n0 = (x) => KF.number(x, KI.lang());
+  let shown = null;
+  const draw = () => { if (!shown) return; $("k-live-h").hidden = !(shown.paid != null || shown.settled != null || shown.tried != null || shown.up || shown.lost != null);
+    if (shown.paid != null) $("k-paid").textContent = T("live.paid", { amount: n2(shown.paid) });
+    if (shown.settled != null) $("k-settled").textContent = T("live.settled", { n: shown.settled });
+    if (shown.tried != null) $("k-tried").textContent = T("live.tried", { n: shown.tried });
+    if (shown.up) $("k-up").textContent = T("live.up", { up: n0(shown.up[0]), all: n0(shown.up[1]) });
+    if (shown.lost != null) $("k-lost").textContent = T("live.lost", { amount: n2(shown.lost) }); };
+  KI.changed(draw);
+  const live = $("k-live");
+  const read = async () => {
+    shown = {};
+    getJSON("/api/near/totals").then((t) => {
+      const c = t.since_upgrade; if (!c || c.contract !== JOBS) return;
+      shown.paid = +c.paid_usd; shown.settled = +c.jobs_paid; if (c.tried != null) shown.tried = +c.tried;
+      draw();
+    }).catch(() => { /* the slots stay empty */ });
+    getJSON("/api/uptime").then((u) => { if (u.all > 0) { shown.up = [u.up, u.all]; draw(); } }).catch(() => { /* no line */ });
+    fetch("data/counters.json").then((r) => r.ok ? r.json() : null).then((c) => { if (c && c.lost_usd != null && Number.isFinite(+c.lost_usd)) { shown.lost = +c.lost_usd; draw(); } }).catch(() => { /* no line */ });
+  };
+  // read once the section comes near the screen, so the first screen asks the network for nothing
+  if ("IntersectionObserver" in window) { const io = new IntersectionObserver((e) => { if (e.some((x) => x.isIntersecting)) { io.disconnect(); read(); } }, { rootMargin: "400px" }); io.observe(live); } else read();
+  // the loop runs while it is on the screen, unless paused or the reader asked for less motion
+  const loop = $("k-loop"), btn = $("k-loop-btn"), still = matchMedia("(prefers-reduced-motion: reduce)");
+  let paused = still.matches;
+  const set = () => { loop.classList.toggle("run", !paused && !still.matches); btn.textContent = T(paused ? "loop.play" : "loop.pause"); btn.hidden = still.matches; };
+  btn.addEventListener("click", () => { paused = !paused; set(); });
+  set(); KI.changed(set);
+  // the pointer: once per visitor (localStorage, in try/catch), after 3 s with no tap or key, never with reduced motion
+  let seen = false; try { seen = localStorage.getItem("knos.pointer") === "1"; } catch { seen = true; }
+  if (!seen && !still.matches) {
+    const stop = () => { clearTimeout(timer); removeEventListener("pointerdown", stop, true); removeEventListener("keydown", stop, true); };
+    addEventListener("pointerdown", stop, true); addEventListener("keydown", stop, true);
+    const timer = setTimeout(() => {
+      stop(); try { localStorage.setItem("knos.pointer", "1"); } catch { /* no storage */ }
+      const go = $("try").getBoundingClientRect(); if (!go.width || go.top > innerHeight) return;
+      const p = document.createElement("div"); p.className = "k-pointer"; p.id = "k-pointer"; p.setAttribute("aria-hidden", "true");
+      p.innerHTML = '<svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor" stroke="var(--paper)" stroke-width="1"><path d="M5 3l14 9-6 1.5L16 20l-2.5 1-3-6.5L6 18z"/></svg>';
+      p.style.left = (innerWidth - 64) + "px"; p.style.top = (innerHeight - 72) + "px"; document.body.append(p);
+      requestAnimationFrame(() => requestAnimationFrame(() => { p.style.transform = `translate(${go.left + go.width / 2 - (innerWidth - 64)}px, ${go.top + go.height / 2 - (innerHeight - 72)}px)`; }));
+      setTimeout(() => { p.classList.add("press"); }, 850);
+      setTimeout(() => { p.style.opacity = "0"; setTimeout(() => p.remove(), 400); }, 1300);
+    }, 3000);
+  }
 })();
 </script>
 </body>

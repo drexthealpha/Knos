@@ -11,11 +11,10 @@ import urllib.request
 _lock = threading.Lock()
 _cache: dict = {"at": 0.0, "deps": None}
 TTL_S = 60
-DOWN = {"qloo": "the card shows the last recorded answer with its date, and a new check is queued until Qloo answers",
+DOWN = {"open_signals": "a source that does not answer is left out of the card; with none, the check says it cannot decide",
         "solana_devnet": "nothing is held or paid; the brief and the check still work",
         "sibyl": "checks still run; the record line is written when the memory store is back",
         "rules_referee": "a lab's proof waits; nothing is released until the referee answers",
-        "iris": "the rules referee on this server checks a lab's proof with the same code",
         "openalex": "a DOI is read from Crossref instead"}
 
 
@@ -30,12 +29,9 @@ def _get(url: str, data: bytes | None = None, timeout: float = 6) -> tuple[bool,
 
 def _read() -> dict:
     out = {}
-    try:
-        from . import qloo_status
-        q = qloo_status.doc()
-        out["qloo"] = {"state": "limited" if q.get("limited") else "answering", "said": q.get("line") or "Qloo is answering."}
-    except Exception as why:  # noqa: BLE001
-        out["qloo"] = {"state": "unknown", "said": type(why).__name__}
+    from . import open_signals
+    out["open_signals"] = {"state": "asked with each check" if open_signals.online() else "not asked",
+                           "said": "free, keyless public sources" if open_signals.online() else "the open sources are not asked on this server"}
     ok, said = _get("https://api.devnet.solana.com", json.dumps({"jsonrpc": "2.0", "id": 1, "method": "getSlot"}).encode())
     out["solana_devnet"] = {"state": "up" if ok else "down", "said": said}
     try:
@@ -55,12 +51,6 @@ def _read() -> dict:
         out["rules_referee"] = {"state": "up", "said": f"{referee_rules.MODEL}, the code on this server"}
     except Exception as why:  # noqa: BLE001
         out["rules_referee"] = {"state": "down", "said": type(why).__name__}
-    url = os.environ.get("KNOS_IRIS_HEALTH_URL")         # IRIS only when an IRIS health route is configured, asked live
-    if url:
-        ok, said = _get(url)
-        out["iris"] = {"state": "up" if ok else "down", "said": said}
-    else:
-        out["iris"] = {"state": "not asked", "said": "no IRIS health route is configured on this server; IRIS runs inside a lab's own walls"}
     ok, said = _get("https://api.openalex.org/works?per-page=1&select=id")
     out["openalex"] = {"state": "up" if ok else "down", "said": said}
     for k, v in out.items():

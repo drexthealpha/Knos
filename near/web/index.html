@@ -185,7 +185,6 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
   <nav id="nav" aria-label="Knos">
     <a href="../" data-nav="home">Home</a>
     <a href="../prove/" data-nav="near">NEAR app</a>
-    <a href="../labs/" data-nav="iris">IRIS</a>
     <a href="../claims/" data-nav="proof" data-proof>Proof</a>
   </nav>
   <div class="tools">
@@ -237,7 +236,7 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
       <tr><th>The middleman it removes</th><td>The replication service paid to re-run a paper by hand.</td></tr>
       <tr><th>Why a frontier lab could not</th><td>A lab can write the code, but nobody can trust it to grade its own work: the public blockchain holds the locked test and the rule that pays only on a pass, and neither Knos nor the lab can change them.</td></tr>
       <tr><th>A firm's work, by agents</th><td>Two agents write the code and a checker runs the locked test, the work of a replication firm. Agent A is paid into <a href="https://testnet.nearblocks.io/address/agent-a2.knos-swarm-1105.testnet?tab=tokentxns">its own account</a>; agent B's spending comes out of its own budget on the blockchain, under a cap.</td></tr>
-      <tr><th>A receipt per task</th><td>Every check ends in a receipt that lists each step's network fee, every line linked on the public record.</td></tr>
+      <tr><th>A receipt per task</th><td>Every check ends in a receipt that lists each step's network fee, every line linked on the public record. <a href="../near/receipts.html">See every job paid</a>.</td></tr>
       <tr><th>The path to scale</th><td>Each new claim is one locked test. Every verified result is kept on the public record and reused for free. 12,010 companies are on a first list. No outside company has bought from Knos.</td></tr>
       <tr><th>The added cost of privacy</th><td>Not measured yet: agent A's model and the reviewer run on a private AI service, with its signed hardware report checked; the same calls on a non-private model have not been timed beside them.</td></tr>
       <tr><th>Leaving</th><td>Only test money moves: the test dollars behind a check are held with its job and go back if no agent's code passes by the deadline. You can stop at any step.</td></tr>
@@ -329,8 +328,17 @@ button.big { min-height: 60px; padding: 16px 32px; border-radius: 999px; font: 6
   </div>
   </details>
 </main>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" integrity="sha512-7eHRwcbYkK4d9g/6tD/mhkf++eoTHwpNM9woBxtPUBWm67zeAfFC+HrdoE2GanKeocly/VxeLvIqwvCdk7qScg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/MotionPathPlugin.min.js" integrity="sha512-lhK7xTsFM6DPXOtQQyPe+NmpoFEheKDHjM/5QzpFRiE1KySgtBfEzYz4XowvB+CAWcBLBGWinhh41uNaOtrSZA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script>
+// the motion library only when the phone has data to spare: with Save-Data or on 2G the page shows the end at once
+(() => {
+  const c = navigator.connection || {};
+  if (c.saveData || /(^|-)2g$/.test(c.effectiveType || "")) return;
+  for (const [src, integrity] of [["https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js", "sha512-7eHRwcbYkK4d9g/6tD/mhkf++eoTHwpNM9woBxtPUBWm67zeAfFC+HrdoE2GanKeocly/VxeLvIqwvCdk7qScg=="], ["https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/MotionPathPlugin.min.js", "sha512-lhK7xTsFM6DPXOtQQyPe+NmpoFEheKDHjM/5QzpFRiE1KySgtBfEzYz4XowvB+CAWcBLBGWinhh41uNaOtrSZA=="]]) {
+    const s = Object.assign(document.createElement("script"), { src, integrity, crossOrigin: "anonymous", referrerPolicy: "no-referrer", async: false });
+    document.head.append(s);
+  }
+})();
+</script>
 <script>
 "use strict";
 const $ = (id) => document.getElementById(id);
@@ -506,13 +514,19 @@ async function hostedRun() {
     const r = await fetch(HOSTED + "/api/near/live/" + s.run).then((x) => x.json()).catch(() => null);
     if (!r) continue;
     if (r.job_id) at("held");
-    if (r.state === "running") { $("busy-text").textContent = `${r.step[0].toUpperCase()}${r.step.slice(1)}. ${Math.round(r.seconds_so_far)} s.`; continue; }
+    // once the money is held, the run is releasing: it is marked paid only when NEAR says the payment is final
+    if (r.state === "running") { $("busy-text").textContent = r.job_id ? `Releasing. ${Math.round(r.seconds_so_far)} s.` : `${r.step[0].toUpperCase()}${r.step.slice(1)}. ${Math.round(r.seconds_so_far)} s.`; continue; }
     busy(""); $("busy").hidden = false; $("busy").setAttribute("data-done", "");
     $("busy-text").textContent = r.state === "done" ? `Paid: ${Object.entries(r.paid).map(([k, v]) => `${k.startsWith("agent-a") ? "Agent A" : "Agent B"} ${v}`).join(", ")} test units, live, in ${Math.round(r.seconds)} s.` : `The run stopped: ${r.why || "see the job below"}.`;
     if (jobPanel) jobPanel.hidden = false;
     if (r.job) showJob(r.job);
     return;
   }
+  // six minutes with no final answer: still releasing, never shown as paid
+  busy(""); $("busy").hidden = false; $("busy").setAttribute("data-done", "");
+  $("busy-text").textContent = "Still releasing: not final on NEAR yet, so not paid. Reload in a minute.";
+  if (jobPanel) jobPanel.hidden = false;
+  $("post").disabled = false;
 }
 
 $("jobform").addEventListener("submit", (ev) => ev.preventDefault());
@@ -523,7 +537,7 @@ $("post").addEventListener("click", async () => {
   const p = await api("/api/job/post", { bid: 1000, minutes: 15 });
   if (!p.ok) { busy(""); $("busy").hidden = false; $("busy-text").textContent = `Not opened: ${p.why || "see the transaction"}. Try again.`; return; }
   at("held");
-  busy("Two agents take it and send their work. The check runs on each.");
+  busy("Releasing: two agents send their work, the check runs on each, and paid shows only once NEAR is final.");
   const r = await api("/api/job/run", { id: p.id });
   busy("");
   $("busy").hidden = false; $("busy").setAttribute("data-done", "");

@@ -193,6 +193,45 @@ def call(who: str, contract: str, method: str, args: dict, deposit: str = "0 NEA
     return _outcome(_send(who, signed, wait))
 
 
+def _rpc_at(url: str, method: str, params) -> dict:
+    """One call to one RPC provider, no fallback: two providers are asked apart so that each answers for itself."""
+    body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": method, "params": params}).encode()
+    with urllib.request.urlopen(urllib.request.Request(url, body, {"Content-Type": "application/json"}), timeout=60) as r:
+        out = json.loads(r.read())
+    if "error" in out:
+        raise RuntimeError(json.dumps(out["error"])[:300])
+    return out["result"]
+
+
+def _seen(url: str, tx_hash: str, sender: str) -> str:
+    """What one provider says of a transaction: "final" (final, every receipt succeeded), "failed" (a receipt failed)
+    or "unknown" (not final yet, not found, or no answer)."""
+    try:
+        r = _rpc_at(url, "tx", {"tx_hash": tx_hash, "sender_account_id": sender, "wait_until": "FINAL"})
+    except Exception:  # noqa: BLE001 - a provider that does not answer says nothing either way
+        return "unknown"
+    if r.get("final_execution_status") not in (None, "FINAL"):
+        return "unknown"
+    outcomes = [r["transaction_outcome"]] + r["receipts_outcome"]
+    return "failed" if any("Failure" in o["outcome"]["status"] for o in outcomes) else "final"
+
+
+def confirm_final(tx_hash: str, sender: str, providers: list[str] | None = None, tries: int = 6, wait_s: float = 5.0) -> dict:
+    """A payout counts as paid only when two RPC providers each say its transaction is final with every receipt
+    succeeded. A failure seen by either is final and unpaid; a disagreement or no answer holds it as releasing."""
+    urls = list(dict.fromkeys(providers or [RPC, *RPC_SPARES]))[:2]
+    seen: dict = {}
+    for n in range(tries):
+        seen = {u: _seen(u, tx_hash, sender) for u in urls}
+        if "failed" in seen.values():
+            return {"state": "failed", "paid": False, "seen": seen}
+        if len(urls) >= 2 and set(seen.values()) == {"final"}:
+            return {"state": "paid", "paid": True, "seen": seen}
+        if n < tries - 1:
+            time.sleep(wait_s)
+    return {"state": "releasing", "paid": False, "seen": seen}
+
+
 def _outcome(r: dict) -> dict:
     outcomes = [r["transaction_outcome"]] + r["receipts_outcome"]
     fail = next((o["outcome"]["status"]["Failure"] for o in outcomes if "Failure" in o["outcome"]["status"]), None)

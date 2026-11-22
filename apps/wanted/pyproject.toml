@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "knos-demand-check"
 version = "0.4.1"
-description = "The demand check of Knos: see who would buy a research product first, from Qloo taste data. The goal: Knos turns any research into a product billions of people use, in days, not years."
+description = "The demand check of Knos: see who would buy a research product first, from free public signals. The goal: Knos turns any research into a product billions of people use, in days, not years."
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.12"   # the image runs python:3.12-slim; f-strings with nested quotes need 3.12

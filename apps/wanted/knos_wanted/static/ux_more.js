@@ -371,7 +371,7 @@
     fund: "Funding locks test units on one milestone; they are released only after a result and an independent check.",
     make: "Claim a milestone, post a public page with its claim id, and the referees check it.",
     teams: "Teams share a Squads multisig made by your passkey, and can sign in with SSO.",
-    research: "Give a paper's id or an idea; Knos asks Qloo who wants it and where." };
+    research: "Give a paper's id or an idea; Knos checks whether people want it." };
   function panel() {
     let p = $("ux-help");
     const v = location.hash.slice(1).split("=")[0] || "home";

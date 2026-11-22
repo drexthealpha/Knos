@@ -468,8 +468,6 @@ def test_the_site_asks_nobody_but_github_and_devnet():
              "knos.onrender.com",
              # a result's launch map: OpenStreetMap's tiles, and its credit link that the tiles' licence asks for
              "tile.openstreetmap.org", "www.openstreetmap.org",
-             # the page where Qloo describes its concentration index, linked beside each launch city's index (a link, never asked)
-             "qloo.com",
              # the film's credit (web/brand/steps.html): its template's page and its curator's, as the site asks (links, never asked)
              "prompt-motion.com", "x.com",
              # the first line's source (web/brand/first.html): the paper behind "17 years", a link, never asked

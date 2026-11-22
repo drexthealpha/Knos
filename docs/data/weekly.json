@@ -1,0 +1,89 @@
+{
+ "_": "Written by scripts/site_weekly_log.py from git log: one entry per ISO week, newest first.",
+ "weeks": [
+  {
+   "week": "2026-W47",
+   "from": "2026-11-16",
+   "to": "2026-11-22",
+   "changes": 42,
+   "history": "https://github.com/drexthealpha/Knos/commits/main?since=2026-11-16&until=2026-11-22"
+  },
+  {
+   "week": "2026-W46",
+   "from": "2026-11-09",
+   "to": "2026-11-15",
+   "changes": 384,
+   "history": "https://github.com/drexthealpha/Knos/commits/main?since=2026-11-09&until=2026-11-15"
+  },
+  {
+   "week": "2026-W45",
+   "from": "2026-11-02",
+   "to": "2026-11-08",
+   "changes": 167,
+   "history": "https://github.com/drexthealpha/Knos/commits/main?since=2026-11-02&until=2026-11-08"
+  },
+  {
+   "week": "2026-W44",
+   "from": "2026-10-26",
+   "to": "2026-11-01",
+   "changes": 176,
+   "history": "https://github.com/drexthealpha/Knos/commits/main?since=2026-10-26&until=2026-11-01"
+  },
+  {
+   "week": "2026-W43",
+   "from": "2026-10-19",
+   "to": "2026-10-25",
+   "changes": 136,
+   "history": "https://github.com/drexthealpha/Knos/commits/main?since=2026-10-19&until=2026-10-25"
+  },
+  {
+   "week": "2026-W42",
+   "from": "2026-10-12",
+   "to": "2026-10-18",
+   "changes": 33,
+   "history": "https://github.com/drexthealpha/Knos/commits/main?since=2026-10-12&until=2026-10-18"
+  },
+  {
+   "week": "2026-W41",
+   "from": "2026-10-05",
+   "to": "2026-10-11",
+   "changes": 337,
+   "history": "https://github.com/drexthealpha/Knos/commits/main?since=2026-10-05&until=2026-10-11"
+  },
+  {
+   "week": "2026-W40",
+   "from": "2026-09-28",
+   "to": "2026-10-04",
+   "changes": 303,
+   "history": "https://github.com/drexthealpha/Knos/commits/main?since=2026-09-28&until=2026-10-04"
+  },
+  {
+   "week": "2026-W39",
+   "from": "2026-09-21",
+   "to": "2026-09-27",
+   "changes": 7,
+   "history": "https://github.com/drexthealpha/Knos/commits/main?since=2026-09-21&until=2026-09-27"
+  },
+  {
+   "week": "2026-W38",
+   "from": "2026-09-14",
+   "to": "2026-09-20",
+   "changes": 10,
+   "history": "https://github.com/drexthealpha/Knos/commits/main?since=2026-09-14&until=2026-09-20"
+  },
+  {
+   "week": "2026-W37",
+   "from": "2026-09-07",
+   "to": "2026-09-13",
+   "changes": 41,
+   "history": "https://github.com/drexthealpha/Knos/commits/main?since=2026-09-07&until=2026-09-13"
+  },
+  {
+   "week": "2026-W36",
+   "from": "2026-08-31",
+   "to": "2026-09-06",
+   "changes": 41,
+   "history": "https://github.com/drexthealpha/Knos/commits/main?since=2026-08-31&until=2026-09-06"
+  }
+ ]
+}

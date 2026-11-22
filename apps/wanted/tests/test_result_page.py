@@ -1,6 +1,6 @@
 """A demand result's permanent page /r/<id>: drawn from the report the server keeps, its QR code reads back to its own
-address, an unknown id answers 404 with one sentence, and each state that is not a full answer says which. SYNTHETIC
-reports only; nothing asks Qloo."""
+address, an unknown id answers 404 with one sentence, and each open signal is a row with its link. SYNTHETIC
+reports only; nothing asks a source."""
 import re
 import threading
 import urllib.error
@@ -8,7 +8,6 @@ import urllib.request
 from http.server import ThreadingHTTPServer
 
 from knos_wanted import qr, result_page, server
-from knos_wanted.qloo_mcp import InProcess, Qloo
 
 H = "ab" * 32
 
@@ -28,15 +27,18 @@ def test_the_qr_code_reads_back_for_every_length_a_version_6_code_holds():
 
 
 def test_r_serves_the_kept_report_and_an_unknown_id_says_so():
-    st = server.State(Qloo(InProcess(), mode="mock", sleep=lambda s: None), None)
-    st.reports[H] = {"hash": H, "idea": "a SYNTHETIC tea", "decision": {"verdict": "REFUSE"}, "matches": [], "calls": [], "where": []}
+    st = server.State()
+    st.reports[H] = {"hash": H, "idea": "a SYNTHETIC tea", "decision": {"verdict": "REFUSE"},
+                     "open_demand": {"head": "Open signals find little interest yet", "line": "Sources: Wikipedia.", "rule": "2 of these pass.",
+                                     "rows": [{"name": "Wikipedia", "value": 12, "unit": "views a day (last 60 days)", "link": "https://en.wikipedia.org/wiki/Tea"}]}}
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.make_handler(st))
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
     base = f"http://127.0.0.1:{httpd.server_address[1]}"
     try:
         with urllib.request.urlopen(f"{base}/r/{H[:16]}", timeout=10) as r:
             page = r.read().decode()
-        assert r.status == 200 and "a SYNTHETIC tea" in page and 'data-state="empty"' in page and 'id="r-share"' in page and "@media print" in page
+        assert r.status == 200 and "a SYNTHETIC tea" in page and 'id="r-share"' in page and "@media print" in page
+        assert 'data-verdict="REFUSE"' in page and "Open signals find little interest yet" in page and 'href="https://en.wikipedia.org/wiki/Tea"' in page
         svg = re.search(r"<svg.*?</svg>", page, re.S)[0]
         assert qr.read(_grid(svg)) == f"{base}/r/{H[:16]}"
         try:
@@ -48,9 +50,6 @@ def test_r_serves_the_kept_report_and_an_unknown_id_says_so():
         httpd.shutdown()
 
 
-def test_each_state_that_is_not_a_full_answer_is_one_sentence():
-    assert result_page.state_of(None) == "error"
-    assert result_page.state_of({"matches": [{"id": "x"}], "stale": {"code": 429}}) == "outage"
-    assert result_page.state_of({"matches": []}) == "empty"
-    assert result_page.state_of({"matches": [{"id": "x"}], "where": []}) == "thin"
+def test_an_unknown_result_is_one_sentence():
+    assert result_page.state_of(None) == "error" and result_page.state_of({"hash": H}) is None
     assert all(s.endswith(".") and s.count(".") == 1 for s in result_page.SAY.values())

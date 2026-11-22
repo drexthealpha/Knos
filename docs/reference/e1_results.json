@@ -99,36 +99,6 @@
    "docs/reference/e1_mutants.json"
   ]
  },
- "qloo": [
-  {
-   "test": "the verdict against a free-data baseline",
-   "made": "2026-10-23 07:14 UTC",
-   "result": "changed on 10 of 20 ideas",
-   "said": "Qloo changed the verdict",
-   "raw": "docs/reference/e1_qloo_diff.json (from https://knos.onrender.com/api/qloo-diff)"
-  },
-  {
-   "test": "where demand is (Census business counts)",
-   "made": "2026-10-25 11:38 UTC",
-   "result": "0.1933 with Qloo against 0.4067 for the model alone, difference -0.2133 (95% interval -0.36 to -0.06)",
-   "said": "Qloo lost",
-   "raw": "docs/reference/where_truth.json"
-  },
-  {
-   "test": "taste (film fans)",
-   "made": "2026-10-25 14:54 UTC",
-   "result": "0.32 against 0.3067, difference 0.0133 (95% interval -0.06 to 0.0867)",
-   "said": "a tie",
-   "raw": "docs/reference/taste_truth.json"
-  },
-  {
-   "test": "a public dataset of crowdfunded product launches",
-   "made": "2026-10-24 23:06 UTC",
-   "result": "rank correlation 0.1076 with Qloo against 0.1133 without, difference -0.0057 (95% interval -0.0371 to 0.0252)",
-   "said": "no lift",
-   "raw": "docs/reference/qloo_lift_ranked.json"
-  }
- ],
  "preorders": {
   "projects": 100,
   "held": 2,
@@ -145,6 +115,5 @@
    "Knos (operator)": 12
   },
   "rule": "an order counts as the founder's when its project was opened by the founder or by one of Knos's own test runs (owner label empty, or starting test, knos, guest, founder or e2e)"
- },
- "qloo_calls_spent": 0
+ }
 }

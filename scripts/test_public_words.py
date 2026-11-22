@@ -110,8 +110,6 @@ def main() -> int:
     hits = subprocess.run(["git", "grep", "-n", "-I", "-i", "-E", HOME, "--", ":!repos"], cwd=ROOT, capture_output=True, text=True).stdout.splitlines()
     home = sorted({h.split(":", 1)[0] for h in hits if not h.startswith(SELF + ":") and not any(x in h for x in PLACEHOLDER)})
     ok(not home, f"a Windows user folder in any file: {len(home)} {home}")
-    host = subprocess.run(["git", "grep", "-l", "hackathon" + ".api.qloo.com", "--", ":!repos"], cwd=ROOT, capture_output=True, text=True).stdout.split()
-    ok(not host, f"the hackathon host in any file (deploy values included): {len(host)} {host}")
     pricing = " ".join(prose("p.html", (ROOT / "web" / "pricing.html").read_text(encoding="utf-8")).split())
     ok(PRICING in pricing, f'pricing.html says exactly "{PRICING}"')
     market = " ".join(prose("p.html", (ROOT / "web" / "how-we-test.html").read_text(encoding="utf-8")).split())

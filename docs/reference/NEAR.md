@@ -56,7 +56,7 @@ Its locked test is `near/agents/job/test_hll.py`: count 30,000 visitors within 1
 under 1 s. Agent A packs 2,048 registers of 5 bits, as the paper's 1.5 kilobytes do, and passes; agent B keeps every
 visitor and fails on memory.
 
-![One job, two agents: only the output that passes the locked test is paid](https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/diagrams/docs-reference-diagrams-4.svg)
+![One job, two agents: only the output that passes the locked test is paid](https://raw.githubusercontent.com/drexthealpha/Knos/main/docs/diagrams/docs-reference-diagrams-3.svg)
 
 *One job, two agents: only the output that passes the locked test is paid.*
 
@@ -64,31 +64,28 @@ visitor and fails on memory.
 
 On the public pages (no install, no sign-in, no wallet, test money only):
 
-1. Open https://drexthealpha.github.io/Knos/ - see "Research takes 17 years to reach people (Morris, 2011).", "Ask
-   anything about research", "Every answer names the test that proved it.", the box, the button "Ask", "Sample
-   question" and "Checking one paper by hand: $330 to $763 (Perignon, citing Colliard)."
-2. Click "Sample question" (or ask a question of your own) - see on the same screen "Yes, the claim holds", the claim,
-   "Proved by a test locked before any work started." with test_hll.py and job-... under it (its last proof on NEAR), "Prove it yourself" and "The claim", whose
-   page shows the test file's sha256. Click that - the Prove page opens and reads the paper: "Check this claim now", "Test money: the test USDC you
-   choose (1 to 100) is held with the job", the box "Test USDC held with the job:" holding 10 and the button "Run the
-   check with 10 test USDC".
-3. Type an amount (1 to 100) or keep 10, and click "Run the check with N test USDC" (N the amount) - see a clock, "1. The test is locked", "2. Two agents ran the paper’s result against the locked test" with "Agent A: Passed: 30,000 visitors counted within 1.2%, in 1,364 bytes" and "Agent B: Failed: it keeps
-   529,075 bytes", then "3. The spending cap blocked an over-budget step" with a link to NEAR's refusal.
+1. Open https://drexthealpha.github.io/Knos/, open "Ask about research" and click "Sample question" (or ask a question
+   of your own) - see the claim, "Count a huge crowd of visitors in a tiny memory.", and "Its test is locked before any
+   work starts." Open "How it works" under it - see test_hll.py, "Run the check yourself" and "The claim", whose page
+   shows the test file's sha256 under its own "How it works". Click "Run the check yourself" - the Prove page opens and
+   reads the paper: "Check this claim now", "Test money: the test dollars you choose (1 to 100) are held until the test
+   passes", the box "Test dollars held:" holding 10 and the button "Run the check with 10 test dollars".
+2. Type an amount (1 to 100) or keep 10.
+3. Click "Run the check with N test dollars" (N the amount) - see a clock, "1. The test is locked", "2. Two agents ran the paper’s result against the locked test" with what agent A and agent B did, then "3. The spending cap blocked an over-budget step" with a link to NEAR's refusal.
 4. Then - see "4. Answer: Yes, the claim holds", the paper's "2% typical error, 1.5 kilobytes of
    memory" beside "1.2% error on 30,000 visitors, 1,364 bytes of memory", and "5. You got" with "Download the verified
    code (visitor_counter.py)". Then "Try it now": click "Count them with your code" - see that code count 100,000
    visitors on the server: how many it counted, how far off and in how many bytes.
 5. Then "6. Paying and recording on NEAR" and "Receipt for proof job-...: paid and
    recorded on NEAR testnet N s after you pressed" (the whole check: 15 to 80 s when a job is ready and 1 to 2 min when one is not (checks on 14 Nov, the README's measure)): "Test money moved", "10.00 test USDC moved on NEAR testnet: 9.00 to the agent whose code passed, 1.00 to Knos's test account", "Agent A got, in all:
-   9.00", sent by the jobs contract and "Knos's fee 1.00 test USDC, 10%", each transfer with its link, "The claim's record on NEAR: updated to holds." and "What each step
+   9.00", sent by the jobs contract and "Knos's fee 1.00 test USDC, 10%", each transfer with its link, "The claim’s record on NEAR:" updated to holds and "What each step
    cost", every step's network fee with its record.
-6. Click "Prove the same claim again" - see "Free: Yes, in" a few seconds, from the stored verified result,
-   against the first proof's seconds from your press to its receipt and its test USDC, "no test USDC moved" and a link to the first proof.
-7. Below the run - see "Live from NEAR testnet, in test dollars:" transfers into Knos's fee account, the dollars moved with them and lost, read from NEAR's public record
+6. Click "Check the same claim again" - see "Free: Yes, in" a few seconds, from the stored verified result,
+   against the first proof's seconds from your press to its receipt and its test USDC, "no test dollars moved" and a link to the first proof.
+7. Below the run - see the transfers into Knos's fee account, the dollars moved with them and lost, read from NEAR's public record
    (in full by a GitHub Action scheduled every 10 minutes, which GitHub may run later, plus the server's own confirmed payments since; the page says how old the full read is): each transfer is one fee, Knos's 1 part, that reached Knos's fee account from another account of Knos's own (until 11 Nov a reused result also sent one), so many of them moved money between Knos's own accounts, and the dollars are those fees plus agent A's shares. They are not jobs paid to agents: the jobs contract counts those itself (`get_agent_record`, since its 14 Nov upgrade), and the front door and the status page show that count.
-8. Open https://drexthealpha.github.io/Knos/claims/ - see each claim with the test USDC behind it and its two markets,
-   "Does it hold?" and "100 behind it in 7 days?". Open a claim and click "Check the test against NEAR" - see
-   "VERIFIED"; click "Change one byte and check again" - see "NOT VERIFIED".
+8. Open https://drexthealpha.github.io/Knos/claims/ - see each claim with "Test money put behind it" and "Does it
+   hold?". Open a claim, open "How it works" and click "Check the test file", then "Change one byte and check again".
 
 One real check on the live site, recorded on 14 Nov from a fresh browser at 1280x720: [near/web/knos-near.mp4](../../near/web/knos-near.mp4) (51 s, no sound; job-1114200906, where the private model wrote agent A's code).
 
@@ -213,7 +210,7 @@ contract, under spending rules the contract enforces. Swarms (`swarms`): two age
 AI Security & Defense (`security`): keys limited to named methods, and contracts with no keys at all. Privacy & Private AI
 (`privacy`): the model runs in NEAR AI's attested TEEs, and the contract checks its signature.
 
-**The test is locked before money is held and checked before money moves: nobody is paid on a claim.** (The demand check with Qloo is a separate tool of Knos, [its app](https://knos.onrender.com/app/); a proof does not wait on it.)
+**The test is locked before money is held and checked before money moves: nobody is paid on a claim.**
 
 **The earlier milestone flow, still on testnet (`knos-pay-1103.testnet`): a company's test money went to a lab or a developer only when GitHub's signed run proved the milestone.** The money waits in a NEAR contract; after the deadline with no proof, the company gets it back.
 
@@ -370,6 +367,8 @@ Or it is a second payment, an early refund or a release after the refund; for a 
 `verify.sh` builds both contracts to wasm and runs them on a local near-sandbox node: fund, release, replay, forgery and refund.
 
 Measured: the release receipt burns 7.33 Tgas (11.68 Tgas for the whole transaction) in the latest verify.sh run (5 Nov 2026, a fresh clone); the replayed and the forged token are refused; after the deadline the payer gets the money back and a later release is refused.
+
+On testnet, the jobs contract `jobs.knos-swarm-1105.testnet`: over its last 20 releases the release receipt, which checks the RS256 proof, burned at most 8.72 Tgas (median 8.12) and the whole transaction at most 16.87 Tgas (median 16.25), of the 300 Tgas limit. Read on 22 Nov 2026 by `near/scripts/near_gas.py`; every transaction is listed in `near/gas.json`.
 
 ### On testnet
 

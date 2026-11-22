@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Assemble the Pages site:  bash scripts/build_site.sh <out dir> <commit sha>
-# The product pages come from scripts/site_pages.py (the front door web/door.html at the root, claims/, prove/, labs/
+# The product pages come from scripts/site_pages.py (the front door web/door.html at the root, claims/, prove/
 # and the rest); beside them the data files older pages read: the JavaScript client, the passkey wallet's helper, the
 # claim workflow, the capability manifest (docs/capabilities.json) and the second deployment's program ids. A template
 # that still names its workflows by KNOS_COMMIT_SHA is given the commit the site was built from. At the end every older
@@ -25,18 +25,16 @@ cp -r web/. "$out/"
 # (serve.py), its milestone list or its browser test. Not near/web/embed.html either: its button loads pay.js from the
 # local server (127.0.0.1:8790), so a published copy could only fail.
 mkdir -p "$out/near"
-cp -r near/web/index.html near/web/latest.json near/web/pay.js near/web/story near/web/vendor "$out/near/"
+cp -r near/web/index.html near/web/latest.json near/web/receipts.html near/web/receipts.json near/web/receipts.csv near/web/pay.js near/web/story near/web/vendor "$out/near/"
 # THE FRONT DOOR is web/door.html, "Ask anything about research": scripts/site_pages.py writes it as index.html.
-# web/home.html (an earlier front door, the demand check) is moved to index.html first and then overwritten, so it is
-# not published. KNOS_SPA_AT_ROOT=1 (the tests that drive the earlier one-page app, tests/_posix.py and the web job)
+# KNOS_SPA_AT_ROOT=1 (the tests that drive the earlier one-page app, tests/_posix.py and the web job)
 # keeps that app (web/index.html, the earlier Solana part of Knos) at index.html, where those tests open it.
 # The published site carries no copy of it: app.html sends an old link on to the app on Render (web/app-moved.html).
 if [ "${KNOS_SPA_AT_ROOT:-}" != 1 ]; then
   rm "$out/index.html"
   mv "$out/app-moved.html" "$out/app.html"
-  mv "$out/home.html" "$out/index.html"
-  # THE PRODUCT: the front door (web/door.html) at the root, the proof on NEAR at prove/, the IRIS check at labs/;
-  # /near/ and /iris/ send on; every older page (the demand check among them) sends to the front door.
+  # THE PRODUCT: the front door (web/door.html) at the root, the proof on NEAR at prove/;
+  # /near/ sends on; every older page sends to the front door.
   "${PYTHON:-python3}" scripts/site_pages.py "$out"
 fi
 # the documents the command palette can open (web/palette.js reads it; without it the palette has no documents)
@@ -44,7 +42,7 @@ fi
 # The name in the bar, the favicon and the card of a shared link are files of web/ (web/brand/, written by
 # scripts/brand.py and committed). The traced originals they were made from stay in the repository.
 rm -rf "$out/brand/src"
-# the brand fragments (bar, hero, steps, caps, vectors) are written into the pages by scripts/sync_brand.py: not pages of their own
+# the brand fragments (bar, first line, steps, vectors) are written into the pages by scripts/sync_brand.py: not pages of their own
 rm -f "$out"/brand/*.html
 for f in icon.svg brand/mark.svg brand/wordmark.svg brand/mark.js brand/apple-touch-icon.png brand/card.png; do
   [ -s "$out/$f" ] || { echo "web/$f is missing: python scripts/brand.py --png writes it"; exit 1; }

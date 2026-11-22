@@ -28,7 +28,7 @@ export const STEP_MS = 480;                         // --dur-3: how long a step 
 export const STAGING = "Staging program ids";
 export const STEPS = [
   {"title": "An idea comes in.", "says": "A trial record becomes one claim record.", "ends": "done", "evidence": "Ideas from research sources", "path": "docs/reference/IDEAS.md"},
-  {"title": "The demand check runs.", "says": "Qloo says who wants it and where.", "ends": "done", "evidence": "The demand check's rules", "path": "docs/reference/DEMAND_CHECK.md"},
+  {"title": "The demand check runs.", "says": "It asks who wants it and where.", "ends": "done", "evidence": "Ideas from research sources, demand evidence", "path": "docs/reference/IDEAS.md"},
   {"title": "The Ready brief is locked.", "says": "Each stage has a target, a checker and a deadline.", "ends": "done", "evidence": "The Ready check and the criteria hash", "path": "src/knos/ready.py"},
   {"title": "The money is held.", "says": "A pre-order locks test units on devnet.", "ends": "done", "evidence": "The pre-order transaction (devnet)", "url": "https://explorer.solana.com/tx/2yEjidBojssFJp1UFRoBmTtvphbzqAmhRngrDZzgZRHy3u8NfPCArNVEJDYJn4V3nB1UngrAwHLEWmDJPubbmhr9?cluster=devnet"},
   {"title": "Paid after a PASS.", "says": "Two of three referees signed PASS; the program paid 8 test units.", "ends": "done", "evidence": "The second PASS verdict, which released the stage (devnet)", "url": "https://explorer.solana.com/tx/3MJ9kGhWwKgkqGHDzeYRA7aycv8knci3oHHbWadvnARC5DVwj2pgbbndpWssuqjvjgKVVMFhELssGvAJ5VpCuuj8?cluster=devnet"},

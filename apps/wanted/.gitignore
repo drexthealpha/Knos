@@ -1,7 +1,6 @@
-# Qloo rule: response data may be cached privately on a server, never stored in a public repository.
+# private caches stay on the server
 .cache/
 cache/
-*.qloo.json
 probe.json
 # devnet test wallets and local state
 state/
@@ -16,7 +15,7 @@ build/
 dist/
 .venv/
 .pytest_cache/
-# the official MCP SDK beside the bridge (sh bridge/install.sh); no package.json is kept
+# no package.json is kept
 node_modules/
 package.json
 package-lock.json

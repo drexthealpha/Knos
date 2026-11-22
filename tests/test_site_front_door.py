@@ -80,8 +80,6 @@ def test_every_button_the_documents_say_to_press_is_on_the_site():
     web = "\n".join(p.read_text(encoding="utf-8") for p in (ROOT / "web").rglob("*") if p.suffix in (".html", ".js"))
     web += (ROOT / "near" / "web" / "index.html").read_text(encoding="utf-8")   # the one page carries the NEAR flow (scripts/site_pages.py)
     shown = set(re.findall(r">\s*([^<>{}$]+?)\s*<", web)) | set(re.findall(r'"([^"<>]+)"', web))
-    # the IRIS page (iris/web/dashboard.html, at /knos/ on the reader's own IRIS): its sample buttons name a $ amount
-    shown |= set(re.findall(r"<button[^>]*>\s*([^<>]+?)\s*</button>", (ROOT / "iris" / "web" / "dashboard.html").read_text(encoding="utf-8")))
     # the screens' words live in one strings file per language (Round 13, H3 a): the English file is what a reader sees
     import json
     def _strings(v):

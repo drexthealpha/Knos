@@ -16,6 +16,7 @@ that copy, so a deploy cannot reset it. No call runs in CI or tests: without the
 model steps are off and say so."""
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import os
@@ -41,30 +42,39 @@ PER_DAY = 200
 LEDGER = Path(os.environ.get("KNOS_NEAR_AI_LEDGER") or (Path(os.environ.get("TMPDIR") or "/tmp") / "knos-near-ai.json"))
 SAVED = os.environ.get("KNOS_NEAR_AI_SAVED", "https://raw.githubusercontent.com/drexthealpha/Knos/gh-pages/near-ai-ledger.json")
 
-# the IRIS online demo (U3) asks the same NEAR AI Cloud: its health answer says its calls and its spend from their token
-# counts, which count under the same $8 stop; a restarted demo starts from 0, so only what is new since the last read is added
-IRIS_HEALTH = os.environ.get("KNOS_IRIS_DEMO_HEALTH", "")   # the online demo is offline: read only when an address is set
-
+RUN_CAP_USD = 30.0        # L46 (P1.md:44): no single run spends more than this on model calls; it stops before the next call
 _lock = threading.Lock()
 _visits: dict[str, deque] = {}
-_state = {"spent_usd": 0.0, "calls": 0, "day": "", "today": 0, "cache": {}, "seeded": None, "iris_usd": 0.0, "iris_seen": 0.0, "iris_read": 0.0}
+_run = threading.local()  # the run under way in this thread: {"spent": USD so far, "cap": its cap}
 
 
-def _iris() -> None:
-    """Add the IRIS demo's new spend, read from its health answer at most every 5 minutes (only with the key)."""
-    if not IRIS_HEALTH or not _key() or time.time() - _state["iris_read"] < 300:
+@contextlib.contextmanager
+def run_budget(cap: float = RUN_CAP_USD):
+    """One run's model budget (L46): inside it, a call whose worst cost (its input at about two characters a token, its
+    whole max_tokens out, at the dearer model's price) would take the run past its cap is not sent, and the answer says so
+    in plain words. A budget already under way in this thread is kept (one run, one budget)."""
+    if getattr(_run, "b", None) is not None:
+        yield _run.b
         return
-    _state["iris_read"] = time.time()
+    _run.b = {"spent": 0.0, "cap": float(cap)}
     try:
-        with urllib.request.urlopen(urllib.request.Request(IRIS_HEALTH, headers={"User-Agent": "knos-ledger/1.0"}), timeout=5) as r:
-            v = float(json.loads(r.read()).get("llm_usd") or 0)
-    except (urllib.error.URLError, OSError, ValueError, TypeError, AttributeError):
-        return   # the demo does not answer: nothing new to add
-    with _lock:
-        seen = float(_state.get("iris_seen") or 0)
-        _state["iris_usd"] = float(_state.get("iris_usd") or 0) + (v - seen if v >= seen else v)
-        _state["iris_seen"] = v
-    _save()
+        yield _run.b
+    finally:
+        _run.b = None
+
+
+def worst_cost(system: str, user: str, max_tokens: int) -> float:
+    """The most one call can cost: input tokens taken as half the characters (a token is about four), the whole max_tokens
+    out, at the dearest listed price."""
+    tin = (len(system) + len(user)) // 2 + 1
+    return max(tin * pin + max_tokens * pout for pin, pout in PRICE.values())
+_state = {"spent_usd": 0.0, "calls": 0, "day": "", "today": 0, "cache": {}, "seeded": None, "other_usd": 0.0}
+
+
+def _other(saved: dict) -> float:
+    """Spend on the same NEAR AI credit by another run, kept in the ledger under a key of its own ending in _usd: the
+    largest such figure, so it still counts under the same $8 stop."""
+    return max([float(v or 0) for k, v in saved.items() if k.endswith("_usd") and k != "spent_usd" and isinstance(v, (int, float))] or [0.0])
 
 
 def _key() -> str:
@@ -73,7 +83,9 @@ def _key() -> str:
 
 def _load() -> None:
     try:
-        _state.update(json.loads(LEDGER.read_text(encoding="utf-8")))
+        saved = json.loads(LEDGER.read_text(encoding="utf-8"))
+        _state.update({k: v for k, v in saved.items() if not k.endswith("_usd") or k == "spent_usd"})
+        _state["other_usd"] = _other(saved)
     except (OSError, ValueError):
         pass
 
@@ -89,8 +101,7 @@ def _seed() -> None:
             saved = json.loads(r.read())
         with _lock:
             _state["spent_usd"] = max(_state["spent_usd"], float(saved.get("spent_usd") or 0))
-            _state["iris_usd"] = max(float(_state.get("iris_usd") or 0), float(saved.get("iris_usd") or 0))   # the IRIS AI Hub run's calls, counted under the same $8 stop
-            _state["iris_seen"] = float(saved.get("iris_seen") or 0)
+            _state["other_usd"] = max(float(_state.get("other_usd") or 0), _other(saved))   # another run's calls, under the same $8 stop
             _state["calls"] = max(_state["calls"], int(saved.get("calls") or 0))
             if saved.get("day") == _today() and int(saved.get("today") or 0) > (_state["today"] if _state["day"] == _today() else 0):
                 _state.update(day=saved["day"], today=int(saved["today"]))
@@ -117,13 +128,12 @@ def _today() -> str:
 
 def ledger() -> dict:
     """What the scheduled CI job saves: the spend, the call counts and the cached answers (no key, nothing private)."""
-    return {k: _state.get(k) for k in ("spent_usd", "calls", "day", "today", "cache", "iris_usd", "iris_seen")}
+    return {k: _state.get(k) for k in ("spent_usd", "calls", "day", "today", "cache", "other_usd")}
 
 
 def spent() -> tuple[float, str]:
     _seed()
-    _iris()
-    return round(_state["spent_usd"] + _state.get("iris_usd", 0), 6), "the token counts of each answer at the listed prices (with the IRIS AI Hub run's), kept across deploys on the gh-pages branch"
+    return round(_state["spent_usd"] + _state.get("other_usd", 0), 6), "the token counts of each answer at the listed prices (with an earlier run's on the same credit), kept across deploys on the gh-pages branch"
 
 
 def attestation(model: str = MODELS[0]) -> dict:
@@ -149,15 +159,18 @@ def _call(kind: str, inp: dict, system: str, user: str, visitor: str) -> dict:
     if not _key():
         return {**base, "note": "no NEAR AI key"}
     _seed()
-    _iris()
     h = hashlib.sha256(json.dumps({"kind": kind, **inp}, sort_keys=True).encode()).hexdigest()
     with _lock:
         hit = _state["cache"].get(h)
         if hit:
             return {**hit, "cached": True, "input_sha256": h}
-        s = round(_state["spent_usd"] + _state.get("iris_usd", 0), 6)
+        s = round(_state["spent_usd"] + _state.get("other_usd", 0), 6)
         if s >= STOP_AT_USD:
             return {**base, "note": f"the AI budget is used (${s:.2f} of ${CREDIT_USD:.0f}): the fixed program and the locked test alone decided"}
+        rb = getattr(_run, "b", None)
+        if rb is not None and rb["spent"] + worst_cost(system, user, WRITE_MAX_TOKENS if kind == "write" else MAX_TOKENS) > rb["cap"]:
+            return {**base, "note": f"this run reached its spend limit of ${rb['cap']:.2f} on model calls (${rb['spent']:.2f} spent), so it "
+                                    "stopped before the next call: the fixed program and the locked test alone decided", "run_capped": True}
         if _state["day"] != _today():
             _state.update(day=_today(), today=0)
         if _state["today"] >= PER_DAY:
@@ -198,6 +211,9 @@ def _call(kind: str, inp: dict, system: str, user: str, visitor: str) -> dict:
         cost = round(tin * pin + tout * pout, 6)
         with _lock:
             _state["spent_usd"] = round(_state["spent_usd"] + cost, 6)
+            rb = getattr(_run, "b", None)
+            if rb is not None:
+                rb["spent"] = round(rb["spent"] + cost, 6)
         choice = (out.get("choices") or [{}])[0]
         text = (choice.get("message") or {}).get("content") or ""
         if isinstance(text, list):

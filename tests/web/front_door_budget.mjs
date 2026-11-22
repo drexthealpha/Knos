@@ -131,14 +131,13 @@ for (const scheme of ["light", "dark"]) {
     const markRatio = mk ? (Math.max(lum(mc), lum(pg)) + 0.05) / (Math.min(lum(mc), lum(pg)) + 0.05) : 0;
     const mark = { w: mb ? Math.round(mb.width) : 0, h: mb ? Math.round(mb.height) : 0, ratio: Math.round(markRatio * 10) / 10, masked: mk ? /mark\.svg/.test(getComputedStyle(mk).maskImage || getComputedStyle(mk).webkitMaskImage) : false };
     return { mark, words, before, height: document.documentElement.scrollHeight, wide: document.documentElement.scrollWidth, small, tiny, low,
-      h1: box("h1"), input: box("#list"), go: box("#try"), ask: box("#ask-box"),
+      h1: box("h1"), input: box("#list"), go: box("#try"),
       primaries: [...document.querySelectorAll(".door button.go, .door .go")].filter(vis).length };
   }, { MIN_TEXT });
   check(`${at} the Knos logo mark shows in the header (drawn in the text colour, 3:1 against the page)`, m.mark.w >= 20 && m.mark.h >= 20 && m.mark.masked && m.mark.ratio >= 3, m.mark);
   check(`${at} one plain line on the first screen`, m.h1 && m.h1.top >= 0 && m.h1.bottom <= H, m.h1);
-  check(`${at} the tool's sample, already loaded, whole on the first screen`, m.input && m.input.top >= 0 && m.input.bottom <= H, m.input);
-  check(`${at} one primary button, Check my data, on the first screen`, m.primaries === 1 && m.go && m.go.bottom <= H, { primaries: m.primaries, go: m.go });
-  check(`${at} the moved question box is below the first screen`, m.ask && m.ask.top >= H, m.ask);
+  check(`${at} the one box (L01), whole on the first screen`, m.input && m.input.top >= 0 && m.input.bottom <= H, m.input);
+  check(`${at} one primary button, Check, on the first screen`, m.primaries === 1 && m.go && m.go.bottom <= H, { primaries: m.primaries, go: m.go });
   check(`${at} at most ${MAX_SCREENS} screens tall (${m.height} px)`, m.height <= MAX_SCREENS * H, m.height);
   check(`${at} no sideways scroll`, m.wide <= W, m.wide);
   check(`${at} at most ${MAX_WORDS} words (${m.words})`, m.words <= MAX_WORDS, m.words);
@@ -157,15 +156,14 @@ for (const scheme of ["light", "dark"]) {
   check(`${at} the sample's full result within ${FULL} ms of the press (${full} ms)`, full <= FULL, full);
   const ans = await page.evaluate(() => { const v = document.getElementById("about"); return { text: v.textContent, top: Math.round(v.getBoundingClientRect().top), bottom: Math.round(v.getBoundingClientRect().bottom), scrollY }; });
   check(`${at} the sample's result on the same first screen ("${ans.text}")`, ans.scrollY === 0 && ans.top >= 0 && ans.bottom <= H && /^(Failed at row |Passed: all )/.test(ans.text), ans);
-  // the moved question box still answers, from its fold (one input on the screen: UX/U7.md line 301): its sample, then another paper
-  await page.click("#ask-box > summary");
-  await page.locator("#sample").scrollIntoViewIfNeeded();
-  const t3 = await press(page, "#sample");
-  check(`${at} the question box's sample: a visible change within ${PRESS_FAIL} ms (${t3} ms)`, t3 != null && t3 <= PRESS_FAIL, t3);
+  // L01: the same box answers a question from the claims: a claim's name, then another paper
+  await page.fill("#list", "hyperloglog"); await page.dispatchEvent("#list", "input");
+  const t3 = await press(page, "#try");
+  check(`${at} a claim's name in the box: a visible change within ${PRESS_FAIL} ms (${t3} ms)`, t3 != null && t3 <= PRESS_FAIL, t3);
   await page.waitForFunction(() => /holds/.test(document.querySelector("#ask-out .verdict")?.textContent || ""), null, { timeout: 10000 });
-  check(`${at} the question box's sample says the claim holds`, true);
-  await page.fill("#paper", "https://doi.org/10.1000/another");
-  const t2 = await press(page, "#go");
+  check(`${at} the claim's name answers that the claim holds`, true);
+  await page.fill("#list", "https://doi.org/10.1000/another"); await page.dispatchEvent("#list", "input");
+  const t2 = await press(page, "#try");
   check(`${at} "Check it": a visible change within ${PRESS_FAIL} ms (${t2} ms; ${t2 != null && t2 <= PRESS_GOOD ? "within" : "over"} ${PRESS_GOOD} ms)`, t2 != null && t2 <= PRESS_FAIL, t2);
   await page.waitForFunction(() => /cannot check/.test(document.querySelector("#ask-out .verdict")?.textContent || ""), null, { timeout: 10000 });   // plain words (R13 WALK 1)
   check(`${at} another paper says Knos cannot check it yet`, true);

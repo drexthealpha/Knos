@@ -47,8 +47,7 @@ JSON_VERSION = r'"version": "' + V + '"'
 # (files, pattern): every match's groups are the version. Each file must match at least once. A line ends in \n or in
 # \r\n: a file written on Windows (by an editor, or Python's text mode) names its version as any other file does, and
 # a bump still rewrites the version's bytes and nothing else.
-# Not listed, on purpose: npm/knos/package.json (the npm CLI, not published, keeps its own version) and module.xml and
-# iris/module.xml (the IRIS package keeps the version of its Open Exchange listing).
+# Not listed, on purpose: npm/knos/package.json (the npm CLI, not published, keeps its own version).
 PLACES: list[tuple[str, str]] = [
     ("pyproject.toml", r'(?m)\A(?:.*\n)*?\[project\]\r?\n(?:(?!\[).*\n)*?version = "' + V + '"'),
     ("uv.lock", r'\[\[package\]\]\r?\nname = "knos"\r?\nversion = "' + V + '"'),

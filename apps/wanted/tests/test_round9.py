@@ -10,17 +10,15 @@ from http.server import ThreadingHTTPServer
 from pathlib import Path
 
 import pytest
-from test_check import IDEA, FakeQloo
 
 from knos_wanted import agent, server, tasks
-from knos_wanted.qloo_mcp import InProcess, Qloo
 
 STATIC = Path(server.__file__).parent / "static"
 
 
 @pytest.fixture
 def app():
-    st = server.State(Qloo(InProcess(), mode="mock", sleep=lambda s: None), FakeQloo())
+    st = server.State()
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.make_handler(st))
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
     yield f"http://127.0.0.1:{httpd.server_address[1]}", st
@@ -43,7 +41,7 @@ def test_the_verify_page_and_the_app_page_are_served(app):
     st, page, h = call(base, "/verify")
     assert st == 200 and b"How we verify" in page and b"review_evidence" in page and b"no real funds" in page
     st, page, _ = call(base, "/app/")
-    for needle in (b"Knos", b"not a sales forecast", b"not a prediction about one person", b'id="lang"',
+    for needle in (b"Knos", b"not a sales forecast", b'id="lang"',
                    b"v-fund", b"v-contribute", b"v-agents", b"/verify"):
         assert needle in page, needle
     assert b"Knos Wanted" not in page
@@ -171,13 +169,7 @@ def test_the_signin_sheet_and_the_noise_toggle_are_on_the_page():
     css = (STATIC / "style.css").read_text(encoding="utf-8")
     assert "#signin:not([hidden])" in css and "position: fixed" in css
     js = (STATIC / "app.js").read_text(encoding="utf-8")
-    assert "Show all Qloo matches" in js and "left out: " in js and 'put("ok"' in js and 'put("err"' in js
-
-
-def test_persona_keeps_the_products_kind_and_shelves_the_noise():
-    from knos_wanted import check
-    rep = check.demand_check(IDEA, client=FakeQloo())
-    assert all(p["on_kind"] for p in rep["persona"]) and len(rep["persona_all"]) >= len(rep["persona"])
+    assert 'put("ok"' in js and 'put("err"' in js
 
 
 def test_release_findings_version_fee_funder_label_and_translations():

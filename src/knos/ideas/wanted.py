@@ -1,11 +1,7 @@
 """Wanted? The step after idea in (wall 1): demand evidence, then a buyer's test money locked for the product and
 released stage by stage at named milestones.
 
-Demand evidence, two kinds:
-  1. the demand check (apps/wanted, knos_wanted): Qloo taste evidence for the product the idea would become, through
-     Qloo's official MCP harness. With no Qloo key it runs Knos's labelled MOCK server; every report says which.
-     Directional demand evidence, not a sales forecast.
-  2. money: buyers' PRE-ORDERS (the claim's pre-order pool, scope 0 of knos.graduation: paid to the makers when the
+Demand evidence is money: buyers' PRE-ORDERS (the claim's pre-order pool, scope 0 of knos.graduation: paid to the makers when the
      product is delivered) and PULL COMMITMENTS, advance-market-commitment style: "I buy N units at price P once the
      named milestones are met". A pull commitment is locked as one knos_pay private order per STAGE (milestone k = scope k of
      the claim), each holding its share of N x P and each released when its milestone oracle is met and the judge signs:
@@ -33,8 +29,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -80,74 +74,18 @@ def retraction_warning(c: dict) -> str | None:
     return None
 
 
-# ---- 1. demand evidence: the Qloo demand check -------------------------------------------------------------------
-def _knos_wanted():
-    try:
-        import knos_wanted  # noqa: F401
-    except ImportError:
-        app = Path(__file__).resolve().parents[3] / "apps" / "wanted"
-        if app.is_dir() and str(app) not in sys.path:
-            sys.path.insert(0, str(app))
-    from knos_wanted import demand, qloo_mcp
-    return demand, qloo_mcp
+# ---- 1. demand evidence: money ------------------------------------------------------------------------------------
+MONEY = "money"
 
 
-def product_phrase(c: dict) -> str:
-    """The product the idea would become, in the words the demand planner reads (a maker can give their own)."""
-    words = c["statement"].rstrip(".")
-    return f"a product from this research: {words[:160]}"
-
-
-def demand(c: dict, product: str | None = None, place: str | None = None, rivals: list[str] | None = None, q=None) -> dict:
-    """Run Knos's demand check on the product the idea would become. Live through `qloo mcp` when Qloo's credential
-    is configured; else Knos's MOCK server (labelled). Candidates are confirmed FIRST-pick here (a maker confirms each
-    in the demand-check page); that is said in the result."""
-    try:
-        dm, qm = _knos_wanted()
-    except Exception as why:  # noqa: BLE001 - not installed here (a wheel): the hosted check answers instead
-        return hosted(c, product, place, why)
-    own = q is None
-    if own:
-        if os.environ.get("QLOO_API_KEY") or os.environ.get("KNOS_WANTED_LIVE") == "1":
-            q = qm.Qloo()
-        else:
-            q = qm.Qloo(qm.InProcess(), mode="mock", reason="QLOO_API_KEY missing: Knos's MOCK server")
-    try:
-        s = dm.start(q, product or product_phrase(c), rivals or [], place)
-        choices = {qn["key"]: qn["candidates"][0]["id"] for qn in s["questions"] if qn["candidates"]}
-        rep = dm.confirm(q, s, choices)
-    except Exception as why:  # noqa: BLE001
-        return {"status": "error", "why": f"{type(why).__name__}: {why}", "mode": getattr(q, "mode", None)}
-    finally:
-        if own:
-            q.close()
-    lean = rep["lean"]
+def demand(c: dict, product: str | None = None, place: str | None = None) -> dict:
+    """The demand evidence Knos takes: money, buyers' pre-orders and pull commitments once they are locked on devnet
+    (`state`). Before any is locked there is none to show. A retracted paper says so, never "wanted"."""
+    del product, place                # the product and place belong to the buyer's commitment, not to this reading
     warn = retraction_warning(c)
-    if warn:      # taste data says nothing about whether a retracted result holds: never "leans wanted"
-        lean = {**lean, "word": RETRACTED_WORD, "taste_word": lean.get("word"), "why": [warn, *lean.get("why", [])]}
-    return {"status": "ok", "mode": rep["mode"], "label": rep["label"], "framing": rep["framing"], "idea": rep["idea"],
-            "lean": lean, "hash": rep["hash"], "steps": len(rep.get("trail", [])), **({"warning": warn} if warn else {}),
-            "confirmed": "first candidate of each question (demo); a maker confirms each match in the demand-check page",
-            "key": "QLOO_API_KEY (live when set; MOCK otherwise)"}
-
-
-LEAN = {"OPEN": "leans wanted", "REFUSE": "leans not wanted", "CANNOT_DECIDE": "cannot decide"}
-
-
-def hosted(c: dict, product: str | None, place: str | None, missing: Exception) -> dict:
-    """The demand check as the hosted app runs it (POST /api/check, knos.demand_cli.ask), labelled "hosted"."""
-    from ..demand_cli import ask
-    from ..demand_tool import base_url
-    try:
-        rep = ask(product or product_phrase(c), place, None, {})
-    except Exception as why:  # noqa: BLE001 - neither here nor hosted: said, with both reasons
-        return {"status": "unavailable", "why": f"knos_wanted not importable ({type(missing).__name__}); the hosted check did not answer ({str(why)[:120]})"}
-    d = rep.get("decision") or {}
-    reasons = [rep["qloo_limit"]] if rep.get("qloo_limit") else list(d.get("reasons") or [])[:2]
-    near = (rep.get("nearest") or {}).get("idea")
-    return {"status": "ok", "mode": "hosted", "label": f"hosted: {base_url()}/api/check" + (f", the nearest idea Qloo has answered: {near}" if near else ""),
-            "idea": rep.get("idea"), "lean": {"word": LEAN.get(str(d.get("verdict")), "cannot decide"), "why": reasons},
-            "hash": rep.get("hash"), "steps": len(rep.get("calls") or []), "key": "the hosted check: knos_wanted is not installed here"}
+    lean = {"word": RETRACTED_WORD, "why": [warn]} if warn else {"word": "no money locked yet", "why": []}
+    return {"status": "ok", "mode": MONEY, "label": "demand evidence: pre-orders and pull commitments locked for this idea",
+            "lean": lean, **({"warning": warn} if warn else {})}
 
 
 # ---- 2. milestone oracles -----------------------------------------------------------------------------------------

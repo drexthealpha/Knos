@@ -18,7 +18,7 @@ Some words are about the code: [AI agent](#ai-agent), [pull request](#pull-reque
 
 Some are about the money: [Solana](#solana), [devnet](#devnet), [test USDC](#test-usdc) and [held money](#held-money).
 
-Some are about the crossing: [Qloo](#qloo), [Ready brief](#ready-brief), [milestone](#milestone) and [referee](#referee).
+Some are about the crossing: [Ready brief](#ready-brief), [milestone](#milestone) and [referee](#referee).
 
 Some are about trust: [signed](#signed), [program](#program), [upgrade](#upgrade) and [multisig](#multisig).
 
@@ -52,7 +52,7 @@ A company or person that holds your money for you.
 
 ### Demand check
 
-A look at Qloo's taste data: who would want a product, and where to launch it.
+A look at who would want a product, and where to launch it.
 
 ### Devnet
 
@@ -137,10 +137,6 @@ The address of a program on Solana. Anyone can look it up.
 ### Pull request
 
 A proposed change to code on GitHub. It waits for someone to accept it.
-
-### Qloo
-
-A company whose taste data says what people like, by place. Knos asks it about demand.
 
 ### Quorum
 

@@ -1,7 +1,6 @@
 """One version of the Python package everywhere it lives: scripts/bump_version.py finds every place (the manifests, the
 lock files, the IDLs, and every line in the tree that installs or names one release), writes a version in all of them,
-and says which disagree. A release changes them together or not at all. The IRIS module.xml files are not among them:
-they carry the IRIS package's own version."""
+and says which disagree. A release changes them together or not at all."""
 from __future__ import annotations
 
 import importlib.util

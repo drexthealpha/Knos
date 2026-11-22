@@ -11,6 +11,26 @@ KEY = "usage-counter"
 _lock = threading.Lock()
 _chain: dict = {"at": 0.0, "n": None}
 CHAIN_S = 15                          # how long a devnet count is reused (a count takes about 8 s)
+_CURRENT = threading.local()
+
+
+def visitor_hash(address: str, salt: bytes | None = None) -> str:
+    """A salted SHA-256 (an HMAC under the server's session secret) of the address: the address itself is never kept."""
+    import hashlib
+    import hmac
+    if salt is None:
+        from . import auth
+        salt = auth._SECRET
+    return hmac.new(salt, b"knos-visitor:" + str(address).encode(), hashlib.sha256).hexdigest()
+
+
+def set_visitor(vh: str | None) -> None:
+    """The server names the visitor of the request this thread serves (an MCP call reaches a tool through agent.py)."""
+    _CURRENT.vh = vh
+
+
+def current_visitor() -> str | None:
+    return getattr(_CURRENT, "vh", None)
 
 
 def _doc() -> dict:
@@ -50,10 +70,10 @@ def bump(checks: int = 0, briefs: int = 0, outside_use: bool | None = None) -> N
         print(f"knos usage: not counted: {type(why).__name__}: {str(why)[:120]}", flush=True)
 
 
-def bump_live(live_calls: int) -> None:
-    """A check that Qloo answered live (at least one HTTP 200 during its request): counted on its UTC day, whoever ran it."""
+def bump_live(answered: int) -> None:
+    """A check at least one open source answered during its request: counted on its UTC day, whoever ran it."""
     from . import valley
-    if live_calls <= 0:
+    if answered <= 0:
         return
     try:
         with _lock:
@@ -92,7 +112,7 @@ def feedback_counts(fb: dict | None = None) -> dict:
 
 
 def counter(orders: dict | None = None) -> dict:
-    """The public live counter (/api/counter, /proof/, /status/qloo): live checks today and this week, checks by people
+    """The public live counter (/api/counter, /proof/): live checks today and this week, checks by people
     other than the founder this week, devnet pre-orders held and released, and the feedback answers. Zeros are zeros."""
     d = _doc()
     today = dt.datetime.now(dt.timezone.utc).date()
@@ -103,7 +123,7 @@ def counter(orders: dict | None = None) -> dict:
     return {"checks_today": int(live.get(today.isoformat()) or 0), "checks_week": sum(int(v or 0) for k, v in live.items() if k in week),
             "checks_by_others": others, "preorders_held": o.get("held_n"), "preorders_released": o.get("released_n"),
             **feedback_counts(),
-            "day": today.isoformat(), "counted": "live: a check Qloo answered with at least one HTTP 200 during its request; others: no operator key, "
+            "day": today.isoformat(), "counted": "live: a check at least one open source answered during its request; others: no operator key, "
             "no automated client, no test session; pre-orders: the app's devnet orders, held, and released after the milestone check passed"}
 
 

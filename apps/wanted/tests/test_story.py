@@ -1,44 +1,34 @@
-"""R2: one card, one story (decision sentence, tiles, used words, reruns, rejected list, downloads), the model only with
-a key and under its caps, and "Was this useful?" kept with a salted visitor hash, never an address."""
+"""One card, one story (the decision sentence, each open signal's row with its unit, the sources and the rule), the model
+only with a key and under its caps, and "Was this useful?" kept with a salted visitor hash, never an address."""
 import pytest
 
 from knos_wanted import model, story
 
+ROWS = [{"name": "Wikipedia", "value": 296, "unit": "views a day (last 60 days)", "link": "https://en.wikipedia.org/wiki/Ramen", "counts": True},
+        {"name": "Hacker News", "value": 1200, "unit": "stories in 2 years", "link": "https://hn.algolia.com/", "counts": True},
+        {"name": "Money down", "value": 12.5, "unit": "test money, 1 pre-orders here", "counts": True}]
 OPEN = {"hash": "a" * 64, "idea": "a late night ramen spot", "made": "2026-10-29T20:00:00Z", "place": None,
-        "decision": {"verdict": "OPEN", "reasons": ["r"], "target_units": 120, "reserve_units": 36},
-        "terms": {"city": "Seattle-Tacoma-Bellevue, WA"}, "audiences": [{"name": "Foodies", "lift": 0.012, "src": 7}],
-        "price": {"tier": "mid", "src": 9}, "qloo_calls": {"live": 14, "recorded": 3, "ms": 8200},
-        "taste_answer": {"tags": [{"name": "Late Night Ramen", "id": "urn:tag:x", "src": 3}]},
-        "calls": [{"n": 1, "what": "closest existing products", "out": "x"}, {"n": 7, "what": "audience segments: lift of Foodies", "out": "y"}]}
-REFUSE = {**OPEN, "decision": {"verdict": "REFUSE", "reasons": ["audience too thin: 1 audience segments separated by Qloo (needs 3)"]},
-          "unrelated": [{"name": "Top Ramen", "why": "shares too few content words with the idea"}],
-          "calls": [{"n": 1, "what": "who: age", "error": "Qloo could not answer this part (HTTP 400)"}]}
+        "decision": {"verdict": "OPEN", "reasons": ["Sources: Wikipedia, Hacker News, pre-orders here."], "target_units": None},
+        "open_demand": {"verdict": "OPEN", "rows": ROWS, "phrase": "late night", "head": "Open signals say people want this",
+                        "line": "Sources: Wikipedia, Hacker News, pre-orders here.", "rule": "People want it when 2 of these pass."}}
+REFUSE = {**OPEN, "decision": {"verdict": "REFUSE", "reasons": ["Sources: Wikipedia."]},
+          "open_demand": {**OPEN["open_demand"], "verdict": "REFUSE", "head": "Open signals find little interest yet", "rows": ROWS[:1]}}
 
 
-def test_an_open_card_leads_with_its_decision_and_offers_three_downloads_built_from_its_numbers():
+def test_an_open_card_leads_with_its_head_and_each_row_with_its_unit():
     s = story.build(OPEN)
-    assert s["sentence"] == "People want this, most in Seattle-Tacoma-Bellevue, WA, among Foodies. Pre-orders are open."
-    assert [t["label"] for t in s["tiles"]] == ["Most wanted in", "Top audience", "Price level"]
-    assert s["tiles"][2]["value"] in ("mid-range", "budget", "premium", "luxury")
-    assert [d["kind"] for d in s["downloads"]] == ["preorder", "outreach", "refund.ics"]
-    body, ctype, _ = story.download(OPEN, "preorder")
-    assert "120 pre-orders" in body and "36 of them" in body and "Seattle-Tacoma-Bellevue, WA" in body and "2026-11-28" in body
-    ics = story.download(OPEN, "refund.ics")[0]
-    assert "DTSTART;VALUE=DATE:20261128" in ics and ctype.startswith("text/plain")
-    assert story.download(REFUSE, "preorder") is None
+    assert s["sentence"] == "Open signals say people want this"
+    assert [t["label"] for t in s["tiles"]] == ["Wikipedia", "Hacker News", "Money down"]
+    assert s["tiles"][1]["value"] == "1,200 stories in 2 years" and s["tiles"][2]["value"] == "$12.50 test money, 1 pre-orders here"
+    assert s["tiles"][0]["link"] == ROWS[0]["link"] and "link" not in s["tiles"][2]
+    assert s["used"] == {"phrase": "late night", "line": "Sources: Wikipedia, Hacker News, pre-orders here. People want it when 2 of these pass."}
+    assert s["downloads"] == [] and s["reruns"] == []
 
 
-def test_the_used_line_names_only_the_inputs_own_words():
-    u = story.build(OPEN)["used"]
-    assert u["used"] == ["late", "night", "ramen"] and u["not_in_qloo"] == ["spot"]
-    assert u["line"] == "" and u["words"].startswith("Matched: late, night, ramen.") and "Not found: spot" in u["words"]
-
-
-def test_a_refusal_is_never_a_dead_end():
+def test_a_refusal_says_so_in_its_own_words():
     s = story.build(REFUSE)
-    assert s["sentence"].startswith("Not enough people want this yet")
-    assert 1 <= len(s["reruns"]) <= 3 and s["reruns"][0]["label"] == "Check Late Night Ramen instead"
-    assert s["rejected"] == [] and any(r["name"] == "Top Ramen" for r in s["rejected_all"]) and not s["downloads"]
+    assert s["sentence"] == "Open signals find little interest yet" and len(s["tiles"]) == 1
+    assert story.build({"decision": {"verdict": "CANNOT_DECIDE"}})["sentence"] == "No signal yet"
 
 
 def test_the_model_needs_the_key_and_keeps_its_caps(monkeypatch):
@@ -48,8 +38,10 @@ def test_the_model_needs_the_key_and_keeps_its_caps(monkeypatch):
         model.follow_up(OPEN, "where first?")
     monkeypatch.setattr(model, "_day", {"day": None, "n": 0})
     monkeypatch.setattr(model, "_per", {})
-    got = model.follow_up(OPEN, "who buys it?", provider=lambda prompt: "Foodies lead [call 7], from the lift.")
-    assert got["cites"] == [7] and got["model"] == "stub"
+    seen = []
+    got = model.follow_up(OPEN, "who reads about it?", provider=lambda prompt: (seen.append(prompt), "Wikipedia readers [source 1].")[1])
+    assert got["cites"] == [1] and got["model"] == "stub"
+    assert "[source 1] Wikipedia: 296 views a day (last 60 days)" in seen[0]
     with pytest.raises(model.Refused, match="already had its 1 model call"):
         model.follow_up(OPEN, "again?", provider=lambda p: "x")
     model._day["n"] = model.PER_DAY
@@ -59,27 +51,12 @@ def test_the_model_needs_the_key_and_keeps_its_caps(monkeypatch):
 
 
 def test_feedback_keeps_a_salted_visitor_hash_and_never_an_address(monkeypatch):
-    from knos_wanted import qloo_rest, usage
+    from knos_wanted import usage
     store: dict = {}
     monkeypatch.setattr(usage, "_doc", lambda: store.setdefault("d", {"checks": 0, "briefs": 0}))
     monkeypatch.setattr("knos_wanted.valley._save", lambda kind, key, d: store.update(d=d))
-    vh = qloo_rest.visitor_hash("203.0.113.9", b"test salt")
+    vh = usage.visitor_hash("203.0.113.9", b"test salt")
     got = usage.feedback("a" * 64, True, "useful, thanks", vh)
     assert got["saved"] and got["feedback_yes"] == 1 and got["feedback_no"] == 0
     kept = str(store["d"]["feedback"])
     assert "203.0.113.9" not in kept and "@" not in kept and vh[:16] in kept
-
-
-def test_a_refusal_with_nothing_else_rejected_names_the_rule_that_refused_it():
-    rep = {"idea": "a quiet idea", "decision": {"verdict": "REFUSE", "reasons": ["no product of this taste wants it"]}}
-    assert story.rejected(rep) == [{"name": "a quiet idea", "rule": "no product of this taste wants it"}]
-    assert story.rejected({**rep, "decision": {"verdict": "OPEN", "reasons": ["x"]}}) == []
-
-
-def test_the_pre_order_text_and_calendar_carry_the_cards_own_launch_target():
-    rep = {"idea": "x", "hash": "h" * 64, "made": "2026-10-31", "decision": {"verdict": "OPEN", "target_units": 250, "reserve_units": 75},
-           "terms": {"city": "Bend, OR", "target": 127}}
-    pre = story.download(rep, "preorder")[0]
-    ics = story.download(rep, "refund.ics")[0]
-    assert "127 pre-orders" in pre and "250" not in pre and "Bend, OR" in pre
-    assert ics.count("BEGIN:VEVENT") == 2 and "First milestone deadline" in ics and "Refund date" in ics and "127 pre-orders from Bend, OR" in ics

@@ -3,10 +3,9 @@
 1. 10 of 10 runs of /auth/sso?tenant=knos-test reach the mocksaml email step, with 0 HTTP 429 (GETs only: the page is
    loaded, nothing is typed or submitted);
 2. the sign-in sheet shows only working methods (0 "Not available yet", 0 switched-off buttons);
-3. over 20 ideas, every "Who wants it" segment shares a word, or a Qloo tag path word, with its idea;
-4. every Knos page serves the crow icon set: icon.svg, favicon.ico (200), apple-touch-icon, the manifest's icons.
+3. every Knos page serves the crow icon set: icon.svg, favicon.ico (200), apple-touch-icon, the manifest's icons.
 
-    KNOS_ADMIN_KEY=... python scripts/test_phone_bugs.py       (the key only lifts the per-address limit for step 3)
+    KNOS_ADMIN_KEY=... python scripts/test_phone_bugs.py       (the key only lifts the per-address limit)
 """
 from __future__ import annotations
 
@@ -17,10 +16,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from qloo_vs_open_signals import IDEAS  # noqa: E402
 
 APP, SITE = "https://knos.onrender.com", "https://drexthealpha.github.io/Knos/"
 OP = {"X-Knos-Admin": os.environ.get("KNOS_ADMIN_KEY", "")}
@@ -67,13 +63,6 @@ def sso_run() -> tuple[bool, str]:
     return False, f"{codes} too many redirects"
 
 
-def tied(seg: str, idea: str, tag_ids: list[str]) -> bool:
-    norm = lambda w: w[:-1] if len(w) > 3 and w.endswith("s") and not w.endswith("ss") else w   # noqa: E731
-    words = lambda t: {norm(w) for w in re.findall(r"[^\W\d_]{3,}", t.lower())}                 # noqa: E731
-    paths = {norm(w) for i in tag_ids for w in re.split(r"[:_\-./]+", i.lower()) if len(w) > 2}
-    return bool(words(seg) & (words(idea) | paths))
-
-
 def main() -> int:
     runs = [sso_run() for _ in range(10)]
     for i, (good, why) in enumerate(runs, 1):
@@ -85,22 +74,7 @@ def main() -> int:
     sheet = page[page.index('<section id="signin"'):page.index("</section>", page.index('<section id="signin"'))]
     ok("Not available" not in sheet and " disabled" not in sheet, "sign-in sheet: 0 'Not available yet', 0 switched-off buttons")
 
-    shown, bad = 0, []
-    for field, idea in IDEAS:
-        req = urllib.request.Request(APP + "/api/check", json.dumps({"idea": idea}).encode(), {"Content-Type": "application/json", **OP})
-        try:
-            rep = json.loads(urllib.request.urlopen(req, timeout=300).read())
-        except urllib.error.HTTPError as e:
-            bad.append(f"{idea}: HTTP {e.code}")
-            continue
-        plan = (rep.get("decision") or {}).get("plan") or {}
-        segs = (plan.get("who") or {}).get("segments") or [a["name"] for a in rep.get("audiences") or [] if a.get("tied")]
-        tags = [t.get("id") or "" for t in rep.get("tags") or []]
-        shown += len(segs)
-        bad += [f"{idea}: {s}" for s in segs if not tied(s, idea, tags)]
-    ok(not bad, f"Who wants it: {shown} segments shown over {len(IDEAS)} ideas, {len(bad)} not tied to their idea {bad[:5]}")
-
-    pages = [APP + p for p in ("/", "/fields", "/companies", "/money", "/with-without", "/qloo-safe-use", "/invite", "/verify", "/trace",
+    pages = [APP + p for p in ("/", "/fields", "/companies", "/money", "/invite", "/verify",
                            "/ready/47276294383a4d3cc8fac82de79d274510075c407af7e9f2c6e8e753241873ed")] + \
         [SITE + p for p in ("", "faq.html", "privacy.html", "wanted.html", "404.html", "check/")]
     missing = []

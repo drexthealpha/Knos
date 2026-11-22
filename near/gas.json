@@ -1,0 +1,137 @@
+{
+ "read_at": "2026-11-22T16:24:49Z",
+ "contract": "jobs.knos-swarm-1105.testnet",
+ "transactions": 20,
+ "limit_tgas": 300,
+ "release_receipt_tgas": {
+  "max": 8.72,
+  "median": 8.12
+ },
+ "transaction_tgas": {
+  "max": 16.87,
+  "median": 16.25
+ },
+ "share_of_limit_max": 0.0562,
+ "rows": [
+  {
+   "job": "job-1120160047",
+   "tx": "7Ue2BXomH3TgXvkHGXtU8d4Q5wyrgvNbpYL5BQtgdLFc",
+   "receipt_gas": 8111028744489,
+   "tx_gas": 16220108716896
+  },
+  {
+   "job": "job-1119155030",
+   "tx": "85FdcQhHdpA9X9kuZVAuNrZsdC3e9JBbvjaJrxp6tnW",
+   "receipt_gas": 8701324289820,
+   "tx_gas": 16624459316065
+  },
+  {
+   "job": "job-1119044548",
+   "tx": "AKkgY9rW2YA2XLn9Zh51zRXASNWmyUZr4VRQHaiyBjo",
+   "receipt_gas": 8694452202336,
+   "tx_gas": 16608467228581
+  },
+  {
+   "job": "job-1116141254",
+   "tx": "98aGZMUckf21Xn2ZWojJ3iD7wZJZcGWxjBZowZz362px",
+   "receipt_gas": 8699012202336,
+   "tx_gas": 16617587228581
+  },
+  {
+   "job": "job-1114200906",
+   "tx": "2HVd6nDuaTGQVt75n7fzNemiBcCzKmiUaZex8i9sFmbi",
+   "receipt_gas": 8723367748484,
+   "tx_gas": 16871007615559
+  },
+  {
+   "job": "job-1114174256",
+   "tx": "3hVHzBvuNKENfUgJ2MYbsxfYnQbHn13asu2S6dAaEfbM",
+   "receipt_gas": 8127599301960,
+   "tx_gas": 16256035042325
+  },
+  {
+   "job": "job-1114174057",
+   "tx": "9vypQyPQqQ9KEP2ZUwEQYc5ZVDiQ6RQWc5NMb2AxdFQQ",
+   "receipt_gas": 8131296767424,
+   "tx_gas": 16259732507789
+  },
+  {
+   "job": "job-1114173925",
+   "tx": "GW7EKvWwFhC6LxitygiM9mU7v4aG2McFfA8vVQNCsdM3",
+   "receipt_gas": 8125319301960,
+   "tx_gas": 16249195042325
+  },
+  {
+   "job": "job-1114165835",
+   "tx": "GbAi2QXiu9jRBry8dVufchmwHubP5dJcGVwJAc5yWAL3",
+   "receipt_gas": 8135425500156,
+   "tx_gas": 16263861240521
+  },
+  {
+   "job": "job-1114165728",
+   "tx": "BQCn6xZHGBR7xELjAjipSHxF8gN6ywxQscy88qnhPVQ",
+   "receipt_gas": 8127168034692,
+   "tx_gas": 16255603775057
+  },
+  {
+   "job": "job-1114160718",
+   "tx": "2VsGJGb3RCPqyWGaw6YqKMCABNjizd5deYKAAfnBkNF9",
+   "receipt_gas": 8120759301960,
+   "tx_gas": 16244635042325
+  },
+  {
+   "job": "job-1114155800",
+   "tx": "4E1Fi8E9VrYMEryEwF1wiHKfyFqYsUgD1wHQfa71RoQN",
+   "receipt_gas": 8120759301960,
+   "tx_gas": 16240075042325
+  },
+  {
+   "job": "job-1114145903",
+   "tx": "9bSg8MZLfLZcLRuvq3pb48spjY2WDjhmCUNmzmtUfck4",
+   "receipt_gas": 8084710569228,
+   "tx_gas": 16213146309593
+  },
+  {
+   "job": "job-1114145525",
+   "tx": "2drtVDJ1z9iU4X2fb39vHere7yrtNY8PyZHXDuJx19gE",
+   "receipt_gas": 8119341836496,
+   "tx_gas": 16243217576861
+  },
+  {
+   "job": "job-1114145004",
+   "tx": "CZPCygBuzzpqXm3SuDAdXUhFCwKjCjzmZBjp7yRor6DH",
+   "receipt_gas": 8120759301960,
+   "tx_gas": 16244635042325
+  },
+  {
+   "job": "job-1114144735",
+   "tx": "CGrj9ZerLVm7pAMp3CPFdcXWAdSh5CRBPv37jFVzmboZ",
+   "receipt_gas": 8077870569228,
+   "tx_gas": 16201746309593
+  },
+  {
+   "job": "job-1114144654",
+   "tx": "4a6KCPier4TtoSGbezHe2wLchx1dwhKSyfGmnJmS9BRD",
+   "receipt_gas": 8721519015752,
+   "tx_gas": 16860038882827
+  },
+  {
+   "job": "job-1114144341",
+   "tx": "4jHMiDJT9jxtwkeSn535mpurcnWSdBQdDSq2bo9WxfBL",
+   "receipt_gas": 8116199301960,
+   "tx_gas": 16155706383006
+  },
+  {
+   "job": "job-1113235857",
+   "tx": "8PUgDHNBTY1NMPQ6vqxfnKgRmqobCo4j4HqdAmM3J5pD",
+   "receipt_gas": 7525358102739,
+   "tx_gas": 12126479571672
+  },
+  {
+   "job": "job-1113231824",
+   "tx": "42Ji9Zcoi1geT5oeiF9GJaZf7cDHpSbA3Lwp13L46gRg",
+   "receipt_gas": 7529431710819,
+   "tx_gas": 12135113179752
+  }
+ ]
+}

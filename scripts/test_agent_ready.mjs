@@ -8,9 +8,11 @@ import { appendFileSync } from "node:fs";
 const APP = "https://knos.onrender.com";
 const OUT = process.argv[2] || "";
 const lines = [], fails = [];
-const log = (s) => { console.log(s); lines.push(s); };
+const log = (s) => { console.log(s); lines.push(s); if (OUT) appendFileSync(OUT, s + "\n"); };   // each line kept at once
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const again = async (f) => { try { return await f(); } catch (e) { await sleep(30000); return await f(); } };   // a network blip, once more
 const ok = (c, what) => { log(`${c ? "ok  " : "FAIL"} ${what}`); if (!c) fails.push(what); return c; };
-const get = (path, opts = {}) => fetch(APP + path, { redirect: "manual", headers: { "User-Agent": "knos-g1-test", ...(opts.headers || {}) } });
+const get = (path, opts = {}) => again(() => fetch(APP + path, { redirect: "manual", headers: { "User-Agent": "knos-g1-test", ...(opts.headers || {}) } }));
 
 // 1. each file answers 200 with a valid body
 for (const [path, kind] of [["/llms.txt", "md"], ["/robots.txt", "robots"], ["/sitemap.xml", "xml"], ["/.well-known/ai-catalog.json", "json"], ["/mcp/server-card", "card"]]) {
@@ -43,7 +45,7 @@ const browser = await chromium.launch();
 try {
   const ctx = await browser.newContext({ javaScriptEnabled: false });
   const page = await ctx.newPage();
-  await page.goto(`${APP}/trace.html?hash=${hash}`, { waitUntil: "domcontentloaded", timeout: 120000 });
+  await again(() => page.goto(`${APP}/trace.html?hash=${hash}`, { waitUntil: "domcontentloaded", timeout: 120000 }));
   const ssr = await page.$eval("#k-trace-ssr", (e) => e.innerText).catch(() => "");
   const ld = await page.$$eval('script[type="application/ld+json"]', (s) => s.length).catch(() => 0);
   const md = await page.$eval('link[rel="alternate"][type="text/markdown"]', (e) => e.getAttribute("href")).catch(() => "");
@@ -51,7 +53,7 @@ try {
   await ctx.close();
   // 4. /app/?q= prefills and runs the check
   const p2 = await browser.newPage({ viewport: { width: 1280, height: 900 } });
-  await p2.goto(`${APP}/app/?q=a%20late%20night%20ramen%20spot`, { waitUntil: "domcontentloaded", timeout: 120000 });
+  await again(() => p2.goto(`${APP}/app/?q=a%20late%20night%20ramen%20spot`, { waitUntil: "domcontentloaded", timeout: 120000 }));
   const q = await p2.$eval("#k-q", (e) => e.value).catch(() => "");
   const card = await p2.waitForSelector("#k-card [data-which], #k-card .k-card:not([data-confirm])", { timeout: 120000 }).catch(() => null);
   ok(q === "a late night ramen spot" && !!card, `/app/?q=a%20late%20night%20ramen%20spot: the box reads "${q}", ${card ? "a card came (the check ran)" : "no card"}`);
@@ -60,5 +62,4 @@ try {
 } finally { await browser.close(); }
 log(fails.length ? `FAIL test_agent_ready: ${fails.length} of ${lines.length} checks failed; first: ${fails[0].slice(0, 140)}`
   : `PASS test_agent_ready: ${lines.length} of ${lines.length} checks: 5 files valid, /start/ 301, HTML 404, the trace readable with JavaScript off, /app/?q= runs the check`);
-if (OUT) appendFileSync(OUT, `\n${new Date().toISOString()}\n` + lines.join("\n") + "\n");
 process.exit(fails.length ? 1 : 0);

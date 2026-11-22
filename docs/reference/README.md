@@ -32,7 +32,6 @@ The documents in this folder are listed below, with the seven front pages too.
 |---|---|
 | [STORY.md](../STORY.md) | an earlier run on Solana in six steps, each with its evidence |
 | [NEAR.md](NEAR.md) | Knos on NEAR in full: every claim, the accounts on testnet, the tests and attacks, the disclosure |
-| [IRIS.md](IRIS.md) | Knos on InterSystems IRIS in full: the contest task part by part, the bonuses, troubleshooting, the architecture |
 | [COLOSSEUM.md](COLOSSEUM.md) | the pull request check on Solana devnet and the README's old reference sections: what is real today, the programs |
 | [MANIFEST.md](MANIFEST.md) | this release on one page: source, the build live at each public id, every capability's stage, the limits |
 | [CAPABILITIES.md](CAPABILITIES.md) | every capability, the stage it has reached, and the file or transaction that shows it |
@@ -81,7 +80,7 @@ The documents in this folder are listed below, with the seven front pages too.
 
 | document | what it answers |
 |---|---|
-| [START.md](../START.md) | get started in five minutes: a paper's claim on NEAR first, then the same Knos on Solana and IRIS |
+| [START.md](../START.md) | get started in five minutes: a paper's claim on NEAR first, then the same Knos on Solana |
 | [WORDS.md](../WORDS.md) | every technical word in one plain line |
 | [DIAGRAMS.md](DIAGRAMS.md) | the source of each picture in the README, for pages that cannot draw diagrams |
 | [INSTALL.md](INSTALL.md) | every way to install the command, the check and the workflows |
@@ -89,19 +88,10 @@ The documents in this folder are listed below, with the seven front pages too.
 | [COMPANIES.md](COMPANIES.md) | the panels for buyers and suppliers: statements, bank files, approvals, netting, enforcement, vendors |
 | [SUPPLIER.md](SUPPLIER.md) | for the supplier: the rules before the work, every refusal in plain words, appeals |
 | [AGENTS.md](AGENTS.md) | an agent finds work, takes it, submits it and is paid |
-| [DEMAND_CHECK.md](DEMAND_CHECK.md) | the demand check: what Qloo's taste data says about an idea, and the report it writes |
 | [REFUSE.md](REFUSE.md) | what Knos will not fund: the refuse list every Ready check applies |
 | [MCP_STORE.md](MCP_STORE.md) | Knos in AI assistants: the read-only app-store MCP and its tools, with their limits and privacy |
-| [OUTSIDE_TRUTH.md](OUTSIDE_TRUTH.md) | the demand check scored against outside truth: SBIR awards, crowdfunded launches, official US business counts and film fans |
-| [qloo_lift_ranked_plan.md](qloo_lift_ranked_plan.md) | The rules of the ranked test on a public dataset of crowdfunded product launches, committed before it ran |
-| [taste_truth_plan.md](taste_truth_plan.md) | The rules of the MovieLens taste test, committed before it ran |
-| [where_truth_plan.md](where_truth_plan.md) | The rules of the where-demand test, committed before it ran |
-| [forecast_plan.md](forecast_plan.md) | How the forecast ledger is graded, committed before /forecasts/ was published |
-| [forecast_plan_v2.md](forecast_plan_v2.md) | The second forecast plan: county establishment counts (QCEW), fixed before any outcome |
+| [OUTSIDE_TRUTH.md](OUTSIDE_TRUTH.md) | open signals scored against 200 past SBIR awards whose outcome is known |
 | [evidence_plan.md](evidence_plan.md) | Knos's own claims, each tested against a real outcome with a control, fixed before any run |
-| [impact_prereg_plan.md](impact_prereg_plan.md) | The launch-city test against the model alone, fixed before any call or prediction |
-| [baseline_prereg_plan.md](baseline_prereg_plan.md) | The launch-city ranking against Qloo popularity alone and population, fixed before any data is read |
-| [QLOO-COVERAGE.md](QLOO-COVERAGE.md) | every Qloo parameter, type and endpoint the docs list, and where a person sets it on each interface |
 | [IDEAS.md](IDEAS.md) | the first two steps of the earlier flow: an idea in from anyone, then demand evidence |
 
 ## 5. How do I build on it?
@@ -141,7 +131,6 @@ The documents in this folder are listed below, with the seven front pages too.
 | [`src/knos`](../../src/knos) | What the workflows run: the referee, the relay, receipts, statements, the Stop hook, the MCP server. |
 | [`crates`](../../crates), [`idl`](../../idl), [`sdk/settle`](../../sdk/settle), [`examples`](../../examples), [`conformance`](../../conformance) | What another team builds on. |
 | [`near`](../../near) | The NEAR entry: the contracts on NEAR testnet and the code that runs against them. |
-| [`iris`](../../iris) | Knos on InterSystems IRIS (the IRIS entry). |
 | [`web`](../../web) | The site. It reads GitHub and both chains in the browser and calls the Knos server (knos.onrender.com) for live checks. |
 | [`terms`](../../terms) | The terms registry: each set of terms, by hash. |
 

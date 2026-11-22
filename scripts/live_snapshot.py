@@ -1,6 +1,6 @@
 """At the Pages build (.github/workflows/network.yml): the newest agent payout and the usage counter, read from the app
 (GET /api/agent/payout/latest, GET /api/usage), written into the built front door so a reader sees them with no
-request. The page asks the app again after load (web/brand/hero.js). A build never fails here: when the app does
+request. The page asks the app again after load. A build never fails here: when the app does
 not answer, the page keeps the line it was committed with.
 
     python scripts/live_snapshot.py _site/index.html

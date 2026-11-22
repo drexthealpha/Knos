@@ -2,8 +2,8 @@
 
 python tests/web/law_app.py          prints "port <n>" once it serves, then serves until its stdin closes
 
-The same set-up as apps/wanted/tests/test_tool_run.py's `app` fixture: the app's own handler on 127.0.0.1, Qloo in its
-in-process mock, no chain count from the network, a state folder of its own (KNOS_WANTED_STATE, a new temporary folder).
+The same set-up as apps/wanted/tests/test_tool_run.py's `app` fixture: the app's own handler on 127.0.0.1,
+no chain count from the network, a state folder of its own (KNOS_WANTED_STATE, a new temporary folder).
 The tool's program is the released one (near/agents/job/data/limit/released_solution.py) when it exists; until then the
 stand-in written to the locked test's interface, apps/wanted/tests/limit_standin.py, which is kept only under tests."""
 import hashlib
@@ -21,7 +21,6 @@ for p in (REPO / "apps" / "wanted", REPO / "src"):
     sys.path.insert(0, str(p))
 
 from knos_wanted import server, tool_run, usage  # noqa: E402
-from knos_wanted.qloo_mcp import InProcess, Qloo  # noqa: E402
 
 
 def main() -> int:
@@ -33,7 +32,7 @@ def main() -> int:
         tool_run.program_path = lambda: standin
         tool_run.released = lambda: rel          # ready() compares the program with released.json
     usage.chain_count = lambda url=None: (_ for _ in ()).throw(OSError("no network in tests"))
-    state = server.State(Qloo(InProcess(), mode="mock", sleep=lambda s: None))
+    state = server.State()
     state.allow = lambda *a, **k: True          # the tests press far more often than a person: no rate limit here
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.make_handler(state))
     threading.Thread(target=httpd.serve_forever, daemon=True).start()

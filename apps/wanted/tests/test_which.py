@@ -1,49 +1,32 @@
-"""Which one do you mean? asked by /api/check before any Qloo call; a picked reading is checked exactly; with Qloo out
-and nothing recorded for it, its check is queued with a Ready brief, and the nearest recorded card only stands in."""
+"""Which one do you mean? asked by /api/check for a paper id before any check runs; a plain idea and a picked reading
+are checked exactly as typed."""
 from test_product_routes import app, call  # noqa: F401 - the fixture
 
-from knos_wanted import recorded, which
+from knos_wanted import which
 
-CARD = {"idea": "a vegan ramen truck for festivals", "made": "2026-10-22T13:26:44Z", "hash": "a" * 64, "stage": "full",
-        "label": "LIVE Qloo data (Qloo REST API, read for this report, cached privately on the server)",
-        "decision": {"verdict": "OPEN", "reasons": ["r"]}, "calls": [{"n": 1, "call": "GET /search", "cached": False, "at": "2026-10-22T13:26:29Z"}]}
-
-
-def _with_card(monkeypatch):
-    monkeypatch.setitem(recorded._answered, recorded.key(CARD["idea"]), dict(CARD))
-    monkeypatch.setattr(which.readings, "paper", lambda text, **_: None)
+PAPER = {"title": "A synthetic sensor paper", "year": 2016, "doi": "https://doi.org/10.1038/nature16521", "cited_by_count": 5000,
+         "concepts": ["Wearable computer", "Biosensor"]}
 
 
-def test_an_unrecorded_idea_is_asked_which_one_before_any_qloo_call(app, monkeypatch):  # noqa: F811
-    _with_card(monkeypatch)
+def test_a_paper_is_asked_which_one_before_any_check(app, monkeypatch):  # noqa: F811
+    monkeypatch.setattr(which.readings, "paper", lambda text, **_: PAPER)
+    monkeypatch.setattr(which, "_products", lambda ref: ["a fitness watch with a sweat glucose sensor"])
     base, _ = app
-    st, w = call(base, "/api/check", {"idea": "a vegan ramen food truck"})
-    assert st == 200 and w["kind"] == "which_one" and "calls" not in w
+    st, w = call(base, "/api/check", {"idea": "10.1038/nature16521"})
+    assert st == 200 and w["kind"] == "which_one" and "decision" not in w
     texts = [r["text"] for r in w["readings"]]
-    assert texts[0] == "a vegan ramen food truck" and CARD["idea"] in texts and "a food truck" in texts
+    assert texts == ["10.1038/nature16521", "a fitness watch with a sweat glucose sensor"] and w["paper"]["title"] == PAPER["title"]
+
+
+def test_a_plain_idea_is_checked_at_once(app, monkeypatch):  # noqa: F811
+    monkeypatch.setattr(which.readings, "paper", lambda text, **_: None)
+    base, _ = app
+    st, rep = call(base, "/api/check", {"idea": "a vegan ramen food truck"})
+    assert st == 200 and rep.get("kind") != "which_one" and rep["idea"] == "a vegan ramen food truck" and rep["decision"]["verdict"]
 
 
 def test_a_picked_reading_is_checked_exactly(app, monkeypatch):  # noqa: F811
-    _with_card(monkeypatch)
+    monkeypatch.setattr(which.readings, "paper", lambda text, **_: PAPER)
     base, _ = app
-    st, rep = call(base, "/api/check", {"idea": "a vegan ramen food truck", "picked": True})
-    assert st == 200 and rep.get("kind") != "which_one" and rep["idea"] == "a vegan ramen food truck"
-
-
-def test_qloo_out_queues_the_picked_reading_with_its_brief_and_no_stand_in(monkeypatch):
-    _with_card(monkeypatch)
-    monkeypatch.setattr("knos_wanted.qloo_status.reset_day", lambda: "20 Nov 2026")
-    monkeypatch.setattr("knos_wanted.qloo_status.limit_line", lambda: "Qloo's monthly limit for Knos is reached until 20 Nov 2026.")
-    monkeypatch.setattr("knos_wanted.company.record_queued", lambda idea, day: {"recorded": True, "queued": True})
-    rep = {"idea": "a vegan ramen food truck", "hash": "b" * 64, "decision": {"verdict": "CANNOT_DECIDE", "reasons": []},
-           "calls": [{"n": 1, "call": "GET /search", "error": "HTTP 429 Too Many Requests"}], "label": "NO QLOO EVIDENCE"}
-    out = recorded.honest("a vegan ramen food truck", rep, picked=True)
-    assert out["idea"] == "a vegan ramen food truck" and out["decision"]["verdict"] == "QUEUED"
-    assert out["queued"]["line"] == "Qloo answers this when its monthly limit resets on 20 Nov 2026; your check is queued."
-    assert out["ready"]["ready"] and len(out["ready"]["criteria_hash"]) == 64 and out["record"]["queued"]
-    # nothing recorded for it: said so, and the nearest recorded idea is named to pick, never shown as its answer
-    assert out["no_recording"] == "no recorded answer for this idea" and "stand_in" not in out
-    assert out["also_matched"] == CARD["idea"] and out["result_line"] == "Read as a vegan ramen food truck"
-    assert out["qloo_calls"]["live"] == 0
-    # not picked: the old path, never queued
-    assert not recorded.honest("a vegan ramen food truck", rep).get("queued")
+    st, rep = call(base, "/api/check", {"idea": "10.1038/nature16521", "picked": True})
+    assert st == 200 and rep.get("kind") != "which_one" and rep["idea"] == "10.1038/nature16521"

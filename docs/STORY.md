@@ -2,7 +2,7 @@
 
 # An earlier run (Oct 2026), on Solana
 
-**In plain words.** This page follows one project from October 2026, before the NEAR entry. Qloo checked who wanted it, and a Solana program held the backers' [test money](WORDS.md#test-usdc). The money moved only when the referees passed the step.
+**In plain words.** This page follows one project from October 2026, before the NEAR entry. A demand check asked who wanted it, and a Solana program held the backers' [test money](WORDS.md#test-usdc). The money moved only when the referees passed the step.
 
 **The goal: Knos carries research across the valley of death.**
 
@@ -15,7 +15,7 @@ One idea, start to finish: a registered trial of psilocybin for alcohol use diso
 ```mermaid
 flowchart TB
     s1["1. An idea or a paper comes in"]
-    s2["2. The demand check asks Qloo who wants it and where"]
+    s2["2. The demand check asks who wants it and where"]
     s3["3. A Ready brief locks each milestone by a hash"]
     s4["4. The backers' money is held on Solana devnet"]
     s5["5. A passed check pays the maker for that milestone"]
@@ -29,8 +29,8 @@ flowchart TB
 1. **An idea comes in.** A trial record becomes one claim record.
    Evidence: [Ideas from research sources](reference/IDEAS.md)
 
-2. **The demand check runs.** Qloo says who wants it and where.
-   Evidence: [The demand check's rules](reference/DEMAND_CHECK.md)
+2. **The demand check runs.** It asks who wants it and where.
+   Evidence: [Ideas from research sources, demand evidence](reference/IDEAS.md)
 
 3. **The Ready brief is locked.** Each stage has a target, a checker and a deadline.
    Evidence: [The Ready check and the criteria hash](../src/knos/ready.py)
@@ -44,7 +44,7 @@ flowchart TB
 6. **Refunded at the deadline.** No results were posted in time, so the backer was refunded.
    Evidence: [The refund transaction (devnet)](https://explorer.solana.com/tx/5FtL36bLPvQhS7z8h8gq6ZGkiSS5LDkLJWd7gPnwrYdo7GP5q8G7DuqGdCLdysvmfSjoGtERZQCmVo8uA47dFDkg?cluster=devnet)
 
-The demand check of this run was MOCK (no Qloo key was set for it), and it says so. Steps 5 and 6 ran on a separate devnet test deployment of the knos_pay 0.3.34 build, as [IDEAS.md](reference/IDEAS.md) records. The money is test units.
+The demand check of this run was MOCK (no data key was set for it), and it says so. Steps 5 and 6 ran on a separate devnet test deployment of the knos_pay 0.3.34 build, as [IDEAS.md](reference/IDEAS.md) records. The money is test units.
 
 ## What Knos claims
 
@@ -71,7 +71,7 @@ What each would do is in [GOVERNANCE.md](reference/GOVERNANCE.md), [IDEAS.md](re
 
 - Devnet, test USDC, no outside review. `knos mainnet-check` fails on that line on purpose.
 - A signature proves who made a statement, not that it is true. A referee signs what it checked, not that the product works.
-- Qloo's answer is directional demand evidence, not a sales forecast.
+- A demand check is directional demand evidence, not a sales forecast.
 - A passed milestone is not a good product. An order buys what its brief says, and the backers chose to back it.
 - The payout is test units on Solana. No card, no bank transfer, no bank payout.
 

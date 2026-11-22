@@ -1,6 +1,6 @@
 # What Knos will not fund
 
-Every Ready check applies this list, and the demand check refuses a listed idea before it asks Qloo anything. A brief
+Every Ready check applies this list, and the demand check refuses a listed idea before it checks anything. A brief
 that names anything on it is refused, not "not ready": no rewrite makes it fundable. The list lives in code
 (`src/knos/refuse.py`) and is served at `GET /api/refuse`, so anyone can audit it.
 

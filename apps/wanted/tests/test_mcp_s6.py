@@ -1,6 +1,6 @@
 """Spec S6 on the remote MCP (knos_wanted.agent, POST /mcp): every tool has a title and readOnlyHint or
 destructiveHint; arguments are checked against the inputSchema before anything runs; every error is isError with one
-next action; knos_near_swarm_job and knos_iris_check_proof are listed and read only. The rate limit is server.py's
+next action; knos_near_swarm_job and knos_check_proof are listed and read only. The rate limit is server.py's
 state.allow (tests/test_mcp_limit.py)."""
 import types
 
@@ -8,7 +8,7 @@ from knos_wanted import agent, near_jobs
 
 
 def state():
-    return types.SimpleNamespace(q=types.SimpleNamespace(mode="mock", server=None, tools=[], capabilities={}))
+    return types.SimpleNamespace(reports={})
 
 
 def call(name, args):
@@ -21,7 +21,7 @@ def test_every_tool_has_a_title_and_a_read_only_or_destructive_hint():
         assert t.get("title") and t["annotations"]["title"], t["name"]
         assert isinstance(t["annotations"]["readOnlyHint"], bool) and isinstance(t["annotations"]["destructiveHint"], bool), t["name"]
     got = {t["name"]: t for t in tools}
-    for n in ("knos_near_swarm_job", "knos_iris_check_proof"):
+    for n in ("knos_near_swarm_job", "knos_check_proof"):
         assert got[n]["annotations"]["readOnlyHint"] is True and got[n]["annotations"]["destructiveHint"] is False
 
 
@@ -29,19 +29,19 @@ def test_a_bad_argument_is_an_error_with_a_next_action_before_anything_runs():
     for name, args, said in (("knos_demand_check", {}, "idea: required"),
                              ("knos_demand_check", {"idea": 5}, "idea: a string"),
                              ("knos_research_card", {"ref": "x", "nope": 1}, "nope: not an argument"),
-                             ("knos_iris_check_proof", {"brief": {"milestones": [{"key": "m"}]}, "kind": "fax", "proof": "x"}, "kind: one of"),
+                             ("knos_check_proof", {"brief": {"milestones": [{"key": "m"}]}, "kind": "fax", "proof": "x"}, "kind: one of"),
                              ("knos_near_swarm_job", {"id": "../etc"}, "id: a job id")):
         r = call(name, args)
         assert r["isError"] is True and said in r["content"][0]["text"], (name, r)
         assert r["structuredContent"]["next"] and r["content"][-1]["text"].startswith("Next: "), name
 
 
-def test_check_proof_runs_the_rules_referee_iris_runs():
+def test_check_proof_runs_the_rules_referee():
     brief = {"milestones": [{"key": "m1", "name": "CI", "target": "the check passes", "verifier": {"kind": "machine", "check": "unit"}}]}
     proof = {"check_run": {"name": "unit", "conclusion": "success", "status": "completed"}}
-    r = call("knos_iris_check_proof", {"brief": brief, "kind": "checkrun", "proof": proof})
-    assert r.get("isError") is not True and "IRIS" in r["structuredContent"]["referee"], r
-    bare = call("knos_iris_check_proof", {"brief": brief, "kind": "checkrun", "proof": proof["check_run"]})
+    r = call("knos_check_proof", {"brief": brief, "kind": "checkrun", "proof": proof})
+    assert r.get("isError") is not True and "knos.referee_rules" in r["structuredContent"]["referee"], r
+    bare = call("knos_check_proof", {"brief": brief, "kind": "checkrun", "proof": proof["check_run"]})
     assert bare["structuredContent"].get("decision") == r["structuredContent"].get("decision"), bare
 
 

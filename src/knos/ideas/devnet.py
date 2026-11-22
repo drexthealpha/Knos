@@ -7,8 +7,7 @@ devnet orders.
   idea B  materials (arXiv)               a claim read live from the arXiv API
   idea C  clinical  (ClinicalTrials.gov)  a registered trial read live from the v2 API
 
-For each: the Claim record (step 1, Retraction Watch checked), Knos's demand check (Qloo MOCK until QLOO_API_KEY,
-labelled), a pull commitment (10 units at 4 test units each) locked as one knos_pay order per stage on devnet, one
+For each: the Claim record (step 1, Retraction Watch checked), its demand evidence (money locked for it), a pull commitment (10 units at 4 test units each) locked as one knos_pay order per stage on devnet, one
 pre-order in the idea's pool, and stage 1's oracle read live, with its evidence hash and the release audience the judge
 signs. Idea C's "results posted" stage has a 60-second deadline: the trial has posted no results by then, so the stage
 is REFUNDED to the buyer on devnet (anyone may send RefundOrder) while its other stages stay locked.
@@ -148,7 +147,7 @@ def main(argv: list[str] | None = None) -> int:
             print("refund", e, file=sys.stderr)
     state = {k: W.state(led, v["plan"], str(mint)) for k, v in out_ideas.items()}
     out = {"what": "Knos steps 1-2 (idea in, wanted?) on Solana devnet: three ideas from three fields, real API reads, real devnet transactions on the public "
-                   "knos_pay program in the demo's own TEST mint (test money, 0 revenue). Demand check: Qloo MOCK (labelled) until QLOO_API_KEY.",
+                   "knos_pay program in the demo's own TEST mint (test money, 0 revenue).",
            "cluster": "devnet", "program": str(pay.PAY_ID), "mint": str(mint), "payer": str(payer.pubkey()), "buyer": str(buyer.pubkey()),
            "ideas": out_ideas, "state": state, "signatures": sigs}
     a.out.write_text(json.dumps(out, indent=1, default=str) + "\n", encoding="utf-8")

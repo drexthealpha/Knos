@@ -24,7 +24,7 @@
    "acted_on": 0
   },
   "name": {
-   "on": false,
+   "on": true,
    "block": false,
    "not_useful": 0,
    "acted_on": 0
@@ -129,7 +129,7 @@
    "places": [
     {
      "file": "docs/reference/NEAR.md",
-     "line": 161,
+     "line": 158,
      "text": "12,010 companies are on a first list",
      "says": "12,010"
     }
@@ -150,13 +150,13 @@
    "places": [
     {
      "file": "docs/reference/NEAR.md",
-     "line": 381,
+     "line": 378,
      "text": "sha256 `7d0743021b471e76a93eacc902c63d40c9be053b162f558d09e2f436c217bfdc`",
      "says": "7d0743021b471e76a93eacc902c63d40c9be053b162f558d09e2f436c217bfdc"
     },
     {
      "file": "docs/reference/NEAR.md",
-     "line": 258,
+     "line": 255,
      "text": "(`7d074302…`, 426,766 bytes",
      "says": "7d074302"
     }
@@ -176,13 +176,13 @@
    "places": [
     {
      "file": "docs/reference/NEAR.md",
-     "line": 258,
+     "line": 255,
      "text": "426,766 bytes, is the jobs",
      "says": "426,766"
     },
     {
      "file": "docs/reference/NEAR.md",
-     "line": 381,
+     "line": 378,
      "text": "426,766 bytes, sha256",
      "says": "426,766"
     }
@@ -192,66 +192,6 @@
     "near/wasm/knos_near.wasm"
    ],
    "expected": "426766",
-   "comparator": "equal",
-   "confirmed_by_person": false
-  },
-  {
-   "id": "qloo-lift-plan-sha256",
-   "kind": "hash",
-   "subject": "the sha256 of qloo_lift_ranked_plan.md, committed before the test it plans",
-   "places": [
-    {
-     "file": "docs/reference/OUTSIDE_TRUTH.md",
-     "line": 79,
-     "text": "(qloo_lift_ranked_plan.md), sha256 `f5fc2b93dec35d813fd921962c85860a415dada508a266c274048340ea0d1da6`",
-     "says": "f5fc2b93dec35d813fd921962c85860a415dada508a266c274048340ea0d1da6"
-    }
-   ],
-   "command": [
-    "sha256",
-    "docs/reference/qloo_lift_ranked_plan.md"
-   ],
-   "expected": "f5fc2b93dec35d813fd921962c85860a415dada508a266c274048340ea0d1da6",
-   "comparator": "equal",
-   "confirmed_by_person": false
-  },
-  {
-   "id": "where-truth-plan-sha256",
-   "kind": "hash",
-   "subject": "the sha256 of where_truth_plan.md, committed before the test it plans",
-   "places": [
-    {
-     "file": "docs/reference/OUTSIDE_TRUTH.md",
-     "line": 133,
-     "text": "(where_truth_plan.md), sha256 `86b76b6640ef74759d733c5cf12f4b2b126b59385f140b5423d18908cf4da0c0`",
-     "says": "86b76b6640ef74759d733c5cf12f4b2b126b59385f140b5423d18908cf4da0c0"
-    }
-   ],
-   "command": [
-    "sha256",
-    "docs/reference/where_truth_plan.md"
-   ],
-   "expected": "86b76b6640ef74759d733c5cf12f4b2b126b59385f140b5423d18908cf4da0c0",
-   "comparator": "equal",
-   "confirmed_by_person": false
-  },
-  {
-   "id": "taste-truth-plan-sha256",
-   "kind": "hash",
-   "subject": "the sha256 of taste_truth_plan.md, committed before the test it plans",
-   "places": [
-    {
-     "file": "docs/reference/OUTSIDE_TRUTH.md",
-     "line": 156,
-     "text": "(taste_truth_plan.md), sha256 `b65eb3d437acbec06eaea9c4064c81acada2c2aa3e73b55ea678128bd4438c01`",
-     "says": "b65eb3d437acbec06eaea9c4064c81acada2c2aa3e73b55ea678128bd4438c01"
-    }
-   ],
-   "command": [
-    "sha256",
-    "docs/reference/taste_truth_plan.md"
-   ],
-   "expected": "b65eb3d437acbec06eaea9c4064c81acada2c2aa3e73b55ea678128bd4438c01",
    "comparator": "equal",
    "confirmed_by_person": false
   },
@@ -630,6 +570,46 @@
     "paying_share.law_great.1"
    ],
    "expected": "8",
+   "comparator": "equal",
+   "confirmed_by_person": false
+  },
+  {
+   "id": "limit-test-sha256",
+   "kind": "hash",
+   "subject": "the sha256 of the limit check's locked test, in its decision record",
+   "places": [
+    {
+     "file": "docs/decisions/limit-check.md",
+     "line": 16,
+     "text": "sha256 `a139353f2ab788e86c5a20225f892b2b1c0bbe991452d5cf03c3d454bfd9e6e5`",
+     "says": "a139353f2ab788e86c5a20225f892b2b1c0bbe991452d5cf03c3d454bfd9e6e5"
+    }
+   ],
+   "command": [
+    "sha256",
+    "near/agents/job/test_limit3.py"
+   ],
+   "expected": "a139353f2ab788e86c5a20225f892b2b1c0bbe991452d5cf03c3d454bfd9e6e5",
+   "comparator": "equal",
+   "confirmed_by_person": false
+  },
+  {
+   "id": "limit-program-sha256",
+   "kind": "hash",
+   "subject": "the sha256 of the released limit-check program, in its decision record",
+   "places": [
+    {
+     "file": "docs/decisions/limit-check.md",
+     "line": 17,
+     "text": "sha256 `6240ac16af236255a1589dae4eb3deedc07434236a534eaadec717da916a29ab`",
+     "says": "6240ac16af236255a1589dae4eb3deedc07434236a534eaadec717da916a29ab"
+    }
+   ],
+   "command": [
+    "sha256",
+    "near/agents/job/data/limit/released_solution.py"
+   ],
+   "expected": "6240ac16af236255a1589dae4eb3deedc07434236a534eaadec717da916a29ab",
    "comparator": "equal",
    "confirmed_by_person": false
   }

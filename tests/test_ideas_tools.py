@@ -61,7 +61,7 @@ def test_the_idea_tools_are_read_only_and_keep_source_words_in_untrusted(opted_i
     w = call(NAMES[4], {"ref": TRIAL, "units": 10, "price": 4})[K.structuredContent]
     assert [s[K.oracle] for s in w[K.stages]] == [W.ORACLE.trial_registered, W.ORACLE.results_posted, W.ORACLE.referee_pass]
     assert w["sends"] == "nothing"
-    assert w["demand"][K.mode] == K.mock
+    assert w["demand"][K.mode] == W.MONEY
     assert "knos idea commit" in w["lock_with"]
     ch = call(NAMES[5], {"ref": TRIAL, K.oracle: W.ORACLE.results_posted})[K.structuredContent]
     assert ch[K.met] is False

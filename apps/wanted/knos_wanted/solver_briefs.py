@@ -1,5 +1,5 @@
 """The three open, computer-checkable briefs an AI scientist can win (knos_wanted.valley.solver_briefs). Data, kept
-as Python: the app holds no JSON files but its two data files (apps/wanted/tests/test_repo_rules.py keeps recorded Qloo answers out)."""
+as Python: the app holds no JSON files but its two data files (apps/wanted/tests/test_repo_rules.py holds it)."""
 
 BRIEFS = {'about': 'Three open briefs whose proof is a computation, opened by the operator with '
           "valley.open_solver_briefs and funded from the app's devnet test wallet (valley.operator_fund_solver). "

@@ -4,10 +4,9 @@ import re
 from pathlib import Path
 
 from knos import ready as kr
-from knos_wanted import companies, track, vectors
+from knos_wanted import check, companies, track, vectors
 
 STATIC = Path(__file__).resolve().parents[1] / "knos_wanted" / "static"
-WEB = Path(__file__).resolve().parents[3] / "web"
 
 
 def test_the_fields_matrix_is_seven_by_seven_with_the_frameworks_twelve_unlocks():
@@ -27,7 +26,8 @@ def test_the_fields_matrix_is_seven_by_seven_with_the_frameworks_twelve_unlocks(
 
 
 def test_the_hero_chips_span_every_technology_and_no_pitch_paragraph_stands_above_the_box():
-    hero = (WEB / "brand" / "hero.html").read_text(encoding="utf-8")
+    page = (STATIC / "index.html").read_text(encoding="utf-8")              # the app's own first screen
+    hero = page[page.index("<!-- k-hero -->"):page.index("<!-- /k-hero -->")]
     techs = {line.split('data-tech="')[1].split('"')[0] for line in hero.splitlines() if 'data-tech="' in line}
     assert len(techs) >= 5 and techs <= {"ai", "web3", "quantum", "energy", "biotech", "materials", "pqc"}
     above = re.sub(r'<p class="k-vision"[^>]*>.*?</p>', "", hero[:hero.index("<form")], flags=re.S)   # the two vision lines: fixed text
@@ -60,14 +60,15 @@ def test_vectors_measure_and_never_guess(monkeypatch):
     v = vectors.vectors()
     assert v["speed"]["median_s"] is None and v["cost"]["usd_per_ready_brief"] == round(0.3481 / 20, 4)
     assert v["capability"] == {"idt_ratio": 2.08, "ready_pass": 0.7, "vague_pass": 0.05, "tasks": 20}
-    rep = {"hash": "a" * 64, "idea": "An AI recipe planner for families", "decision": {"verdict": "OPEN"}, "cities": [{"name": "Honolulu"}],
-           "calls": [{"cached": False}] * 4}
+    rows = [{"name": n, "value": 1, "unit": "u", "link": "https://example.org/" + n, "counts": True} for n in ("a", "b", "c", "d")]
+    rep = {"hash": "a" * 64, "idea": "An AI recipe planner for families", "decision": {"verdict": "OPEN"}, "label": check.LABEL,
+           "open_demand": {"rows": rows}}
     vectors.note("check", 4200, rep)
     vectors.note("check", 4200, {**rep, "hash": "c" * 64, "idea": "my own secret product"})     # what a person typed stays theirs
-    vectors.note("check", 6200, {**rep, "hash": "b" * 64, "decision": {"verdict": "CANNOT_DECIDE"}, "cities": []})
+    vectors.note("check", 6200, {**rep, "hash": "b" * 64, "decision": {"verdict": "CANNOT_DECIDE"}})
     v = vectors.vectors()
-    assert v["speed"]["median_s"] == 4.2 and v["speed"]["checks"] == 3 and v["cost"]["qloo_calls_per_check"] == 4
-    assert vectors.proof()["proof"]["hash"] == "a" * 64                    # a decided verdict with cities, never a CANNOT_DECIDE
+    assert v["speed"]["median_s"] == 4.2 and v["speed"]["checks"] == 3 and v["cost"]["sources_per_check"] == 4
+    assert vectors.proof()["proof"]["hash"] == "a" * 64                    # an Open verdict, never a CANNOT_DECIDE
 
 
 def test_a_brief_that_is_not_ready_gets_no_card():

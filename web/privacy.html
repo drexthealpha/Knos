@@ -37,7 +37,7 @@ pre { background: var(--paper-2); border: 1px solid var(--line); border-radius: 
 .fine { color: var(--ink-2); }
 footer { max-width: 760px; margin: 0 auto; padding: 16px; color: var(--ink-2); font-size: 16px; border-top: 1px solid var(--line); }
 footer a { color: var(--ink-2); display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; margin-right: 12px; }
-@media (max-width: 480px) { th, td { padding: 8px 4px; } #claims thead { display: none; } #claims tr { display: block; border-bottom: 1px solid var(--line); padding: 8px 0; } #claims td { display: block; border: 0; padding: 2px 0; text-align: left; } #claims td[data-behind]::before { content: "Backed with: "; font-weight: 600; } #claims td[data-truth]::before { content: "Does it hold? "; font-weight: 600; } #claims td[data-demand]::before { content: "100 behind it in 7 days? "; font-weight: 600; } }
+@media (max-width: 480px) { th, td { padding: 8px 4px; } #claims thead { display: none; } #claims tr { display: block; border-bottom: 1px solid var(--line); padding: 8px 0; } #claims td { display: block; border: 0; padding: 2px 0; text-align: left; } #claims td[data-behind]::before { content: "Test money put behind it: "; font-weight: 600; } #claims td[data-truth]::before { content: "Does it hold? "; font-weight: 600; } #claims td[data-demand]::before { content: "100 test dollars from outside Knos in 7 days? "; font-weight: 600; } }
 /* a 390 px phone: no text under 16 px, every link and control a 44 px tap target */
 @media (max-width: 460px) {
   main p a, main td a, main li a, main dd a { padding: 12px 0; margin: -12px 0; }
@@ -52,17 +52,27 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
 .kh { position: relative; }
 .kmenu > summary { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; padding: 0 12px; cursor: pointer; list-style: none; color: var(--ink); border: 1px solid var(--line); border-radius: 10px; font-size: 16px; }
 .kmenu > summary::-webkit-details-marker { display: none; }
+.kmenu:not([open]) > .kmenu-panel { display: none; }
 .kmenu-panel { position: absolute; inset-inline: 16px; top: 56px; z-index: 30; max-width: 420px; margin-inline-start: auto; padding: 8px 12px; background: var(--paper-2); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--depth-2); }
 .kmenu-panel p { margin: 4px 0 8px; font-size: 16px; color: var(--ink-2); }
 .kh nav { display: flex; flex-direction: column; }
 .kh nav a, .kmenu-panel > a { display: flex; align-items: center; min-height: 44px; padding: 0 4px; color: var(--ink); text-decoration: none; font-size: 16px; }
 .kh nav a:hover, .kh nav a[aria-current] { text-decoration: underline; }
+code, pre, button { font-size: 16px; }
+button { font-family: inherit; }
+.btn[disabled], .btn2[disabled] { opacity: .45; cursor: not-allowed; }
+.btn2 { display: inline-flex; align-items: center; min-height: 48px; padding: 0 16px; border-radius: 10px; border: 1px solid var(--ink-2); background: transparent; color: var(--ink); text-decoration: none; font-weight: 600; cursor: pointer; }
+.how { margin: 24px 0 0; border-top: 1px solid var(--line); }
+.how > summary { display: flex; align-items: center; min-height: 48px; cursor: pointer; font-weight: 600; }
+.back { display: inline-flex; align-items: center; min-height: 44px; }
+main p a, main td a, main li a, main dd a { padding: 12px 0; margin: -12px 0; }
+details:not([open]) > .kmenu-panel { display: none; }
 </style>
 </head>
 <body>
 <header class="kh" id="kh">
   <a class="logo" href="./"><span class="mark" aria-hidden="true" data-no-mirror style="--m: url(brand/mark.svg)"></span>Knos</a>
-  <details class="kmenu"><summary>Menu</summary><div class="kmenu-panel"><p class="kgoal">The goal: Knos turns any research into a product billions of people use, in days, not years.</p><nav aria-label="Pages"><a href="claims/">Claims</a><a href="prove/">Papers</a><a href="agents/">Builders</a><a href="labs/">Labs</a><a href="check/">Pull requests</a></nav><a href="pricing/">Pricing</a><a href="status/">Status</a></div></details>
+  <details class="kmenu"><summary>Menu</summary><div class="kmenu-panel"><nav aria-label="Pages"><a href="claims/">Claims</a><a href="papers/">Papers</a><a href="agents/">Builders</a><a href="check/">Code checker</a></nav><a href="pricing/">Pricing</a><a href="status/">Status</a></div></details>
 </header>
 <main>
 <h1>Privacy and terms</h1>
@@ -70,8 +80,15 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
 <ul>
 <li>No cookies, and no outside tracker.</li>
 <li>The Prove page loads one script library, GSAP, from cdnjs.</li>
-<li>Your browser checks that file's integrity; it sends nothing of yours.</li>
 <li>Each page sends Knos small events of an anonymous visit.</li>
+<li>No IP address, account or cookie is stored with them.</li>
+<li>Do Not Track in your browser stops every event.</li>
+<li>What you type goes to the Knos server, which answers.</li>
+<li>The server reads a paper's title from its public record, Crossref.</li>
+</ul>
+<details class="how"><summary>Every event a page sends</summary>
+<ul>
+<li>Your browser checks that file's integrity; it sends nothing of yours.</li>
 <li>The visit id is random, made by your browser, reset daily.</li>
 <li>Events name the page, each press and how long it took.</li>
 <li>They say whether you got an answer or ran a proof.</li>
@@ -79,11 +96,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
 <li>Also three quick presses on one spot, and any error shown.</li>
 <li>A tap on "Not what I need", and any word you add.</li>
 <li>Also the last page, and its seconds before you leave.</li>
-<li>No IP address, account or cookie is stored with them.</li>
-<li>Do Not Track in your browser stops every event.</li>
 <li>The status page shows the totals.</li>
-<li>What you type goes to the Knos server, which answers.</li>
-<li>The server reads a paper's title from its public record, Crossref.</li>
 <li>Your browser also reads NEAR testnet's public record.</li>
 <li>The tool sends your file to the Knos server.</li>
 <li>The server keeps your file with its result page and link.</li>
@@ -93,6 +106,7 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
 <li>And whether your first table was the sample or your own.</li>
 <li>Without that yes, the server counts runs only as totals.</li>
 </ul>
+</details>
 <h2>The server</h2>
 <ul>
 <li>No account and no sign-in.</li>
@@ -107,6 +121,6 @@ footer a { color: var(--ink-2); display: inline-flex; align-items: center; justi
 <li>Report a problem in <a href="https://github.com/drexthealpha/Knos/issues">GitHub issues</a>.</li>
 </ul>
 </main>
-<footer><span>Test money only, no customers yet.</span><br><span>The goal: Knos turns any research into a product billions of people use, in days, not years.</span><br><a href="https://github.com/drexthealpha/Knos">Source</a><a href="pricing/">Pricing</a><a href="status/">Status</a><a href="privacy.html">Privacy</a></footer>
+<footer><span>Test money only, no customers yet.</span><br><span>Knos is a research checker that helps anyone test a result.</span><br><a href="https://github.com/drexthealpha/Knos">Source</a><a href="pricing/">Pricing</a><a href="status/">Status</a><a href="privacy.html">Privacy</a></footer>
 </body>
 </html>

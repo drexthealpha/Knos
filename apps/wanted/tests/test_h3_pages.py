@@ -26,9 +26,14 @@ from knos_wanted.runner_conf import CONF
 app, program = B.app, B.program        # the fixtures of test_tool_run: a served app, and the released program or its stand-in
 
 LANGS = tool_page.LANGS
-CLDR = {"en": {"one", "other"}, "ar": {"zero", "one", "two", "few", "many", "other"}, "hi": {"one", "other"},
-        "es": {"one", "many", "other"}, "fr": {"one", "many", "other"}, "pt": {"one", "many", "other"}, "zh-Hans": {"other"},
-        "id": {"other"}, "sw": {"one", "other"}, "ru": {"one", "few", "many", "other"}}   # CLDR 49 plurals.json, as U7 R7 lists
+RTL = ("ar", "fa", "ur", "he")
+# CLDR 48 cardinal plural categories, as Intl.PluralRules gives them in Chromium 157 (U7 R7; tests/test_l09_languages.py)
+CLDR = {**dict.fromkeys("am az bn de el en fa fil gu hi hu kn ml mr nl pa sw ta te tr ur uz".split(), {"one", "other"}),
+        "ar": {"zero", "one", "two", "few", "many", "other"}, **dict.fromkeys("cs pl ru uk".split(), {"one", "few", "many", "other"}),
+        **dict.fromkeys("es fr it pt".split(), {"one", "many", "other"}), "he": {"one", "two", "other"}, "ro": {"one", "few", "other"},
+        **dict.fromkeys("id ja ko ms th vi zh-Hans zh-Hant".split(), {"other"})}
+# the digits of the languages that write their own by default (Bengali, Devanagari, Persian), read back as Western ones
+LATIN = str.maketrans({chr(z + d): str(d) for z in (0x9e6, 0x966, 0x6f0) for d in range(10)})
 MT = "machine translated, not reviewed by a native speaker"
 FIVE = ["What you get", "What to do next", "What you pay", "Why believe this", "Who is responsible"]
 NEVER = ("AI-powered", "verified", "backed", "ready")
@@ -76,9 +81,11 @@ def result_id(app, lang="en") -> str:
 # ---- the files ---------------------------------------------------------------------------------------------------------
 def test_every_language_file_has_every_key_its_placeholders_and_its_plural_forms():
     en = tool_page.table("en")["strings"]
+    files = {p.stem for p in tool_page.i18n_dir().glob("*.json")}
+    assert len(LANGS) >= 40 and set(LANGS) == files == set(CLDR) and LANGS[0] == "en", sorted(files ^ set(LANGS))   # L09: every file served
     for lang in LANGS:
         d = tool_page.table(lang)
-        assert d["_meta"]["lang"] == lang and d["_meta"]["dir"] == ("rtl" if lang == "ar" else "ltr")
+        assert d["_meta"]["lang"] == lang and d["_meta"]["dir"] == ("rtl" if lang in RTL else "ltr")
         s = d["strings"]
         assert set(s) == set(en), (lang, set(en) ^ set(s))
         for k, v in s.items():
@@ -109,7 +116,15 @@ def test_the_plural_rules_are_cldrs():
             ("ru", 11): "many", ("ru", 21): "one", ("ru", 22): "few", ("ru", 112): "many", ("fr", 0): "one", ("fr", 1): "one",
             ("fr", 2): "other", ("fr", 1000000): "many", ("es", 0): "other", ("es", 1): "one", ("es", 1000000): "many",
             ("pt", 0): "one", ("hi", 0): "one", ("hi", 1): "one", ("hi", 2): "other", ("en", 0): "other", ("en", 1): "one",
-            ("sw", 1): "one", ("zh-Hans", 1): "other", ("id", 1): "other"}
+            ("sw", 1): "one", ("zh-Hans", 1): "other", ("id", 1): "other",
+            # L09: the new languages, one case of each rule (CLDR 48, as Chromium 157's Intl.PluralRules gives them)
+            ("pl", 0): "many", ("pl", 1): "one", ("pl", 22): "few", ("pl", 12): "many", ("pl", 1.5): "other",
+            ("uk", 21): "one", ("uk", 11): "many", ("cs", 3): "few", ("cs", 5): "other", ("cs", 1.5): "many",
+            ("ro", 0): "few", ("ro", 1): "one", ("ro", 19): "few", ("ro", 20): "other", ("ro", 101): "few", ("ro", 1.5): "few",
+            ("he", 1): "one", ("he", 2): "two", ("he", 3): "other", ("he", 0.5): "one", ("fil", 0): "one", ("fil", 4): "other",
+            ("fil", 14): "other", ("fil", 15): "one", ("fil", 2.5): "one", ("pa", 0): "one", ("pa", 0.5): "other",
+            ("bn", 0): "one", ("fa", 0.5): "one", ("mr", 0): "other", ("it", 1000000): "many", ("it", 0): "other",
+            ("de", 1): "one", ("de", 0): "other", ("tr", 1): "one", ("ja", 1): "other", ("zh-Hant", 1): "other"}
     for (lang, n), cat in want.items():
         assert tool_page.plural(lang, n) == cat, (lang, n)
 
@@ -117,6 +132,14 @@ def test_the_plural_rules_are_cldrs():
 def test_counts_and_money_are_written_in_each_languages_own_way():
     assert [tool_page.nf(c, 100000) for c in ("en", "hi", "es", "fr", "ru")] == ["100,000", "1,00,000", "100.000", "100 000", "100 000"]
     assert tool_page.nf("es", 1234) == "1234" and tool_page.nf("hi", 1234567) == "12,34,567"
+    # L09: own digits (Bengali, Marathi, Persian), lakh grouping, four digits ungrouped, and each language's currency pattern
+    assert tool_page.nf("bn", 1234567) == "\u09e7\u09e8,\u09e9\u09ea,\u09eb\u09ec\u09ed" and tool_page.nf("mr", 7) == "\u096d"
+    assert tool_page.nf("fa", 1234) == "\u06f1\u066c\u06f2\u06f3\u06f4" and tool_page.money("fa", 1.5) == "\u200e$\u06f1\u066b\u06f5\u06f0"
+    assert tool_page.nf("ml", 1234567) == "12,34,567" and tool_page.money("ml", 1234567) == "$1,234,567"
+    assert [tool_page.nf(c, 1234) for c in ("pl", "it", "hu", "de", "cs")] == ["1234", "1234", "1234", "1.234", "1\u00a0234"]
+    # CLDR 48 (full ICU) for az, pa and uz, which Chrome 157 writes as the root locale does for want of their data
+    assert tool_page.nf("pa", 1234567) == "12,34,567" and tool_page.money("az", 1000) == "1.000 $" and tool_page.money("uz", 1000) == "1 000 $"
+    assert tool_page.money("he", 1) == "\u200f1\u00a0\u200f$" and tool_page.money("nl", 1000) == "$\u00a01.000" and tool_page.money("bn", 1) == "\u09e7$"
     assert tool_page.money("en", 1) == "$1" and tool_page.money("fr", 330) == "330 $"
 
 
@@ -127,6 +150,11 @@ def test_the_language_comes_from_the_link_then_the_browser_then_english():
     assert tool_page.pick(None, "xx") == "en" and tool_page.pick(None, "") == "en"
     assert tool_page.pick(None, "zh-CN") == "zh-Hans" and tool_page.pick(None, "pt-BR") == "pt"
     assert tool_page.pick(None, "en;q=0.4, sw;q=0.9") == "sw"
+    # L09: Chinese by its script or region, as the published site picks it; the old tags of Hebrew, Indonesian and Filipino
+    for tag in ("zh-TW", "zh-HK", "zh-MO", "zh-Hant", "zh-Hant-TW"):
+        assert tool_page.pick(None, tag) == "zh-Hant", tag
+    assert tool_page.pick(None, "zh-SG") == "zh-Hans" and tool_page.pick(None, "zh") == "zh-Hans"
+    assert [tool_page.pick(None, t) for t in ("iw-IL", "in", "tl", "fa-IR", "de-AT")] == ["he", "id", "fil", "fa", "de"]
 
 
 @pytest.mark.parametrize("lang", LANGS)
@@ -134,7 +162,7 @@ def test_a_tool_page_in_each_language(app, lang):
     st, raw, h = call(app, "/t/limit-check/", headers={"Accept-Language": f"{lang},en;q=0.1"}, raw=True)
     page = raw.decode()
     assert st == 200 and "Accept-Language" in (h.get("Vary") or "") and h.get("Content-Language") == lang
-    assert f'<html lang="{lang}" dir="{"rtl" if lang == "ar" else "ltr"}">' in page
+    assert f'<html lang="{lang}" dir="{"rtl" if lang in RTL else "ltr"}">' in page
     m = tool_page.meta(lang)
     assert 'data-language-switcher' in page and f'<span lang="{lang}">{m["name"]}</span>' in page
     for c in LANGS:                                                      # every language, written in itself
@@ -181,7 +209,7 @@ def test_the_fold_opens_with_the_five_answers(app, path):
     assert "test" in re.sub(r"<[^>]+>", "", got[3][1]) and "github.com/drexthealpha/Knos/issues" in got[4][1]
     for lang in LANGS:                                                     # the same five, in every language, in order
         p = call(app, url + f"?lang={lang}", raw=True)[1].decode()
-        assert [q for q, _ in five_of(p)] == [tool_page.t(lang, k) for k in ("q.get", "q.next", "q.pay", "q.why", "q.who")]
+        assert [html.unescape(q) for q, _ in five_of(p)] == [tool_page.t(lang, k) for k in ("q.get", "q.next", "q.pay", "q.why", "q.who")]
 
 
 def test_the_result_page_has_listen_the_line_for_another_site_and_print(app):
@@ -219,7 +247,7 @@ def test_the_template_reads_every_sentence_the_program_writes():
             out = tool_page.sentence(lang, s, as_html=False)
             assert out and (lang == "en" or out != s)
             for n in re.findall(r"\d+(?:\.\d+)?", s):
-                assert n in out, (lang, n, out)                          # every number of the program's sentence is kept
+                assert n in out.translate(LATIN), (lang, n, out)         # every number of the program's sentence is kept
             html_ = tool_page.sentence(lang, s)
             if lang != "en" and not s.startswith("I cannot check"):   # "I cannot check" quotes no value from the file
                 assert "<bdi>" in html_                                    # values from the file keep their own direction (U7 R2)
