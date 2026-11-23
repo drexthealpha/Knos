@@ -1196,9 +1196,9 @@
    "max_length": 77
   },
   "next.fail": {
-   "text": "Open your file at row {r}, the first row that failed.",
+   "text": "Open the file at row {r}, the first row that failed.",
    "description": "The next step line under a verdict: after a fail. Keep {r} as written; it is filled in.",
-   "max_length": 75
+   "max_length": 73
   },
   "next.unknown": {
    "text": "Pick a column where each row holds a number, then press Check my data.",
