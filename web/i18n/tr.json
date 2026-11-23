@@ -43,7 +43,7 @@
   "survey.without": "Bunu Knos olmadan yapar mıydın?",
   "survey.again": "Bunun için Knos'u yine seçer misin?",
   "status.not_known": "henüz bilinmiyor",
-  "status.first_result_7d": "İlk sonucunu alanlar, son 7 gün",
+  "status.first_result_7d": "İlk sonuçlar, 7 gün",
   "ask.pr_go": "Bu pull request'i kontrol et",
   "ask.pr": "Bir pull request: Knos onu kendi sayfasında kontrol eder",
   "loop.play": "Oynat",

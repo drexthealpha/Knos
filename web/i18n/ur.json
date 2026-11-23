@@ -41,7 +41,7 @@
   "survey.without": "کیا آپ یہ کام Knos کے بغیر کرتے؟",
   "survey.again": "کیا آپ اس کام کے لیے دوبارہ Knos چنیں گے؟",
   "status.not_known": "ابھی معلوم نہیں",
-  "status.first_result_7d": "جنہیں پہلا نتیجہ ملا، پچھلے 7 دن",
+  "status.first_result_7d": "پہلے نتائج، 7 دن",
   "ask.pr_go": "یہ pull request چیک کریں",
   "ask.pr": "ایک pull request: Knos اسے اپنے صفحے پر چیک کرتا ہے",
   "loop.play": "چلائیں",

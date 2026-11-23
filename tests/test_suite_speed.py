@@ -1,7 +1,7 @@
 """The suite stays inside five minutes: what makes it so is itself held here. The shards of `pytest --shard i/n` are a
 partition of the tests; the slow list names tests that exist; the committed primes of the two test signing keys are
 the ones their seeds give; scripts/suite_time.py reads what pytest writes and fails a shard over the limit; and
-tests.yml runs every shard on every platform, every file of tests/web/, and one last job that needs all the others."""
+tests.yml runs every shard on every platform (a push to main, the Ubuntu legs marked push), every file of tests/web/, and one last job that needs all the others."""
 
 from __future__ import annotations
 
@@ -134,9 +134,16 @@ def test_suite_time_reads_a_junit_file_and_durations_output_and_fails_a_shard_ov
 # ---- .github/workflows/tests.yml ----------------------------------------------------------------------------------------
 
 def test_every_platform_runs_every_shard_and_the_slow_tests_and_each_shard_is_timed_against_the_limit():
-    job = _jobs()["pytest"]
+    jobs = _jobs()
+    job = jobs["pytest"]
+    legs = json.loads((ROOT / ".github" / "pytest-legs.json").read_text(encoding="utf-8"))
+    assert job["needs"] == "legs" and job["strategy"]["matrix"]["include"] == "${{ fromJSON(needs.legs.outputs.include) }}"
+    pick = _runs(jobs["legs"])
+    assert "refs/heads/main" in pick and "map(select(.push))" in pick and "else f='.'" in pick   # only a push to main is trimmed
+    pushed = {(leg["os"], leg["python"]) for leg in legs if leg["push"]}
+    assert pushed and all(leg["push"] for leg in legs if (leg["os"], leg["python"]) in pushed)  # a pushed platform runs whole
     by_platform: dict[tuple[str, str], list[dict]] = {}
-    for leg in job["strategy"]["matrix"]["include"]:
+    for leg in legs:
         by_platform.setdefault((leg["os"], leg["python"]), []).append(leg)
     assert sorted(by_platform) == [("macos-latest", "3.12"), ("ubuntu-latest", "3.10"), ("ubuntu-latest", "3.12"), ("ubuntu-latest", "3.13"), ("windows-latest", "3.12")]
     for platform, legs in by_platform.items():

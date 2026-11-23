@@ -160,9 +160,9 @@
    "max_length": 26
   },
   "status.first_result_7d": {
-   "text": "People who got a first result, last 7 days",
+   "text": "First results, 7 days",
    "description": "The status page: the first count, how many people reached a first result in the last 7 days.",
-   "max_length": 68
+   "max_length": 38
   },
   "ask.pr_go": {
    "text": "Check this pull request",

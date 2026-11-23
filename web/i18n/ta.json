@@ -43,7 +43,7 @@
   "survey.without": "Knos இல்லாமல் இதைச் செய்வீர்களா?",
   "survey.again": "இதற்கு மீண்டும் Knos-ஐத் தேர்வு செய்வீர்களா?",
   "status.not_known": "இன்னும் தெரியவில்லை",
-  "status.first_result_7d": "முதல் முடிவு பெற்றவர்கள், கடந்த 7 நாட்கள்",
+  "status.first_result_7d": "முதல் முடிவுகள், 7 நாட்கள்",
   "ask.pr_go": "இந்த pull request-ஐச் சரிபார்",
   "ask.pr": "இது pull request: Knos அதைத் தனிப் பக்கத்தில் சரிபார்க்கும்",
   "loop.play": "இயக்கு",

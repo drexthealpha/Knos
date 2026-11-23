@@ -2,7 +2,7 @@
 // What a stranger meets on launch day when something is missing, on a build of web/ served as GitHub Pages serves it
 // (under /Knos/, and any address the site does not have answered with 404.html and the status 404):
 //   404        a missing address, however deep, gets the site's own page: the product's one header, the front door as its
-//              one button, the vision line labelled as the goal, the claims and the prices
+//              one button, the line that says what Knos is, the claims and the prices
 //   privacy    the privacy and terms page draws, and no page sets a cookie
 //   data       when stats.json does not load, the pages that read it say so in one line with a Reload button; when no
 //              data file loads, every page that reads one says so, and no page is blank or shows a stack; once the
@@ -66,9 +66,9 @@ const world = async (block = () => false, o = {}) => {
       words: [...document.querySelectorAll("h1, li, footer span")].map((e) => e.textContent.trim()),
       goTop: document.querySelector("main a.go")?.getBoundingClientRect().bottom,
     }));
-    check(`404: the product's one header at ${width}`, seen.logo === base && seen.nav.join("|") === "Claims|Papers|Builders|Labs|Code checker", seen);
+    check(`404: the product's one header at ${width}`, seen.logo === base && seen.nav.join("|") === "Claims|Papers|Builders|Code checker", seen);
     check(`404: says the page is missing and offers the front door first at ${width}`, seen.h1 === "No page lives here" && seen.go === base && seen.goTop <= height, seen);
-    check(`404: the vision line is labelled as the goal at ${width}`, /^The goal: /.test(seen.goal || ""), seen.goal);
+    check(`404: the one line says what Knos is and who it helps (L02) at ${width}`, /^Knos is an? .+ that helps .+/.test(seen.goal || "") && seen.goal.length < 125, seen.goal);
     check(`404: one control back to the front door, no other link in the page (R13 WALK 1) at ${width}`, seen.links.length === 0 && seen.mainLinks === 1, seen);
     const long = seen.words.filter((t) => (t.match(WORD) || []).length > 12);
     check(`404: no statement over 12 words at ${width}`, long.length === 0, long);

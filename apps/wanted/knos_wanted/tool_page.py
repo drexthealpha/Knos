@@ -321,7 +321,7 @@ def plural(lang: str, n) -> str:
 # how each language writes a count and a sum of US dollars (CLDR, as Intl.NumberFormat writes them; a test holds the two
 # to each other, U7 R13 and R14). Values read from a person's file are never reformatted: they stay as the file has them.
 # CLDR 48 as full ICU has it (Node 24): Chrome 157 carries no number data for az, pa and uz and writes them as the root
-# locale does (1,234 and "$ 1"); these are the languages' own.
+# locale does (1,234, with a space after the dollar sign); these are the languages' own.
 GROUP = {**dict.fromkeys(("cs", "hu", "pl", "ru", "uk", "uz"), "\u00a0"), "fr": "\u202f", "fa": "\u066c",
          **dict.fromkeys(("az", "de", "el", "es", "id", "it", "nl", "pt", "ro", "tr", "vi"), ".")}
 DECIMAL = {**dict.fromkeys(("az", "cs", "de", "el", "es", "fr", "hu", "id", "it", "nl", "pl", "pt", "ro", "ru", "tr", "uk", "uz", "vi"), ","),
@@ -848,7 +848,7 @@ details li{margin:6px 0}main>details a{display:inline-block;min-height:44px;min-
 .tgt input{width:100%;font:1rem ui-monospace,Consolas,monospace}
 .home a{display:inline-flex;align-items:center;min-height:48px;min-width:48px}#theme{display:inline-flex;align-items:center;gap:8px;min-height:48px;min-width:48px;padding:0 16px;margin-inline-start:12px;border:2px solid var(--line);border-radius:10px;background:transparent;color:var(--fg);font:inherit;cursor:pointer}
 .boxwrap{position:relative}.boxwrap textarea{padding-inline-end:60px}.mic{position:absolute;inset-inline-end:6px;bottom:6px;margin:0;padding:0;display:inline-flex;align-items:center;justify-content:center;background:var(--card)}
-.mic[aria-pressed=true]{background:var(--accent);color:var(--accent-fg)}#k-hist ul{list-style:none;padding:0;margin:0}#k-hist li a{display:flex;align-items:center;gap:8px;min-height:48px}#k-hist li svg{width:1.25rem;height:1.25rem;flex:none}
+.mic[aria-pressed=true]{background:var(--accent);color:var(--accent-fg)}#k-hist ul{list-style:none;padding:0;margin:0}#k-hist li a{display:flex;align-items:center;gap:8px;min-height:48px}#k-hist details{margin-block-start:8px}#k-hist li{margin-block:8px 16px}#k-hist li svg{width:1.25rem;height:1.25rem;flex:none}
 .src-passage{margin:6px 0 0;padding-inline-start:12px;border-inline-start:3px solid var(--line)}
 [hidden]{display:none!important}""" + "\n" + SWITCH_CSS
 
@@ -1044,24 +1044,29 @@ function streak() {
   put("knos.streak", JSON.stringify({ last: now, n, was: missed ? s.n || 0 : 0 }));
   return { n, missed, was: missed ? s.n || 0 : 0 };
 }
+// the result's other actions (its version, downloads, Listen, copy, challenge, delete) sit in the fold How it works, beside
+// Listen, Show this on your site and Print: the first screen keeps the verdict and its next step (U2 R4: at most 40 words
+// between headings), and the buttons go in rows of at most three (U6 R44)
 function extras(r, ran) {
-  const out = [], mine = !!(r.key || mineOf(r.id));
-  const ver = make("p", T(r.older ? "res.older" : "res.version", { v: r.tool_version || "", at: r.created_at || "" }), "muted"); ver.dataset.version = r.tool_version || ""; out.push(ver);
-  if (mine && r.opens) out.push(make("p", T("res.opens", { n: r.opens })));
+  const out = [], kept = [], mine = !!(r.key || mineOf(r.id));
+  const ver = make("p", T(r.older ? "res.older" : "res.version", { v: r.tool_version || "", at: r.created_at || "" }), "muted"); ver.dataset.version = r.tool_version || ""; kept.push(ver);
+  if (mine && r.opens) kept.push(make("p", T("res.opens", { n: r.opens })));
   if (!ran && !mine && r.id && !test) { const seen = get("knos.opened") || ""; if (!seen.split(",").includes(r.id)) { put("knos.opened", (seen ? seen + "," : "") + r.id); send("POST", "/api/opened", { id: r.id }, () => {}); } }
-  const row = make("div");
+  const bs = [];
   if (r.mode === "sample" || mine) {
-    for (const ext of ["csv", "json"]) { const b = btn(T(ext === "csv" ? "res.csv" : "res.json"), (e) => download(r, ext, e.currentTarget)); b.dataset.download = ext; row.append(b); }
+    for (const ext of ["csv", "json"]) { const b = btn(T(ext === "csv" ? "res.csv" : "res.json"), (e) => download(r, ext, e.currentTarget)); b.dataset.download = ext; bs.push(b); }
   }
-  if ("speechSynthesis" in window && window.SpeechSynthesisUtterance) {
+  // the result page has its own Listen in the fold already (#listen); the tool page, after a run, gets this one
+  if (!$("listen") && "speechSynthesis" in window && window.SpeechSynthesisUtterance) {
     const l = btn(T("fold.listen"), () => { const s = window.speechSynthesis; if (s.speaking) { s.cancel(); return; } const u = new SpeechSynthesisUtterance(KI.sentence(r.result, true)); u.lang = KI.speech(); s.speak(u); });
-    l.dataset.listen = ""; l.dataset.audio = ""; row.append(l);
+    l.dataset.listen = ""; l.dataset.audio = ""; bs.push(l);
   }
   const cp = btn(T("inv.copy"), (e) => { const u = new URL(location.origin + "/t/" + D.id + "/"); u.searchParams.set("rule", r.rule); u.searchParams.set("limit", String(r.limit)); u.searchParams.set("column", r.column); copy(e.currentTarget, u.href); });
-  cp.dataset.copyCheck = ""; row.append(cp);
-  const ch = btn(T("ch.button"), () => challengeForm(r, ch)); ch.dataset.challenge = ""; row.append(ch);
-  if (mine && r.mode === "own") { const del = btn(T("del.button"), () => drop(r, del)); del.dataset.delete = ""; row.append(del); }
-  out.push(row);
+  cp.dataset.copyCheck = ""; bs.push(cp);
+  const ch = btn(T("ch.button"), () => challengeForm(r, ch)); ch.dataset.challenge = ""; bs.push(ch);
+  if (mine && r.mode === "own") { const del = btn(T("del.button"), () => drop(r, del)); del.dataset.delete = ""; bs.push(del); }
+  for (let i = 0; i < bs.length; i += 3) { const row = make("div"); row.append(...bs.slice(i, i + 3)); kept.push(row); }
+  const host = $("k-extras"); if (host) host.replaceChildren(...kept); else out.push(...kept);
   if (ran) {
     const st = streak(), s = make("p", T("streak.n", { n: st.n })); s.dataset.streak = String(st.n); out.push(s);
     if (st.n === 7) out.push(make("p", T("streak.week")));
@@ -1114,21 +1119,24 @@ function historyList() {
   const nodes = [];
   if (h.length) {
     const ul = make("ul"); ul.dataset.history = "";
-    for (const x of h.slice(0, 10)) { const li = make("li"), a = make("a"); a.href = x.link; a.append(icon(/^(pass|fail|unknown)$/.test(x.verdict) ? x.verdict : "unknown"), " ", KI.sentence(x.result, true)); li.append(a); ul.append(li); }
+    for (const x of h.slice(0, 4)) { const li = make("li"), a = make("a"); a.href = x.link; a.append(icon(/^(pass|fail|unknown)$/.test(x.verdict) ? x.verdict : "unknown"), " ", KI.sentence(x.result, true)); li.append(a); ul.append(li); }
     nodes.push(make("h2", T("hist.h")), ul);
   }
   nodes.push(reset);
   host.replaceChildren(...nodes);
-  // L24: today's short list (five at most, each with its source), each item sent to one person through the share sheet
+  // L24: today's short list (five at most, each with its source), each item sent to one person through the share sheet.
+  // It stays folded under its name (U3 R45: no open list of more than four; U2 R1: the screen's own words stay few); the
+  // claims are the papers' own English, marked lang="en"
   (window.requestIdleCallback || ((f) => setTimeout(f, 300)))(() => send("GET", "/api/today", null, (d) => {
     const items = (d.items || []).slice(0, 5); if (!items.length || !host.isConnected) return;
+    const fold = make("details"); fold.className = "today"; const sum = make("summary", T("today.h"));
     const ul = make("ul"); ul.dataset.today = d.date || "";
     for (const it of items) {
       const li = make("li"), a = make("a", it.line); a.href = it.source; a.lang = "en"; a.dir = "auto";
       const s = btn(T("today.send"), (e) => { if (navigator.share) navigator.share({ url: it.source, title: it.paper || "Knos" }).catch(() => {}); else copy(e.currentTarget, it.source); });
       s.dataset.share = it.source; li.append(a, s); ul.append(li);
     }
-    host.append(make("h2", T("today.h")), ul);
+    fold.append(sum, ul); host.append(fold);
   }));
 }
 function result(r, ran) {
@@ -1625,6 +1633,7 @@ def page(tool: dict, base: str, result: dict | None = None, front: str = "https:
 <ol>{items}</ol>
 {source_html(L)}
 {extra}
+<div id="k-extras"></div>
 </details>
 <div class="home"><a href="{_e(front)}" data-no-mirror>Knos</a> <button type="button" id="theme" hidden><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg><span id="theme-label"></span></button></div>
 </main>
@@ -1647,8 +1656,8 @@ def source_html(lang: str) -> str:
         return ""
     host = s["url"].split("//")[-1].split("/")[0]
     return (f'<p data-source-checked="{_e(s["checked_on"])}">{_e(t(lang, "src.checked", date=s["checked_on"]))}</p>'
-            f'<blockquote class="src-passage" lang="en" dir="ltr" cite="{_e(s["url"])}"><p>{_e(s["passage"])}</p>'
-            f'<p><a href="{_e(s["url"])}">{_e(host)}</a></p></blockquote>')
+            f'<figure class="src-passage" lang="en" dir="ltr"><p><q cite="{_e(s["url"])}">{_e(s["passage"])}</q></p>'
+            f'<figcaption><a href="{_e(s["url"])}">{_e(host)}</a></figcaption></figure>')
 
 
 def first_sentence(result: str) -> str:

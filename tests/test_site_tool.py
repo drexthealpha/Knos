@@ -174,7 +174,7 @@ def test_the_status_page_shows_every_count_of_usage_json(site: Path) -> None:
         assert m and int(m.group(1).replace(",", "")) == u["totals"][key], key
     # L36: the first line is the people who reached a first result in the last 7 days ("not known yet" until measured)
     first = (u.get("lead") or {}).get("first_result_7d")
-    m = re.search(r'<table id="use"><tbody><tr><th>People who got a first result, last 7 days</th><td class="n" data-lead="first_result_7d">([^<]+)</td>', page)
+    m = re.search(r'<table id="use"><tbody><tr><th>First results, 7 days</th><td class="n" data-lead="first_result_7d">([^<]+)</td>', page)
     assert m and m.group(1) == ("not known yet" if first is None else f"{first:,g}"), m
     for key, label in site_usage.MEASURES:
         m = re.search(rf'data-measure="{key}">([^<]+)</td>', page)

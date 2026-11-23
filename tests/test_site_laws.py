@@ -210,7 +210,7 @@ def test_money_lines_keep_unknown_held_and_internal_apart() -> None:
 def test_the_status_page_leads_with_results_and_shows_the_answers_and_the_week(site: Path) -> None:
     page = (site / "status" / "index.html").read_text(encoding="utf-8")
     first = re.search(r'<table id="use"><tbody><tr><th>([^<]+)</th>', page).group(1)
-    assert first == "People who got a first result, last 7 days"
+    assert first == "First results, 7 days"                                             # short: the first screen holds 40 words (UX/U3.md:57)
     assert 'data-count="tools_opened"' not in page                                       # no raw open count
     for k, *_ in __import__("site_usage").LEAD:
         assert f'data-lead-full="{k}"' in page, k

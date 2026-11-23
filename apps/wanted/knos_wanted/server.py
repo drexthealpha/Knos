@@ -1328,5 +1328,9 @@ def serve(host: str | None = None, port: int | None = None) -> None:
     telegram_bot.start()
     # the seeded research products cross on the first request for the board (front.board), never at boot
     httpd = ThreadingHTTPServer((host, port), make_handler(state))
+    # the listed checks run their locked test once per process: at boot, beside the server, so no visitor's
+    # /api/tools waits on it (the front door asks for it on every load)
+    from . import tool_run
+    threading.Thread(target=tool_run.manifest_ids, name="knos-tool-manifest", daemon=True).start()
     print(f"Knos demand check on http://{host}:{port}  pre-orders: preflight running (see /api/status)", flush=True)
     httpd.serve_forever()

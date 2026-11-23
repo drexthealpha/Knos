@@ -41,32 +41,35 @@ permissions:
 env:
   KNOS_NEAR_AI_OFF: "1"   # no NEAR AI model call ever runs in CI (its $10 credit is for live checks)
 jobs:
+  # The legs of the pytest job are in .github/pytest-legs.json. A push to main runs the Ubuntu legs marked "push"
+  # (Python 3.10 and 3.12, every shard and the slow tests); a pull request, the nightly run, a dispatch and a release
+  # (workflow_call on the tag) run every leg on every platform. macOS and Windows runners queue the longest, and a push
+  # to main waited on them for most of its time (run 45056343803, 22 Nov: 17 minutes, each job 2 to 4).
+  legs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      include: ${{ steps.pick.outputs.include }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          sparse-checkout: .github/pytest-legs.json
+          sparse-checkout-cone-mode: false
+      - id: pick
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+        run: |
+          if [ "$EVENT" = push ] && [ "$REF" = refs/heads/main ]; then f='map(select(.push))'; else f='.'; fi
+          echo "include=$(jq -c "$f | map(del(.push))" .github/pytest-legs.json)" >> "$GITHUB_OUTPUT"
+
   pytest:
     name: pytest (${{ matrix.os }}, ${{ matrix.python }}, ${{ matrix.part }})
+    needs: legs
     strategy:
       fail-fast: false
       matrix:
-        include:      # shard: i/n of the tests that are not slow, or `slow`; part: the same, as a file name
-          - {os: ubuntu-latest, python: "3.10", shard: 1/2, part: 1of2}
-          - {os: ubuntu-latest, python: "3.10", shard: 2/2, part: 2of2}
-          - {os: ubuntu-latest, python: "3.10", shard: slow, part: slow}
-          - {os: ubuntu-latest, python: "3.12", shard: 1/2, part: 1of2}
-          - {os: ubuntu-latest, python: "3.12", shard: 2/2, part: 2of2}
-          - {os: ubuntu-latest, python: "3.12", shard: slow, part: slow}
-          - {os: ubuntu-latest, python: "3.13", shard: 1/2, part: 1of2}
-          - {os: ubuntu-latest, python: "3.13", shard: 2/2, part: 2of2}
-          - {os: ubuntu-latest, python: "3.13", shard: slow, part: slow}
-          - {os: macos-latest, python: "3.12", shard: 1/4, part: 1of4}
-          - {os: macos-latest, python: "3.12", shard: 2/4, part: 2of4}
-          - {os: macos-latest, python: "3.12", shard: 3/4, part: 3of4}
-          - {os: macos-latest, python: "3.12", shard: 4/4, part: 4of4}
-          - {os: macos-latest, python: "3.12", shard: slow, part: slow}
-          - {os: windows-latest, python: "3.12", shard: 1/5, part: 1of5}
-          - {os: windows-latest, python: "3.12", shard: 2/5, part: 2of5}
-          - {os: windows-latest, python: "3.12", shard: 3/5, part: 3of5}
-          - {os: windows-latest, python: "3.12", shard: 4/5, part: 4of5}
-          - {os: windows-latest, python: "3.12", shard: 5/5, part: 5of5}
-          - {os: windows-latest, python: "3.12", shard: slow, part: slow}
+        include: ${{ fromJSON(needs.legs.outputs.include) }}   # shard: i/n of the tests that are not slow, or `slow`; part: the same, as a file name
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     env:
@@ -500,7 +503,7 @@ jobs:
   all-green:
     name: all-green
     if: ${{ !cancelled() }}
-    needs: [pytest, wheel, sdk, site, conformance, claims, history-secrets, lint, deadcode]
+    needs: [legs, pytest, wheel, sdk, site, conformance, claims, history-secrets, lint, deadcode]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:

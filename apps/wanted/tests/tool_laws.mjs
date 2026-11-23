@@ -80,6 +80,9 @@ try {
     check("L07 the run is kept in this browser under one key and listed on the next visit", kept.length === 1 && kept[0].verdict && listed.length === 1 && listed[0] === kept[0].link, `${kept.length} kept; ${listed.length} listed`);
     check("L07 no history request reaches the server", !reqs.some((u) => /history/i.test(u)), `${reqs.length} requests`);
     await p.goto(kept[0].link + "?test=1");
+    // the result's other actions sit in the fold How it works (U2 R4, U6 R44): open it first
+    await p.waitForSelector("#k-extras [data-delete]", { state: "attached", timeout: 5000 });
+    await p.click("details:has(#k-extras) > summary");
     await p.waitForSelector("[data-delete]", { timeout: 5000 });
     await p.click("[data-delete]");
     await p.waitForSelector("[data-deleted]", { timeout: 5000 });
@@ -113,7 +116,7 @@ try {
     const r = await p.evaluate(() => ({ box: document.getElementById("list").value, inBox: !!document.querySelector(".boxwrap #k-mic") }));
     check("L08 spoken words land in the box as editable text, nothing sent before the press", r.box.includes("check the sample") && r.inBox && runs.length === 0, `box "${r.box}"; requests ${runs.length}`);
     await p.goto(TOOL); await p.click("#go"); await verdict(p);
-    await p.click("[data-listen]"); const spoke = await p.evaluate(() => window.__spoke);
+    await p.click("details:has(#k-extras) > summary"); await p.click("[data-listen]"); const spoke = await p.evaluate(() => window.__spoke);
     check("L08 the verdict has a Listen control that calls speechSynthesis", spoke === 1, `speak called ${spoke}`);
     await p.context().close();
   }

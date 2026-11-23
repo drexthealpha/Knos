@@ -54,8 +54,9 @@ a { color: var(--accent); }
 .kh nav a, .kmenu-panel > a { display: flex; align-items: center; min-height: 44px; padding: 0 4px; color: var(--ink); text-decoration: none; font-size: 16px; }
 .kh nav a:hover, .kh nav a[aria-current] { text-decoration: underline; }
 main { max-width: 760px; margin: 0 auto; padding: 0 16px; }
-/* L22: the promise in a thin, high-contrast display face (the design system's serif, weight 400), not a heavy bold headline */
-h1 { font: 400 clamp(38px, 10.5vw, 56px)/1.08 var(--serif); letter-spacing: -.01em; margin: 8px 0 12px; }
+/* L22: the promise in a thin, high-contrast serif (weight 400), not a heavy bold headline. The device's own serif, not the
+   design system's web font: the door loads no font in zh, ja or ko and stays within 50 KiB of fonts (UX/U7.md:141, :259) */
+h1 { font: 400 clamp(38px, 10.5vw, 56px)/1.08 "Iowan Old Style", Georgia, "Times New Roman", serif; letter-spacing: -.01em; margin: 8px 0 12px; }
 h1 label { display: block; font: inherit; margin: 0; }
 :lang(ar) h1 { letter-spacing: 0; }
 h2 { font: 600 22px/1.25 var(--head); margin: 0 0 4px; }
@@ -144,9 +145,10 @@ html.k-busy .kh .mark { animation: k-tilt 1.2s ease-in-out infinite; }
 .k-pointer.press svg { transform: scale(.84); transition: transform .12s; }
 /* below the first screen: the live numbers (L11), the wordless loop (L22), the licence (L28) */
 .live { border-top: 1px solid var(--line); margin-top: 24px; padding-top: 16px; }
-.live ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.live ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .live li { margin: 0; }
-.live a { display: inline-flex; align-items: center; min-height: 48px; font-variant-numeric: tabular-nums; }
+/* the live links keep their own 48 px box (not the narrow screens' padded link, which overlaps its neighbours): 8 px apart, UX/U3.md:69 */
+.live a { display: inline-flex; align-items: center; min-height: 48px; padding: 0; margin: 0; font-variant-numeric: tabular-nums; }
 .live a:empty, .live p:empty { display: none; }
 .live .fact { color: var(--ink-2); margin: 4px 0; }
 .vid { margin: 8px 0 0; } .vid a { display: inline-flex; align-items: center; min-height: 48px; }
@@ -186,10 +188,12 @@ html.k-busy .kh .mark { animation: k-tilt 1.2s ease-in-out infinite; }
     <form id="form" method="post" action="https://knos.onrender.com/t/limit-check/run"><input type="hidden" name="column" value="capacity_ah" dir="auto">
       <div class="field" id="own" hidden><label for="file">{{tool.choose_file}}</label><input id="file" type="file" dir="auto" accept=".csv,text/csv,text/plain"></div>
       <!-- L22: an arrow inside the button (no hand emoji) -->
-      <button class="go" id="try" type="submit" data-primary>{{door.go}}<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      <button class="go" id="try" type="submit" data-primary>{{tool.try}}<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
       <label for="list" id="list-label" hidden>{{@tool.sample_label}}</label>
       <div id="boxwrap"><textarea id="list" name="table" rows="3" dir="auto" wrap="off" spellcheck="false" autocomplete="off" placeholder="{{tool.paste}}"></textarea><button id="speak" type="button" hidden>{{ask.speak}}</button></div>
       <template id="k-sample" data-sample></template>
+      <!-- with no script the box sent empty and untouched checks the sample (tool_run.form_run, sample=1; UX/U7.md:237) -->
+      <input type="hidden" name="sample" value="1">
       <div class="field" id="which" hidden><label for="col">{{tool.which}}</label><select id="col" dir="auto"></select></div>
       <p class="rule" id="rule-line" hidden><span id="colname">{{tool.sample_column}}</span> <span id="rule-shown"><span>{{rule.above}}</span> <bdi data-no-mirror>1.4</bdi></span><span class="rule" id="rule-edit" hidden><label for="rule">{{tool.rule_label}}</label> <select id="rule" name="rule" aria-label="{{tool.rule_label}}"><option value="above" selected>{{rule.above}}</option><option value="below">{{rule.below}}</option></select> <label for="limit">{{tool.limit_label}}</label> <input id="limit" name="limit" dir="auto" inputmode="decimal" autocomplete="off" aria-label="{{tool.limit_label}}" value="1.4"></span></p>
       <p class="who" id="limits" hidden></p>
@@ -236,12 +240,13 @@ html.k-busy .kh .mark { animation: k-tilt 1.2s ease-in-out infinite; }
     </section>
   </section>
   <!-- L34: the product video, recorded from the local product by bench/video/capture.mjs (times in media/capture.json) -->
+  <!-- U2.md:168 (at most half of Knos's words below the first screen): the record, the loop and the licence wait in one fold -->
+  <details class="below" id="k-more"><summary><h2 id="k-more-h">{{nav.status}}</h2></summary>
   <p class="vid" id="k-video"><a href="media/knos-demo.mp4" type="video/mp4">{{door.video}}</a></p>
   <!-- L11: three exact live numbers, each a link to its public record, read by this browser from NEAR testnet (the jobs
        contract's get_totals and get_agent_record); a number not read shows nothing. The uptime line reads the checks kept
        on the gh-pages branch (uptime.jsonl); the lost line the claim record's counters (data/counters.json). -->
-  <section class="live" id="k-live" aria-labelledby="k-live-h">
-    <h2 id="k-live-h" hidden>{{live.h}}</h2>
+  <section class="live" id="k-live" aria-label="{{live.h}}">
     <ul><li><a id="k-paid" data-live="paid" href="https://testnet.nearblocks.io/address/jobs.knos-swarm-1105.testnet"></a></li>
       <li><a id="k-settled" data-live="settled" href="https://testnet.nearblocks.io/address/jobs.knos-swarm-1105.testnet?tab=txns"></a></li>
       <li><a id="k-tried" data-live="tried" href="https://testnet.nearblocks.io/address/jobs.knos-swarm-1105.testnet?tab=txns"></a></li></ul>
@@ -260,11 +265,11 @@ html.k-busy .kh .mark { animation: k-tilt 1.2s ease-in-out infinite; }
   </section>
   <!-- L28: the licence in one plain line and one button, with the star count the repository had when this page was built -->
   <p class="mit" id="k-mit"><span>{{door.mit}}</span><a id="k-fork" href="https://github.com/drexthealpha/Knos/fork">{{door.fork}}</a><span id="k-stars" hidden></span></p>
+  </details>
   <div class="chips" id="mine-q" hidden></div>
 </main>
 <footer>
   <p class="fline">{{foot.door}}</p>
-  <div class="flinks"><a href="https://github.com/drexthealpha/Knos">{{nav.source}}</a><a href="pricing/">{{nav.pricing}}</a><a href="status/">{{nav.status}}</a></div>
   <!--FOOT-->
 </footer>
 <script src="i18n/format.js"></script>
@@ -282,7 +287,9 @@ html.k-busy .kh .mark { animation: k-tilt 1.2s ease-in-out infinite; }
   const SAMPLE = $("k-sample").content.textContent, SAMPLE_COLUMN = $("form").elements.column.value;   // the file's own column name; the rule line says it in plain words (F1B)
   // L01: what is in the box is read here. A table (two rows or more, a comma between cells, a number in a row under the
   // first) runs the limit check; anything else is a question, a claim's name or a link, answered by the claims registry
-  // below (window.knosAsk). The sample is the one example: an empty box checks it.
+  // below (window.knosAsk). The sample is the one example: an empty box checks it, unless the person went into the empty
+  // box (then it is an empty file, err.empty, as on the tool page). Emptying a question gives the example back.
+  let starter = true;
   const same = (a, b) => String(a).replace(/\r\n?/g, "\n").trim() === String(b).replace(/\r\n?/g, "\n").trim();
   const isTable = (text) => { const rows = rowsOf(String(text)); return rows.length >= 2 && rows.some((r) => r.length >= 2) && rows.slice(1).some((r) => r.some((c) => DATA.test(c.trim()))); };
   // the sample in the box: its label and its rule line are shown, as they say what the sample is checked against
@@ -421,10 +428,11 @@ html.k-busy .kh .mark { animation: k-tilt 1.2s ease-in-out infinite; }
     if (ctl) return;
     // a box a verdict emptied, untouched since: Check my data checks the table just checked again; one the person emptied is empty
     const again = fresh && !box.value.trim() && kept;
-    // L01: an empty box checks the one example; a question or a link goes to the claims registry
-    const example = !again && !box.value.trim() && !mineOn;
-    if (example) requestAnimationFrame(() => setTimeout(() => { if (state.dataset.state === "working" && !box.value.trim()) { box.value = SAMPLE; sampleOn(); } }, 0));   // the box shows the example once the press is answered (U1 R3)
-    else if (!again && box.value.trim() && !isTable(box.value)) { show(res, false); show(err, false); if (window.knosAsk) window.knosAsk(box.value.trim()); return; }
+    // L01: an empty box checks the one example (the box stays as it is, so an error leaves it as the person left it,
+    // UX/U7.md:269); a box the person went into and left empty is an empty file (UX/U5.md:178); a question or a link
+    // goes to the claims registry
+    const example = !again && !box.value.trim() && !mineOn && starter;
+    if (!example && !again && box.value.trim() && !isTable(box.value)) { show(res, false); show(err, false); if (window.knosAsk) window.knosAsk(box.value.trim()); return; }
     show($("ask-out"), false);
     const table = again ? kept.table : example ? SAMPLE : box.value, column = again && kept.col ? kept.col : mineOn ? $("col").value : SAMPLE_COLUMN, rule = $("rule").value, limit = KI.num($("limit").value);
     if (again) { box.value = table; fresh = false; }   // the table goes back in the box while it runs, so an error keeps it there
@@ -571,8 +579,9 @@ html.k-busy .kh .mark { animation: k-tilt 1.2s ease-in-out infinite; }
     if (how !== "pasted") how = "pasted";   // a file put in whole, as a paste is
     const r = new FileReader(); r.onload = () => { box.value = String(r.result); kind(); fillColumns(); draftSave(); }; r.readAsText(f);
   });
-  box.addEventListener("input", () => { fresh = false; kind(); if (mineOn) fillColumns(); });
-  box.addEventListener("focus", () => { fresh = false; });   // a person who goes into the empty box means an empty one
+  let typed = "";   // what the box held before this change: a question emptied gives the example back
+  box.addEventListener("input", () => { fresh = false; const was = typed; typed = box.value; if (!box.value.trim() && was.trim() && !isTable(was)) starter = true; kind(); if (mineOn) fillColumns(); });
+  box.addEventListener("focus", () => { fresh = false; starter = false; });   // a person who goes into the empty box means an empty one
   // section 12 of the plain-language spec: going back or forward (or a reload) keeps the request typed in this tab, sent
   // or not, and from the pay screen too; kept for this tab only (sessionStorage), and a page without storage still works
   const DRAFT = "knos.draft.door." + TOOL;
@@ -787,8 +796,7 @@ html.k-busy .kh .mark { animation: k-tilt 1.2s ease-in-out infinite; }
   const getJSON = (path) => fetch(HOSTED + path, { cache: "no-store", signal: AbortSignal.timeout(8000) }).then((r) => r.ok ? r.json() : Promise.reject(new Error("not read")));
   const n2 = (x) => KF.number(x, KI.lang(), { minimumFractionDigits: 2, maximumFractionDigits: 2 }), n0 = (x) => KF.number(x, KI.lang());
   let shown = null;
-  const draw = () => { if (!shown) return; $("k-live-h").hidden = !(shown.paid != null || shown.settled != null || shown.tried != null || shown.up || shown.lost != null);
-    if (shown.paid != null) $("k-paid").textContent = T("live.paid", { amount: n2(shown.paid) });
+  const draw = () => { if (!shown) return; if (shown.paid != null) $("k-paid").textContent = T("live.paid", { amount: n2(shown.paid) });
     if (shown.settled != null) $("k-settled").textContent = T("live.settled", { n: shown.settled });
     if (shown.tried != null) $("k-tried").textContent = T("live.tried", { n: shown.tried });
     if (shown.up) $("k-up").textContent = T("live.up", { up: n0(shown.up[0]), all: n0(shown.up[1]) });
@@ -809,8 +817,10 @@ html.k-busy .kh .mark { animation: k-tilt 1.2s ease-in-out infinite; }
   if ("IntersectionObserver" in window) { const io = new IntersectionObserver((e) => { if (e.some((x) => x.isIntersecting)) { io.disconnect(); read(); } }, { rootMargin: "400px" }); io.observe(live); } else read();
   // the loop runs while it is on the screen, unless paused or the reader asked for less motion
   const loop = $("k-loop"), btn = $("k-loop-btn"), still = matchMedia("(prefers-reduced-motion: reduce)");
-  let paused = still.matches;
-  const set = () => { loop.classList.toggle("run", !paused && !still.matches); btn.textContent = T(paused ? "loop.play" : "loop.pause"); btn.hidden = still.matches; };
+  let paused = still.matches, seenLoop = !("IntersectionObserver" in window);
+  // on the screen only: below the first screen at load, so nothing runs over 5 s unasked (UX/U5.md:86)
+  if (!seenLoop) new IntersectionObserver((e) => { seenLoop = e.some((x) => x.isIntersecting); set(); }).observe(loop);
+  const set = () => { loop.classList.toggle("run", !paused && !still.matches && seenLoop); btn.textContent = T(paused ? "loop.play" : "loop.pause"); btn.hidden = still.matches; };
   btn.addEventListener("click", () => { paused = !paused; set(); });
   set(); KI.changed(set);
   // the pointer: once per visitor (localStorage, in try/catch), after 3 s with no tap or key, never with reduced motion

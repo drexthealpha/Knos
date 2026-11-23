@@ -1,0 +1,22 @@
+[
+  {"os": "ubuntu-latest", "python": "3.10", "shard": "1/2", "part": "1of2", "push": true},
+  {"os": "ubuntu-latest", "python": "3.10", "shard": "2/2", "part": "2of2", "push": true},
+  {"os": "ubuntu-latest", "python": "3.10", "shard": "slow", "part": "slow", "push": true},
+  {"os": "ubuntu-latest", "python": "3.12", "shard": "1/2", "part": "1of2", "push": true},
+  {"os": "ubuntu-latest", "python": "3.12", "shard": "2/2", "part": "2of2", "push": true},
+  {"os": "ubuntu-latest", "python": "3.12", "shard": "slow", "part": "slow", "push": true},
+  {"os": "ubuntu-latest", "python": "3.13", "shard": "1/2", "part": "1of2", "push": false},
+  {"os": "ubuntu-latest", "python": "3.13", "shard": "2/2", "part": "2of2", "push": false},
+  {"os": "ubuntu-latest", "python": "3.13", "shard": "slow", "part": "slow", "push": false},
+  {"os": "macos-latest", "python": "3.12", "shard": "1/4", "part": "1of4", "push": false},
+  {"os": "macos-latest", "python": "3.12", "shard": "2/4", "part": "2of4", "push": false},
+  {"os": "macos-latest", "python": "3.12", "shard": "3/4", "part": "3of4", "push": false},
+  {"os": "macos-latest", "python": "3.12", "shard": "4/4", "part": "4of4", "push": false},
+  {"os": "macos-latest", "python": "3.12", "shard": "slow", "part": "slow", "push": false},
+  {"os": "windows-latest", "python": "3.12", "shard": "1/5", "part": "1of5", "push": false},
+  {"os": "windows-latest", "python": "3.12", "shard": "2/5", "part": "2of5", "push": false},
+  {"os": "windows-latest", "python": "3.12", "shard": "3/5", "part": "3of5", "push": false},
+  {"os": "windows-latest", "python": "3.12", "shard": "4/5", "part": "4of5", "push": false},
+  {"os": "windows-latest", "python": "3.12", "shard": "5/5", "part": "5of5", "push": false},
+  {"os": "windows-latest", "python": "3.12", "shard": "slow", "part": "slow", "push": false}
+]

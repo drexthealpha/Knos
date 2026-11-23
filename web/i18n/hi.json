@@ -44,7 +44,7 @@
   "survey.without": "क्या आप यह Knos के बिना करेंगे?",
   "survey.again": "क्या आप इसके लिए फिर से Knos चुनेंगे?",
   "status.not_known": "अभी पता नहीं",
-  "status.first_result_7d": "पहला नतीजा पाने वाले लोग, पिछले 7 दिन",
+  "status.first_result_7d": "पहले नतीजे, 7 दिन",
   "ask.pr_go": "यह पुल रिक्वेस्ट जाँचें",
   "ask.pr": "एक पुल रिक्वेस्ट: Knos इसे अपने अलग पेज पर जाँचता है",
   "loop.play": "चलाएँ",

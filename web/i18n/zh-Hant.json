@@ -41,7 +41,7 @@
   "survey.without": "沒有 Knos，你還會做這件事嗎？",
   "survey.again": "做這件事時，你還會再選 Knos 嗎？",
   "status.not_known": "尚不清楚",
-  "status.first_result_7d": "近 7 天得到第一個結果的人數",
+  "status.first_result_7d": "首次結果，7 天",
   "ask.pr_go": "檢查這個拉取要求",
   "ask.pr": "這是一個拉取要求：Knos 會在專屬頁面上檢查它",
   "loop.play": "播放",

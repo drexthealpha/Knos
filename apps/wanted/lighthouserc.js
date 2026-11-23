@@ -15,7 +15,11 @@ const app = ["", "app/", "paid#buy", "#fund", "#contribute", "#make", "#research
 module.exports = {
   "ci": {
     "collect": {
-      "url": [...site.map((p) => SITE + p), ...app.map((p) => APP + p)],
+      // LHCI_PART=i/n (lighthouse.yml runs five parts side by side) keeps every n-th page from the i-th; unset, every page
+      "url": [...site.map((p) => SITE + p), ...app.map((p) => APP + p)].filter((u, k) => {
+        const [i, n] = (process.env.LHCI_PART || "1/1").split("/").map(Number);
+        return k % n === i - 1;
+      }),
       "numberOfRuns": 3,   // one run swings by up to 0.27 on a shared runner (0.73 then 1.0 on the same page); the assertions read the best of 3
       "settings": {
         "formFactor": "mobile",

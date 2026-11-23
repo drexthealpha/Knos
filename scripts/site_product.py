@@ -742,6 +742,7 @@ main .btn:focus-visible, main summary:focus-visible, main a:focus-visible { outl
 
 
 RAW_OPENS = {"tools_opened"}   # L36: a raw open count is not shown (DISTRIBUTION/E3.md:110)
+IN_FOLD = {"connector_runs"}   # a count shown in the closed How it works fold, not on the first screen (UX/U3.md:57)
 
 
 def changes() -> list[dict]:
@@ -824,10 +825,12 @@ def status_page(header: str) -> str:
     # one outsiders can inflate, DISTRIBUTION/E3.md:110); a count the file does not hold is "not known yet", never 0
     rows = (f'<tr><th>{e(en("status.first_result_7d"))}</th><td class="n" data-lead="first_result_7d">'
             + (e(en("status.not_known")) if first is None else f"{first:,g}") + "</td></tr>")
-    rows += "".join(f'<tr><th>{e(en("status." + k))}</th><td class="n" data-count="{k}">'
-                    + (f'{u["totals"][k]:,}' if isinstance(u["totals"].get(k), int) else e(en("status.not_known"))) + "</td></tr>"
-                    for k, _ in site_usage.COUNTS if k not in RAW_OPENS)
-    meas = "".join(f'<tr><th>{e(en("status." + k))}</th><td class="n" data-measure="{k}">'
+    def count(k: str) -> str:
+        return (f'<tr><th>{e(en("status." + k))}</th><td class="n" data-count="{k}">'
+                + (f'{u["totals"][k]:,}' if isinstance(u["totals"].get(k), int) else e(en("status.not_known"))) + "</td></tr>")
+    rows += "".join(count(k) for k, _ in site_usage.COUNTS if k not in RAW_OPENS | IN_FOLD)
+    # U3 R3: the first screen holds at most 40 words, so the runs from other apps sit first in the closed fold
+    meas = "".join(count(k) for k, _ in site_usage.COUNTS if k in IN_FOLD) + "".join(f'<tr><th>{e(en("status." + k))}</th><td class="n" data-measure="{k}">'
                    + (e(en("status.too_few")) if u["measures"].get(k) is None else f'{u["measures"][k]:,}') + "</td></tr>" for k, _ in site_usage.MEASURES)
     # the time keeps its own left-to-right order inside a right-to-left sentence (U7 R2): a left-to-right isolate around it
     at = "\u2066" + u["read_at"].replace("T", " ")[:16] + " UTC\u2069" if u.get("read_at") else ""

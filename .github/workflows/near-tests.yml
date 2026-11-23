@@ -14,7 +14,7 @@ env:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
@@ -24,11 +24,15 @@ jobs:
             near/contract
             near/mock-usdc
             near/sandbox
-      - name: the wasm target and cargo-near 0.22.0
+      - name: the wasm target and cargo-near 0.22.0 (the release binary, held to its published sha256)
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq libudev-dev pkg-config   # cargo-near's hidapi needs libudev
           rustup target add wasm32-unknown-unknown
-          cargo install cargo-near --version 0.22.0 --locked
+          # the release's own binary: compiling cargo-near took 17 of the run's 27 minutes (run 45056343859)
+          curl -sSfL -o cargo-near.tgz https://github.com/near/cargo-near/releases/download/cargo-near-v0.22.0/cargo-near-x86_64-unknown-linux-gnu.tar.gz
+          echo "9429064e30a427e96523f539cb255f3688d2345e5000d7d4e4873a8247247d1a  cargo-near.tgz" | sha256sum -c -
+          tar -xzf cargo-near.tgz && install -m 755 "$(find . -maxdepth 2 -type f -name cargo-near | head -1)" ~/.cargo/bin/cargo-near && rm -rf cargo-near.tgz cargo-near-x86_64-unknown-linux-gnu
+          cargo near --version
       - name: near/scripts/verify.sh
         run: set -o pipefail; bash near/scripts/verify.sh | tee near-tests.txt
       - name: the test counts, in the run's summary (readable without a GitHub login)

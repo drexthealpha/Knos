@@ -14,8 +14,15 @@ concurrency:
   cancel-in-progress: true
 jobs:
   lhci:
+    name: lhci (part ${{ matrix.part }} of 5)
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [1, 2, 3, 4, 5]   # every fifth page each, side by side: one job over all of them took over 60 minutes (run 45056343815)
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 20
+    env:
+      LHCI_PART: ${{ matrix.part }}/5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
@@ -40,7 +47,7 @@ jobs:
       - if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: lighthouse
+          name: lighthouse-${{ matrix.part }}
           path: .lighthouseci/
           include-hidden-files: true
           retention-days: 14

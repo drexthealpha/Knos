@@ -45,7 +45,7 @@
   "survey.without": "Apakah Anda akan melakukan ini tanpa Knos?",
   "survey.again": "Apakah Anda akan memilih Knos lagi untuk ini?",
   "status.not_known": "belum diketahui",
-  "status.first_result_7d": "Orang yang mendapat hasil pertama, 7 hari terakhir",
+  "status.first_result_7d": "Hasil pertama, 7 hari",
   "ask.pr_go": "Periksa pull request ini",
   "ask.pr": "Sebuah pull request: Knos memeriksanya di halamannya sendiri",
   "loop.play": "Putar",

@@ -54,6 +54,7 @@ const near = (route) => {
   return route.fulfill({ status: 200, headers: cors, body: JSON.stringify({ jsonrpc: "2.0", id: "k", result: { result: [...Buffer.from(JSON.stringify(value))] } }) });
 };
 const runs = [];
+let blockedRecord = false;
 function hosted(route) {
   const req = route.request(), url = new URL(req.url());
   const reply = (status, body) => route.fulfill({ status, headers: cors, body: JSON.stringify(body) });
@@ -68,10 +69,19 @@ function hosted(route) {
   if (url.pathname === "/api/near/claims") return reply(200, { read_at: "2026-11-22T00:00:00Z", claims: Object.fromEntries(CLAIMS.map((c) => [c.name, { last_proof: "job-1", proofs: 2, demand: { behind_usd: 12.5 } }])) });
   if (url.pathname === "/api/near/claim/look") return reply(200, { ok: true, known: false, title: "A paper Knos has not checked", quote: { checker: "a person", price: "not published", time: "not published" } });
   if (url.pathname === "/api/tools") return reply(200, { tools: [] });
+  // the door's live numbers come from the Knos server, which reads the jobs contract and the scheduled check's uptime.jsonl
+  if (url.pathname === "/api/near/totals" || url.pathname === "/api/uptime") {
+    if (blockedRecord) return route.abort();
+    if (url.pathname === "/api/uptime") { const ups = UPTIME.trim().split(/\n/).map((l) => JSON.parse(l).up); return reply(200, { days: 7, up: ups.filter(Boolean).length, all: ups.length }); }
+    const recs = Object.values(RECORDS);
+    return reply(200, { since_upgrade: { contract: "jobs.knos-swarm-1105.testnet", paid_usd: Number(TOTALS["knos-usdc-1102.testnet"].paid) / 1e6,
+      jobs_paid: recs.reduce((s, r) => s + r.passes, 0), tried: recs.filter((r) => r.passes + r.fails + r.rejected > 0).length } });
+  }
   return reply(404, { error: "no such route" });
 }
 async function ctxWith({ blockRecord = false, reduced = false, w = 360, h = 800 } = {}) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, reducedMotion: reduced ? "reduce" : "no-preference" });
+  blockedRecord = blockRecord;
   await ctx.route(/^https:\/\/knos\.onrender\.com\/api\/visit/, (r) => r.abort());
   await ctx.route(/^https:\/\/knos\.onrender\.com\//, hosted);
   await ctx.route(/^https:\/\/rpc\.testnet\./, blockRecord ? (r) => r.abort() : near);
@@ -154,7 +164,7 @@ const marked = await page.evaluate(() => [...document.querySelectorAll("[data-mu
 check("L20: the error, the price and the consent lines are marked data-must-understand", ["err", "pay-line", "pay-what", "optin"].every((id) => marked.includes(id)), marked);
 
 // ---- L11: the live numbers ----------------------------------------------------------------------------------------------
-await page.evaluate(() => document.getElementById("k-live").scrollIntoView());
+await page.evaluate(() => { document.getElementById("k-more").open = true; document.getElementById("k-live").scrollIntoView(); });
 await page.waitForFunction(() => document.getElementById("k-paid").textContent && document.getElementById("k-up").textContent, null, { timeout: 8000 }).catch(() => {});
 const live = await page.evaluate(() => ["k-paid", "k-settled", "k-tried"].map((id) => { const a = document.getElementById(id); return { tag: a.tagName, href: a.href, text: a.textContent }; }).concat([{ up: document.getElementById("k-up").textContent }]));
 const passes = Object.values(RECORDS).reduce((s, r) => s + r.passes, 0), tried = Object.values(RECORDS).filter((r) => r.passes + r.fails + r.rejected > 0).length;
@@ -170,7 +180,7 @@ await ctx.close();
 const blocked = await ctxWith({ blockRecord: true });
 const bp = await blocked.newPage();
 await bp.goto(base, { waitUntil: "load" });
-await bp.evaluate(() => document.getElementById("k-live").scrollIntoView());
+await bp.evaluate(() => { document.getElementById("k-more").open = true; document.getElementById("k-live").scrollIntoView(); });
 await bp.waitForTimeout(1500);
 const empty = await bp.evaluate(() => ["k-paid", "k-settled", "k-tried", "k-up"].map((id) => document.getElementById(id).textContent));
 check("L11: with the record blocked the slots are empty (no placeholder text)", empty.every((t) => t === ""), empty);

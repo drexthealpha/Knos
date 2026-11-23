@@ -43,7 +43,7 @@
   "survey.without": "คุณจะทำสิ่งนี้โดยไม่มี Knos ไหม",
   "survey.again": "คุณจะเลือก Knos อีกสำหรับงานนี้ไหม",
   "status.not_known": "ยังไม่ทราบ",
-  "status.first_result_7d": "คนที่ได้ผลลัพธ์แรก ใน 7 วันล่าสุด",
+  "status.first_result_7d": "ผลลัพธ์แรก 7 วัน",
   "ask.pr_go": "ตรวจ pull request นี้",
   "ask.pr": "นี่คือ pull request: Knos ตรวจในหน้าของมันเอง",
   "loop.play": "เล่น",

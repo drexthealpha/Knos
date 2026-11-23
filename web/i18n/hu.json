@@ -43,7 +43,7 @@
   "survey.without": "Megcsinálnád ezt a Knos nélkül is?",
   "survey.again": "Ehhez újra a Knost választanád?",
   "status.not_known": "még nem ismert",
-  "status.first_result_7d": "Akik első eredményt kaptak, utolsó 7 nap",
+  "status.first_result_7d": "Első eredmények, 7 nap",
   "ask.pr_go": "Pull request ellenőrzése",
   "ask.pr": "Ez egy pull request: a Knos külön oldalon ellenőrzi",
   "loop.play": "Lejátszás",

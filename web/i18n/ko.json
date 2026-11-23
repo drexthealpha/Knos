@@ -43,7 +43,7 @@
   "survey.without": "Knos 없이도 이 일을 하시겠어요?",
   "survey.again": "이 일에 다시 Knos를 선택하시겠어요?",
   "status.not_known": "아직 모름",
-  "status.first_result_7d": "지난 7일간 첫 결과를 얻은 사람",
+  "status.first_result_7d": "첫 결과, 7일",
   "ask.pr_go": "이 풀 리퀘스트 검사",
   "ask.pr": "풀 리퀘스트입니다. Knos가 별도 페이지에서 검사합니다",
   "loop.play": "재생",

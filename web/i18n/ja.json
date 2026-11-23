@@ -41,7 +41,7 @@
   "survey.without": "Knos がなくても、これをしますか？",
   "survey.again": "これをするとき、また Knos を選びますか？",
   "status.not_known": "まだ不明",
-  "status.first_result_7d": "過去 7 日間に最初の結果を得た人",
+  "status.first_result_7d": "最初の結果、7 日間",
   "ask.pr_go": "このプルリクエストをチェック",
   "ask.pr": "プルリクエストです。Knos が専用ページでチェックします",
   "loop.play": "再生",

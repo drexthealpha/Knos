@@ -44,7 +44,7 @@
   "survey.without": "Вы бы делали это без Knos?",
   "survey.again": "Вы бы снова выбрали Knos для этого?",
   "status.not_known": "пока неизвестно",
-  "status.first_result_7d": "Люди с первым результатом, последние 7 дней",
+  "status.first_result_7d": "Первые результаты, 7 дней",
   "ask.pr_go": "Проверить этот pull request",
   "ask.pr": "Pull request: Knos проверяет его на отдельной странице",
   "loop.play": "Запустить",

@@ -43,7 +43,7 @@
   "survey.without": "Không có Knos, bạn có làm việc này không?",
   "survey.again": "Bạn có chọn lại Knos cho việc này không?",
   "status.not_known": "chưa biết",
-  "status.first_result_7d": "Số người có kết quả đầu tiên, 7 ngày qua",
+  "status.first_result_7d": "Kết quả đầu tiên, 7 ngày",
   "ask.pr_go": "Kiểm tra pull request này",
   "ask.pr": "Một pull request: Knos kiểm tra nó trên trang riêng",
   "loop.play": "Phát",
