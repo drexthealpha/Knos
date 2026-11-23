@@ -220,6 +220,41 @@
    "not_what": {},
    "proof_finished": 0,
    "visits": 114
+  },
+  "2026-11-23": {
+   "backed": 0,
+   "by_device": {},
+   "by_language": {},
+   "by_region": {},
+   "came_back": 0,
+   "events": {
+    "leave": 53,
+    "view": 44
+   },
+   "first_press": 0,
+   "first_result": 0,
+   "groups": {
+    "holdout": {
+     "first_result": 0,
+     "visits": 32
+    },
+    "variant": {
+     "first_result": 0,
+     "visits": 34
+    }
+   },
+   "leave_from": {
+    "/": 44,
+    "/agents/": 10,
+    "/check/": 24,
+    "/claims/": 10,
+    "/prove/": 10
+   },
+   "minutes_to_result": [],
+   "new_visits": 37,
+   "not_what": {},
+   "proof_finished": 0,
+   "visits": 66
   }
  }
 }
