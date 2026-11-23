@@ -1,4 +1,4 @@
-/* Hallmark · job: the Knos design system, one file for the site and the NEAR app · shape: tokens · genre: modern-minimal · theme: Knos (near/DESIGN.md) */
+/* The Knos design system, one file for the site and the NEAR app (near/DESIGN.md) */
 /* Knos's one design system: the logo, type, colour, spacing, the bar and the hero, the same bytes on the front door and
    the app (scripts/sync_brand.py copies it, tests/test_design_system.py holds it). */
 @font-face { font-family: "Bricolage Grotesque"; src: url("../fonts/bricolage-grotesque.woff2") format("woff2"); font-weight: 600 700; font-style: normal; font-display: optional; }
@@ -39,7 +39,7 @@
   --head: "Bricolage Grotesque", "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
   --text: "Geist", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --code: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --s-1: 0.8125rem; --s0: 0.875rem; --s1: 1rem; --s2: 1.25rem; --s3: 1.75rem; --s4: 2.5rem;
+  --s-1: .8125rem; --s0: .875rem; --s1: 1rem; --s2: 1.25rem; --s3: 1.75rem; --s4: 2.5rem;
   --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 40px;
   --gap: 24px; --radius: 14px; --radius-s: 8px;
   --ease: cubic-bezier(.2, .8, .2, 1); --ease-exit: cubic-bezier(.4, 0, 1, 1); --ease-move: cubic-bezier(.65, 0, .35, 1); --dur-1: 120ms; --dur-2: 240ms; --dur-3: 480ms;

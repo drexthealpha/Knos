@@ -70,9 +70,9 @@
    "max_length": 21
   },
   "foot.door": {
-   "text": "Test money, no customers yet.",
+   "text": "Test money, no buyers yet.",
    "description": "The honesty line that heads the foot of a page: on the front door.",
-   "max_length": 53
+   "max_length": 47
   },
   "foot.pages": {
    "text": "Test money only, no customers yet.",

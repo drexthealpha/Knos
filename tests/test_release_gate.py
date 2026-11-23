@@ -46,8 +46,11 @@ def test_a_release_runs_the_whole_test_workflow_on_the_tagged_commit_before_anyt
     # the whole workflow: no job of tests.yml is skipped when it is called from a release
     assert not [name for name, job in tests["jobs"].items() if "if" in job and name != "all-green"]
     assert set(tests["jobs"]) >= {"pytest", "sdk", "claims", "deadcode"}
-    oses = {m["os"] for m in tests["jobs"]["pytest"]["strategy"]["matrix"]["include"]}
-    assert oses == {"ubuntu-latest", "macos-latest", "windows-latest"}
+    # every leg on a release: the legs job trims only a push to a branch (refs/heads/main), never a tag
+    legs = json.loads((ROOT / ".github" / "pytest-legs.json").read_text(encoding="utf-8"))
+    assert {m["os"] for m in legs} == {"ubuntu-latest", "macos-latest", "windows-latest"}
+    pick = "\n".join(str(s.get("run", "")) for s in tests["jobs"]["legs"]["steps"])
+    assert '[ "$REF" = refs/heads/main ]' in pick and "else f='.'" in pick
     # the caller and the called workflow must not share a concurrency group (GitHub cancels the run if they do)
     assert rel["concurrency"]["group"].startswith("release-") and tests["concurrency"]["group"].startswith("tests-")
     assert "github.workflow" not in tests["concurrency"]["group"]

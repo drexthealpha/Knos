@@ -27,7 +27,17 @@ def test_report_is_warm_claim_and_cold_event(report, tmp_path):
     assert warm["report_hash"] == rep["hash"] and warm["verdict"] == "OPEN" and warm["live"] is True
     assert rep["idea"] not in str(lines)                         # only the idea's sha256 is public
     assert lines[1]["payload"]["endpoints"] == ["Hacker News", "Research papers", "Wikipedia"]   # the sources, never their answers
-    assert "296" not in str(lines)
+    # no answer's count (296) is a value anywhere in the record; a hash or a time may hold those digits by chance
+    def values(x):
+        if isinstance(x, dict):
+            for v in x.values():
+                yield from values(v)
+        elif isinstance(x, list):
+            for v in x:
+                yield from values(v)
+        else:
+            yield x
+    assert all(v not in (296, "296") for v in values(lines))
     st = record.sibyl(tmp_path / "record")
     assert record.claim_state(got["claim"], store=st)["report_hash"] == rep["hash"]
     v = record.verify(tmp_path / "record", offline=True)
