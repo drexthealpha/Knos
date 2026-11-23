@@ -193,7 +193,7 @@ html.k-busy .kh .mark { animation: k-tilt 1.2s ease-in-out infinite; }
       <div id="boxwrap"><textarea id="list" name="table" rows="3" dir="auto" wrap="off" spellcheck="false" autocomplete="off" placeholder="{{tool.paste}}"></textarea><button id="speak" type="button" hidden>{{ask.speak}}</button></div>
       <template id="k-sample" data-sample></template>
       <!-- with no script the box sent empty and untouched checks the sample (tool_run.form_run, sample=1; UX/U7.md:237) -->
-      <input type="hidden" name="sample" value="1">
+      <input type="hidden" name="sample" value="1" dir="auto">
       <div class="field" id="which" hidden><label for="col">{{tool.which}}</label><select id="col" dir="auto"></select></div>
       <p class="rule" id="rule-line" hidden><span id="colname">{{tool.sample_column}}</span> <span id="rule-shown"><span>{{rule.above}}</span> <bdi data-no-mirror>1.4</bdi></span><span class="rule" id="rule-edit" hidden><label for="rule">{{tool.rule_label}}</label> <select id="rule" name="rule" aria-label="{{tool.rule_label}}"><option value="above" selected>{{rule.above}}</option><option value="below">{{rule.below}}</option></select> <label for="limit">{{tool.limit_label}}</label> <input id="limit" name="limit" dir="auto" inputmode="decimal" autocomplete="off" aria-label="{{tool.limit_label}}" value="1.4"></span></p>
       <p class="who" id="limits" hidden></p>
