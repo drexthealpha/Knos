@@ -691,7 +691,7 @@ html.k-busy .kh .mark { animation: k-tilt 1.2s ease-in-out infinite; }
   // a claim's own words (near/claims/claims.json) are English: they are marked so, and shown as they are
   const en = (text) => el("span", { lang: "en", textContent: text });
   function answer(c, live, near) {
-    const m = (board && board.claims && board.claims[c.name]) || {}, last = live || m.last_proof && { holds: true, job: m.last_proof };
+    const m = (board && board.claims && board.claims[c.name]) || {}, last = live || (m.last_proof ? { holds: true, job: m.last_proof } : +m.proofs > 0 ? { holds: true } : null);   // paid runs on the record count, as on the Papers page
     const holds = last ? last.holds !== false : null, out7 = m.demand && m.demand.behind_usd != null ? +m.demand.behind_usd : null,
       behind = out7 != null ? T("ask.behind", { amount: KF.number(out7, KI.lang(), { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }) : "";
     // plain words above the fold: what is proved and how much is behind it; the locked test, the record and the way to run
@@ -703,7 +703,7 @@ html.k-busy .kh .mark { animation: k-tilt 1.2s ease-in-out infinite; }
     put(
       ...(near ? [el("p", { className: "near", textContent: T("ask.closest") })] : []),
       el("p", { className: "verdict", "data-answer": "", textContent: holds === true ? T(near ? "ask.holds_near" : "ask.holds") : holds === false ? T("ask.fails") : T("ask.not_yet") }),
-      el("p", {}, [en(`${c.title}. ${c.authors}, ${c.year}.`), " ", holds != null && last.job ? T("ask.proved") : T("ask.locked")]),
+      el("p", {}, [en(`${c.title}. ${c.authors}, ${c.year}.`), " ", holds != null ? T("ask.proved") : T("ask.locked")]),
       ...(behind ? [el("p", { textContent: behind + "." })] : []),
       ...(holds == null ? [el("p", {}, [link("prove/#paper=" + encodeURIComponent(src(c)), T("ask.prove_it"), "prove-it")])] : []),   // not checked yet: the way to have it checked
       notWhat(), fold);
@@ -711,7 +711,7 @@ html.k-busy .kh .mark { animation: k-tilt 1.2s ease-in-out infinite; }
   // no record matches: never an error, the nearest records and a way to have it proved
   function none(text, best) {
     // "checked" counts the claims the record holds a proof for (the board), and those are offered first
-    const proved = (c) => !!(board && board.claims && board.claims[c.name] && board.claims[c.name].last_proof);
+    const proved = (c) => { const m = board && board.claims && board.claims[c.name]; return !!(m && (m.last_proof || +m.proofs > 0)); };
     const near = [...new Set([...(best ? [best] : []), ...CLAIMS.filter(proved), ...CLAIMS])];
     const n = CLAIMS.filter(proved).length;
     put(el("p", { className: "verdict", "data-answer": "", textContent: T("ask.none") }),
