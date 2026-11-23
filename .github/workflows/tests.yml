@@ -298,10 +298,12 @@ jobs:
           node tests/web/law_checks.mjs "$RUNNER_TEMP/site" --part "$((SIXTH - 2))/6"
           } 2>&1 | tee -a "$WEB_LOG"
       - if: matrix.part == 9
-        name: section 12's implementation tests (the plain-language spec) on the tool, result and price screens, the app run here
+        name: section 12's implementation tests (the plain-language spec) on the tool, result and price screens, the app run here; and two of the loop's slowest files (part 2 ran past 10 minutes with them, run 45108942920)
         run: |
           {
           node tests/web/section12.mjs "$RUNNER_TEMP/site"
+          node tests/web/test_h3_budget.mjs "$RUNNER_TEMP/site"
+          node tests/web/one_page_press.mjs "$RUNNER_TEMP/site"
           } 2>&1 | tee -a "$WEB_LOG"
       # A file added to tests/web/ runs here with no line of its own: `node tests/web/<name>.mjs <the built site>`, the
       # arguments the others take. One that needs other arguments gets a line above. buyer.mjs needs a fixture that
