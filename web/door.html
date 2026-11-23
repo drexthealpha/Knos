@@ -203,6 +203,7 @@ html.k-busy .kh .mark { animation: k-tilt 1.2s ease-in-out infinite; }
     <!-- the answer to a question, a claim's name, a paper's link or a pull request's link (L01) -->
     <div class="out" id="ask-out" aria-live="polite" hidden></div>
     <div class="result" id="result" aria-live="polite" hidden>
+      <p class="what" id="what" hidden>{{tool.sample_made_up}}</p>
       <p class="about" id="about" data-verdict data-answer></p>
       <p id="reason" data-reason data-uncertain="true" hidden></p>
       <div id="chart"></div>
@@ -391,10 +392,11 @@ html.k-busy .kh .mark { animation: k-tilt 1.2s ease-in-out infinite; }
     const rows = rowsOf(text);
     return rows.length && isHeader(rows[0]) ? rows.length - 1 : rows.length;
   }
-  function working(t0, table) {
+  function working(t0, table, mode) {
     // a first change at once: the rows to check; from 1 s a moving sign, the step Knos is on with its seconds, a bar of
     // the seconds against the run's own time limit, and Stop (U6 Rule 6, U1 R3 and R13). The button keeps its focus.
-    step.textContent = T("work.sending");
+    const sending = mode === "sample" ? "tool.sample_made_up" : "work.sending";   // the sample is named, never called your file
+    step.textContent = T(sending);
     show(err, false); show(res, false); show(state, true); state.dataset.state = "working";
     document.documentElement.classList.add("k-busy");
     // the table is read once the first change is on the screen
@@ -409,7 +411,7 @@ html.k-busy .kh .mark { animation: k-tilt 1.2s ease-in-out infinite; }
       const ms = performance.now() - t0, s = Math.floor(ms / 1000);
       bar.style.setProperty("--done", String(Math.min(1, ms / 1000 / max)));
       if (s < 1) return;
-      const what = T(s < 5 ? "work.sending" : s < 15 ? "work.waking" : "work.still");
+      const what = T(s < 5 ? sending : s < 15 ? "work.waking" : "work.still");
       step.textContent = T("work.secs", { what, n: s });
       bar.setAttribute("aria-valuenow", String(Math.min(s, max))); bar.setAttribute("aria-valuetext", step.textContent);
     }, 100);
@@ -444,7 +446,7 @@ html.k-busy .kh .mark { animation: k-tilt 1.2s ease-in-out infinite; }
     sentColumn = column;
     firstAction();
     const t0 = performance.now(), mine = new AbortController(); ctl = mine;
-    working(t0, table);
+    working(t0, table, mode);
     const body = { id: TOOL, table: sent, column, rule, limit: Number(limit), mode, browser: counted() ? browserId(true) : "", runs: runsId(), test: TEST };
     let r = null, j = null;
     try {
@@ -485,6 +487,7 @@ html.k-busy .kh .mark { animation: k-tilt 1.2s ease-in-out infinite; }
     const own = j.mode === "own" && j.runs_left != null;
     show($("left"), own); if (own) $("left").textContent = leftText(j);
     show($("private"), j.mode === "own");
+    show($("what"), j.mode !== "own");   // which data the verdict is about: the sample, by name
     $("copy").textContent = T("res.copy"); show($("copied-by-hand"), false);
     show($("optin"), store.get("knos.count") == null);
     // the fold's two plain links (H3 c and d): one line of HTML that shows this result on another site, and its printed page
@@ -702,13 +705,17 @@ html.k-busy .kh .mark { animation: k-tilt 1.2s ease-in-out infinite; }
       el("p", { className: "verdict", "data-answer": "", textContent: holds === true ? T(near ? "ask.holds_near" : "ask.holds") : holds === false ? T("ask.fails") : T("ask.not_yet") }),
       el("p", {}, [en(`${c.title}. ${c.authors}, ${c.year}.`), " ", holds != null && last.job ? T("ask.proved") : T("ask.locked")]),
       ...(behind ? [el("p", { textContent: behind + "." })] : []),
+      ...(holds == null ? [el("p", {}, [link("prove/#paper=" + encodeURIComponent(src(c)), T("ask.prove_it"), "prove-it")])] : []),   // not checked yet: the way to have it checked
       notWhat(), fold);
   }
   // no record matches: never an error, the nearest records and a way to have it proved
   function none(text, best) {
-    const near = best ? [best, ...CLAIMS.filter((c) => c !== best)] : CLAIMS;
+    // "checked" counts the claims the record holds a proof for (the board), and those are offered first
+    const proved = (c) => !!(board && board.claims && board.claims[c.name] && board.claims[c.name].last_proof);
+    const near = [...new Set([...(best ? [best] : []), ...CLAIMS.filter(proved), ...CLAIMS])];
+    const n = CLAIMS.filter(proved).length;
     put(el("p", { className: "verdict", "data-answer": "", textContent: T("ask.none") }),
-      el("p", { textContent: T("ask.none_line", { n: CLAIMS.length, q: text.slice(0, 60) }) }),
+      ...(n ? [el("p", { textContent: T("ask.none_line", { n, q: text.slice(0, 60) }) })] : []),
       el("p", {}, near.slice(0, 3).map((c) => el("button", { type: "button", className: "sample", lang: "en", textContent: c.title, onclick: () => ask(c.title, true) }))),
       el("p", {}, [link("prove/" + (/^https?:|^10\.\d|^arxiv:/i.test(text) ? "#paper=" + encodeURIComponent(text) : ""), T("ask.prove_it"), "prove-it")]), notWhat());
   }

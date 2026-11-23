@@ -702,7 +702,7 @@ load();
       // R13 WALK 2: plain words on the screen; the paper's own words and title only in the closed fold
       el("section", { className: "card" }, [el("h2", { textContent: "The claim" }),
         TITLES[r.name] ? el("p", { textContent: TITLES[r.name] + "." }) : null,
-        el("details", { className: "how" }, [el("summary", { textContent: "How it works" }),
+        el("details", { className: "how" }, [el("summary", { textContent: "The paper's words" }),
           el("p", { textContent: "The paper says:" }), el("blockquote", {}, [`“${r.quote}”`]),
           el("p", { className: "fine" }, [out(r.doi, `${r.paper} (${r.authors})`)])])]),
     ];

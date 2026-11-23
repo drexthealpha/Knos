@@ -17,14 +17,24 @@
 //   L28  "MIT licensed" and a link to the repository's fork page; no star count when the build read none
 // No node, no playwright package or no browser: SKIP (tests/web/overflow.mjs chromiumOrSkip).
 import { createServer } from "node:http";
-import { readFileSync, existsSync, statSync } from "node:fs";
-import { join, extname, dirname } from "node:path";
+import { readFileSync, existsSync, statSync, mkdtempSync, cpSync } from "node:fs";
+import { join, extname, dirname, resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { chromiumOrSkip, TYPES } from "./overflow.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const root = process.argv[2];
+let root = process.argv[2];
 if (!root || !existsSync(join(root, "index.html"))) { console.error("usage: node tests/web/one_box.mjs <site dir>"); process.exit(2); }
+// a build with the old app at its root (KNOS_SPA_AT_ROOT, the web jobs' build): the front door is put in place as the
+// published site has it, by scripts/site_pages.py on a copy, as tests/web/law_lib.mjs does
+if (!readFileSync(join(root, "index.html"), "utf8").includes('data-tool="limit-check"')) {
+  const copy = resolve(mkdtempSync(join(tmpdir(), "knos-door-")), "site");
+  cpSync(root, copy, { recursive: true });
+  execFileSync(process.env.PYTHON || "python3", [join(here, "..", "..", "scripts", "site_pages.py"), copy], { stdio: ["ignore", "ignore", "pipe"] });
+  root = copy;
+}
 const EN = JSON.parse(readFileSync(join(here, "../../web/i18n/en.json"), "utf8")).strings;
 const CLAIMS = JSON.parse(readFileSync(join(here, "../../near/claims/claims.json"), "utf8")).claims;
 const SAMPLE = readFileSync(join(here, "../../near/agents/job/data/limit/sample.csv"), "utf8").replace(/\r\n/g, "\n").replace(/\n+$/, "");

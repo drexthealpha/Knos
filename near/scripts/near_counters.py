@@ -23,6 +23,7 @@ AGENT2 = "agent-a2.knos-swarm-1105.testnet"
 MARKET = "market.knos-swarm-1105.testnet"   # since Round 7 the amount behind a claim goes through the claim market, which records it
 JOBS = "jobs.knos-swarm-1105.testnet"   # since 14 Nov the jobs contract sends the agent its 9 parts and Knos its 1 part in 10 itself
 RPC = "https://rpc.testnet.near.org"
+SPARES = ("https://rpc.testnet.fastnear.com", "https://near-testnet.drpc.org")
 CLAIMS = Path(__file__).resolve().parents[1] / "claims" / "claims.json"
 
 
@@ -30,10 +31,16 @@ def view(contract: str, method: str, args: dict):
     """A read-only call on NEAR testnet (standard library only)."""
     body = {"jsonrpc": "2.0", "id": "k", "method": "query", "params": {"request_type": "call_function", "finality": "final",
             "account_id": contract, "method_name": method, "args_base64": base64.b64encode(json.dumps(args).encode()).decode()}}
-    req = urllib.request.Request(RPC, data=json.dumps(body).encode(), headers={"Content-Type": "application/json", "User-Agent": "knos-near-counters"})
-    with urllib.request.urlopen(req, timeout=30) as r:
-        res = json.loads(r.read())["result"]
-    return json.loads(bytes(res["result"]))
+    last: Exception | None = None
+    for url in (RPC, *SPARES):     # the public endpoint refuses some cloud hosts (429): the spares, in turn
+        req = urllib.request.Request(url, data=json.dumps(body).encode(), headers={"Content-Type": "application/json", "User-Agent": "knos-near-counters"})
+        try:
+            with urllib.request.urlopen(req, timeout=15) as r:
+                res = json.loads(r.read())["result"]
+            return json.loads(bytes(res["result"]))
+        except Exception as e:  # noqa: BLE001 - the next endpoint; the last error if none answers
+            last = e
+    raise last or RuntimeError("no NEAR endpoint answered")
 
 
 def backs() -> list[tuple[str, int, int]]:
