@@ -1337,9 +1337,9 @@
    "max_length": 24
   },
   "hist.reset": {
-   "text": "Guest reset",
+   "text": "Clear this browser",
    "description": "The button that clears everything this browser kept for Knos, for a shared phone.",
-   "max_length": 22
+   "max_length": 36
   },
   "hist.reset_done": {
    "text": "Cleared. This browser keeps nothing from Knos now.",
