@@ -1330,7 +1330,8 @@ def serve(host: str | None = None, port: int | None = None) -> None:
     httpd = ThreadingHTTPServer((host, port), make_handler(state))
     # the listed checks run their locked test once per process: at boot, beside the server, so no visitor's
     # /api/tools waits on it (the front door asks for it on every load)
-    from . import tool_run
+    from . import near_live, tool_run
     threading.Thread(target=tool_run.manifest_ids, name="knos-tool-manifest", daemon=True).start()
+    near_live.since_upgrade_cached()   # the jobs contract's count, first read at boot (the door's live numbers)
     print(f"Knos demand check on http://{host}:{port}  pre-orders: preflight running (see /api/status)", flush=True)
     httpd.serve_forever()

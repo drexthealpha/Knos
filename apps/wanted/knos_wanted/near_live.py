@@ -349,7 +349,7 @@ def totals() -> dict:
         except (OSError, ValueError):
             pass
     out = _totals.get("out") or {"pending": True, "record": RECORD, **({"why": _totals["error"]} if _totals.get("error") else {})}
-    chain = since_upgrade()
+    chain = since_upgrade_cached()
     return {**out, "since_upgrade": chain} if chain else out
 
 
@@ -379,6 +379,22 @@ def since_upgrade() -> dict | None:
     except Exception as e:  # noqa: BLE001 - the last good read stays; none before the first
         print("near_live since_upgrade:", str(e)[:160], file=sys.stderr, flush=True)
     _chain["at"] = time.time()
+    return _chain.get("out")
+
+
+_chain_reading = threading.Lock()
+
+
+def since_upgrade_cached() -> dict | None:
+    """The last reading at once; a stale one is read again beside the request (five RPC reads, up to a minute when an
+    endpoint refuses), so no visitor waits on the chain. The server starts the first reading at boot."""
+    if not (_chain.get("at") and time.time() - _chain["at"] < 60) and _chain_reading.acquire(blocking=False):
+        def read() -> None:
+            try:
+                since_upgrade()
+            finally:
+                _chain_reading.release()
+        threading.Thread(target=read, name="knos-since-upgrade", daemon=True).start()
     return _chain.get("out")
 
 
