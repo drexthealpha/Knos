@@ -16,15 +16,15 @@ pull request a person merges; none has been merged since that week.
 ## The leaderboard
 
 <!-- board:begin (written by scripts/agent_pr_index.py board; do not edit by hand) -->
-**Agent PR Index, week of 2026-09-28.** Read 2026-10-07. Every week read up to this one, added up. Basis: every merged pull request that claimed passing tests, so a busy repository counts many times. [BENCH.md](BENCH.md) counts the first such pull request per repository instead; the two shares differ. An agent with fewer than 30 merged pull requests in its row is "too few to rank".
+**Agent PR Index, week of 2026-11-16.** Read 2026-11-23. Every week read up to this one, added up. Basis: every merged pull request that claimed passing tests, so a busy repository counts many times. [BENCH.md](BENCH.md) counts the first such pull request per repository instead; the two shares differ. An agent with fewer than 30 merged pull requests in its row is "too few to rank".
 
 | Place | Agent | Claimed passing tests | Failed check at merge, of every merged one | Rate | 95% interval | Row |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | claude-bot | 195 | 10 of 165 | 6.1% | 3.3% to 10.8% | [dispute](https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+claude-bot%2C+week+of+2026-09-28&agent=claude-bot&week=2026-09-28) |
-| 2 (overlaps) | codex | 52 | 3 of 44 | 6.8% | 2.4% to 18.2% | [dispute](https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+codex%2C+week+of+2026-09-28&agent=codex&week=2026-09-28) |
-| 3 (overlaps) | claude-code | 41 | 3 of 31 | 9.7% | 3.4% to 24.9% | [dispute](https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+claude-code%2C+week+of+2026-09-28&agent=claude-code&week=2026-09-28) |
-| 4 (overlaps) | copilot | 132 | 22 of 80 | 27.5% | 18.9% to 38.1% | [dispute](https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+copilot%2C+week+of+2026-09-28&agent=copilot&week=2026-09-28) |
-| 5 | devin | 148 | 56 of 107 | 52.3% | 43.0% to 61.6% | [dispute](https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+devin%2C+week+of+2026-09-28&agent=devin&week=2026-09-28) |
+| 1 | codex | 54 | 3 of 45 | 6.7% | 2.3% to 17.9% | [dispute](https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+codex%2C+week+of+2026-11-16&agent=codex&week=2026-11-16) |
+| 2 (overlaps) | claude-bot | 227 | 13 of 193 | 6.7% | 4.0% to 11.2% | [dispute](https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+claude-bot%2C+week+of+2026-11-16&agent=claude-bot&week=2026-11-16) |
+| 3 (overlaps) | claude-code | 49 | 3 of 37 | 8.1% | 2.8% to 21.3% | [dispute](https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+claude-code%2C+week+of+2026-11-16&agent=claude-code&week=2026-11-16) |
+| 4 (overlaps) | copilot | 138 | 22 of 83 | 26.5% | 18.2% to 36.9% | [dispute](https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+copilot%2C+week+of+2026-11-16&agent=copilot&week=2026-11-16) |
+| 5 | devin | 161 | 56 of 111 | 50.4% | 41.3% to 59.6% | [dispute](https://github.com/drexthealpha/Knos/issues/new?template=dispute-index-row.yml&title=Dispute+a+row%3A+devin%2C+week+of+2026-11-16&agent=devin&week=2026-11-16) |
 
 An agent vendor never pays for a row and cannot pay to change one.
 
@@ -90,29 +90,29 @@ The numbers are in [`agent_weekly.json`](../agent_weekly.json); the script that 
 [`scripts/agent_pr_index.py`](../../scripts/agent_pr_index.py).
 
 <!-- weekly:begin (written by scripts/agent_pr_index.py weekly; do not edit by hand) -->
-**Agent PR Index, week of 2026-09-28.** Read 2026-10-07. Design: stratified-seeded-v1. Capped: false. Verified acceptance rate: of the pull requests that claimed passing tests and whose checks were read, the share whose checks all passed. An agent with fewer than 30 such pull requests that week is "too few to rank" and has no place.
+**Agent PR Index, week of 2026-11-16.** Read 2026-11-23. Design: stratified-seeded-v1. Capped: true for at least one agent (see Sample). Verified acceptance rate: of the pull requests that claimed passing tests and whose checks were read, the share whose checks all passed. An agent with fewer than 30 such pull requests that week is "too few to rank" and has no place.
 
 | Place | Agent | Verified acceptance rate (95% interval) | Sampled | Claimed passing | Failed a check anyway (95% interval) | Merged despite a failed check (95% interval) | Also paid through Knos on a black-box check | Sample |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | claude-bot | 90 of 103 (87.4%; 79.6% to 92.5%) | 207 | 103 | 6 of 99 (6.1%; 2.8% to 12.6%) | 5 of 83 (6.0%; 2.6% to 13.3%) | 0 | not capped: drew 210 of 210 planned, of 424 the search reported |
-| 2 | devin | 15 of 75 (20.0%; 12.5% to 30.4%) | 121 | 75 | 54 of 73 (74.0%; 62.9% to 82.7%) | 51 of 68 (75.0%; 63.6% to 83.8%) | 0 | not capped: drew 210 of 210 planned, of 5,883 the search reported |
-| too few to rank | copilot | 15 of 23 (65.2%; 44.9% to 81.2%) | 54 | 23 | 4 of 19 (21.1%; 8.5% to 43.3%) | 4 of 17 (23.5%; 9.6% to 47.3%) | 0 | not capped: drew 210 of 210 planned, of 676 the search reported |
-| too few to rank | claude-code | 9 of 14 (64.3%; 38.8% to 83.7%) | 59 | 14 | 3 of 12 (25.0%; 8.9% to 53.2%) | 2 of 10 (20.0%; 5.7% to 51.0%) | 0 | not capped: drew 210 of 210 planned, of 1,608,162 the search reported |
-| too few to rank | codex | 2 of 2 (100.0%; 34.2% to 100.0%) | 98 | 2 | 0 of 2 (0.0%; 0.0% to 65.8%) | 0 of 2 (0.0%; 0.0% to 65.8%) | 0 | not capped: drew 136 of 136 planned, of 246 the search reported |
+| 1 | claude-bot | 29 of 32 (90.6%; 75.8% to 96.8%) | 75 | 32 | 3 of 32 (9.4%; 3.2% to 24.2%) | 3 of 28 (10.7%; 3.7% to 27.2%) | 0 | capped: drew 75 of 210 planned, of 611 the search reported |
+| too few to rank | copilot | 5 of 6 (83.3%; 43.6% to 97.0%) | 11 | 6 | 0 of 6 (0.0%; 0.0% to 39.0%) | 0 of 3 (0.0%; 0.0% to 56.1%) | 0 | capped: drew 52 of 128 planned, of 172 the search reported |
+| too few to rank | devin | 9 of 13 (69.2%; 42.4% to 87.3%) | 30 | 13 | 3 of 13 (23.1%; 8.2% to 50.3%) | 0 of 4 (0.0%; 0.0% to 49.0%) | 0 | capped: drew 75 of 210 planned, of 4,191 the search reported |
+| too few to rank | claude-code | 7 of 8 (87.5%; 52.9% to 97.8%) | 25 | 8 | 1 of 8 (12.5%; 2.2% to 47.1%) | 0 of 6 (0.0%; 0.0% to 39.0%) | 0 | capped: drew 74 of 210 planned, of 1,852,008 the search reported |
+| too few to rank | codex | 1 of 2 (50.0%; 9.4% to 90.5%) | 12 | 2 | 0 of 1 (0.0%; 0.0% to 79.3%) | 0 of 1 (0.0%; 0.0% to 79.3%) | 0 | capped: drew 32 of 48 planned, of 48 the search reported |
 
 Also paid through Knos, checked against: no list of Knos payments was joined to this sample, so the count is 0 for every agent: every Knos payment so far is test USDC, on Solana devnet and NEAR testnet.
 
 It takes a sampled pull request that was also paid through Knos under terms with a black-box check, and that list passed with --paid.
 
-Every week in the file added up (2026-07-03 to 2026-10-04; never ranked: the weeks were not all read the same way). Source: each week says how it was read (`design`, `capped`, `strata`). The newest: week of 2026-09-28, read 2026-10-07, stratified-seeded-v1; read on 2026-10-07 and not whole weeks: the weeks of 2026-09-28 (`full_week` false).
+Every week in the file added up (2026-07-03 to 2026-11-22; never ranked: the weeks were not all read the same way). Source: each week says how it was read (`design`, `capped`, `strata`). The newest: week of 2026-11-16, read 2026-11-23, stratified-seeded-v1; read on 2026-11-23 and not whole weeks: the weeks of 2026-11-16 (`full_week` false).
 
 | Place | Agent | Verified acceptance rate (95% interval) | Sampled | Claimed passing | Failed a check anyway (95% interval) | Merged despite a failed check (95% interval) | Also paid through Knos on a black-box check | Sample |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| not ranked | copilot | not recorded | not kept | 132 | 31 of 111 (27.9%; 20.4% to 36.9%) | 22 of 80 (27.5%; 18.9% to 38.1%) | 0 | weeks added up |
-| not ranked | devin | 61 of 148 (41.2%; 33.6% to 49.3%) | not kept | 148 | 68 of 135 (50.4%; 42.0% to 58.7%) | 56 of 107 (52.3%; 43.0% to 61.6%) | 0 | weeks added up |
-| not ranked | claude-bot | 171 of 195 (87.7%; 82.3% to 91.6%) | not kept | 195 | 14 of 189 (7.4%; 4.5% to 12.0%) | 10 of 165 (6.1%; 3.3% to 10.8%) | 0 | weeks added up |
-| not ranked | claude-code | 29 of 41 (70.7%; 55.5% to 82.4%) | not kept | 41 | 4 of 33 (12.1%; 4.8% to 27.3%) | 3 of 31 (9.7%; 3.4% to 24.9%) | 0 | weeks added up |
-| not ranked | codex | not recorded | not kept | 52 | 9 of 52 (17.3%; 9.4% to 29.7%) | 3 of 44 (6.8%; 2.4% to 18.2%) | 0 | weeks added up |
+| not ranked | copilot | not recorded | not kept | 138 | 31 of 117 (26.5%; 19.3% to 35.1%) | 22 of 83 (26.5%; 18.2% to 36.9%) | 0 | weeks added up |
+| not ranked | devin | 70 of 161 (43.5%; 36.1% to 51.2%) | not kept | 161 | 71 of 148 (48.0%; 40.1% to 56.0%) | 56 of 111 (50.4%; 41.3% to 59.6%) | 0 | weeks added up |
+| not ranked | claude-bot | 200 of 227 (88.1%; 83.2% to 91.7%) | not kept | 227 | 17 of 221 (7.7%; 4.9% to 12.0%) | 13 of 193 (6.7%; 4.0% to 11.2%) | 0 | weeks added up |
+| not ranked | claude-code | 36 of 49 (73.5%; 59.7% to 83.8%) | not kept | 49 | 5 of 41 (12.2%; 5.3% to 25.5%) | 3 of 37 (8.1%; 2.8% to 21.3%) | 0 | weeks added up |
+| not ranked | codex | not recorded | not kept | 54 | 9 of 53 (17.0%; 9.2% to 29.2%) | 3 of 45 (6.7%; 2.3% to 17.9%) | 0 | weeks added up |
 <!-- weekly:end -->
 
 **What is published today.** The table above is the newest week in `agent_weekly.json`: the week of 28 September
