@@ -256,6 +256,41 @@
    "not_what": {},
    "proof_finished": 0,
    "visits": 92
+  },
+  "2026-11-24": {
+   "backed": 0,
+   "by_device": {},
+   "by_language": {},
+   "by_region": {},
+   "came_back": 0,
+   "events": {
+    "leave": 17,
+    "view": 20
+   },
+   "first_press": 0,
+   "first_result": 0,
+   "groups": {
+    "holdout": {
+     "first_result": 0,
+     "visits": 12
+    },
+    "variant": {
+     "first_result": 0,
+     "visits": 8
+    }
+   },
+   "leave_from": {
+    "/": 8,
+    "/agents/": 6,
+    "/claim/hyperloglog/": 6,
+    "/claims/": 6,
+    "/prove/": 6
+   },
+   "minutes_to_result": [],
+   "new_visits": 20,
+   "not_what": {},
+   "proof_finished": 0,
+   "visits": 20
   }
  }
 }
