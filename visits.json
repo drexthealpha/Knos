@@ -369,26 +369,33 @@
    "by_region": {},
    "came_back": 0,
    "events": {
-    "view": 2
+    "leave": 23,
+    "view": 64
    },
    "first_press": 0,
    "first_result": 0,
    "groups": {
     "holdout": {
      "first_result": 0,
-     "visits": 1
+     "visits": 27
     },
     "variant": {
      "first_result": 0,
-     "visits": 1
+     "visits": 31
     }
    },
-   "leave_from": {},
+   "leave_from": {
+    "/": 11,
+    "/agents/": 10,
+    "/claim/hyperloglog/": 6,
+    "/claims/": 10,
+    "/prove/": 10
+   },
    "minutes_to_result": [],
-   "new_visits": 2,
+   "new_visits": 58,
    "not_what": {},
    "proof_finished": 0,
-   "visits": 2
+   "visits": 58
   }
  }
 }
