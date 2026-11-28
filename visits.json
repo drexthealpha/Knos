@@ -369,33 +369,64 @@
    "by_region": {},
    "came_back": 0,
    "events": {
-    "leave": 49,
-    "view": 113
+    "leave": 71,
+    "view": 147
    },
    "first_press": 0,
    "first_result": 0,
    "groups": {
     "holdout": {
      "first_result": 0,
-     "visits": 57
+     "visits": 67
     },
     "variant": {
      "first_result": 0,
-     "visits": 47
+     "visits": 64
     }
    },
    "leave_from": {
-    "/": 24,
-    "/agents/": 20,
-    "/claim/hyperloglog/": 12,
-    "/claims/": 20,
-    "/prove/": 20
+    "/": 34,
+    "/agents/": 30,
+    "/claim/hyperloglog/": 18,
+    "/claims/": 30,
+    "/prove/": 30
    },
    "minutes_to_result": [],
-   "new_visits": 101,
+   "new_visits": 128,
    "not_what": {},
    "proof_finished": 0,
-   "visits": 104
+   "visits": 131
+  },
+  "2026-11-28": {
+   "backed": 0,
+   "by_device": {},
+   "by_language": {},
+   "by_region": {},
+   "came_back": 0,
+   "events": {
+    "leave": 1,
+    "view": 1
+   },
+   "first_press": 0,
+   "first_result": 0,
+   "groups": {
+    "holdout": {
+     "first_result": 0,
+     "visits": 0
+    },
+    "variant": {
+     "first_result": 0,
+     "visits": 1
+    }
+   },
+   "leave_from": {
+    "/": 1
+   },
+   "minutes_to_result": [],
+   "new_visits": 1,
+   "not_what": {},
+   "proof_finished": 0,
+   "visits": 1
   }
  }
 }
